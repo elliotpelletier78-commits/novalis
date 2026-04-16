@@ -74,7 +74,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "3.1.0"
+VERSION = "3.2.0"
+
+# Landing page HTML
+LANDING_HTML = ""
+_landing_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "landing.html")
+if os.path.exists(_landing_path):
+    with open(_landing_path, "r", encoding="utf-8") as _f:
+        LANDING_HTML = _f.read()
 
 # ============================================================
 # APPLICATION FASTAPI
@@ -1505,7 +1512,7 @@ async def platform_stats(username: str = Depends(verify_admin)):
 # ============================================================
 # DASHBOARD ADMIN (HTML)
 # ============================================================
-@app.get("/", response_class=HTMLResponse)
+@app.get("/admin", response_class=HTMLResponse)
 async def dashboard(username: str = Depends(verify_admin)):
     """Admin dashboard — plateforme Novalis V3."""
     return f"""<!DOCTYPE html>
@@ -1739,6 +1746,14 @@ loadPlatformStats();tick();setInterval(loadPlatformStats,10000);setInterval(tick
 </script>
 </body>
 </html>"""
+
+# ============================================================
+# LANDING PAGE PUBLIQUE
+# ============================================================
+@app.get("/", response_class=HTMLResponse)
+async def landing_page():
+    """Landing page publique — Novalis Agence IA."""
+    return LANDING_HTML
 
 # ============================================================
 # SANTÉ DU SERVEUR
