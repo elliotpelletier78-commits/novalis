@@ -132,6 +132,58 @@
 
         /* WhatsApp badge */
         .whatsapp-badge { background: rgba(37,211,102,0.1); color: #25d366; border: 1px solid rgba(37,211,102,0.3); padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; display: inline-block; margin-top: 8px; }
+
+        /* Démo chat */
+        .demo-wrapper { display: flex; justify-content: center; gap: 48px; align-items: flex-start; flex-wrap: wrap; }
+        .demo-phone {
+            background: #1a2332; border: 1px solid #1e3a5f; border-radius: 24px;
+            width: 360px; overflow: hidden; box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+        }
+        .demo-header { background: #0f1f2e; padding: 16px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #1e3a5f; }
+        .demo-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg,var(--accent),var(--green)); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #0a0e17; flex-shrink: 0; }
+        .demo-msgs { padding: 16px; min-height: 280px; max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .demo-bubble { max-width: 80%; border-radius: 16px; padding: 10px 14px; font-size: 0.88rem; line-height: 1.5; }
+        .demo-bubble.agent { background: #0f1f2e; color: var(--text); align-self: flex-start; border-bottom-left-radius: 4px; }
+        .demo-bubble.user { background: var(--accent); color: #0a0e17; font-weight: 600; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .demo-typing { display: flex; gap: 4px; align-items: center; padding: 8px 12px; }
+        .demo-typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: bounce 1.2s infinite; }
+        .demo-typing span:nth-child(2) { animation-delay: 0.2s; }
+        .demo-typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%,60%,100%{transform:translateY(0);} 30%{transform:translateY(-6px);} }
+        .demo-suggestions { padding: 12px 16px 0; display: flex; gap: 8px; flex-wrap: wrap; }
+        .demo-suggestions button { background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); color: var(--accent); padding: 6px 12px; border-radius: 20px; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; }
+        .demo-suggestions button:hover { background: rgba(56,189,248,0.2); }
+        .demo-input-row { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #1e3a5f; margin-top: 8px; }
+        .demo-input-row input { flex: 1; background: #0f1f2e; border: 1px solid #1e3a5f; border-radius: 20px; padding: 10px 16px; color: var(--text); font-size: 0.9rem; outline: none; }
+        .demo-input-row input:focus { border-color: var(--accent); }
+        .demo-input-row button { background: var(--accent); color: #0a0e17; border: none; border-radius: 50%; width: 38px; height: 38px; font-size: 1.1rem; cursor: pointer; flex-shrink: 0; }
+        .demo-features { max-width: 340px; display: flex; flex-direction: column; gap: 16px; }
+        .demo-feat { display: flex; gap: 16px; align-items: flex-start; }
+        .demo-feat-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+        .demo-feat h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+        .demo-feat p { color: var(--muted); font-size: 0.85rem; line-height: 1.5; }
+
+        /* Comparaison */
+        .compare-table { width: 100%; border-collapse: collapse; }
+        .compare-table th { padding: 16px; text-align: center; font-weight: 700; }
+        .compare-table td { padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem; }
+        .compare-table tr:hover td { background: rgba(56,189,248,0.03); }
+        .compare-table .feature-name { color: var(--muted); }
+        .compare-table .check { color: var(--green); font-size: 1.1rem; text-align: center; }
+        .compare-table .cross { color: #ef4444; font-size: 1.1rem; text-align: center; }
+        .compare-table .partial { color: #fbbf24; font-size: 0.85rem; text-align: center; }
+        .col-novalis { background: rgba(56,189,248,0.06); }
+        .novalis-header { color: var(--accent); }
+
+        /* Chat widget flottant */
+        .chat-widget { position: fixed; bottom: 24px; right: 24px; z-index: 1000; }
+        .chat-widget-btn { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg,var(--accent),var(--green)); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; box-shadow: 0 8px 24px rgba(56,189,248,0.4); transition: transform 0.2s; }
+        .chat-widget-btn:hover { transform: scale(1.1); }
+        .chat-widget-popup { display: none; position: absolute; bottom: 70px; right: 0; width: 300px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; box-shadow: 0 16px 48px rgba(0,0,0,0.4); }
+        .chat-widget-popup.open { display: block; }
+        .chat-widget-popup h4 { color: var(--accent); margin-bottom: 8px; }
+        .chat-widget-popup p { color: var(--muted); font-size: 0.85rem; margin-bottom: 16px; }
+        .chat-widget-popup a { display: block; text-align: center; background: var(--accent); color: #0a0e17; padding: 10px; border-radius: 8px; font-weight: 700; text-decoration: none; }
         .section-title h2 { font-size: 2.4rem; font-weight: 800; margin-bottom: 16px; }
         .section-title p { color: var(--muted); font-size: 1.1rem; max-width: 650px; margin: 0 auto; }
 
@@ -500,6 +552,87 @@
     </div>
 </section>
 
+<!-- DÉMO CHAT INTERACTIVE -->
+<section id="demo">
+    <div class="section-title">
+        <h2>Voyez l'IA en action</h2>
+        <p>Simulez ce que vivent vos clients quand ils contactent votre business</p>
+    </div>
+    <div class="demo-wrapper">
+        <div class="demo-phone">
+            <div class="demo-header">
+                <div class="demo-avatar">RB</div>
+                <div>
+                    <div style="font-weight:700;font-size:0.95rem;">Restaurant Le Boisé</div>
+                    <div style="font-size:0.75rem;color:var(--green);">● Agent Novalis actif 24/7</div>
+                </div>
+            </div>
+            <div class="demo-msgs" id="demoMsgs">
+                <div class="demo-bubble agent">Bonjour ! Bienvenue au Restaurant Le Boisé. Comment puis-je vous aider aujourd'hui ? 😊</div>
+            </div>
+            <div class="demo-suggestions" id="demoSuggest">
+                <button onclick="sendDemo('Je voudrais réserver une table')">📅 Réserver</button>
+                <button onclick="sendDemo('Quels sont vos horaires ?')">🕐 Horaires</button>
+                <button onclick="sendDemo('Avez-vous un menu végétarien ?')">🥗 Menu</button>
+                <button onclick="sendDemo('C'est urgent, j'ai un problème')">🚨 Urgent</button>
+            </div>
+            <div class="demo-input-row">
+                <input type="text" id="demoInput" placeholder="Écrivez votre message..." onkeydown="if(event.key==='Enter')sendDemo()">
+                <button onclick="sendDemo()">→</button>
+            </div>
+        </div>
+        <div class="demo-features">
+            <div class="demo-feat">
+                <div class="demo-feat-icon icon-blue">🧠</div>
+                <div><h4>IA contextuelle</h4><p>L'agent connaît vos prix, horaires, politiques et répond comme un vrai membre de l'équipe.</p></div>
+            </div>
+            <div class="demo-feat">
+                <div class="demo-feat-icon icon-green">⚡</div>
+                <div><h4>Réponse en &lt; 2 secondes</h4><p>Jamais de temps d'attente. Vos clients obtiennent une réponse immédiate, peu importe l'heure.</p></div>
+            </div>
+            <div class="demo-feat">
+                <div class="demo-feat-icon icon-purple">📱</div>
+                <div><h4>SMS · WhatsApp · Messenger · Voix</h4><p>Un seul agent, tous les canaux. Vos clients choisissent leur mode de communication préféré.</p></div>
+            </div>
+            <div class="demo-feat">
+                <div class="demo-feat-icon icon-orange">🔔</div>
+                <div><h4>Alertes intelligentes</h4><p>Les cas urgents, plaintes et demandes de rappel vous sont transmis immédiatement par SMS.</p></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- COMPARAISON -->
+<section id="compare">
+    <div class="section-title">
+        <h2>Pourquoi Novalis ?</h2>
+        <p>Comparez avec les alternatives disponibles sur le marché</p>
+    </div>
+    <div style="overflow-x:auto;">
+    <table class="compare-table">
+        <thead>
+            <tr>
+                <th style="text-align:left;color:var(--muted);">Fonctionnalité</th>
+                <th class="novalis-header col-novalis">NOVALIS ✦</th>
+                <th style="color:var(--muted);">Chatbot générique</th>
+                <th style="color:var(--muted);">Embaucher un(e) réceptionniste</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td class="feature-name">Disponibilité</td><td class="check col-novalis">24/7/365</td><td class="partial">Heures limitées</td><td class="cross">40h/semaine</td></tr>
+            <tr><td class="feature-name">SMS · WhatsApp · Voix · Messenger</td><td class="check col-novalis">✓ Tous les canaux</td><td class="partial">1-2 canaux</td><td class="partial">Téléphone seulement</td></tr>
+            <tr><td class="feature-name">IA personnalisée à votre business</td><td class="check col-novalis">✓ Base de connaissances</td><td class="cross">✗ Générique</td><td class="check">✓</td></tr>
+            <tr><td class="feature-name">Prise de rendez-vous automatique</td><td class="check col-novalis">✓</td><td class="partial">Limité</td><td class="check">✓</td></tr>
+            <tr><td class="feature-name">Campagnes SMS/WhatsApp</td><td class="check col-novalis">✓</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+            <tr><td class="feature-name">Rapport ROI automatique</td><td class="check col-novalis">✓ Hebdomadaire</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+            <tr><td class="feature-name">Intégrations CRM (webhooks)</td><td class="check col-novalis">✓</td><td class="partial">Certains</td><td class="cross">✗</td></tr>
+            <tr><td class="feature-name">Rappels RDV automatiques</td><td class="check col-novalis">✓</td><td class="cross">✗</td><td class="partial">Manuel</td></tr>
+            <tr><td class="feature-name">Coût mensuel</td><td class="check col-novalis" style="color:var(--accent);">À partir de 497$</td><td class="partial">200-800$</td><td class="cross">3 000-5 000$+</td></tr>
+        </tbody>
+    </table>
+    </div>
+</section>
+
 <!-- TÉMOIGNAGES -->
 <section id="testimonials">
     <div class="section-title">
@@ -725,6 +858,18 @@
     </div>
 </footer>
 
+
+<!-- CHAT WIDGET FLOTTANT -->
+<div class="chat-widget">
+    <div class="chat-widget-popup" id="chatPopup">
+        <h4>Parlez-nous !</h4>
+        <p>Notre équipe vous répond dans les 24h. Ou essayez la démo pour voir l'IA en action.</p>
+        <a href="#demo" onclick="document.getElementById('chatPopup').classList.remove('open')">Voir la démo →</a>
+        <a href="#contact" onclick="document.getElementById('chatPopup').classList.remove('open')" style="background:transparent;border:1px solid var(--border);color:var(--text);margin-top:8px;">Consultation gratuite</a>
+    </div>
+    <button class="chat-widget-btn" onclick="document.getElementById('chatPopup').classList.toggle('open')" aria-label="Chat">💬</button>
+</div>
+
 <script>
 // Mobile menu
 function toggleMobileMenu() {
@@ -742,17 +887,14 @@ function toggleFaq(el) {
 // Compteurs animés (scroll-triggered)
 function animateCounter(el) {
     const target = parseInt(el.dataset.target);
-    const suffix = el.dataset.target.includes('+') ? '+' : (target === 24 ? 'h' : (target === 85 ? '%' : '+'));
+    const suffix = target === 24 ? 'h' : (target === 85 ? '%' : '+');
     const duration = 1800;
     const steps = 50;
     const increment = target / steps;
     let current = 0;
     const timer = setInterval(() => {
         current += increment;
-        if (current >= target) {
-            current = target;
-            clearInterval(timer);
-        }
+        if (current >= target) { current = target; clearInterval(timer); }
         el.textContent = Math.floor(current).toLocaleString('fr-CA') + suffix;
     }, duration / steps);
 }
@@ -768,6 +910,56 @@ const counterObserver = new IntersectionObserver((entries) => {
 
 document.querySelectorAll('.stat-num[data-target]').forEach(el => counterObserver.observe(el));
 
+// Démo chat
+const demoResponses = [
+    [['réserv', 'table', 'booking', 'rdv'], 'Avec plaisir ! Pour combien de personnes souhaitez-vous réserver, et quelle date vous conviendrait ? 📅'],
+    [['horaire', 'heure', 'ouvert', 'fermé'], 'Nous sommes ouverts du mardi au dimanche : 11h30-14h30 et 17h30-22h. Fermés le lundi. Besoin d\'une réservation ? 😊'],
+    [['végétar', 'végétalien', 'vegan', 'sans viande'], 'Absolument ! Nous offrons plusieurs options végétariennes : risotto aux champignons (28$), raviolis aux épinards (24$) et un plat du jour végé. Souhaitez-vous réserver ? 🥗'],
+    [['prix', 'tarif', 'combien', 'coût', 'menu'], 'Nos entrées débutent à 12$, les plats principaux de 22$ à 42$. Table d\'hôte soir : 55$ (entrée, plat, dessert). Réservation souhaitée ? 🍽️'],
+    [['urgent', 'problème', 'plainte', 'mécontent'], 'Je suis vraiment désolé d\'entendre ça ! 🙏 Notre responsable va vous rappeler dans les 15 prochaines minutes. Puis-je avoir votre numéro de téléphone ?'],
+    [['parking', 'stationnement', 'voiture'], 'Oui ! Stationnement gratuit pour nos clients derrière le restaurant, accessible par la rue des Érables. 🅿️'],
+    [['allergie', 'gluten', 'noix', 'arachide'], 'Absolument, la sécurité de nos clients est prioritaire ! Signalez-nous vos allergies à la réservation et notre chef adaptera votre repas. Quelles allergies avez-vous ?'],
+];
+const defaultResponse = 'Merci pour votre message ! Je vais transmettre ça à notre équipe. Souhaitez-vous qu\'on vous rappelle, ou préférez-vous prendre une réservation directement ? 😊';
+
+let demoTyping = false;
+async function sendDemo(text) {
+    if (demoTyping) return;
+    const input = document.getElementById('demoInput');
+    const msg = (text || input.value).trim();
+    if (!msg) return;
+    input.value = '';
+    document.getElementById('demoSuggest').style.display = 'none';
+
+    const msgs = document.getElementById('demoMsgs');
+    const userBubble = document.createElement('div');
+    userBubble.className = 'demo-bubble user';
+    userBubble.textContent = msg;
+    msgs.appendChild(userBubble);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    demoTyping = true;
+    const typingEl = document.createElement('div');
+    typingEl.className = 'demo-bubble agent';
+    typingEl.innerHTML = '<div class="demo-typing"><span></span><span></span><span></span></div>';
+    msgs.appendChild(typingEl);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    await new Promise(r => setTimeout(r, 900 + Math.random() * 600));
+
+    const msgLower = msg.toLowerCase();
+    let response = defaultResponse;
+    for (const [keywords, resp] of demoResponses) {
+        if (keywords.some(k => msgLower.includes(k))) { response = resp; break; }
+    }
+
+    typingEl.className = 'demo-bubble agent';
+    typingEl.textContent = response;
+    msgs.scrollTop = msgs.scrollHeight;
+    demoTyping = false;
+}
+
+// Formulaire contact
 async function submitInquiry() {
     const name = document.getElementById('inqName').value.trim();
     const email = document.getElementById('inqEmail').value.trim();
@@ -813,6 +1005,5 @@ async function submitInquiry() {
     }
 }
 </script>
-
 </body>
 </html>
