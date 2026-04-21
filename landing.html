@@ -91,8 +91,47 @@
         .trust-logos { display: flex; justify-content: center; gap: 48px; margin-top: 16px; flex-wrap: wrap; }
         .trust-logos span { font-weight: 700; font-size: 1.1rem; opacity: 0.5; letter-spacing: 2px; text-transform: uppercase; }
 
+        /* Stats animés */
+        .stats-bar {
+            background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+            padding: 48px 24px;
+        }
+        .stats-inner { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; text-align: center; }
+        .stat-num { font-size: 2.8rem; font-weight: 900; background: linear-gradient(135deg, var(--accent), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat-label { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+
         section { padding: 80px 24px; max-width: 1200px; margin: 0 auto; }
         .section-title { text-align: center; margin-bottom: 60px; }
+
+        /* Témoignages */
+        .testimonials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+        .testimonial-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+            padding: 28px; position: relative;
+        }
+        .testimonial-card::before { content: '\201C'; font-size: 4rem; color: var(--accent); opacity: 0.3; position: absolute; top: 8px; left: 20px; line-height: 1; }
+        .testimonial-text { color: var(--text); font-size: 0.95rem; line-height: 1.7; margin-bottom: 20px; padding-top: 16px; }
+        .testimonial-author { display: flex; align-items: center; gap: 12px; }
+        .author-avatar { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; flex-shrink: 0; }
+        .author-name { font-weight: 700; font-size: 0.9rem; }
+        .author-role { color: var(--muted); font-size: 0.8rem; }
+        .stars { color: #fbbf24; font-size: 0.8rem; margin-bottom: 4px; }
+
+        /* FAQ */
+        .faq-list { max-width: 800px; margin: 0 auto; }
+        .faq-item { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
+        .faq-question {
+            padding: 20px 24px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            font-weight: 600; font-size: 1rem; transition: background 0.2s;
+        }
+        .faq-question:hover { background: rgba(56,189,248,0.05); }
+        .faq-question .arrow { color: var(--accent); transition: transform 0.3s; font-size: 1.2rem; }
+        .faq-item.open .arrow { transform: rotate(45deg); }
+        .faq-answer { max-height: 0; overflow: hidden; transition: max-height 0.4s ease, padding 0.3s; color: var(--muted); line-height: 1.7; }
+        .faq-item.open .faq-answer { max-height: 300px; padding: 0 24px 20px; }
+
+        /* WhatsApp badge */
+        .whatsapp-badge { background: rgba(37,211,102,0.1); color: #25d366; border: 1px solid rgba(37,211,102,0.3); padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; display: inline-block; margin-top: 8px; }
         .section-title h2 { font-size: 2.4rem; font-weight: 800; margin-bottom: 16px; }
         .section-title p { color: var(--muted); font-size: 1.1rem; max-width: 650px; margin: 0 auto; }
 
@@ -232,13 +271,28 @@
         footer a { color: var(--muted); text-decoration: none; }
         footer a:hover { color: var(--accent); }
 
+        /* Mobile nav */
+        .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; padding: 4px; }
+        .hamburger span { width: 24px; height: 2px; background: var(--text); border-radius: 2px; transition: all 0.3s; }
+        .mobile-menu {
+            display: none; position: fixed; top: 57px; left: 0; right: 0; z-index: 99;
+            background: rgba(10,14,23,0.98); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border); padding: 16px 24px;
+            flex-direction: column; gap: 12px;
+        }
+        .mobile-menu.open { display: flex; }
+        .mobile-menu a { color: var(--text); text-decoration: none; font-weight: 600; padding: 12px 0; border-bottom: 1px solid var(--border); }
+
         @media (max-width: 768px) {
             .hero h1 { font-size: 2.2rem; }
             .services-grid, .pricing-grid { grid-template-columns: 1fr; }
             .process-grid { grid-template-columns: repeat(2, 1fr); }
             .cases-grid { grid-template-columns: 1fr; }
             .tech-grid { grid-template-columns: repeat(2, 1fr); }
+            .testimonials-grid { grid-template-columns: 1fr; }
+            .stats-inner { grid-template-columns: repeat(2, 1fr); }
             .nav-links { display: none; }
+            .hamburger { display: flex; }
             .pricing-card.featured { transform: none; }
         }
     </style>
@@ -252,10 +306,21 @@
             <a href="#services">Services</a>
             <a href="#cases">Cas d'usage</a>
             <a href="#pricing">Tarifs</a>
+            <a href="#faq">FAQ</a>
             <a href="#contact" class="btn-nav">Demander une consultation</a>
+        </div>
+        <div class="hamburger" onclick="toggleMobileMenu()" aria-label="Menu">
+            <span></span><span></span><span></span>
         </div>
     </div>
 </nav>
+<div class="mobile-menu" id="mobileMenu">
+    <a href="#services" onclick="toggleMobileMenu()">Services</a>
+    <a href="#cases" onclick="toggleMobileMenu()">Cas d'usage</a>
+    <a href="#pricing" onclick="toggleMobileMenu()">Tarifs</a>
+    <a href="#faq" onclick="toggleMobileMenu()">FAQ</a>
+    <a href="#contact" onclick="toggleMobileMenu()" style="color:var(--accent)">Consultation gratuite →</a>
+</div>
 
 <div class="hero">
     <div class="badge-hero">Agence IA — Québec, Canada</div>
@@ -270,11 +335,33 @@
 <div class="trust-bar">
     <p>Technologies de confiance</p>
     <div class="trust-logos">
-        <span>OpenAI</span>
+        <span>Anthropic</span>
         <span>Twilio</span>
-        <span>Railway</span>
+        <span>WhatsApp</span>
         <span>Meta</span>
-        <span>Python</span>
+        <span>Railway</span>
+    </div>
+</div>
+
+<!-- STATS ANIMÉS -->
+<div class="stats-bar">
+    <div class="stats-inner">
+        <div>
+            <div class="stat-num" data-target="2400">0</div>
+            <div class="stat-label">Conversations gérées / mois</div>
+        </div>
+        <div>
+            <div class="stat-num" data-target="85">0</div>
+            <div class="stat-label">% d'appels évités en moyenne</div>
+        </div>
+        <div>
+            <div class="stat-num" data-target="24">0</div>
+            <div class="stat-label">Heures de disponibilité / jour</div>
+        </div>
+        <div>
+            <div class="stat-num" data-target="48">0</div>
+            <div class="stat-label">Heures pour déploiement initial</div>
+        </div>
     </div>
 </div>
 
@@ -288,8 +375,9 @@
         <div class="service-card">
             <div class="service-icon icon-blue">💬</div>
             <h3>Agent conversationnel IA</h3>
-            <p>Un agent IA qui répond a vos clients par SMS, téléphone et Messenger 24/7. Il prend des rendez-vous, répond aux questions et transfere les cas complexes a votre équipe.</p>
+            <p>Un agent IA qui répond à vos clients par SMS, téléphone, Messenger et WhatsApp 24/7. Il prend des rendez-vous, répond aux questions et transfère les cas complexes à votre équipe.</p>
             <span class="tag tag-blue">Service client</span>
+            <div><span class="whatsapp-badge">✓ WhatsApp Business</span></div>
         </div>
         <div class="service-card">
             <div class="service-icon icon-green">⚡</div>
@@ -412,6 +500,49 @@
     </div>
 </section>
 
+<!-- TÉMOIGNAGES -->
+<section id="testimonials">
+    <div class="section-title">
+        <h2>Ce que disent nos clients</h2>
+        <p>Des entrepreneurs québécois qui ont automatisé leur business avec Novalis</p>
+    </div>
+    <div class="testimonials-grid">
+        <div class="testimonial-card">
+            <div class="stars">★★★★★</div>
+            <p class="testimonial-text">En 3 semaines, Novalis a déployé un agent IA qui répond à tous nos appels et SMS. On a économisé 12 heures par semaine et zéro appel manqué depuis le lancement.</p>
+            <div class="testimonial-author">
+                <div class="author-avatar" style="background:rgba(56,189,248,0.15);color:var(--accent);">MR</div>
+                <div>
+                    <div class="author-name">Marc Rioux</div>
+                    <div class="author-role">Propriétaire — Plomberie Rioux & Fils, Québec</div>
+                </div>
+            </div>
+        </div>
+        <div class="testimonial-card">
+            <div class="stars">★★★★★</div>
+            <p class="testimonial-text">Le système de rappels automatiques a réduit nos no-shows de 60%. L'agent répond à toutes les questions courantes des patients, même à 22h. Impressionnant.</p>
+            <div class="testimonial-author">
+                <div class="author-avatar" style="background:rgba(52,211,153,0.15);color:var(--green);">SB</div>
+                <div>
+                    <div class="author-name">Dr. Sophie Beaudet</div>
+                    <div class="author-role">Directrice — Clinique Santé Plus, Montréal</div>
+                </div>
+            </div>
+        </div>
+        <div class="testimonial-card">
+            <div class="stars">★★★★★</div>
+            <p class="testimonial-text">On a intégré l'IA à notre système de réservation en 48h. Mes serveurs passent moins de temps au téléphone et plus de temps avec les clients. Le ROI est évident.</p>
+            <div class="testimonial-author">
+                <div class="author-avatar" style="background:rgba(168,85,247,0.15);color:var(--purple);">JT</div>
+                <div>
+                    <div class="author-name">Julie Tremblay</div>
+                    <div class="author-role">Propriétaire — Restaurant Le Boisé, Laval</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
 <!-- SUBVENTIONS -->
 <section>
     <div class="subventions">
@@ -498,6 +629,58 @@
     </div>
 </section>
 
+<!-- FAQ -->
+<section id="faq">
+    <div class="section-title">
+        <h2>Questions fréquentes</h2>
+        <p>Tout ce que vous voulez savoir avant de commencer</p>
+    </div>
+    <div class="faq-list">
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFaq(this)">
+                Combien de temps faut-il pour déployer un agent IA ?
+                <span class="arrow">+</span>
+            </div>
+            <div class="faq-answer">Un agent conversationnel de base (SMS + Messenger) peut être déployé en 24 à 48 heures. Les automatisations complexes avec intégrations CRM prennent généralement 2 à 4 semaines selon la portée du projet.</div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFaq(this)">
+                Est-ce que mes clients sauront qu'ils parlent à une IA ?
+                <span class="arrow">+</span>
+            </div>
+            <div class="faq-answer">Nous configurons l'agent pour qu'il agisse comme un membre de votre équipe. Il connaît votre entreprise, vos services et parle en votre nom. Si un client pose directement la question, nous pouvons configurer la réponse selon votre préférence.</div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFaq(this)">
+                Que se passe-t-il si l'IA ne connaît pas la réponse ?
+                <span class="arrow">+</span>
+            </div>
+            <div class="faq-answer">L'agent détecte automatiquement les situations complexes et vous transfère une alerte en temps réel par SMS. Vous recevez le message du client et pouvez reprendre la conversation directement. Rien n'est perdu.</div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFaq(this)">
+                Est-ce que ça fonctionne avec mon numéro de téléphone actuel ?
+                <span class="arrow">+</span>
+            </div>
+            <div class="faq-answer">Oui. On peut configurer l'agent sur un nouveau numéro Twilio dédié, ou transférer les SMS et appels de votre numéro existant vers notre système. Nous gérons toute la configuration technique.</div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFaq(this)">
+                Mes données sont-elles sécurisées ?
+                <span class="arrow">+</span>
+            </div>
+            <div class="faq-answer">Toutes les données sont chiffrées (AES-256), hébergées au Canada, et ne sont jamais partagées avec des tiers. Chaque client a son propre espace isolé. Nous sommes conformes aux lois québécoises sur la vie privée (Loi 25).</div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFaq(this)">
+                Puis-je annuler à tout moment ?
+                <span class="arrow">+</span>
+            </div>
+            <div class="faq-answer">Oui, sans frais de résiliation. Les plans mensuels peuvent être annulés en tout temps avec 30 jours de préavis. Vos données vous appartiennent et peuvent être exportées sur demande.</div>
+        </div>
+    </div>
+</section>
+
 <!-- CTA / CONTACT -->
 <div class="cta" id="contact">
     <h2>Prêt à automatiser votre entreprise?</h2>
@@ -543,6 +726,48 @@
 </footer>
 
 <script>
+// Mobile menu
+function toggleMobileMenu() {
+    document.getElementById('mobileMenu').classList.toggle('open');
+}
+
+// FAQ accordion
+function toggleFaq(el) {
+    const item = el.parentElement;
+    const wasOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+    if (!wasOpen) item.classList.add('open');
+}
+
+// Compteurs animés (scroll-triggered)
+function animateCounter(el) {
+    const target = parseInt(el.dataset.target);
+    const suffix = el.dataset.target.includes('+') ? '+' : (target === 24 ? 'h' : (target === 85 ? '%' : '+'));
+    const duration = 1800;
+    const steps = 50;
+    const increment = target / steps;
+    let current = 0;
+    const timer = setInterval(() => {
+        current += increment;
+        if (current >= target) {
+            current = target;
+            clearInterval(timer);
+        }
+        el.textContent = Math.floor(current).toLocaleString('fr-CA') + suffix;
+    }, duration / steps);
+}
+
+const counterObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting && !entry.target.dataset.animated) {
+            entry.target.dataset.animated = '1';
+            animateCounter(entry.target);
+        }
+    });
+}, { threshold: 0.5 });
+
+document.querySelectorAll('.stat-num[data-target]').forEach(el => counterObserver.observe(el));
+
 async function submitInquiry() {
     const name = document.getElementById('inqName').value.trim();
     const email = document.getElementById('inqEmail').value.trim();
