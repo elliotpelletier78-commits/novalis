@@ -37,13 +37,21 @@ from fastapi import FastAPI, Request, Response, HTTPException, Depends, Query, H
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import aiosqlite
 import anthropic
 from twilio.rest import Client as TwilioClient
 from twilio.twiml.messaging_response import MessagingResponse
 from twilio.twiml.voice_response import VoiceResponse, Gather
+from twilio.request_validator import RequestValidator
 import requests as http_requests
 import asyncio
+import re
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # ============================================================
 # CONFIGURATION
@@ -69,22 +77,37 @@ FB_VERIFY_TOKEN = os.getenv("FB_VERIFY_TOKEN", "novalis_verify_token")
 # Base de données
 DB_PATH = os.getenv("DATABASE_PATH", "novalis.db")
 
+# Email (SMTP optionnel)
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASS = os.getenv("SMTP_PASS", "")
+SMTP_FROM = os.getenv("SMTP_FROM", "noreply@novalis.ai")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "novalisproia@gmail.com")
+
 # Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "3.3.0"
+VERSION = "3.4.0"
 
-# Landing page HTML
-try:
-    from landing_content import LANDING_HTML
-except ImportError:
-    LANDING_HTML = "<h1>Novalis — Agence IA</h1><p>Site en construction</p>"
+# Landing page HTML — lu depuis le fichier source pour éviter la duplication
+def _load_landing_html() -> str:
+    html_path = os.path.join(os.path.dirname(__file__), "landing.html")
+    try:
+        with open(html_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "<h1>Novalis — Agence IA</h1><p>Site en construction</p>"
+
+LANDING_HTML = _load_landing_html()
 
 # ============================================================
 # APPLICATION FASTAPI
 # ============================================================
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(
     title="Novalis — Agence IA",
     description="Agence d'intelligence artificielle — automatisation sur mesure pour entreprises",
@@ -92,6 +115,8 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -127,6 +152,7 @@ async def init_db():
                 owner_phone TEXT DEFAULT '',
                 twilio_phone TEXT DEFAULT '',
                 fb_page_token TEXT DEFAULT '',
+                fb_page_id TEXT DEFAULT '',
                 api_key TEXT UNIQUE NOT NULL,
                 plan TEXT DEFAULT 'starter',
                 status TEXT DEFAULT 'active',
@@ -321,14 +347,69 @@ async def init_db():
         await db.execute("CREATE INDEX IF NOT EXISTS idx_pmsg_project ON project_messages(project_id)")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_catalog_active ON service_catalog(is_active)")
 
+        # Migration : ajout des colonnes si absentes (installations existantes)
+        try:
+            await db.execute("ALTER TABLE clients ADD COLUMN fb_page_id TEXT DEFAULT ''")
+            await db.commit()
+            logger.info("Migration: colonne fb_page_id ajoutée")
+        except Exception:
+            pass  # Colonne déjà présente
+
         await db.commit()
         logger.info("Base de données V3.1 (agence IA) initialisée")
 
 
+async def appointment_reminder_task():
+    """Tâche background : envoie des rappels SMS 24h avant chaque rendez-vous."""
+    while True:
+        try:
+            await asyncio.sleep(3600)  # Toutes les heures
+            if not twilio_client:
+                continue
+
+            tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+            async with aiosqlite.connect(DB_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute("""
+                    SELECT a.*, c.business_name, c.twilio_phone
+                    FROM appointments a
+                    JOIN clients c ON a.client_id = c.id
+                    WHERE a.date = ? AND a.status = 'confirmed' AND a.customer_phone != ''
+                    AND c.status = 'active'
+                """, (tomorrow,))
+                appointments = await cursor.fetchall()
+
+            for appt in appointments:
+                appt = dict(appt)
+                try:
+                    msg = (f"📅 Rappel — Votre rendez-vous chez {appt['business_name']} "
+                           f"est demain le {appt['date']} à {appt['time']}."
+                           f"{' Service: ' + appt['service'] if appt['service'] else ''} "
+                           f"Pour annuler, répondez ANNULER.")
+                    twilio_client.messages.create(
+                        body=msg,
+                        from_=appt["twilio_phone"],
+                        to=appt["customer_phone"]
+                    )
+                    logger.info(f"Rappel RDV envoyé à {appt['customer_phone']}")
+                except Exception as e:
+                    logger.error(f"Erreur rappel RDV {appt['id']}: {e}")
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Erreur tâche rappels: {e}")
+
 @app.on_event("startup")
 async def startup():
+    if ADMIN_PASS == "novalis2024":
+        logger.warning("⚠️  SÉCURITÉ: Mot de passe admin par défaut détecté. Définissez ADMIN_PASS dans votre .env !")
+    if not ANTHROPIC_API_KEY:
+        logger.warning("⚠️  ANTHROPIC_API_KEY non définie — les réponses IA seront désactivées.")
+    if not TWILIO_ACCOUNT_SID:
+        logger.warning("⚠️  Twilio non configuré — SMS/Voix désactivés.")
     await init_db()
     await seed_service_catalog()
+    asyncio.create_task(appointment_reminder_task())
     logger.info(f"Novalis V{VERSION} démarré — Agence IA")
 
 # ============================================================
@@ -399,17 +480,45 @@ def sanitize_input(text: str) -> str:
     return text[:1000].strip()
 
 def is_within_hours(hours_str: str) -> bool:
-    """Vérifie si on est pendant les heures d'ouverture du client."""
+    """Vérifie si on est dans les heures d'ouverture selon la chaîne fournie.
+    Format attendu : 'Lundi-Vendredi 9h-17h', '7j/7 8h-22h', 'Lun-Sam 10h-18h', etc.
+    """
+    # Heure locale du serveur (idéalement America/Montreal)
     now = datetime.now()
-    # Simple check lun-ven 9h-17h par défaut — peut être amélioré
-    return 0 <= now.weekday() < 5 and 9 <= now.hour < 17
+
+    h = (hours_str or "").lower().strip()
+
+    # Extraire la plage horaire : "9h-17h", "9h30-17h", "9-17"
+    time_match = re.search(r'(\d{1,2})h?\s*[-à]\s*(\d{1,2})h?', h)
+    open_h = int(time_match.group(1)) if time_match else 9
+    close_h = int(time_match.group(2)) if time_match else 17
+
+    # Ouvert tous les jours ?
+    if any(x in h for x in ["7j", "7/7", "tous les jours", "24h"]):
+        return open_h <= now.hour < close_h
+
+    # Samedi inclus ?
+    includes_saturday = any(x in h for x in ["samedi", "sam."])
+    # Dimanche inclus ?
+    includes_sunday = any(x in h for x in ["dimanche", "dim."])
+
+    max_weekday = 4  # lundi-vendredi par défaut
+    if includes_sunday:
+        max_weekday = 6
+    elif includes_saturday:
+        max_weekday = 5
+
+    return now.weekday() <= max_weekday and open_h <= now.hour < close_h
 
 # ============================================================
 # AUTHENTIFICATION
 # ============================================================
 async def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
-    if credentials.username != ADMIN_USER or credentials.password != ADMIN_PASS:
-        raise HTTPException(status_code=401, detail="Authentification échouée")
+    user_ok = secrets.compare_digest(credentials.username.encode(), ADMIN_USER.encode())
+    pass_ok = secrets.compare_digest(credentials.password.encode(), ADMIN_PASS.encode())
+    if not (user_ok and pass_ok):
+        raise HTTPException(status_code=401, detail="Authentification échouée",
+                            headers={"WWW-Authenticate": "Basic"})
     return credentials.username
 
 async def verify_api_key(x_api_key: str = Header(None)):
@@ -423,6 +532,31 @@ async def verify_api_key(x_api_key: str = Header(None)):
         if not client:
             raise HTTPException(status_code=401, detail="Clé API invalide ou compte désactivé")
         return dict(client)
+
+def validate_twilio_signature(request_url: str, params: dict, signature: str) -> bool:
+    """Valide la signature Twilio pour sécuriser les webhooks."""
+    if not TWILIO_AUTH_TOKEN:
+        return True  # Skip si pas configuré
+    validator = RequestValidator(TWILIO_AUTH_TOKEN)
+    return validator.validate(request_url, params, signature)
+
+async def send_email(to: str, subject: str, body: str):
+    """Envoie un email via SMTP si configuré."""
+    if not SMTP_HOST or not SMTP_USER:
+        return
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = SMTP_FROM
+        msg["To"] = to
+        msg.attach(MIMEText(body, "html", "utf-8"))
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_FROM, [to], msg.as_string())
+        logger.info(f"Email envoyé à {to}")
+    except Exception as e:
+        logger.error(f"Erreur email: {e}")
 
 async def get_client_by_phone(twilio_phone: str) -> Optional[Dict]:
     """Retrouve le client associé à un numéro Twilio."""
@@ -598,16 +732,23 @@ async def generate_response(client: Dict, conv_id: str, message: str, max_retrie
     messages.append({"role": "user", "content": message})
 
     start_time = datetime.now()
+    system_payload = [{"type": "text", "text": get_system_prompt(client),
+                       "cache_control": {"type": "ephemeral"}}]
     for attempt in range(max_retries):
         try:
             response = claude_client.messages.create(
                 model="claude-haiku-4-5-20251001",
                 max_tokens=300,
-                system=get_system_prompt(client),
-                messages=messages
+                system=system_payload,
+                messages=messages,
+                extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
             )
             elapsed = (datetime.now() - start_time).total_seconds() * 1000
-            tokens = response.usage.input_tokens + response.usage.output_tokens
+            usage = response.usage
+            tokens = usage.input_tokens + usage.output_tokens
+            cache_hit = getattr(usage, "cache_read_input_tokens", 0) or 0
+            if cache_hit:
+                logger.debug(f"Cache hit: {cache_hit} tokens économisés pour client {client['id']}")
             return (response.content[0].text, int(elapsed), tokens)
         except Exception as e:
             logger.warning(f"Claude API tentative #{attempt + 1}: {e}")
@@ -639,6 +780,11 @@ async def notify_owner(client: Dict, customer_phone: str, message: str, intent: 
 async def handle_incoming_sms(request: Request):
     """Webhook Twilio — route le SMS au bon client."""
     form = await request.form()
+    signature = request.headers.get("X-Twilio-Signature", "")
+    url = str(request.url)
+    if TWILIO_AUTH_TOKEN and not validate_twilio_signature(url, dict(form), signature):
+        raise HTTPException(status_code=403, detail="Signature Twilio invalide")
+
     from_number = form.get("From", "").strip()
     to_number = form.get("To", "").strip()
     body = form.get("Body", "").strip()
@@ -684,11 +830,59 @@ async def handle_incoming_sms(request: Request):
     return Response(content=str(twiml), media_type="text/xml")
 
 # ============================================================
+# WEBHOOKS TWILIO - WHATSAPP (MULTI-TENANT)
+# ============================================================
+@app.post("/whatsapp/incoming")
+async def handle_incoming_whatsapp(request: Request):
+    """Webhook Twilio WhatsApp — même logique que SMS."""
+    form = await request.form()
+    signature = request.headers.get("X-Twilio-Signature", "")
+    if TWILIO_AUTH_TOKEN and not validate_twilio_signature(str(request.url), dict(form), signature):
+        raise HTTPException(status_code=403, detail="Signature Twilio invalide")
+
+    from_number = form.get("From", "").replace("whatsapp:", "").strip()
+    to_number = form.get("To", "").replace("whatsapp:", "").strip()
+    body = sanitize_input(form.get("Body", "").strip())
+
+    if not body:
+        return Response(content="", media_type="text/xml")
+
+    client = await get_client_by_phone(to_number)
+    if not client:
+        twiml = MessagingResponse()
+        twiml.message("Merci pour votre message. Ce service n'est pas encore configuré.")
+        return Response(content=str(twiml), media_type="text/xml")
+
+    if client["messages_used_month"] >= client["max_messages_month"]:
+        twiml = MessagingResponse()
+        twiml.message("Merci pour votre message ! Veuillez contacter directement le commerce.")
+        return Response(content=str(twiml), media_type="text/xml")
+
+    conv_id = await get_or_create_conversation(client["id"], from_number, "whatsapp")
+    intent = detect_intent(body)
+    await update_daily_stats(client["id"], intent)
+    await add_message(conv_id, client["id"], "client", body, intent)
+
+    ai_response, response_ms, tokens = await generate_response(client, conv_id, body)
+    await add_message(conv_id, client["id"], "agent", ai_response, response_time_ms=response_ms, tokens_used=tokens)
+    await notify_owner(client, from_number, body, intent)
+
+    if intent == "rdv":
+        await create_appointment_from_intent(client["id"], from_number, body)
+
+    twiml = MessagingResponse()
+    twiml.message(ai_response)
+    return Response(content=str(twiml), media_type="text/xml")
+
+# ============================================================
 # WEBHOOKS TWILIO - VOIX (MULTI-TENANT)
 # ============================================================
 @app.post("/voice/incoming")
 async def handle_incoming_call(request: Request):
     form = await request.form()
+    signature = request.headers.get("X-Twilio-Signature", "")
+    if TWILIO_AUTH_TOKEN and not validate_twilio_signature(str(request.url), dict(form), signature):
+        raise HTTPException(status_code=403, detail="Signature Twilio invalide")
     to_number = form.get("To", "").strip()
     client = await get_client_by_phone(to_number)
 
@@ -753,20 +947,23 @@ async def verify_messenger(request: Request):
 async def handle_messenger(request: Request):
     data = await request.json()
     for entry in data.get("entry", []):
+        page_id = entry.get("id", "")
         for event in entry.get("messaging", []):
             sender_id = event.get("sender", {}).get("id", "")
             message = event.get("message", {}).get("text", "")
             if not message:
                 continue
             message = sanitize_input(message)
-            # Pour Messenger multi-tenant, on utilise le recipient ID pour identifier le client
-            recipient_id = event.get("recipient", {}).get("id", "")
-            # Trouver le client (chercher par fb_page_token association — simplifié ici)
+            # Routage multi-tenant : trouver le client par son fb_page_id
             async with aiosqlite.connect(DB_PATH) as db:
                 db.row_factory = aiosqlite.Row
-                cursor = await db.execute("SELECT * FROM clients WHERE fb_page_token != '' AND status = 'active' LIMIT 1")
+                cursor = await db.execute(
+                    "SELECT * FROM clients WHERE fb_page_id = ? AND status = 'active'",
+                    (page_id,)
+                )
                 client_row = await cursor.fetchone()
             if not client_row:
+                logger.warning(f"Messenger: aucun client pour la page {page_id}")
                 continue
             client = dict(client_row)
 
@@ -826,16 +1023,16 @@ async def create_client(request: Request, username: str = Depends(verify_admin))
         await db.execute("""
             INSERT INTO clients (id, business_name, business_type, services, hours, address, info,
                                owner_name, owner_email, owner_phone, twilio_phone, fb_page_token,
-                               api_key, plan, status, custom_prompt, language, max_messages_month,
+                               fb_page_id, api_key, plan, status, custom_prompt, language, max_messages_month,
                                created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 'fr-CA', ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 'fr-CA', ?, ?, ?)
         """, (
             client_id, data["business_name"], data.get("business_type", "Commerce"),
             data.get("services", ""), data.get("hours", "Lundi-Vendredi 9h-17h"),
             data.get("address", ""), data.get("info", ""),
             data["owner_name"], data["owner_email"],
             data.get("owner_phone", ""), data.get("twilio_phone", ""),
-            data.get("fb_page_token", ""), api_key,
+            data.get("fb_page_token", ""), data.get("fb_page_id", ""), api_key,
             data.get("plan", "starter"), data.get("custom_prompt", ""),
             data.get("max_messages_month", 500), now, now
         ))
@@ -877,7 +1074,7 @@ async def update_client(client_id: str, request: Request, username: str = Depend
     data = await request.json()
     allowed_fields = ["business_name", "business_type", "services", "hours", "address", "info",
                       "owner_name", "owner_email", "owner_phone", "twilio_phone", "fb_page_token",
-                      "plan", "status", "custom_prompt", "max_messages_month"]
+                      "fb_page_id", "plan", "status", "custom_prompt", "max_messages_month"]
 
     updates = []
     values = []
@@ -984,6 +1181,26 @@ async def get_my_conversation_detail(conv_id: str, client: dict = Depends(verify
         )
         rows = await cursor.fetchall()
         return [{"role": r[0], "content": r[1], "intent": r[2], "timestamp": r[3]} for r in rows]
+
+@app.post("/api/v1/me/appointments")
+async def create_my_appointment(request: Request, client: dict = Depends(verify_api_key)):
+    """Crée un rendez-vous pour le client authentifié."""
+    data = await request.json()
+    if not data.get("date") or not data.get("time"):
+        raise HTTPException(status_code=400, detail="Champs requis: date, time")
+    appt_id = generate_id("appt")
+    now = datetime.now().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO appointments (id, client_id, customer_phone, customer_name, service,
+               date, time, duration_min, status, notes, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, ?)""",
+            (appt_id, client["id"], data.get("customer_phone", ""), data.get("customer_name", ""),
+             data.get("service", ""), data["date"], data["time"],
+             data.get("duration_min", 60), data.get("notes", ""), now, now)
+        )
+        await db.commit()
+    return {"id": appt_id, "status": "confirmed"}
 
 @app.get("/api/v1/me/appointments")
 async def get_my_appointments(status: str = Query(None), client: dict = Depends(verify_api_key)):
@@ -1096,7 +1313,7 @@ async def get_roi_report(client: dict = Depends(verify_api_key)):
         hours_saved = round(total * avg_call_duration_min / 60, 1)
         money_saved = round(total * avg_call_cost, 2)
 
-        plan_cost = {"starter": 39, "pro": 99, "enterprise": 249}.get(client.get("plan", "starter"), 39)
+        plan_cost = {"starter": 497, "agence": 1497, "pro": 997, "enterprise": 2500}.get(client.get("plan", "starter"), 497)
         roi_ratio = round(money_saved / plan_cost, 1) if plan_cost > 0 else 0
 
     return {
@@ -1419,23 +1636,29 @@ async def client_send_project_message(proj_id: str, request: Request, client: di
 # DEMANDE DE SOUMISSION PUBLIQUE
 # ============================================================
 @app.post("/api/v1/inquiry")
+@limiter.limit("5/minute")
 async def submit_inquiry(request: Request):
     """Formulaire de soumission publique — pas besoin d'auth."""
     data = await request.json()
-    required = ["name", "email", "service_type", "description"]
-    for f in required:
-        if not data.get(f):
-            raise HTTPException(status_code=400, detail=f"Champ requis: {f}")
 
-    # Créer le client s'il n'existe pas
+    # Accepte les deux conventions de nommage (formulaire HTML vs API directe)
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip()
+    description = data.get("description") or data.get("message", "")
+    service_type = data.get("service_type") or data.get("service_interest", "custom")
+
+    if not name or not email or not description:
+        raise HTTPException(status_code=400, detail="Champs requis: name, email, et description (ou message)")
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(status_code=400, detail="Adresse courriel invalide")
+
     now = datetime.now().isoformat()
     client_id = generate_id("client")
     api_key = generate_api_key()
     proj_id = generate_id("proj")
 
     async with aiosqlite.connect(DB_PATH) as db:
-        # Check si email existe déjà
-        cursor = await db.execute("SELECT id, api_key FROM clients WHERE owner_email = ?", (data["email"],))
+        cursor = await db.execute("SELECT id, api_key FROM clients WHERE owner_email = ?", (email,))
         existing = await cursor.fetchone()
         if existing:
             client_id = existing[0]
@@ -1444,28 +1667,56 @@ async def submit_inquiry(request: Request):
             await db.execute(
                 """INSERT INTO clients (id, business_name, owner_name, owner_email, owner_phone,
                    api_key, plan, status, created_at, updated_at, business_type, services, hours, address, info,
-                   twilio_phone, fb_page_token, custom_prompt, language, max_messages_month, messages_used_month)
-                   VALUES (?, ?, ?, ?, ?, ?, 'inquiry', 'active', ?, ?, '', '', '', '', '', '', '', '', 'fr-CA', 0, 0)""",
-                (client_id, data.get("company", data["name"]), data["name"], data["email"],
-                 data.get("phone",""), api_key, now, now)
+                   twilio_phone, fb_page_token, fb_page_id, custom_prompt, language, max_messages_month, messages_used_month)
+                   VALUES (?, ?, ?, ?, ?, ?, 'inquiry', 'active', ?, ?, '', '', '', '', '', '', '', '', '', 'fr-CA', 0, 0)""",
+                (client_id, data.get("business_name", name), name, email,
+                 data.get("phone", ""), api_key, now, now)
             )
 
-        # Créer le projet
         await db.execute(
             """INSERT INTO projects (id, client_id, title, description, service_type, status, priority,
                budget, quote_amount, deliverables, notes, progress, created_at, updated_at,
                start_date, deadline, completed_date, paid_amount)
-               VALUES (?, ?, ?, ?, ?, 'inquiry', 'normal', ?, 0, '', ?, 0, ?, ?, '', '', '', 0)""",
-            (proj_id, client_id, f"Demande: {data.get('service_type','custom')}",
-             data["description"], data.get("service_type","custom"),
-             data.get("budget",""), data.get("notes",""), now, now)
+               VALUES (?, ?, ?, ?, ?, 'inquiry', 'normal', ?, 0, '', '', 0, ?, ?, '', '', '', 0)""",
+            (proj_id, client_id, f"Demande: {service_type}", description, service_type,
+             data.get("budget", ""), now, now)
         )
         await db.commit()
+
+    logger.info(f"Nouvelle demande de {name} ({email}) — service: {service_type}")
+
+    # Email de confirmation au prospect
+    asyncio.create_task(send_email(
+        to=email,
+        subject="Votre demande Novalis — On vous revient sous 24h",
+        body=f"""<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a1a2e;">
+        <div style="background:linear-gradient(135deg,#38bdf8,#34d399);padding:24px;border-radius:12px 12px 0 0;text-align:center;">
+            <h1 style="color:#fff;margin:0;font-size:1.8rem;">NOVALIS</h1>
+            <p style="color:rgba(255,255,255,0.9);margin:8px 0 0;">Agence IA — Québec</p>
+        </div>
+        <div style="background:#f8fafc;padding:32px;border-radius:0 0 12px 12px;">
+            <h2 style="color:#0f172a;">Bonjour {name},</h2>
+            <p style="color:#475569;">Nous avons bien reçu votre demande pour <strong>{service_type}</strong>.</p>
+            <p style="color:#475569;">Notre équipe va analyser votre projet et vous contacter dans les prochaines 24 heures avec une proposition concrète et un estimé du ROI.</p>
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin:20px 0;">
+                <p style="margin:0;color:#64748b;font-size:0.9rem;"><strong>Référence:</strong> {proj_id}</p>
+            </div>
+            <p style="color:#475569;">En attendant, n'hésitez pas à nous écrire à <a href="mailto:{ADMIN_EMAIL}" style="color:#38bdf8;">{ADMIN_EMAIL}</a></p>
+            <p style="color:#94a3b8;font-size:0.85rem;margin-top:24px;">— L'équipe Novalis</p>
+        </div></div>"""
+    ))
+
+    # Email de notification à l'admin
+    asyncio.create_task(send_email(
+        to=ADMIN_EMAIL,
+        subject=f"🔔 Nouvelle demande : {name} — {service_type}",
+        body=f"<p><b>Nom:</b> {name}<br><b>Email:</b> {email}<br><b>Service:</b> {service_type}<br><b>Description:</b> {description}</p>"
+    ))
 
     return {
         "status": "received",
         "project_id": proj_id,
-        "message": "Merci! Nous avons recu votre demande et vous contacterons sous 24h.",
+        "message": "Merci ! Nous avons reçu votre demande et vous contacterons sous 24h.",
         "api_key": api_key
     }
 
@@ -1492,10 +1743,10 @@ async def platform_stats(username: str = Depends(verify_admin)):
         cursor = await db.execute("SELECT SUM(interactions) FROM stats_daily WHERE date = ?", (today,))
         today_interactions = (await cursor.fetchone())[0] or 0
 
-        # MRR calculation
+        # MRR calculation (cohérent avec landing page)
         cursor = await db.execute("SELECT plan, COUNT(*) FROM clients WHERE status = 'active' GROUP BY plan")
         plans = await cursor.fetchall()
-        prices = {"starter": 39, "pro": 99, "enterprise": 249}
+        prices = {"starter": 497, "agence": 1497, "pro": 997, "enterprise": 0}
         mrr = sum(prices.get(p[0], 0) * p[1] for p in plans)
 
     return {
@@ -1745,6 +1996,377 @@ loadPlatformStats();tick();setInterval(loadPlatformStats,10000);setInterval(tick
 </script>
 </body>
 </html>"""
+
+# ============================================================
+# PORTAIL CLIENT
+# ============================================================
+@app.get("/portal", response_class=HTMLResponse)
+async def client_portal(key: str = Query(None)):
+    """Portail client authentifié par clé API (query param)."""
+    if not key:
+        return HTMLResponse("""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+        <title>Portail Novalis</title>
+        <style>body{font-family:sans-serif;background:#0a0e17;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}
+        .box{background:#1a2332;border:1px solid #1e3a5f;border-radius:16px;padding:40px;max-width:400px;width:90%;text-align:center;}
+        h2{color:#38bdf8;margin-bottom:16px;}input{width:100%;padding:12px;border-radius:8px;border:1px solid #1e3a5f;background:#0a0e17;color:#e2e8f0;font-size:1rem;margin-bottom:16px;box-sizing:border-box;}
+        button{background:#38bdf8;color:#0a0e17;border:none;padding:12px 24px;border-radius:8px;font-weight:700;cursor:pointer;width:100%;font-size:1rem;}
+        p{color:#94a3b8;font-size:0.9rem;}</style></head><body>
+        <div class="box"><h2>Portail Client Novalis</h2>
+        <p>Entrez votre clé API pour accéder à votre tableau de bord.</p>
+        <input id="k" placeholder="nvls_..." type="password" onkeydown="if(event.key==='Enter')go()"/>
+        <button onclick="go()">Accéder au portail</button></div>
+        <script>function go(){const k=document.getElementById('k').value.trim();if(k)window.location.href='/portal?key='+encodeURIComponent(k);}</script>
+        </body></html>""", status_code=200)
+
+    # Vérifier la clé
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT * FROM clients WHERE api_key = ? AND status = 'active'", (key,))
+        client = await cursor.fetchone()
+    if not client:
+        return HTMLResponse("<p style='color:red;font-family:sans-serif;padding:40px;'>Clé API invalide.</p>", status_code=401)
+
+    c = dict(client)
+    portal_html = f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portail — {c['business_name']} | Novalis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <style>
+        *{{margin:0;padding:0;box-sizing:border-box;}}
+        body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0e17;color:#e2e8f0;}}
+        .layout{{display:flex;min-height:100vh;}}
+        .sidebar{{width:220px;background:#0f1419;border-right:1px solid #1e3a5f;padding:24px 0;position:fixed;height:100vh;overflow-y:auto;}}
+        .sidebar-logo{{padding:0 20px 24px;border-bottom:1px solid #1e3a5f;margin-bottom:16px;}}
+        .logo-name{{font-size:1.1rem;font-weight:800;background:linear-gradient(135deg,#38bdf8,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}}
+        .logo-biz{{color:#64748b;font-size:0.8rem;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
+        .nav-link{{display:flex;align-items:center;gap:10px;padding:10px 20px;color:#94a3b8;text-decoration:none;font-size:0.9rem;font-weight:500;transition:all 0.2s;cursor:pointer;border:none;background:none;width:100%;text-align:left;}}
+        .nav-link:hover,.nav-link.active{{background:rgba(56,189,248,0.1);color:#38bdf8;}}
+        .main{{margin-left:220px;padding:24px;flex:1;}}
+        .page{{display:none;}}.page.active{{display:block;}}
+        .page-title{{font-size:1.5rem;font-weight:700;margin-bottom:24px;color:#f1f5f9;}}
+        .stats-row{{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px;}}
+        .stat-card{{background:#1a2332;border:1px solid #1e3a5f;border-radius:12px;padding:20px;}}
+        .stat-lbl{{color:#64748b;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;}}
+        .stat-val{{font-size:1.8rem;font-weight:700;color:#38bdf8;margin-top:4px;}}
+        .stat-sub{{color:#64748b;font-size:0.75rem;margin-top:2px;}}
+        .card{{background:#1a2332;border:1px solid #1e3a5f;border-radius:12px;padding:20px;margin-bottom:16px;}}
+        .card h3{{color:#38bdf8;font-size:1rem;margin-bottom:16px;}}
+        table{{width:100%;border-collapse:collapse;}}
+        th{{color:#64748b;font-size:0.75rem;text-transform:uppercase;padding:8px 12px;text-align:left;border-bottom:1px solid #1e3a5f;}}
+        td{{padding:12px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.9rem;color:#cbd5e1;}}
+        tr:hover td{{background:rgba(56,189,248,0.04);}}
+        .badge{{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.7rem;font-weight:600;}}
+        .badge-green{{background:rgba(52,211,153,0.15);color:#34d399;}}
+        .badge-yellow{{background:rgba(251,191,36,0.15);color:#fbbf24;}}
+        .badge-blue{{background:rgba(56,189,248,0.15);color:#38bdf8;}}
+        .badge-gray{{background:rgba(148,163,184,0.15);color:#94a3b8;}}
+        .roi-box{{background:linear-gradient(135deg,rgba(56,189,248,0.1),rgba(52,211,153,0.1));border:1px solid rgba(56,189,248,0.2);border-radius:12px;padding:24px;}}
+        .roi-num{{font-size:2.5rem;font-weight:900;background:linear-gradient(135deg,#38bdf8,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}}
+        .progress-bar{{background:#1e3a5f;border-radius:4px;height:8px;margin-top:8px;}}
+        .progress-fill{{height:8px;border-radius:4px;background:linear-gradient(90deg,#38bdf8,#34d399);transition:width 0.5s;}}
+        .usage-pct{{color:#94a3b8;font-size:0.8rem;margin-top:4px;}}
+        .insight{{background:#0f1f2e;border-left:3px solid #38bdf8;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:8px;font-size:0.9rem;color:#cbd5e1;}}
+        .btn{{background:#38bdf8;color:#0a0e17;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.85rem;}}
+        .btn:hover{{background:#34d399;}}
+        .api-key-box{{background:#0f1f2e;border:1px solid #1e3a5f;border-radius:8px;padding:12px 16px;font-family:monospace;font-size:0.85rem;color:#fbbf24;word-break:break-all;}}
+        .copy-btn{{background:transparent;border:1px solid #1e3a5f;color:#94a3b8;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:0.75rem;margin-top:8px;}}
+        .copy-btn:hover{{border-color:#38bdf8;color:#38bdf8;}}
+        .chart-container{{position:relative;height:220px;}}
+        .empty-state{{text-align:center;padding:40px;color:#64748b;}}
+        .project-progress{{margin-top:8px;}}
+        @media(max-width:768px){{.sidebar{{width:100%;height:auto;position:static;}}.main{{margin-left:0;padding:16px;}}.stats-row{{grid-template-columns:repeat(2,1fr);}}}}
+    </style>
+</head>
+<body>
+<div class="layout">
+    <div class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-name">NOVALIS</div>
+            <div class="logo-biz">{c['business_name']}</div>
+        </div>
+        <button class="nav-link active" onclick="showPage('dashboard')">📊 Tableau de bord</button>
+        <button class="nav-link" onclick="showPage('conversations')">💬 Conversations</button>
+        <button class="nav-link" onclick="showPage('appointments')">📅 Rendez-vous</button>
+        <button class="nav-link" onclick="showPage('projects')">🗂 Projets</button>
+        <button class="nav-link" onclick="showPage('roi')">💰 Rapport ROI</button>
+        <button class="nav-link" onclick="showPage('settings')">⚙️ Mon compte</button>
+    </div>
+    <div class="main">
+
+        <!-- DASHBOARD -->
+        <div class="page active" id="page-dashboard">
+            <div class="page-title">Tableau de bord</div>
+            <div class="stats-row" id="statsRow"><div style="color:#64748b;">Chargement...</div></div>
+            <div class="card">
+                <h3>Activité — 30 derniers jours</h3>
+                <div class="chart-container"><canvas id="activityChart"></canvas></div>
+            </div>
+            <div class="card">
+                <h3>Utilisation du plan</h3>
+                <div id="usageSection"></div>
+            </div>
+        </div>
+
+        <!-- CONVERSATIONS -->
+        <div class="page" id="page-conversations">
+            <div class="page-title">Conversations récentes</div>
+            <div class="card">
+                <table>
+                    <thead><tr><th>Client</th><th>Canal</th><th>Dernière activité</th><th>Messages</th><th>Action</th></tr></thead>
+                    <tbody id="convsTable"><tr><td colspan="5" style="text-align:center;color:#64748b;">Chargement...</td></tr></tbody>
+                </table>
+            </div>
+            <div class="card" id="convDetail" style="display:none;">
+                <h3 id="convDetailTitle">Conversation</h3>
+                <div id="convMessages" style="max-height:400px;overflow-y:auto;"></div>
+            </div>
+        </div>
+
+        <!-- RENDEZ-VOUS -->
+        <div class="page" id="page-appointments">
+            <div class="page-title">Rendez-vous</div>
+            <div class="card">
+                <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+                    <button class="btn" onclick="filterAppts('')">Tous</button>
+                    <button class="btn" style="background:#1e3a5f;color:#38bdf8;" onclick="filterAppts('pending')">En attente</button>
+                    <button class="btn" style="background:#1e3a5f;color:#34d399;" onclick="filterAppts('confirmed')">Confirmés</button>
+                </div>
+                <table>
+                    <thead><tr><th>Date / Heure</th><th>Client</th><th>Service</th><th>Statut</th><th>Action</th></tr></thead>
+                    <tbody id="apptsTable"><tr><td colspan="5" style="text-align:center;color:#64748b;">Chargement...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PROJETS -->
+        <div class="page" id="page-projects">
+            <div class="page-title">Mes projets</div>
+            <div id="projectsList"></div>
+        </div>
+
+        <!-- ROI -->
+        <div class="page" id="page-roi">
+            <div class="page-title">Rapport ROI — 30 jours</div>
+            <div id="roiContent"><div style="color:#64748b;">Chargement...</div></div>
+        </div>
+
+        <!-- SETTINGS -->
+        <div class="page" id="page-settings">
+            <div class="page-title">Mon compte</div>
+            <div class="card">
+                <h3>Informations</h3>
+                <table>
+                    <tr><td style="color:#64748b;width:160px;">Commerce</td><td>{c['business_name']}</td></tr>
+                    <tr><td style="color:#64748b;">Type</td><td>{c.get('business_type','—')}</td></tr>
+                    <tr><td style="color:#64748b;">Propriétaire</td><td>{c['owner_name']}</td></tr>
+                    <tr><td style="color:#64748b;">Courriel</td><td>{c['owner_email']}</td></tr>
+                    <tr><td style="color:#64748b;">Plan</td><td><span class="badge badge-blue">{c['plan'].upper()}</span></td></tr>
+                    <tr><td style="color:#64748b;">Statut</td><td><span class="badge badge-green">Actif</span></td></tr>
+                </table>
+            </div>
+            <div class="card">
+                <h3>Clé API</h3>
+                <p style="color:#64748b;font-size:0.85rem;margin-bottom:12px;">Utilisez cette clé pour intégrer Novalis à vos outils. Gardez-la secrète.</p>
+                <div class="api-key-box" id="apiKeyDisplay">{'•' * len(key)}</div>
+                <button class="copy-btn" onclick="revealKey()">Afficher / Copier</button>
+            </div>
+            <div class="card">
+                <h3>Support</h3>
+                <p style="color:#94a3b8;font-size:0.9rem;">Pour toute question ou modification, contactez-nous :</p>
+                <p style="margin-top:12px;"><a href="mailto:{ADMIN_EMAIL}" style="color:#38bdf8;">{ADMIN_EMAIL}</a></p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+const API_KEY = '{key}';
+const headers = {{'X-API-Key': API_KEY}};
+let activityChart = null;
+
+function showPage(name) {{
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.nav-link').forEach(n=>n.classList.remove('active'));
+    document.getElementById('page-'+name).classList.add('active');
+    event.currentTarget.classList.add('active');
+    if(name==='dashboard') loadDashboard();
+    if(name==='conversations') loadConversations();
+    if(name==='appointments') loadAppointments('');
+    if(name==='projects') loadProjects();
+    if(name==='roi') loadRoi();
+}}
+
+async function loadDashboard() {{
+    const [me, stats] = await Promise.all([
+        fetch('/api/v1/me',{{headers}}).then(r=>r.json()),
+        fetch('/api/v1/me/stats?days=30',{{headers}}).then(r=>r.json())
+    ]);
+
+    const s = stats.summary;
+    document.getElementById('statsRow').innerHTML = `
+        <div class="stat-card"><div class="stat-lbl">Interactions</div><div class="stat-val">${{s.total_interactions}}</div><div class="stat-sub">30 derniers jours</div></div>
+        <div class="stat-card"><div class="stat-lbl">RDV gérés</div><div class="stat-val">${{s.rdv_requests}}</div><div class="stat-sub">automatiquement</div></div>
+        <div class="stat-card"><div class="stat-lbl">Heures sauvées</div><div class="stat-val">${{s.estimated_hours_saved}}</div><div class="stat-sub">estimé</div></div>
+        <div class="stat-card"><div class="stat-lbl">Valeur créée</div><div class="stat-val">${{s.estimated_value_saved}}</div><div class="stat-sub">estimé</div></div>
+    `;
+
+    // Usage bar
+    const pct = Math.min(100, Math.round(me.messages_used / Math.max(me.messages_limit, 1) * 100));
+    document.getElementById('usageSection').innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-weight:600;">${{me.messages_used}} / ${{me.messages_limit === 0 ? '∞' : me.messages_limit}} messages</span>
+            <span class="badge badge-blue">${{me.plan.toUpperCase()}}</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${{pct}}%"></div></div>
+        <div class="usage-pct">${{pct}}% utilisé ce mois</div>
+    `;
+
+    // Graphique activité
+    const daily = stats.daily;
+    const labels = daily.map(d => d.date.slice(5));
+    const data = daily.map(d => d.interactions);
+    const ctx = document.getElementById('activityChart').getContext('2d');
+    if(activityChart) activityChart.destroy();
+    activityChart = new Chart(ctx, {{
+        type: 'bar',
+        data: {{
+            labels,
+            datasets: [{{
+                label: 'Interactions',
+                data,
+                backgroundColor: 'rgba(56,189,248,0.4)',
+                borderColor: '#38bdf8',
+                borderWidth: 1,
+                borderRadius: 4
+            }}]
+        }},
+        options: {{
+            responsive: true, maintainAspectRatio: false,
+            plugins: {{legend: {{display:false}}}},
+            scales: {{
+                x: {{ticks:{{color:'#64748b',font:{{size:10}}}},grid:{{color:'rgba(255,255,255,0.04)'}}}},
+                y: {{ticks:{{color:'#64748b'}},grid:{{color:'rgba(255,255,255,0.04)'}},beginAtZero:true}}
+            }}
+        }}
+    }});
+}}
+
+async function loadConversations() {{
+    const rows = await fetch('/api/v1/me/conversations',{{headers}}).then(r=>r.json());
+    const channelIcon = {{sms:'📱',voice:'📞',messenger:'💬',whatsapp:'🟢',}};
+    document.getElementById('convsTable').innerHTML = rows.length ? rows.map(r=>`
+        <tr>
+            <td>${{r.phone}}</td>
+            <td>${{channelIcon[r.channel]||'📩'}} ${{r.channel}}</td>
+            <td>${{r.last_activity?.slice(0,16).replace('T',' ')||'—'}}</td>
+            <td>${{r.message_count}}</td>
+            <td><button class="btn" style="padding:4px 10px;font-size:0.75rem;" onclick="loadConvDetail('${{r.id}}','${{r.phone}}')">Voir</button></td>
+        </tr>`).join('') : '<tr><td colspan="5" class="empty-state">Aucune conversation</td></tr>';
+}}
+
+async function loadConvDetail(id, phone) {{
+    const msgs = await fetch(`/api/v1/me/conversations/${{id}}`,{{headers}}).then(r=>r.json());
+    const intentBadge = {{rdv:'badge-blue',complaint:'badge-yellow',urgent:'badge-yellow',thanks:'badge-green',general:'badge-gray'}};
+    document.getElementById('convDetailTitle').textContent = `Conversation avec ${{phone}}`;
+    document.getElementById('convMessages').innerHTML = msgs.map(m=>`
+        <div style="margin-bottom:12px;display:flex;${{m.role==='agent'?'justify-content:flex-end;':''}}">
+            <div style="max-width:75%;background:${{m.role==='agent'?'rgba(56,189,248,0.15)':'#1e3a5f'}};border-radius:12px;padding:10px 14px;">
+                <div style="font-size:0.85rem;color:#cbd5e1;">${{m.content}}</div>
+                <div style="font-size:0.7rem;color:#64748b;margin-top:4px;">${{m.timestamp?.slice(0,16).replace('T',' ')}} · ${{m.role}}</div>
+            </div>
+        </div>`).join('');
+    document.getElementById('convDetail').style.display='block';
+    document.getElementById('convMessages').scrollTop = 99999;
+}}
+
+async function loadAppointments(status) {{
+    const url = '/api/v1/me/appointments' + (status ? `?status=${{status}}` : '');
+    const rows = await fetch(url,{{headers}}).then(r=>r.json());
+    const statusBadge = {{pending:'badge-yellow',confirmed:'badge-green',cancelled:'badge-gray',completed:'badge-blue'}};
+    document.getElementById('apptsTable').innerHTML = rows.length ? rows.map(r=>`
+        <tr>
+            <td>${{r.date}} ${{r.time}}</td>
+            <td>${{r.customer_name||r.customer_phone||'—'}}</td>
+            <td>${{r.service||'—'}}</td>
+            <td><span class="badge ${{statusBadge[r.status]||'badge-gray'}}">${{r.status}}</span></td>
+            <td>
+                ${{r.status==='pending'?`<button class="btn" style="padding:4px 10px;font-size:0.75rem;" onclick="confirmAppt('${{r.id}}')">Confirmer</button>`:''}}
+            </td>
+        </tr>`).join('') : '<tr><td colspan="5" class="empty-state">Aucun rendez-vous</td></tr>';
+}}
+
+function filterAppts(s) {{ loadAppointments(s); }}
+
+async function confirmAppt(id) {{
+    await fetch(`/api/v1/me/appointments/${{id}}`,{{method:'PUT',headers:{{...headers,'Content-Type':'application/json'}},body:JSON.stringify({{status:'confirmed'}})}});
+    loadAppointments('');
+}}
+
+async function loadProjects() {{
+    const projs = await fetch('/api/v1/me/projects',{{headers}}).then(r=>r.json());
+    const statusColor = {{inquiry:'badge-gray',in_progress:'badge-blue',review:'badge-yellow',completed:'badge-green',cancelled:'badge-gray'}};
+    const statusLabel = {{inquiry:'Demande reçue',in_progress:'En cours',review:'En révision',completed:'Terminé',cancelled:'Annulé'}};
+    document.getElementById('projectsList').innerHTML = projs.length ? projs.map(p=>`
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+                <div>
+                    <div style="font-weight:700;font-size:1.05rem;">${{p.title}}</div>
+                    <div style="color:#64748b;font-size:0.85rem;margin-top:4px;">${{p.service_type}} · Créé le ${{p.created_at?.slice(0,10)}}</div>
+                </div>
+                <span class="badge ${{statusColor[p.status]||'badge-gray'}}">${{statusLabel[p.status]||p.status}}</span>
+            </div>
+            ${{p.description?`<p style="color:#94a3b8;font-size:0.9rem;margin-top:12px;">${{p.description.slice(0,200)}}</p>`:''}}
+            <div class="project-progress">
+                <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:#64748b;margin-bottom:4px;">
+                    <span>Progression</span><span>${{p.progress||0}}%</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width:${{p.progress||0}}%"></div></div>
+            </div>
+        </div>`).join('') : '<div class="card empty-state" style="text-align:center;color:#64748b;">Aucun projet en cours.</div>';
+}}
+
+async function loadRoi() {{
+    const roi = await fetch('/api/v1/me/roi',{{headers}}).then(r=>r.json());
+    const r = roi.roi; const i = roi.interactions;
+    document.getElementById('roiContent').innerHTML = `
+        <div class="stats-row">
+            <div class="stat-card"><div class="stat-lbl">Interactions totales</div><div class="stat-val">${{i.total}}</div></div>
+            <div class="stat-card"><div class="stat-lbl">RDV automatisés</div><div class="stat-val">${{i.rdv_requests}}</div></div>
+            <div class="stat-card"><div class="stat-lbl">Heures sauvées</div><div class="stat-val">${{r.hours_saved}}</div></div>
+            <div class="stat-card"><div class="stat-lbl">Appels évités</div><div class="stat-val">${{r.calls_avoided}}</div></div>
+        </div>
+        <div class="roi-box" style="margin-bottom:16px;">
+            <div style="color:#94a3b8;font-size:0.85rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Retour sur investissement</div>
+            <div class="roi-num">${{r.roi_ratio}}</div>
+            <div style="color:#94a3b8;margin-top:8px;">Économies estimées : <strong style="color:#34d399;">${{r.estimated_savings}}</strong> ce mois</div>
+        </div>
+        <div class="card">
+            <h3>Insights</h3>
+            ${{roi.insights.map(ins=>`<div class="insight">${{ins}}</div>`).join('')}}
+        </div>
+    `;
+}}
+
+function revealKey() {{
+    const el = document.getElementById('apiKeyDisplay');
+    if(el.textContent.includes('•')) {{
+        el.textContent = API_KEY;
+        navigator.clipboard.writeText(API_KEY).catch(()=>{{}});
+    }} else {{
+        el.textContent = '{'•' * len(key)}';
+    }}
+}}
+
+// Chargement initial
+loadDashboard();
+</script>
+</body>
+</html>"""
+    return HTMLResponse(portal_html)
 
 # ============================================================
 # LANDING PAGE PUBLIQUE
