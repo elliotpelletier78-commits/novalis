@@ -536,7 +536,7 @@ LANDING_HTML = """<!DOCTYPE html>
 <footer>
     <div>© 2026 Novalis — Agence IA | Québec, Canada</div>
     <div style="display:flex;gap:24px;">
-        <a href="mailto:info@novalis.ai">info@novalis.ai</a>
+        <a href="mailto:novalisproia@gmail.com">novalisproia@gmail.com</a>
         <a href="#services">Services</a>
         <a href="#pricing">Tarifs</a>
         <a href="#contact">Contact</a>
