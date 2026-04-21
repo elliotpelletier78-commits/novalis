@@ -527,7 +527,7 @@
         <button class="btn-primary" style="width:100%" onclick="submitInquiry()">Envoyer ma demande</button>
     </div>
     <div class="form-success" id="formSuccess">
-        <h3>Demande envoyee!</h3>
+        <h3>Demande envoyée !</h3>
         <p style="color:var(--muted)">On vous contacte dans les prochaines 24 heures pour discuter de votre projet.</p>
     </div>
 </div>
@@ -544,18 +544,28 @@
 
 <script>
 async function submitInquiry() {
-    const data = {
-        name: document.getElementById('inqName').value,
-        email: document.getElementById('inqEmail').value,
-        phone: document.getElementById('inqPhone').value,
-        business_name: document.getElementById('inqBusiness').value,
-        service_interest: document.getElementById('inqService').value,
-        message: document.getElementById('inqDesc').value
-    };
-    if (!data.name || !data.email || !data.message) {
+    const name = document.getElementById('inqName').value.trim();
+    const email = document.getElementById('inqEmail').value.trim();
+    const description = document.getElementById('inqDesc').value.trim();
+
+    if (!name || !email || !description) {
         alert('Veuillez remplir au minimum votre nom, courriel et description du besoin.');
         return;
     }
+
+    const data = {
+        name: name,
+        email: email,
+        phone: document.getElementById('inqPhone').value.trim(),
+        business_name: document.getElementById('inqBusiness').value.trim(),
+        service_type: document.getElementById('inqService').value,
+        description: description
+    };
+
+    const btn = document.querySelector('#inquiryForm .btn-primary');
+    btn.disabled = true;
+    btn.textContent = 'Envoi en cours...';
+
     try {
         const resp = await fetch('/api/v1/inquiry', {
             method: 'POST',
@@ -566,10 +576,15 @@ async function submitInquiry() {
             document.getElementById('inquiryForm').style.display = 'none';
             document.getElementById('formSuccess').style.display = 'block';
         } else {
-            alert('Erreur — veuillez réessayer ou nous contacter directement.');
+            const err = await resp.json().catch(() => ({}));
+            alert(err.detail || 'Erreur — veuillez réessayer ou nous contacter directement.');
+            btn.disabled = false;
+            btn.textContent = 'Envoyer ma demande';
         }
     } catch(e) {
         alert('Erreur de connexion — veuillez réessayer.');
+        btn.disabled = false;
+        btn.textContent = 'Envoyer ma demande';
     }
 }
 </script>

@@ -44,6 +44,7 @@ from twilio.twiml.messaging_response import MessagingResponse
 from twilio.twiml.voice_response import VoiceResponse, Gather
 import requests as http_requests
 import asyncio
+import re
 
 # ============================================================
 # CONFIGURATION
@@ -76,11 +77,16 @@ logger = logging.getLogger("novalis")
 # Version
 VERSION = "3.3.0"
 
-# Landing page HTML
-try:
-    from landing_content import LANDING_HTML
-except ImportError:
-    LANDING_HTML = "<h1>Novalis — Agence IA</h1><p>Site en construction</p>"
+# Landing page HTML — lu depuis le fichier source pour éviter la duplication
+def _load_landing_html() -> str:
+    html_path = os.path.join(os.path.dirname(__file__), "landing.html")
+    try:
+        with open(html_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "<h1>Novalis — Agence IA</h1><p>Site en construction</p>"
+
+LANDING_HTML = _load_landing_html()
 
 # ============================================================
 # APPLICATION FASTAPI
@@ -127,6 +133,7 @@ async def init_db():
                 owner_phone TEXT DEFAULT '',
                 twilio_phone TEXT DEFAULT '',
                 fb_page_token TEXT DEFAULT '',
+                fb_page_id TEXT DEFAULT '',
                 api_key TEXT UNIQUE NOT NULL,
                 plan TEXT DEFAULT 'starter',
                 status TEXT DEFAULT 'active',
@@ -321,12 +328,26 @@ async def init_db():
         await db.execute("CREATE INDEX IF NOT EXISTS idx_pmsg_project ON project_messages(project_id)")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_catalog_active ON service_catalog(is_active)")
 
+        # Migration : ajout des colonnes si absentes (installations existantes)
+        try:
+            await db.execute("ALTER TABLE clients ADD COLUMN fb_page_id TEXT DEFAULT ''")
+            await db.commit()
+            logger.info("Migration: colonne fb_page_id ajoutée")
+        except Exception:
+            pass  # Colonne déjà présente
+
         await db.commit()
         logger.info("Base de données V3.1 (agence IA) initialisée")
 
 
 @app.on_event("startup")
 async def startup():
+    if ADMIN_PASS == "novalis2024":
+        logger.warning("⚠️  SÉCURITÉ: Mot de passe admin par défaut détecté. Définissez ADMIN_PASS dans votre .env !")
+    if not ANTHROPIC_API_KEY:
+        logger.warning("⚠️  ANTHROPIC_API_KEY non définie — les réponses IA seront désactivées.")
+    if not TWILIO_ACCOUNT_SID:
+        logger.warning("⚠️  Twilio non configuré — SMS/Voix désactivés.")
     await init_db()
     await seed_service_catalog()
     logger.info(f"Novalis V{VERSION} démarré — Agence IA")
@@ -399,17 +420,45 @@ def sanitize_input(text: str) -> str:
     return text[:1000].strip()
 
 def is_within_hours(hours_str: str) -> bool:
-    """Vérifie si on est pendant les heures d'ouverture du client."""
+    """Vérifie si on est dans les heures d'ouverture selon la chaîne fournie.
+    Format attendu : 'Lundi-Vendredi 9h-17h', '7j/7 8h-22h', 'Lun-Sam 10h-18h', etc.
+    """
+    # Heure locale du serveur (idéalement America/Montreal)
     now = datetime.now()
-    # Simple check lun-ven 9h-17h par défaut — peut être amélioré
-    return 0 <= now.weekday() < 5 and 9 <= now.hour < 17
+
+    h = (hours_str or "").lower().strip()
+
+    # Extraire la plage horaire : "9h-17h", "9h30-17h", "9-17"
+    time_match = re.search(r'(\d{1,2})h?\s*[-à]\s*(\d{1,2})h?', h)
+    open_h = int(time_match.group(1)) if time_match else 9
+    close_h = int(time_match.group(2)) if time_match else 17
+
+    # Ouvert tous les jours ?
+    if any(x in h for x in ["7j", "7/7", "tous les jours", "24h"]):
+        return open_h <= now.hour < close_h
+
+    # Samedi inclus ?
+    includes_saturday = any(x in h for x in ["samedi", "sam."])
+    # Dimanche inclus ?
+    includes_sunday = any(x in h for x in ["dimanche", "dim."])
+
+    max_weekday = 4  # lundi-vendredi par défaut
+    if includes_sunday:
+        max_weekday = 6
+    elif includes_saturday:
+        max_weekday = 5
+
+    return now.weekday() <= max_weekday and open_h <= now.hour < close_h
 
 # ============================================================
 # AUTHENTIFICATION
 # ============================================================
 async def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
-    if credentials.username != ADMIN_USER or credentials.password != ADMIN_PASS:
-        raise HTTPException(status_code=401, detail="Authentification échouée")
+    user_ok = secrets.compare_digest(credentials.username.encode(), ADMIN_USER.encode())
+    pass_ok = secrets.compare_digest(credentials.password.encode(), ADMIN_PASS.encode())
+    if not (user_ok and pass_ok):
+        raise HTTPException(status_code=401, detail="Authentification échouée",
+                            headers={"WWW-Authenticate": "Basic"})
     return credentials.username
 
 async def verify_api_key(x_api_key: str = Header(None)):
@@ -598,16 +647,23 @@ async def generate_response(client: Dict, conv_id: str, message: str, max_retrie
     messages.append({"role": "user", "content": message})
 
     start_time = datetime.now()
+    system_payload = [{"type": "text", "text": get_system_prompt(client),
+                       "cache_control": {"type": "ephemeral"}}]
     for attempt in range(max_retries):
         try:
             response = claude_client.messages.create(
                 model="claude-haiku-4-5-20251001",
                 max_tokens=300,
-                system=get_system_prompt(client),
-                messages=messages
+                system=system_payload,
+                messages=messages,
+                extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
             )
             elapsed = (datetime.now() - start_time).total_seconds() * 1000
-            tokens = response.usage.input_tokens + response.usage.output_tokens
+            usage = response.usage
+            tokens = usage.input_tokens + usage.output_tokens
+            cache_hit = getattr(usage, "cache_read_input_tokens", 0) or 0
+            if cache_hit:
+                logger.debug(f"Cache hit: {cache_hit} tokens économisés pour client {client['id']}")
             return (response.content[0].text, int(elapsed), tokens)
         except Exception as e:
             logger.warning(f"Claude API tentative #{attempt + 1}: {e}")
@@ -753,20 +809,23 @@ async def verify_messenger(request: Request):
 async def handle_messenger(request: Request):
     data = await request.json()
     for entry in data.get("entry", []):
+        page_id = entry.get("id", "")
         for event in entry.get("messaging", []):
             sender_id = event.get("sender", {}).get("id", "")
             message = event.get("message", {}).get("text", "")
             if not message:
                 continue
             message = sanitize_input(message)
-            # Pour Messenger multi-tenant, on utilise le recipient ID pour identifier le client
-            recipient_id = event.get("recipient", {}).get("id", "")
-            # Trouver le client (chercher par fb_page_token association — simplifié ici)
+            # Routage multi-tenant : trouver le client par son fb_page_id
             async with aiosqlite.connect(DB_PATH) as db:
                 db.row_factory = aiosqlite.Row
-                cursor = await db.execute("SELECT * FROM clients WHERE fb_page_token != '' AND status = 'active' LIMIT 1")
+                cursor = await db.execute(
+                    "SELECT * FROM clients WHERE fb_page_id = ? AND status = 'active'",
+                    (page_id,)
+                )
                 client_row = await cursor.fetchone()
             if not client_row:
+                logger.warning(f"Messenger: aucun client pour la page {page_id}")
                 continue
             client = dict(client_row)
 
@@ -826,16 +885,16 @@ async def create_client(request: Request, username: str = Depends(verify_admin))
         await db.execute("""
             INSERT INTO clients (id, business_name, business_type, services, hours, address, info,
                                owner_name, owner_email, owner_phone, twilio_phone, fb_page_token,
-                               api_key, plan, status, custom_prompt, language, max_messages_month,
+                               fb_page_id, api_key, plan, status, custom_prompt, language, max_messages_month,
                                created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 'fr-CA', ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 'fr-CA', ?, ?, ?)
         """, (
             client_id, data["business_name"], data.get("business_type", "Commerce"),
             data.get("services", ""), data.get("hours", "Lundi-Vendredi 9h-17h"),
             data.get("address", ""), data.get("info", ""),
             data["owner_name"], data["owner_email"],
             data.get("owner_phone", ""), data.get("twilio_phone", ""),
-            data.get("fb_page_token", ""), api_key,
+            data.get("fb_page_token", ""), data.get("fb_page_id", ""), api_key,
             data.get("plan", "starter"), data.get("custom_prompt", ""),
             data.get("max_messages_month", 500), now, now
         ))
@@ -877,7 +936,7 @@ async def update_client(client_id: str, request: Request, username: str = Depend
     data = await request.json()
     allowed_fields = ["business_name", "business_type", "services", "hours", "address", "info",
                       "owner_name", "owner_email", "owner_phone", "twilio_phone", "fb_page_token",
-                      "plan", "status", "custom_prompt", "max_messages_month"]
+                      "fb_page_id", "plan", "status", "custom_prompt", "max_messages_month"]
 
     updates = []
     values = []
@@ -984,6 +1043,26 @@ async def get_my_conversation_detail(conv_id: str, client: dict = Depends(verify
         )
         rows = await cursor.fetchall()
         return [{"role": r[0], "content": r[1], "intent": r[2], "timestamp": r[3]} for r in rows]
+
+@app.post("/api/v1/me/appointments")
+async def create_my_appointment(request: Request, client: dict = Depends(verify_api_key)):
+    """Crée un rendez-vous pour le client authentifié."""
+    data = await request.json()
+    if not data.get("date") or not data.get("time"):
+        raise HTTPException(status_code=400, detail="Champs requis: date, time")
+    appt_id = generate_id("appt")
+    now = datetime.now().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO appointments (id, client_id, customer_phone, customer_name, service,
+               date, time, duration_min, status, notes, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, ?)""",
+            (appt_id, client["id"], data.get("customer_phone", ""), data.get("customer_name", ""),
+             data.get("service", ""), data["date"], data["time"],
+             data.get("duration_min", 60), data.get("notes", ""), now, now)
+        )
+        await db.commit()
+    return {"id": appt_id, "status": "confirmed"}
 
 @app.get("/api/v1/me/appointments")
 async def get_my_appointments(status: str = Query(None), client: dict = Depends(verify_api_key)):
@@ -1096,7 +1175,7 @@ async def get_roi_report(client: dict = Depends(verify_api_key)):
         hours_saved = round(total * avg_call_duration_min / 60, 1)
         money_saved = round(total * avg_call_cost, 2)
 
-        plan_cost = {"starter": 39, "pro": 99, "enterprise": 249}.get(client.get("plan", "starter"), 39)
+        plan_cost = {"starter": 497, "agence": 1497, "pro": 997, "enterprise": 2500}.get(client.get("plan", "starter"), 497)
         roi_ratio = round(money_saved / plan_cost, 1) if plan_cost > 0 else 0
 
     return {
@@ -1422,20 +1501,25 @@ async def client_send_project_message(proj_id: str, request: Request, client: di
 async def submit_inquiry(request: Request):
     """Formulaire de soumission publique — pas besoin d'auth."""
     data = await request.json()
-    required = ["name", "email", "service_type", "description"]
-    for f in required:
-        if not data.get(f):
-            raise HTTPException(status_code=400, detail=f"Champ requis: {f}")
 
-    # Créer le client s'il n'existe pas
+    # Accepte les deux conventions de nommage (formulaire HTML vs API directe)
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip()
+    description = data.get("description") or data.get("message", "")
+    service_type = data.get("service_type") or data.get("service_interest", "custom")
+
+    if not name or not email or not description:
+        raise HTTPException(status_code=400, detail="Champs requis: name, email, et description (ou message)")
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(status_code=400, detail="Adresse courriel invalide")
+
     now = datetime.now().isoformat()
     client_id = generate_id("client")
     api_key = generate_api_key()
     proj_id = generate_id("proj")
 
     async with aiosqlite.connect(DB_PATH) as db:
-        # Check si email existe déjà
-        cursor = await db.execute("SELECT id, api_key FROM clients WHERE owner_email = ?", (data["email"],))
+        cursor = await db.execute("SELECT id, api_key FROM clients WHERE owner_email = ?", (email,))
         existing = await cursor.fetchone()
         if existing:
             client_id = existing[0]
@@ -1444,28 +1528,27 @@ async def submit_inquiry(request: Request):
             await db.execute(
                 """INSERT INTO clients (id, business_name, owner_name, owner_email, owner_phone,
                    api_key, plan, status, created_at, updated_at, business_type, services, hours, address, info,
-                   twilio_phone, fb_page_token, custom_prompt, language, max_messages_month, messages_used_month)
-                   VALUES (?, ?, ?, ?, ?, ?, 'inquiry', 'active', ?, ?, '', '', '', '', '', '', '', '', 'fr-CA', 0, 0)""",
-                (client_id, data.get("company", data["name"]), data["name"], data["email"],
-                 data.get("phone",""), api_key, now, now)
+                   twilio_phone, fb_page_token, fb_page_id, custom_prompt, language, max_messages_month, messages_used_month)
+                   VALUES (?, ?, ?, ?, ?, ?, 'inquiry', 'active', ?, ?, '', '', '', '', '', '', '', '', '', 'fr-CA', 0, 0)""",
+                (client_id, data.get("business_name", name), name, email,
+                 data.get("phone", ""), api_key, now, now)
             )
 
-        # Créer le projet
         await db.execute(
             """INSERT INTO projects (id, client_id, title, description, service_type, status, priority,
                budget, quote_amount, deliverables, notes, progress, created_at, updated_at,
                start_date, deadline, completed_date, paid_amount)
-               VALUES (?, ?, ?, ?, ?, 'inquiry', 'normal', ?, 0, '', ?, 0, ?, ?, '', '', '', 0)""",
-            (proj_id, client_id, f"Demande: {data.get('service_type','custom')}",
-             data["description"], data.get("service_type","custom"),
-             data.get("budget",""), data.get("notes",""), now, now)
+               VALUES (?, ?, ?, ?, ?, 'inquiry', 'normal', ?, 0, '', '', 0, ?, ?, '', '', '', 0)""",
+            (proj_id, client_id, f"Demande: {service_type}", description, service_type,
+             data.get("budget", ""), now, now)
         )
         await db.commit()
 
+    logger.info(f"Nouvelle demande de {name} ({email}) — service: {service_type}")
     return {
         "status": "received",
         "project_id": proj_id,
-        "message": "Merci! Nous avons recu votre demande et vous contacterons sous 24h.",
+        "message": "Merci ! Nous avons reçu votre demande et vous contacterons sous 24h.",
         "api_key": api_key
     }
 
@@ -1492,10 +1575,10 @@ async def platform_stats(username: str = Depends(verify_admin)):
         cursor = await db.execute("SELECT SUM(interactions) FROM stats_daily WHERE date = ?", (today,))
         today_interactions = (await cursor.fetchone())[0] or 0
 
-        # MRR calculation
+        # MRR calculation (cohérent avec landing page)
         cursor = await db.execute("SELECT plan, COUNT(*) FROM clients WHERE status = 'active' GROUP BY plan")
         plans = await cursor.fetchall()
-        prices = {"starter": 39, "pro": 99, "enterprise": 249}
+        prices = {"starter": 497, "agence": 1497, "pro": 997, "enterprise": 0}
         mrr = sum(prices.get(p[0], 0) * p[1] for p in plans)
 
     return {
