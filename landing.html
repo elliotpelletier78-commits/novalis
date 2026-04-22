@@ -335,6 +335,24 @@
         .mobile-menu.open { display: flex; }
         .mobile-menu a { color: var(--text); text-decoration: none; font-weight: 600; padding: 12px 0; border-bottom: 1px solid var(--border); }
 
+        /* ROI Calculator */
+        .roi-calc-wrap { max-width: 900px; margin: 0 auto; }
+        .roi-calc-inner { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 40px; }
+        .roi-slider-group { margin-bottom: 28px; }
+        .roi-slider-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .roi-slider-label span:first-child { color: var(--muted); font-size: 0.9rem; }
+        .roi-val { color: var(--accent); font-weight: 700; font-size: 1.15rem; min-width: 60px; text-align: right; }
+        .roi-range { width: 100%; -webkit-appearance: none; height: 6px; border-radius: 4px; background: var(--border); outline: none; cursor: pointer; transition: background 0.2s; }
+        .roi-range::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 8px rgba(56,189,248,0.4); }
+        .roi-range::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); cursor: pointer; border: none; }
+        .roi-results { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; background: var(--bg2); border-radius: 14px; padding: 28px 20px; margin: 32px 0 28px; }
+        .roi-res-item { text-align: center; }
+        .roi-res-lbl { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .roi-res-val { font-size: 2rem; font-weight: 800; }
+        .roi-res-val.red { color: #ef4444; }
+        .roi-res-val.green { color: var(--green); }
+        .roi-res-val.blue { color: var(--accent); }
+
         @media (max-width: 768px) {
             .hero h1 { font-size: 2.2rem; }
             .services-grid, .pricing-grid { grid-template-columns: 1fr; }
@@ -346,6 +364,8 @@
             .nav-links { display: none; }
             .hamburger { display: flex; }
             .pricing-card.featured { transform: none; }
+            .roi-results { grid-template-columns: 1fr; }
+            .roi-calc-inner { padding: 24px 20px; }
         }
     </style>
 </head>
@@ -751,7 +771,7 @@
         <p>On utilise les meilleures technologies pour garantir performance, sécurité et fiabilite</p>
     </div>
     <div class="tech-grid">
-        <div class="tech-item"><span class="ti">🤖</span>OpenAI GPT-4</div>
+        <div class="tech-item"><span class="ti">🤖</span>Claude Sonnet (Anthropic)</div>
         <div class="tech-item"><span class="ti">📱</span>Twilio SMS/Voix</div>
         <div class="tech-item"><span class="ti">💬</span>Meta Messenger</div>
         <div class="tech-item"><span class="ti">🐍</span>Python FastAPI</div>
@@ -810,6 +830,57 @@
                 <span class="arrow">+</span>
             </div>
             <div class="faq-answer">Oui, sans frais de résiliation. Les plans mensuels peuvent être annulés en tout temps avec 30 jours de préavis. Vos données vous appartiennent et peuvent être exportées sur demande.</div>
+        </div>
+    </div>
+</section>
+
+<!-- CALCULATEUR ROI -->
+<section id="roi">
+    <div class="section-title">
+        <h2>Calculez vos économies</h2>
+        <p>Estimez en quelques secondes le retour sur investissement avec Novalis</p>
+    </div>
+    <div class="roi-calc-wrap">
+        <div class="roi-calc-inner">
+            <div class="roi-slider-group">
+                <div class="roi-slider-label">
+                    <span>Messages / appels reçus par jour</span>
+                    <span class="roi-val" id="rcMsgs">50</span>
+                </div>
+                <input type="range" id="slMsgs" min="5" max="300" value="50" class="roi-range">
+            </div>
+            <div class="roi-slider-group">
+                <div class="roi-slider-label">
+                    <span>Temps moyen de traitement par message (minutes)</span>
+                    <span class="roi-val" id="rcTime">5 min</span>
+                </div>
+                <input type="range" id="slTime" min="1" max="20" value="5" class="roi-range">
+            </div>
+            <div class="roi-slider-group">
+                <div class="roi-slider-label">
+                    <span>Salaire horaire du personnel ($/h)</span>
+                    <span class="roi-val" id="rcWage">22 $/h</span>
+                </div>
+                <input type="range" id="slWage" min="15" max="60" value="22" class="roi-range">
+            </div>
+            <div class="roi-results">
+                <div class="roi-res-item">
+                    <div class="roi-res-lbl">Coût mensuel actuel</div>
+                    <div class="roi-res-val red" id="rcCost">—</div>
+                </div>
+                <div class="roi-res-item">
+                    <div class="roi-res-lbl">Économies avec Novalis</div>
+                    <div class="roi-res-val green" id="rcSavings">—</div>
+                </div>
+                <div class="roi-res-item">
+                    <div class="roi-res-lbl">Retour sur investissement</div>
+                    <div class="roi-res-val blue" id="rcRoi">—</div>
+                </div>
+            </div>
+            <p style="color:var(--muted);font-size:0.8rem;text-align:center;margin-bottom:24px;">* Estimation basée sur 22 jours ouvrables/mois. L'IA prend en charge environ 75% des interactions.</p>
+            <div style="text-align:center;">
+                <a href="#contact" class="btn-primary">Obtenez votre analyse gratuite →</a>
+            </div>
         </div>
     </div>
 </section>
@@ -958,6 +1029,29 @@ async function sendDemo(text) {
     msgs.scrollTop = msgs.scrollHeight;
     demoTyping = false;
 }
+
+// ROI Calculator
+function calcRoi() {
+    const msgs = parseInt(document.getElementById('slMsgs').value);
+    const time = parseInt(document.getElementById('slTime').value);
+    const wage = parseInt(document.getElementById('slWage').value);
+    document.getElementById('rcMsgs').textContent = msgs;
+    document.getElementById('rcTime').textContent = time + ' min';
+    document.getElementById('rcWage').textContent = wage + ' $/h';
+    const monthlyHours = msgs * time / 60 * 22;
+    const monthlyCost = Math.round(monthlyHours * wage);
+    const savings = Math.round(monthlyCost * 0.75);
+    const novalisCost = 497;
+    const roi = monthlyCost > 0 ? Math.round((savings - novalisCost) / novalisCost * 100) : 0;
+    document.getElementById('rcCost').textContent = monthlyCost.toLocaleString('fr-CA') + ' $';
+    document.getElementById('rcSavings').textContent = '+' + savings.toLocaleString('fr-CA') + ' $';
+    document.getElementById('rcRoi').textContent = (roi > 0 ? '+' : '') + roi + '%';
+}
+['slMsgs', 'slTime', 'slWage'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', calcRoi);
+});
+calcRoi();
 
 // Formulaire contact
 async function submitInquiry() {

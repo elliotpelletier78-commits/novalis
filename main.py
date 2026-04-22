@@ -1,5 +1,5 @@
 """
-NOVALIS - Agence IA / Plateforme SaaS (V3.1)
+NOVALIS - Agence IA / Plateforme SaaS (V5.0)
 ==============================================
 Agence d'intelligence artificielle — automatise tout, pour tout le monde.
 Produits: Agent SMS/Voix/Messenger + Mandats d'automatisation custom + API
@@ -85,12 +85,30 @@ SMTP_PASS = os.getenv("SMTP_PASS", "")
 SMTP_FROM = os.getenv("SMTP_FROM", "noreply@novalis.ai")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "novalisproia@gmail.com")
 
+# Stripe (facturation abonnements — optionnel)
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_PRICE_STARTER = os.getenv("STRIPE_PRICE_STARTER", "")
+STRIPE_PRICE_PRO = os.getenv("STRIPE_PRICE_PRO", "")
+STRIPE_PRICE_ENTERPRISE = os.getenv("STRIPE_PRICE_ENTERPRISE", "")
+APP_URL = os.getenv("APP_URL", "")
+
+stripe = None
+if STRIPE_SECRET_KEY:
+    try:
+        import stripe as _stripe
+        _stripe.api_key = STRIPE_SECRET_KEY
+        stripe = _stripe
+        logging.getLogger("novalis").info("Stripe billing activé")
+    except ImportError:
+        logging.getLogger("novalis").warning("stripe package non installé — billing désactivé")
+
 # Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "3.4.0"
+VERSION = "5.0"
 
 # Landing page HTML — lu depuis le fichier source pour éviter la duplication
 def _load_landing_html() -> str:
@@ -414,6 +432,7 @@ async def init_db():
         # Migrations pour installations existantes
         migrations = [
             "ALTER TABLE clients ADD COLUMN fb_page_id TEXT DEFAULT ''",
+            "ALTER TABLE clients ADD COLUMN stripe_customer_id TEXT DEFAULT ''",
         ]
         for migration in migrations:
             try:
@@ -428,7 +447,7 @@ async def init_db():
         await db.execute("CREATE INDEX IF NOT EXISTS idx_webhooks_client ON client_webhooks(client_id, is_active)")
 
         await db.commit()
-        logger.info("Base de données V3.1 (agence IA) initialisée")
+        logger.info("Base de données V5.0 (agence IA) initialisée")
 
 
 async def appointment_reminder_task():
@@ -1153,7 +1172,7 @@ async def list_clients(username: str = Depends(verify_admin)):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
-            "SELECT id, business_name, business_type, owner_name, owner_email, plan, status, twilio_phone, messages_used_month, max_messages_month, created_at FROM clients ORDER BY created_at DESC"
+            "SELECT id, business_name, business_type, owner_name, owner_email, plan, status, twilio_phone, api_key, messages_used_month, max_messages_month, created_at FROM clients ORDER BY created_at DESC"
         )
         rows = await cursor.fetchall()
         return [dict(r) for r in rows]
@@ -1957,10 +1976,14 @@ async def dashboard(username: str = Depends(verify_admin)):
                         <div><label>Numéro Twilio</label><input id="nc_twilio" placeholder="+1..."/></div>
                         <div><label>Adresse</label><input id="nc_address"/></div>
                         <div><label>Heures d'ouverture</label><input id="nc_hours" value="Lundi-Vendredi 9h-17h"/></div>
+                        <div><label>Facebook Page ID</label><input id="nc_fb_page_id" placeholder="ex: 1234567890"/></div>
+                        <div><label>FB Page Access Token</label><input id="nc_fb_token" type="password" placeholder="EAABw..."/></div>
+                        <div><label>Max messages / mois</label><input id="nc_max_msgs" type="number" value="500" min="100"/></div>
                     </div>
                     <label>Services et prix</label><textarea id="nc_services" rows="3" placeholder="Coupe homme: 25$, Coupe femme: 45$..."></textarea>
                     <label>Infos supplémentaires</label><textarea id="nc_info" rows="2"></textarea>
-                    <label>Plan</label><select id="nc_plan"><option value="starter">Starter (39$/mois - 500 msg)</option><option value="pro">Pro (99$/mois - 2000 msg)</option><option value="enterprise">Enterprise (249$/mois - illimité)</option></select>
+                    <label>Prompt personnalisé (optionnel — override du prompt standard)</label><textarea id="nc_custom_prompt" rows="2" placeholder="Laissez vide pour utiliser le prompt standard..."></textarea>
+                    <label>Plan</label><select id="nc_plan"><option value="starter">Starter (497$/mois — 500 msg)</option><option value="pro">Pro (1 497$/mois — 2 000 msg)</option><option value="enterprise">Enterprise (sur mesure — illimité)</option></select>
                     <br/><button class="btn" onclick="createClient()">Créer le client</button>
                     <div id="nc_result" style="margin-top:12px;color:#34d399;"></div>
                 </div>
@@ -2033,13 +2056,92 @@ async function loadClients(){{
     const l=document.getElementById('clientList');
     if(!d.length){{l.innerHTML='<div style="color:#94a3b8;text-align:center;padding:20px;">Aucun client</div>';return;}}
     l.innerHTML=d.map(c=>`<div class="client-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
             <div class="client-name">${{c.business_name}}</div>
-            <div><span class="badge ${{c.status}}">${{c.status}}</span> <span class="badge ${{c.plan}}">${{c.plan}}</span></div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
+                <span class="badge ${{c.status}}">${{c.status}}</span>
+                <span class="badge ${{c.plan}}">${{c.plan}}</span>
+                <button class="btn btn-sm" onclick="getPortalLink('${{c.id}}')" title="Copier lien portail">🔗 Portail</button>
+                <button class="btn btn-sm" style="background:#1e3a5f;color:#a855f7;" onclick="openEditModal('${{c.id}}')" title="Modifier">✏️</button>
+                <button class="btn btn-sm" style="background:${{c.status==='active'?'rgba(239,68,68,0.12)':'rgba(52,211,153,0.12)'}};color:${{c.status==='active'?'#ef4444':'#34d399'}};" onclick="toggleStatus('${{c.id}}','${{c.status}}')">${{c.status==='active'?'⏸':'▶'}}</button>
+            </div>
         </div>
-        <div class="client-meta">${{c.owner_name}} · ${{c.owner_email}} · ${{c.twilio_phone||'Pas de tel'}} · ${{c.messages_used_month}}/${{c.max_messages_month}} msg</div>
+        <div class="client-meta">${{c.owner_name}} · ${{c.owner_email}} · ${{c.twilio_phone||'—'}} · ${{c.messages_used_month}}/${{c.max_messages_month}} msg</div>
+        <div style="font-size:0.7rem;color:#475569;margin-top:3px;">ID: ${{c.id}} · Créé: ${{c.created_at?.slice(0,10)||'—'}}</div>
     </div>`).join('');
-    }}catch(e){{}}
+    }}catch(e){{console.error(e);}}
+}}
+
+async function getPortalLink(id){{
+    try{{
+        const c=await fetch('/api/v1/clients/'+id).then(r=>r.json());
+        const url=window.location.origin+'/portal?key='+c.api_key;
+        await navigator.clipboard.writeText(url).catch(()=>{{}});
+        alert('✅ Lien copié dans le presse-papier :\n'+url);
+    }}catch(e){{alert('Erreur: '+e);}}
+}}
+
+async function openEditModal(id){{
+    try{{
+        const c=await fetch('/api/v1/clients/'+id).then(r=>r.json());
+        document.getElementById('em_id').value=c.id;
+        document.getElementById('em_name').value=c.business_name||'';
+        document.getElementById('em_type').value=c.business_type||'';
+        document.getElementById('em_owner').value=c.owner_name||'';
+        document.getElementById('em_email').value=c.owner_email||'';
+        document.getElementById('em_phone').value=c.owner_phone||'';
+        document.getElementById('em_twilio').value=c.twilio_phone||'';
+        document.getElementById('em_address').value=c.address||'';
+        document.getElementById('em_hours').value=c.hours||'';
+        document.getElementById('em_services').value=c.services||'';
+        document.getElementById('em_info').value=c.info||'';
+        document.getElementById('em_custom_prompt').value=c.custom_prompt||'';
+        document.getElementById('em_fb_page_id').value=c.fb_page_id||'';
+        document.getElementById('em_max_msgs').value=c.max_messages_month||500;
+        document.getElementById('em_plan').value=c.plan||'starter';
+        document.getElementById('em_apikey').textContent=c.api_key||'';
+        document.getElementById('em_result').textContent='';
+        document.getElementById('editModalOverlay').style.display='flex';
+    }}catch(e){{alert('Erreur: '+e);}}
+}}
+
+function closeEditModal(){{document.getElementById('editModalOverlay').style.display='none';}}
+
+async function saveClientEdit(){{
+    const id=document.getElementById('em_id').value;
+    const data={{
+        business_name:document.getElementById('em_name').value,
+        business_type:document.getElementById('em_type').value,
+        owner_name:document.getElementById('em_owner').value,
+        owner_email:document.getElementById('em_email').value,
+        owner_phone:document.getElementById('em_phone').value,
+        twilio_phone:document.getElementById('em_twilio').value,
+        address:document.getElementById('em_address').value,
+        hours:document.getElementById('em_hours').value,
+        services:document.getElementById('em_services').value,
+        info:document.getElementById('em_info').value,
+        custom_prompt:document.getElementById('em_custom_prompt').value,
+        fb_page_id:document.getElementById('em_fb_page_id').value,
+        max_messages_month:parseInt(document.getElementById('em_max_msgs').value)||500,
+        plan:document.getElementById('em_plan').value,
+    }};
+    try{{
+        const r=await fetch('/api/v1/clients/'+id,{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
+        if(r.ok){{
+            document.getElementById('em_result').innerHTML='<span style="color:#34d399;">✓ Sauvegardé !</span>';
+            setTimeout(()=>{{closeEditModal();loadClients();}},1200);
+        }}else{{
+            const e=await r.json();
+            document.getElementById('em_result').textContent='❌ '+(e.detail||'Erreur');
+        }}
+    }}catch(e){{document.getElementById('em_result').textContent='❌ Erreur réseau';}}
+}}
+
+async function toggleStatus(id,status){{
+    const newStatus=status==='active'?'inactive':'active';
+    if(!confirm((newStatus==='inactive'?'Désactiver':'Réactiver')+' ce client ?'))return;
+    await fetch('/api/v1/clients/'+id,{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{status:newStatus}})}}).catch(()=>{{}});
+    loadClients();
 }}
 
 async function createClient(){{
@@ -2055,6 +2157,10 @@ async function createClient(){{
         services:document.getElementById('nc_services').value,
         info:document.getElementById('nc_info').value,
         plan:document.getElementById('nc_plan').value,
+        fb_page_id:document.getElementById('nc_fb_page_id').value,
+        fb_page_token:document.getElementById('nc_fb_token').value,
+        custom_prompt:document.getElementById('nc_custom_prompt').value,
+        max_messages_month:parseInt(document.getElementById('nc_max_msgs').value)||500,
     }};
     try{{const r=await fetch('/api/v1/clients',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
     const d=await r.json();
@@ -2095,6 +2201,46 @@ function exportRd(){{window.location.href='/api/v1/rd/export?format=csv';}}
 function tick(){{document.getElementById('clock').textContent=new Date().toLocaleTimeString('fr-CA',{{hour:'2-digit',minute:'2-digit'}});}}
 loadPlatformStats();tick();setInterval(loadPlatformStats,10000);setInterval(tick,1000);
 </script>
+
+<!-- MODAL MODIFIER CLIENT -->
+<div id="editModalOverlay" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.75);align-items:flex-start;justify-content:center;padding:60px 16px 40px;overflow-y:auto;">
+    <div style="background:#1a2332;border:1px solid #1e3a5f;border-radius:16px;padding:28px;max-width:640px;width:100%;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="color:#38bdf8;margin:0;">✏️ Modifier le client</h3>
+            <button onclick="closeEditModal()" style="background:transparent;border:none;color:#94a3b8;font-size:2rem;cursor:pointer;line-height:1;padding:0 4px;">×</button>
+        </div>
+        <input id="em_id" type="hidden"/>
+        <div class="form-grid">
+            <div><label>Nom du commerce</label><input id="em_name"/></div>
+            <div><label>Type</label><input id="em_type"/></div>
+            <div><label>Propriétaire</label><input id="em_owner"/></div>
+            <div><label>Email</label><input id="em_email" type="email"/></div>
+            <div><label>Tél propriétaire</label><input id="em_phone"/></div>
+            <div><label>Numéro Twilio</label><input id="em_twilio"/></div>
+            <div><label>Adresse</label><input id="em_address"/></div>
+            <div><label>Heures d'ouverture</label><input id="em_hours"/></div>
+            <div><label>Facebook Page ID</label><input id="em_fb_page_id"/></div>
+            <div><label>Max msg / mois</label><input id="em_max_msgs" type="number"/></div>
+        </div>
+        <label>Services et prix</label><textarea id="em_services" rows="3"></textarea>
+        <label>Infos supplémentaires</label><textarea id="em_info" rows="2"></textarea>
+        <label>Prompt personnalisé</label><textarea id="em_custom_prompt" rows="2" placeholder="Laissez vide pour le prompt standard"></textarea>
+        <label>Plan</label>
+        <select id="em_plan" style="margin-bottom:14px;">
+            <option value="starter">Starter (497$/mois)</option>
+            <option value="pro">Pro (1 497$/mois)</option>
+            <option value="enterprise">Enterprise (sur mesure)</option>
+        </select>
+        <div style="background:#0f1f2e;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:0.8rem;word-break:break-all;">
+            <span style="color:#64748b;">Clé API : </span><code id="em_apikey" style="color:#fbbf24;"></code>
+        </div>
+        <div style="display:flex;gap:12px;">
+            <button class="btn" onclick="saveClientEdit()">Enregistrer</button>
+            <button class="btn" style="background:#334155;color:#94a3b8;" onclick="closeEditModal()">Annuler</button>
+        </div>
+        <div id="em_result" style="margin-top:10px;font-size:0.9rem;"></div>
+    </div>
+</div>
 </body>
 </html>"""
 
@@ -2978,6 +3124,106 @@ loadDashboard();
 </body>
 </html>"""
     return HTMLResponse(portal_html)
+
+# ============================================================
+# STRIPE — Facturation abonnements (optionnel)
+# ============================================================
+@app.post("/api/v1/checkout/{plan}")
+@limiter.limit("5/minute")
+async def create_checkout_session(plan: str, request: Request, client: dict = Depends(verify_api_key)):
+    """Crée une session de paiement Stripe pour un plan d'abonnement."""
+    if not stripe:
+        raise HTTPException(status_code=503, detail="Facturation Stripe non configurée sur cette instance")
+
+    price_map = {
+        "starter": STRIPE_PRICE_STARTER,
+        "pro": STRIPE_PRICE_PRO,
+        "enterprise": STRIPE_PRICE_ENTERPRISE,
+    }
+    price_id = price_map.get(plan)
+    if not price_id:
+        raise HTTPException(status_code=400, detail=f"Plan invalide: {plan}. Valides: starter, pro, enterprise")
+
+    try:
+        base_url = APP_URL or str(request.base_url).rstrip("/")
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url=f"{base_url}/portal?key={client['api_key']}&upgraded=1",
+            cancel_url=f"{base_url}/#pricing",
+            customer_email=client["owner_email"],
+            metadata={"client_id": client["id"], "plan": plan},
+        )
+        return {"checkout_url": session.url}
+    except Exception as e:
+        logger.error(f"Stripe checkout error: {e}")
+        raise HTTPException(status_code=500, detail="Erreur de paiement — contactez le support")
+
+
+@app.post("/stripe/webhook")
+async def handle_stripe_webhook(request: Request):
+    """Webhook Stripe — met à jour le plan client après paiement ou annulation."""
+    if not stripe:
+        return {"status": "disabled"}
+
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+    except Exception as e:
+        logger.warning(f"Stripe webhook signature invalide: {e}")
+        raise HTTPException(status_code=400, detail="Signature invalide")
+
+    event_type = event.get("type", "")
+    data = event.get("data", {}).get("object", {})
+
+    if event_type == "checkout.session.completed":
+        client_id = data.get("metadata", {}).get("client_id")
+        plan = data.get("metadata", {}).get("plan")
+        stripe_customer = data.get("customer", "")
+        if client_id and plan:
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute(
+                    "UPDATE clients SET plan = ?, stripe_customer_id = ?, status = 'active', updated_at = ? WHERE id = ?",
+                    (plan, stripe_customer, datetime.now().isoformat(), client_id)
+                )
+                await db.commit()
+            logger.info(f"Client {client_id} → plan {plan} activé via Stripe")
+
+    elif event_type == "customer.subscription.deleted":
+        stripe_customer = data.get("customer", "")
+        if stripe_customer:
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute(
+                    "UPDATE clients SET plan = 'starter', updated_at = ? WHERE stripe_customer_id = ?",
+                    (datetime.now().isoformat(), stripe_customer)
+                )
+                await db.commit()
+            logger.info(f"Abonnement annulé — customer Stripe {stripe_customer} rétrogradé au plan starter")
+
+    return {"status": "ok"}
+
+
+@app.get("/api/v1/billing/portal")
+async def billing_portal(request: Request, client: dict = Depends(verify_api_key)):
+    """Génère un lien vers le portail de gestion d'abonnement Stripe."""
+    if not stripe:
+        raise HTTPException(status_code=503, detail="Facturation non configurée")
+    customer_id = client.get("stripe_customer_id", "")
+    if not customer_id:
+        raise HTTPException(status_code=400, detail="Aucun abonnement Stripe actif pour ce compte")
+    try:
+        base_url = APP_URL or str(request.base_url).rstrip("/")
+        session = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=f"{base_url}/portal?key={client['api_key']}",
+        )
+        return {"portal_url": session.url}
+    except Exception as e:
+        logger.error(f"Stripe billing portal error: {e}")
+        raise HTTPException(status_code=500, detail="Erreur Stripe — contactez le support")
+
 
 # ============================================================
 # LANDING PAGE PUBLIQUE
