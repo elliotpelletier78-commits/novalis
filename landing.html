@@ -4,100 +4,128 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Novalis — Agence IA | Automatisation intelligente pour entreprises</title>
-    <meta name="description" content="Novalis est une agence d'intelligence artificielle basée au Québec. On automatise vos processus, votre service client, votre marketing et vos opérations avec des solutions IA sur mesure.">
+    <meta name="description" content="Novalis est l'agence IA de référence au Québec. Agents conversationnels, automatisation sur mesure, SMS/WhatsApp/Messenger. Service client 24/7 dès 497$/mois.">
+    <meta property="og:title" content="Novalis — Agence IA | Québec">
+    <meta property="og:description" content="Automatisez votre service client et vos opérations avec l'IA. Agents SMS, WhatsApp, Voix et Messenger déployés en 48h.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="/og-image.svg">
+    <meta name="twitter:card" content="summary_large_image">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #0a0e17;
-            --bg2: #0f1419;
-            --card: #1a2332;
-            --border: #1e3a5f;
+            --bg: #060a12;
+            --bg2: #0d1520;
+            --card: #111827;
+            --border: rgba(255,255,255,0.07);
+            --border-glow: rgba(56,189,248,0.25);
             --accent: #38bdf8;
+            --accent2: #0ea5e9;
             --green: #34d399;
             --purple: #a855f7;
             --orange: #fb923c;
-            --text: #e2e8f0;
-            --muted: #94a3b8;
+            --text: #f1f5f9;
+            --muted: #64748b;
+            --muted2: #94a3b8;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html { scroll-behavior: smooth; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; overflow-x: hidden; }
+
+        /* Scroll progress bar */
+        #scroll-progress { position: fixed; top: 0; left: 0; width: 0%; height: 2px; background: linear-gradient(90deg, var(--accent), var(--green)); z-index: 9999; transition: width 0.1s; }
+
+        /* Scroll reveal */
+        .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.65s ease, transform 0.65s ease; }
+        .reveal.visible { opacity: 1; transform: translateY(0); }
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+        .reveal-delay-4 { transition-delay: 0.4s; }
 
         nav {
             position: fixed; top: 0; width: 100%; z-index: 100;
-            background: rgba(10, 14, 23, 0.85); backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border); padding: 16px 0;
+            background: rgba(6,10,18,0.88); backdrop-filter: blur(24px);
+            border-bottom: 1px solid rgba(255,255,255,0.06); padding: 16px 0;
         }
         .nav-inner {
             max-width: 1200px; margin: 0 auto; padding: 0 24px;
             display: flex; justify-content: space-between; align-items: center;
         }
         .logo {
-            font-size: 1.5rem; font-weight: 900;
+            font-size: 1.5rem; font-weight: 900; letter-spacing: -0.02em;
             background: linear-gradient(135deg, var(--accent), var(--green));
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
         .nav-links { display: flex; gap: 32px; align-items: center; }
-        .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
-        .nav-links a:hover { color: var(--accent); }
+        .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: color 0.2s; }
+        .nav-links a:hover { color: var(--text); }
         .btn-nav {
-            background: var(--accent); color: var(--bg); padding: 10px 24px;
-            border-radius: 8px; font-weight: 700; font-size: 0.9rem;
+            background: var(--accent); color: #060a12; padding: 10px 22px;
+            border-radius: 8px; font-weight: 700; font-size: 0.875rem;
             text-decoration: none; transition: all 0.2s;
         }
-        .btn-nav:hover { background: var(--green); }
+        .btn-nav:hover { background: var(--green); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(56,189,248,0.3); }
 
+        /* Hero */
+        .hero-wrap { position: relative; overflow: hidden; }
+        .hero-orbs { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+        .orb { position: absolute; border-radius: 50%; filter: blur(80px); animation: floatOrb 12s ease-in-out infinite; }
+        .orb-1 { width: 600px; height: 600px; background: radial-gradient(circle, rgba(56,189,248,0.12), transparent 70%); top: -150px; left: -100px; animation-delay: 0s; }
+        .orb-2 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(168,85,247,0.10), transparent 70%); top: 50px; right: -120px; animation-delay: -4s; }
+        .orb-3 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(52,211,153,0.08), transparent 70%); bottom: -100px; left: 35%; animation-delay: -8s; }
+        @keyframes floatOrb { 0%,100%{transform:translate(0,0) scale(1);} 33%{transform:translate(30px,-40px) scale(1.05);} 66%{transform:translate(-20px,20px) scale(0.96);} }
         .hero {
-            padding: 160px 24px 100px; text-align: center;
+            padding: 172px 24px 100px; text-align: center;
             max-width: 1000px; margin: 0 auto; position: relative;
         }
-        .hero::before {
-            content: ''; position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
-            width: 700px; height: 700px;
-            background: radial-gradient(circle, rgba(56,189,248,0.08) 0%, rgba(168,85,247,0.05) 40%, transparent 70%);
-            border-radius: 50%; pointer-events: none;
-        }
         .badge-hero {
-            display: inline-block; padding: 8px 20px; border-radius: 50px;
-            background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3);
-            font-size: 0.85rem; font-weight: 600; color: var(--accent);
-            margin-bottom: 24px; position: relative;
+            display: inline-flex; align-items: center; gap: 8px; padding: 8px 20px; border-radius: 50px;
+            background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.25);
+            font-size: 0.82rem; font-weight: 600; color: var(--accent);
+            margin-bottom: 28px; position: relative;
         }
+        .badge-hero::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
         .hero h1 {
-            font-size: 3.5rem; font-weight: 900; line-height: 1.1;
+            font-size: 4rem; font-weight: 900; line-height: 1.08; letter-spacing: -0.03em;
             margin-bottom: 24px; position: relative;
         }
         .hero h1 span { background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .hero p { font-size: 1.2rem; color: var(--muted); max-width: 700px; margin: 0 auto 40px; position: relative; }
-        .hero-buttons { display: flex; gap: 16px; justify-content: center; position: relative; flex-wrap: wrap; }
+        .hero p { font-size: 1.15rem; color: var(--muted2); max-width: 660px; margin: 0 auto 40px; position: relative; line-height: 1.75; }
+        .hero-buttons { display: flex; gap: 14px; justify-content: center; position: relative; flex-wrap: wrap; }
         .btn-primary {
-            background: linear-gradient(135deg, var(--accent), #0ea5e9); color: #fff; padding: 16px 36px;
-            border-radius: 12px; font-weight: 700; font-size: 1.05rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; padding: 16px 36px;
+            border-radius: 12px; font-weight: 700; font-size: 1rem; letter-spacing: -0.01em;
             text-decoration: none; transition: all 0.3s; border: none; cursor: pointer;
+            position: relative; overflow: hidden;
         }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(56,189,248,0.3); }
+        .btn-primary::after { content:''; position:absolute; top:0; left:-100%; width:50%; height:100%; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.18),transparent); transform:skewX(-20deg); transition:none; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(56,189,248,0.35); }
+        .btn-primary:hover::after { animation: shimmer 0.55s ease forwards; }
+        @keyframes shimmer { to { left: 150%; } }
         .btn-secondary {
             background: transparent; color: var(--text); padding: 16px 36px;
-            border-radius: 12px; font-weight: 700; font-size: 1.05rem;
-            text-decoration: none; border: 1px solid var(--border); transition: all 0.3s;
+            border-radius: 12px; font-weight: 600; font-size: 1rem;
+            text-decoration: none; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s;
         }
-        .btn-secondary:hover { border-color: var(--accent); background: rgba(56,189,248,0.05); }
+        .btn-secondary:hover { border-color: rgba(56,189,248,0.4); background: rgba(56,189,248,0.05); transform: translateY(-1px); }
 
-        .trust-bar {
-            text-align: center; padding: 40px 24px 60px;
-            color: var(--muted); font-size: 0.9rem;
-        }
-        .trust-logos { display: flex; justify-content: center; gap: 48px; margin-top: 16px; flex-wrap: wrap; }
-        .trust-logos span { font-weight: 700; font-size: 1.1rem; opacity: 0.5; letter-spacing: 2px; text-transform: uppercase; }
+        /* Sectors trust strip */
+        .sectors-strip { padding: 20px 24px 64px; text-align: center; }
+        .sectors-strip p { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 20px; }
+        .sectors-grid { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; max-width: 800px; margin: 0 auto; }
+        .sector-chip { padding: 8px 16px; border-radius: 50px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); color: var(--muted2); font-size: 0.82rem; font-weight: 500; transition: all 0.2s; }
+        .sector-chip:hover { border-color: var(--border-glow); color: var(--accent); background: rgba(56,189,248,0.06); }
 
-        /* Stats animés */
+        /* Stats */
         .stats-bar {
-            background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
-            padding: 48px 24px;
+            background: linear-gradient(135deg, rgba(17,24,39,0.8), rgba(13,21,32,0.9));
+            border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+            padding: 56px 24px; backdrop-filter: blur(10px);
         }
         .stats-inner { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; text-align: center; }
-        .stat-num { font-size: 2.8rem; font-weight: 900; background: linear-gradient(135deg, var(--accent), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat-num { font-size: 3rem; font-weight: 900; background: linear-gradient(135deg, var(--accent), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.03em; }
         .stat-label { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
 
         section { padding: 80px 24px; max-width: 1200px; margin: 0 auto; }
@@ -184,18 +212,34 @@
         .chat-widget-popup h4 { color: var(--accent); margin-bottom: 8px; }
         .chat-widget-popup p { color: var(--muted); font-size: 0.85rem; margin-bottom: 16px; }
         .chat-widget-popup a { display: block; text-align: center; background: var(--accent); color: #0a0e17; padding: 10px; border-radius: 8px; font-weight: 700; text-decoration: none; }
-        .section-title h2 { font-size: 2.4rem; font-weight: 800; margin-bottom: 16px; }
-        .section-title p { color: var(--muted); font-size: 1.1rem; max-width: 650px; margin: 0 auto; }
+        .section-title h2 { font-size: 2.6rem; font-weight: 900; margin-bottom: 16px; letter-spacing: -0.03em; }
+        .section-title p { color: var(--muted2); font-size: 1.05rem; max-width: 600px; margin: 0 auto; line-height: 1.7; }
+
+        /* Gradient border cards */
+        .grad-card {
+            position: relative; border-radius: 20px;
+            background: linear-gradient(145deg, rgba(17,24,39,0.9), rgba(9,15,26,0.95));
+            padding: 32px; transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .grad-card::before {
+            content: ''; position: absolute; inset: 0; border-radius: 20px; padding: 1px;
+            background: linear-gradient(135deg, rgba(56,189,248,0.3), transparent 50%, rgba(168,85,247,0.2));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
+        }
+        .grad-card:hover { transform: translateY(-4px); box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .grad-card:hover::before { background: linear-gradient(135deg, rgba(56,189,248,0.5), transparent 50%, rgba(168,85,247,0.35)); }
 
         /* Services Grid */
         .services-grid {
             display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
         }
         .service-card {
-            background: var(--card); border: 1px solid var(--border); border-radius: 16px;
-            padding: 36px 28px; transition: all 0.3s; position: relative; overflow: hidden;
+            border-radius: 16px; padding: 36px 28px; transition: all 0.3s; position: relative; overflow: visible;
         }
-        .service-card:hover { border-color: var(--accent); transform: translateY(-4px); }
+        .service-card.grad-card { border-radius: 20px; }
+        .service-card:hover { border-color: var(--accent); }
         .service-icon {
             width: 52px; height: 52px; border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
@@ -229,10 +273,9 @@
         /* Use Cases */
         .cases-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
         .case-card {
-            background: var(--card); border: 1px solid var(--border); border-radius: 16px;
-            padding: 32px; display: flex; gap: 20px; transition: all 0.3s;
+            border-radius: 16px; padding: 32px; display: flex; gap: 20px; transition: all 0.3s;
         }
-        .case-card:hover { border-color: var(--accent); }
+        .case-card.grad-card { border-radius: 20px; }
         .case-icon { font-size: 2rem; flex-shrink: 0; }
         .case-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
         .case-card p { color: var(--muted); font-size: 0.9rem; }
@@ -353,6 +396,16 @@
         .roi-res-val.green { color: var(--green); }
         .roi-res-val.blue { color: var(--accent); }
 
+        /* Premium footer */
+        .footer-premium { border-top: 1px solid var(--border); padding: 64px 24px 32px; margin-top: 40px; }
+        .footer-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 48px; margin-bottom: 48px; }
+        .footer-brand p { color: var(--muted); font-size: 0.9rem; line-height: 1.7; max-width: 260px; margin-bottom: 20px; }
+        .footer-col h4 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 16px; }
+        .footer-col a { display: block; color: var(--muted2); text-decoration: none; font-size: 0.88rem; margin-bottom: 10px; transition: color 0.2s; }
+        .footer-col a:hover { color: var(--accent); }
+        .footer-bottom { max-width: 1200px; margin: 0 auto; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 0.78rem; flex-wrap: wrap; gap: 8px; }
+        .footer-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2); color: var(--green); padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+
         @media (max-width: 768px) {
             .hero h1 { font-size: 2.2rem; }
             .services-grid, .pricing-grid { grid-template-columns: 1fr; }
@@ -366,10 +419,12 @@
             .pricing-card.featured { transform: none; }
             .roi-results { grid-template-columns: 1fr; }
             .roi-calc-inner { padding: 24px 20px; }
+            .footer-inner { grid-template-columns: 1fr 1fr; gap: 32px; }
         }
     </style>
 </head>
 <body>
+<div id="scroll-progress"></div>
 
 <nav>
     <div class="nav-inner">
@@ -394,24 +449,35 @@
     <a href="#contact" onclick="toggleMobileMenu()" style="color:var(--accent)">Consultation gratuite →</a>
 </div>
 
-<div class="hero">
-    <div class="badge-hero">Agence IA — Québec, Canada</div>
-    <h1>On <span>automatise</span> tout ce qui peut l'être dans <span>votre entreprise</span></h1>
-    <p>Novalis est une agence d'intelligence artificielle qui conçoit des solutions d'automatisation sur mesure. Service client, opérations, marketing, ventes — on identifie ce qui vous ralentit et on le remplace par de l'IA qui travaille 24/7.</p>
-    <div class="hero-buttons">
-        <a href="#contact" class="btn-primary">Consultation gratuite</a>
-        <a href="#services" class="btn-secondary">Voir nos services</a>
+<div class="hero-wrap">
+    <div class="hero-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+    <div class="hero">
+        <div class="badge-hero">Agence IA — Québec, Canada</div>
+        <h1>On <span>automatise</span> tout ce qui peut l'être dans <span>votre entreprise</span></h1>
+        <p>Novalis est une agence d'intelligence artificielle qui conçoit des solutions d'automatisation sur mesure. Service client, opérations, marketing, ventes — on identifie ce qui vous ralentit et on le remplace par de l'IA qui travaille 24/7.</p>
+        <div class="hero-buttons">
+            <a href="#contact" class="btn-primary">Consultation gratuite</a>
+            <a href="#services" class="btn-secondary">Voir nos services</a>
+        </div>
     </div>
 </div>
 
-<div class="trust-bar">
-    <p>Technologies de confiance</p>
-    <div class="trust-logos">
-        <span>Anthropic</span>
-        <span>Twilio</span>
-        <span>WhatsApp</span>
-        <span>Meta</span>
-        <span>Railway</span>
+<div class="sectors-strip reveal">
+    <p>Industries que nous desservons</p>
+    <div class="sectors-grid">
+        <span class="sector-chip">🏪 Restaurants</span>
+        <span class="sector-chip">🔧 Contractors</span>
+        <span class="sector-chip">🏥 Cliniques</span>
+        <span class="sector-chip">🛒 E-commerce</span>
+        <span class="sector-chip">🏗️ Construction</span>
+        <span class="sector-chip">🏢 Immobilier</span>
+        <span class="sector-chip">💆 Spas & Beauté</span>
+        <span class="sector-chip">🚗 Automobiles</span>
+        <span class="sector-chip">⚖️ Services professionnels</span>
     </div>
 </div>
 
@@ -439,43 +505,43 @@
 
 <!-- SERVICES -->
 <section id="services">
-    <div class="section-title">
+    <div class="section-title reveal">
         <h2>Nos services d'automatisation IA</h2>
         <p>On ne vend pas un seul produit — on analyse votre business et on automatise ce qui a le plus d'impact sur vos revenus</p>
     </div>
     <div class="services-grid">
-        <div class="service-card">
+        <div class="service-card grad-card reveal reveal-delay-1">
             <div class="service-icon icon-blue">💬</div>
             <h3>Agent conversationnel IA</h3>
             <p>Un agent IA qui répond à vos clients par SMS, téléphone, Messenger et WhatsApp 24/7. Il prend des rendez-vous, répond aux questions et transfère les cas complexes à votre équipe.</p>
             <span class="tag tag-blue">Service client</span>
             <div><span class="whatsapp-badge">✓ WhatsApp Business</span></div>
         </div>
-        <div class="service-card">
+        <div class="service-card grad-card reveal reveal-delay-2">
             <div class="service-icon icon-green">⚡</div>
             <h3>Automatisation des processus</h3>
             <p>On identifie les tâches répétitives dans vos opérations et on les automatise : facturation, suivi de commandes, gestion d'inventaire, rapports automatiques.</p>
             <span class="tag tag-green">Operations</span>
         </div>
-        <div class="service-card">
+        <div class="service-card grad-card reveal reveal-delay-3">
             <div class="service-icon icon-purple">📊</div>
             <h3>Analytics et rapport ROI</h3>
             <p>Tableau de bord en temps réel avec métriques de performance, taux de conversion, satisfaction client et calcul du retour sur investissement de chaque automatisation.</p>
             <span class="tag tag-purple">Intelligence</span>
         </div>
-        <div class="service-card">
+        <div class="service-card grad-card reveal reveal-delay-1">
             <div class="service-icon icon-orange">🎯</div>
             <h3>Marketing automatisé</h3>
             <p>Campagnes SMS et email automatisées, relances intelligentes, segmentation client par IA, et génération de contenu marketing personnalisé.</p>
             <span class="tag tag-blue">Marketing</span>
         </div>
-        <div class="service-card">
+        <div class="service-card grad-card reveal reveal-delay-2">
             <div class="service-icon icon-blue">🔗</div>
             <h3>Intégrations sur mesure</h3>
             <p>On connecte votre IA à vos outils existants : CRM, système de réservation, comptabilité, site web, réseaux sociaux. Tout communique ensemble.</p>
             <span class="tag tag-green">Integration</span>
         </div>
-        <div class="service-card">
+        <div class="service-card grad-card reveal reveal-delay-3">
             <div class="service-icon icon-purple">🧠</div>
             <h3>Consultation stratégique IA</h3>
             <p>Audit complet de vos processus, identification des opportunités d'automatisation, plan d'implementation et accompagnement a chaque étape.</p>
@@ -486,7 +552,7 @@
 
 <!-- PROCESS -->
 <section id="how">
-    <div class="section-title">
+    <div class="section-title reveal">
         <h2>Comment ça fonctionne</h2>
         <p>De l'analyse initiale au déploiement, on s'occupe de tout</p>
     </div>
@@ -516,12 +582,12 @@
 
 <!-- USE CASES -->
 <section id="cases">
-    <div class="section-title">
+    <div class="section-title reveal">
         <h2>Ce qu'on automatise</h2>
         <p>Quelques exemples concrets de mandats qu'on réalise pour nos clients</p>
     </div>
     <div class="cases-grid">
-        <div class="case-card">
+        <div class="case-card grad-card reveal reveal-delay-1">
             <div class="case-icon">🏪</div>
             <div>
                 <h3>Restaurant — Réservations automatiques</h3>
@@ -529,23 +595,23 @@
                 <div class="result">Résultat : 85% moins d'appels a gérer</div>
             </div>
         </div>
-        <div class="case-card">
+        <div class="case-card grad-card reveal reveal-delay-2">
             <div class="case-icon">🔧</div>
             <div>
                 <h3>Plombier — Gestion des appels</h3>
                 <p>IA vocale qui répond aux appels d'urgence, trie par priorité, donne des estimations et planifie les interventions automatiquement.</p>
-                <div class="result">Résultat : 0 appel manque, +40% de mandats</div>
+                <div class="result">Résultat : 0 appel manqué, +40% de mandats</div>
             </div>
         </div>
-        <div class="case-card">
+        <div class="case-card grad-card reveal reveal-delay-1">
             <div class="case-icon">🏥</div>
             <div>
                 <h3>Clinique — Rappels et suivi patients</h3>
-                <p>Système automatise de rappels de rendez-vous, suivi post-consultation, et réponses aux questions fréquentes des patients.</p>
+                <p>Système automatisé de rappels de rendez-vous, suivi post-consultation, et réponses aux questions fréquentes des patients.</p>
                 <div class="result">Résultat : 60% moins de no-shows</div>
             </div>
         </div>
-        <div class="case-card">
+        <div class="case-card grad-card reveal reveal-delay-2">
             <div class="case-icon">🛒</div>
             <div>
                 <h3>E-commerce — Support et relance</h3>
@@ -553,7 +619,7 @@
                 <div class="result">Résultat : +25% de taux de conversion</div>
             </div>
         </div>
-        <div class="case-card">
+        <div class="case-card grad-card reveal reveal-delay-1">
             <div class="case-icon">🏗️</div>
             <div>
                 <h3>Entrepreneur — Soumissions automatiques</h3>
@@ -561,11 +627,11 @@
                 <div class="result">Résultat : Soumissions en minutes au lieu d'heures</div>
             </div>
         </div>
-        <div class="case-card">
+        <div class="case-card grad-card reveal reveal-delay-2">
             <div class="case-icon">🏢</div>
             <div>
                 <h3>Agence immobilière — Qualification de leads</h3>
-                <p>Agent qui qualifie les prospects automatiquement, répond aux questions sur les proprietes et planifie les visites.</p>
+                <p>Agent qui qualifie les prospects automatiquement, répond aux questions sur les propriétés et planifie les visites.</p>
                 <div class="result">Résultat : 3x plus de visites qualifiées</div>
             </div>
         </div>
@@ -655,12 +721,12 @@
 
 <!-- TÉMOIGNAGES -->
 <section id="testimonials">
-    <div class="section-title">
+    <div class="section-title reveal">
         <h2>Ce que disent nos clients</h2>
         <p>Des entrepreneurs québécois qui ont automatisé leur business avec Novalis</p>
     </div>
     <div class="testimonials-grid">
-        <div class="testimonial-card">
+        <div class="testimonial-card reveal reveal-delay-1">
             <div class="stars">★★★★★</div>
             <p class="testimonial-text">En 3 semaines, Novalis a déployé un agent IA qui répond à tous nos appels et SMS. On a économisé 12 heures par semaine et zéro appel manqué depuis le lancement.</p>
             <div class="testimonial-author">
@@ -671,7 +737,7 @@
                 </div>
             </div>
         </div>
-        <div class="testimonial-card">
+        <div class="testimonial-card reveal reveal-delay-2">
             <div class="stars">★★★★★</div>
             <p class="testimonial-text">Le système de rappels automatiques a réduit nos no-shows de 60%. L'agent répond à toutes les questions courantes des patients, même à 22h. Impressionnant.</p>
             <div class="testimonial-author">
@@ -682,7 +748,7 @@
                 </div>
             </div>
         </div>
-        <div class="testimonial-card">
+        <div class="testimonial-card reveal reveal-delay-3">
             <div class="stars">★★★★★</div>
             <p class="testimonial-text">On a intégré l'IA à notre système de réservation en 48h. Mes serveurs passent moins de temps au téléphone et plus de temps avec les clients. Le ROI est évident.</p>
             <div class="testimonial-author">
@@ -713,9 +779,9 @@
 
 <!-- PRICING -->
 <section id="pricing">
-    <div class="section-title">
+    <div class="section-title reveal">
         <h2>Nos formules</h2>
-        <p>Des solutions adaptées a chaque taille d'entreprise et chaque budget</p>
+        <p>Des solutions adaptées à chaque taille d'entreprise et chaque budget</p>
     </div>
     <div class="pricing-grid">
         <div class="pricing-card">
@@ -919,13 +985,42 @@
     </div>
 </div>
 
-<footer>
-    <div>© 2026 Novalis — Agence IA | Québec, Canada</div>
-    <div style="display:flex;gap:24px;">
-        <a href="mailto:novalisproia@gmail.com">novalisproia@gmail.com</a>
-        <a href="#services">Services</a>
-        <a href="#pricing">Tarifs</a>
-        <a href="#contact">Contact</a>
+<footer class="footer-premium">
+    <div class="footer-inner">
+        <div class="footer-brand">
+            <div class="logo" style="font-size:1.4rem;margin-bottom:14px;">NOVALIS</div>
+            <p>L'agence IA de référence au Québec. On automatise ce qui vous ralentit et libère votre équipe pour ce qui compte vraiment.</p>
+            <div style="margin-top:16px;">
+                <span class="footer-badge">● Québec, Canada</span>
+            </div>
+        </div>
+        <div class="footer-col">
+            <h4>Services</h4>
+            <a href="#services">Agent conversationnel</a>
+            <a href="#services">Automatisation de processus</a>
+            <a href="#services">Marketing automatisé</a>
+            <a href="#services">Intégrations sur mesure</a>
+            <a href="#services">Consultation stratégique</a>
+        </div>
+        <div class="footer-col">
+            <h4>Ressources</h4>
+            <a href="#how">Comment ça fonctionne</a>
+            <a href="#cases">Cas d'usage</a>
+            <a href="#compare">Comparaison</a>
+            <a href="#roi">Calculateur ROI</a>
+            <a href="#faq">FAQ</a>
+        </div>
+        <div class="footer-col">
+            <h4>Contact</h4>
+            <a href="mailto:novalisproia@gmail.com">novalisproia@gmail.com</a>
+            <a href="#contact">Consultation gratuite</a>
+            <a href="#pricing">Voir les tarifs</a>
+            <a href="/portal">Portail client</a>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <span>© 2026 Novalis IA Inc. — Québec, Canada</span>
+        <span>Conforme à la Loi 25 · Données hébergées au Canada</span>
     </div>
 </footer>
 
@@ -942,6 +1037,25 @@
 </div>
 
 <script>
+// Scroll progress bar
+const scrollProgress = document.getElementById('scroll-progress');
+window.addEventListener('scroll', () => {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    if (docHeight > 0) scrollProgress.style.width = (scrollTop / docHeight * 100) + '%';
+}, { passive: true });
+
+// Scroll reveal
+const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            revealObserver.unobserve(entry.target);
+        }
+    });
+}, { threshold: 0.08, rootMargin: '0px 0px -50px 0px' });
+document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
 // Mobile menu
 function toggleMobileMenu() {
     document.getElementById('mobileMenu').classList.toggle('open');

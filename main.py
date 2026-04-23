@@ -433,6 +433,7 @@ async def init_db():
         migrations = [
             "ALTER TABLE clients ADD COLUMN fb_page_id TEXT DEFAULT ''",
             "ALTER TABLE clients ADD COLUMN stripe_customer_id TEXT DEFAULT ''",
+            "ALTER TABLE clients ADD COLUMN portal_token TEXT DEFAULT ''",
         ]
         for migration in migrations:
             try:
@@ -498,6 +499,12 @@ async def startup():
         logger.warning("⚠️  ANTHROPIC_API_KEY non définie — les réponses IA seront désactivées.")
     if not TWILIO_ACCOUNT_SID:
         logger.warning("⚠️  Twilio non configuré — SMS/Voix désactivés.")
+    # SQLite WAL mode — bien meilleure performance en production (concurrent reads/writes)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA journal_mode=WAL")
+        await db.execute("PRAGMA cache_size=10000")
+        await db.execute("PRAGMA synchronous=NORMAL")
+        await db.execute("PRAGMA temp_store=MEMORY")
     await init_db()
     await seed_service_catalog()
     asyncio.create_task(appointment_reminder_task())
@@ -1137,33 +1144,37 @@ async def create_client(request: Request, username: str = Depends(verify_admin))
 
     client_id = generate_id("client")
     api_key = generate_api_key()
+    portal_token = secrets.token_urlsafe(32)
     now = datetime.now().isoformat()
 
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             INSERT INTO clients (id, business_name, business_type, services, hours, address, info,
                                owner_name, owner_email, owner_phone, twilio_phone, fb_page_token,
-                               fb_page_id, api_key, plan, status, custom_prompt, language, max_messages_month,
+                               fb_page_id, api_key, portal_token, plan, status, custom_prompt, language, max_messages_month,
                                created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 'fr-CA', ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 'fr-CA', ?, ?, ?)
         """, (
             client_id, data["business_name"], data.get("business_type", "Commerce"),
             data.get("services", ""), data.get("hours", "Lundi-Vendredi 9h-17h"),
             data.get("address", ""), data.get("info", ""),
             data["owner_name"], data["owner_email"],
             data.get("owner_phone", ""), data.get("twilio_phone", ""),
-            data.get("fb_page_token", ""), data.get("fb_page_id", ""), api_key,
+            data.get("fb_page_token", ""), data.get("fb_page_id", ""), api_key, portal_token,
             data.get("plan", "starter"), data.get("custom_prompt", ""),
             data.get("max_messages_month", 500), now, now
         ))
         await db.commit()
 
+    portal_url = f"/portal?t={portal_token}"
     return {
         "id": client_id,
         "api_key": api_key,
+        "portal_token": portal_token,
+        "portal_url": portal_url,
         "business_name": data["business_name"],
         "status": "active",
-        "message": f"Client créé avec succès. Clé API: {api_key}"
+        "message": f"Client créé. API: {api_key} | Portail: {portal_url}"
     }
 
 @app.get("/api/v1/clients")
@@ -2550,32 +2561,63 @@ async def get_my_reports(client: dict = Depends(verify_api_key)):
 # PORTAIL CLIENT
 # ============================================================
 @app.get("/portal", response_class=HTMLResponse)
-async def client_portal(key: str = Query(None)):
-    """Portail client authentifié par clé API (query param)."""
-    if not key:
-        return HTMLResponse("""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-        <title>Portail Novalis</title>
-        <style>body{font-family:sans-serif;background:#0a0e17;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}
-        .box{background:#1a2332;border:1px solid #1e3a5f;border-radius:16px;padding:40px;max-width:400px;width:90%;text-align:center;}
-        h2{color:#38bdf8;margin-bottom:16px;}input{width:100%;padding:12px;border-radius:8px;border:1px solid #1e3a5f;background:#0a0e17;color:#e2e8f0;font-size:1rem;margin-bottom:16px;box-sizing:border-box;}
-        button{background:#38bdf8;color:#0a0e17;border:none;padding:12px 24px;border-radius:8px;font-weight:700;cursor:pointer;width:100%;font-size:1rem;}
-        p{color:#94a3b8;font-size:0.9rem;}</style></head><body>
-        <div class="box"><h2>Portail Client Novalis</h2>
-        <p>Entrez votre clé API pour accéder à votre tableau de bord.</p>
-        <input id="k" placeholder="nvls_..." type="password" onkeydown="if(event.key==='Enter')go()"/>
-        <button onclick="go()">Accéder au portail</button></div>
-        <script>function go(){const k=document.getElementById('k').value.trim();if(k)window.location.href='/portal?key='+encodeURIComponent(k);}</script>
-        </body></html>""", status_code=200)
+async def client_portal(key: str = Query(None), t: str = Query(None)):
+    """Portail client — auth par token sécurisé (?t=) ou clé API legacy (?key=)."""
+    login_page = """<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+    <title>Portail Novalis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Inter',sans-serif;background:#060a12;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;}
+        .box{background:linear-gradient(135deg,rgba(17,24,39,0.9),rgba(13,21,32,0.9));border:1px solid rgba(56,189,248,0.15);border-radius:20px;padding:48px 40px;max-width:420px;width:90%;text-align:center;backdrop-filter:blur(20px);}
+        .logo{font-size:1.5rem;font-weight:900;background:linear-gradient(135deg,#38bdf8,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px;}
+        h2{color:#f1f5f9;font-size:1.4rem;margin-bottom:8px;}
+        p{color:#64748b;font-size:0.9rem;margin-bottom:28px;}
+        input{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);color:#e2e8f0;font-size:1rem;margin-bottom:16px;outline:none;transition:border 0.2s;}
+        input:focus{border-color:rgba(56,189,248,0.4);}
+        button{background:linear-gradient(135deg,#38bdf8,#0ea5e9);color:#060a12;border:none;padding:14px 24px;border-radius:10px;font-weight:700;cursor:pointer;width:100%;font-size:1rem;transition:opacity 0.2s;}
+        button:hover{opacity:0.9;}
+    </style></head><body>
+    <div class="box">
+        <div class="logo">NOVALIS</div>
+        <h2>Portail client</h2>
+        <p>Entrez votre clé d'accès pour consulter votre tableau de bord.</p>
+        <input id="k" placeholder="Clé d'accès..." type="password" onkeydown="if(event.key==='Enter')go()"/>
+        <button onclick="go()">Accéder →</button>
+    </div>
+    <script>function go(){const k=document.getElementById('k').value.trim();if(k)window.location.href='/portal?key='+encodeURIComponent(k);}</script>
+    </body></html>"""
 
-    # Vérifier la clé
+    if not key and not t:
+        return HTMLResponse(login_page, status_code=200)
+
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        cursor = await db.execute("SELECT * FROM clients WHERE api_key = ? AND status = 'active'", (key,))
+        if t:
+            cursor = await db.execute("SELECT * FROM clients WHERE portal_token = ? AND status = 'active'", (t,))
+        else:
+            cursor = await db.execute("SELECT * FROM clients WHERE api_key = ? AND status = 'active'", (key,))
         client = await cursor.fetchone()
+
     if not client:
-        return HTMLResponse("<p style='color:red;font-family:sans-serif;padding:40px;'>Clé API invalide.</p>", status_code=401)
+        return HTMLResponse("""<html><body style="font-family:sans-serif;background:#060a12;color:#ef4444;display:flex;align-items:center;justify-content:center;min-height:100vh;"><div style="text-align:center"><h2>Accès refusé</h2><p style="color:#64748b;margin-top:8px;">Clé invalide ou compte inactif. <a href="/portal" style="color:#38bdf8;">Réessayer</a></p></div></body></html>""", status_code=401)
 
     c = dict(client)
+
+    # Rétro-compat: si authentifié par api_key, générer/utiliser le portal_token et rediriger
+    if key and not t:
+        tok = c.get("portal_token") or ""
+        if not tok:
+            tok = secrets.token_urlsafe(32)
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute("UPDATE clients SET portal_token = ? WHERE id = ?", (tok, c["id"]))
+                await db.commit()
+            c["portal_token"] = tok
+        return Response(status_code=302, headers={"Location": f"/portal?t={tok}", "Cache-Control": "no-store"})
+
+    c_api_key = c["api_key"]
+    c_api_key_masked = "•" * len(c_api_key)
+
     portal_html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -2805,7 +2847,7 @@ async def client_portal(key: str = Query(None)):
             <div class="card">
                 <h3>Clé API</h3>
                 <p style="color:#64748b;font-size:0.85rem;margin-bottom:12px;">Utilisez cette clé pour intégrer Novalis à vos outils. Gardez-la secrète.</p>
-                <div class="api-key-box" id="apiKeyDisplay">{'•' * len(key)}</div>
+                <div class="api-key-box" id="apiKeyDisplay">{c_api_key_masked}</div>
                 <button class="copy-btn" onclick="revealKey()">Afficher / Copier</button>
             </div>
             <div class="card">
@@ -2819,7 +2861,7 @@ async def client_portal(key: str = Query(None)):
 </div>
 
 <script>
-const API_KEY = '{key}';
+const API_KEY = '{c_api_key}';
 const headers = {{'X-API-Key': API_KEY}};
 let activityChart = null;
 
@@ -3114,7 +3156,7 @@ function revealKey() {{
         el.textContent = API_KEY;
         navigator.clipboard.writeText(API_KEY).catch(()=>{{}});
     }} else {{
-        el.textContent = '{'•' * len(key)}';
+        el.textContent = '{c_api_key_masked}';
     }}
 }}
 
@@ -3124,6 +3166,167 @@ loadDashboard();
 </body>
 </html>"""
     return HTMLResponse(portal_html)
+
+# ============================================================
+# SSE — Mises à jour temps réel pour le portail
+# ============================================================
+from fastapi.responses import StreamingResponse
+
+@app.get("/api/v1/me/stream")
+async def client_event_stream(request: Request, client: dict = Depends(verify_api_key)):
+    """Server-Sent Events — détecte nouveaux messages et RDV en temps réel."""
+    client_id = client["id"]
+
+    async def generator():
+        last_ts = datetime.now().isoformat()
+        ping_count = 0
+        while True:
+            if await request.is_disconnected():
+                break
+            try:
+                async with aiosqlite.connect(DB_PATH) as db:
+                    db.row_factory = aiosqlite.Row
+                    cur = await db.execute(
+                        "SELECT COUNT(*) as n FROM messages WHERE client_id=? AND timestamp>? AND role='client'",
+                        (client_id, last_ts)
+                    )
+                    new_msgs = (await cur.fetchone())["n"]
+                    cur = await db.execute(
+                        "SELECT COUNT(*) as n FROM appointments WHERE client_id=? AND created_at>?",
+                        (client_id, last_ts)
+                    )
+                    new_appts = (await cur.fetchone())["n"]
+
+                last_ts = datetime.now().isoformat()
+                ping_count += 1
+                payload = json.dumps({"type": "update", "new_messages": new_msgs,
+                                      "new_appointments": new_appts, "ping": ping_count})
+                yield f"data: {payload}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'type':'error','msg':str(e)})}\n\n"
+            await asyncio.sleep(15)
+
+    return StreamingResponse(
+        generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"}
+    )
+
+# ============================================================
+# UPLOAD FICHIERS — Base de connaissances (TXT, CSV, PDF)
+# ============================================================
+from fastapi import UploadFile, File, Form as FastForm
+
+@app.post("/api/v1/me/knowledge-base/upload")
+async def upload_kb_file(
+    title: str = FastForm(...),
+    kb_type: str = FastForm("custom"),
+    file: UploadFile = File(...),
+    client: dict = Depends(verify_api_key)
+):
+    """Importe un fichier TXT, CSV ou PDF dans la base de connaissances."""
+    raw = await file.read()
+    if len(raw) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Fichier trop volumineux (max 5 Mo)")
+
+    fname = (file.filename or "").lower()
+    ext = fname.rsplit(".", 1)[-1] if "." in fname else ""
+
+    if ext in ("txt", "text", "csv", "md"):
+        text = raw.decode("utf-8", errors="replace")
+    elif ext == "pdf":
+        try:
+            import pypdf
+            import io as _io
+            reader = pypdf.PdfReader(_io.BytesIO(raw))
+            text = "\n".join(p.extract_text() or "" for p in reader.pages)
+        except ImportError:
+            raise HTTPException(status_code=400, detail="pypdf non installé. Envoyez un fichier TXT.")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Impossible de lire le PDF: {e}")
+    else:
+        raise HTTPException(status_code=400, detail="Formats acceptés: TXT, CSV, MD, PDF")
+
+    text = text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Aucun texte extractible du fichier")
+    if len(text) > 10_000:
+        text = text[:10_000]
+
+    kb_id = generate_id("kb")
+    now = datetime.now().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO knowledge_base (id, client_id, title, content, kb_type, is_active, created_at, updated_at) VALUES (?,?,?,?,?,1,?,?)",
+            (kb_id, client["id"], title, text, kb_type, now, now)
+        )
+        await db.commit()
+
+    return {"id": kb_id, "title": title, "chars": len(text), "message": "Fichier importé avec succès"}
+
+# ============================================================
+# GOOGLE CALENDAR — Génération de liens 'Ajouter au calendrier'
+# ============================================================
+def make_gcal_link(title: str, date: str, time_str: str, duration_min: int = 60, description: str = "") -> str:
+    """Génère un lien Google Calendar pour un rendez-vous."""
+    from urllib.parse import quote
+    try:
+        start = datetime.strptime(f"{date} {time_str}", "%Y-%m-%d %H:%M")
+        end = start + timedelta(minutes=duration_min)
+        fmt = "%Y%m%dT%H%M%S"
+        return (f"https://calendar.google.com/calendar/render?action=TEMPLATE"
+                f"&text={quote(title)}&dates={start.strftime(fmt)}/{end.strftime(fmt)}"
+                f"&details={quote(description)}")
+    except Exception:
+        return ""
+
+@app.get("/api/v1/me/appointments/{appt_id}/gcal")
+async def get_gcal_link(appt_id: str, client: dict = Depends(verify_api_key)):
+    """Retourne un lien Google Calendar pour un rendez-vous."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute("SELECT * FROM appointments WHERE id=? AND client_id=?", (appt_id, client["id"]))
+        appt = await cur.fetchone()
+    if not appt:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+    appt = dict(appt)
+    title = f"RDV — {appt.get('service','') or 'Rendez-vous'} chez {client['business_name']}"
+    url = make_gcal_link(title, appt["date"], appt["time"], appt.get("duration_min", 60),
+                         appt.get("notes", ""))
+    return {"gcal_url": url}
+
+# ============================================================
+# OG IMAGE — Image de prévisualisation sociale (SVG dynamique)
+# ============================================================
+@app.get("/og-image.svg")
+async def og_image():
+    """SVG dynamique pour og:image (réseaux sociaux, partage de lien)."""
+    svg = """<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#060a12"/>
+      <stop offset="100%" stop-color="#0d1520"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <filter id="blur">
+      <feGaussianBlur stdDeviation="60"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="200" cy="150" r="300" fill="rgba(56,189,248,0.08)" filter="url(#blur)"/>
+  <circle cx="1000" cy="480" r="250" fill="rgba(168,85,247,0.07)" filter="url(#blur)"/>
+  <rect x="60" y="60" width="1080" height="510" rx="24" fill="none" stroke="rgba(56,189,248,0.12)" stroke-width="1"/>
+  <text x="600" y="220" font-family="Inter,system-ui,sans-serif" font-weight="900" font-size="96" fill="url(#accent)" text-anchor="middle">NOVALIS</text>
+  <text x="600" y="300" font-family="Inter,system-ui,sans-serif" font-weight="400" font-size="32" fill="#94a3b8" text-anchor="middle">Agence d&#8217;intelligence artificielle · Qu&#233;bec</text>
+  <line x1="480" y1="340" x2="720" y2="340" stroke="rgba(56,189,248,0.3)" stroke-width="1"/>
+  <text x="600" y="400" font-family="Inter,system-ui,sans-serif" font-size="26" fill="#64748b" text-anchor="middle">SMS · WhatsApp · Voix · Messenger · Automatisation</text>
+  <text x="600" y="510" font-family="Inter,system-ui,sans-serif" font-weight="600" font-size="22" fill="#38bdf8" text-anchor="middle">novalis.ai · novalisproia@gmail.com</text>
+</svg>"""
+    return Response(content=svg, media_type="image/svg+xml",
+                    headers={"Cache-Control": "public, max-age=86400"})
 
 # ============================================================
 # STRIPE — Facturation abonnements (optionnel)
