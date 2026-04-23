@@ -1,5 +1,5 @@
 """
-NOVALIS - Agence IA / Plateforme SaaS (V3.1)
+NOVALIS - Agence IA / Plateforme SaaS (V5.0)
 ==============================================
 Agence d'intelligence artificielle — automatise tout, pour tout le monde.
 Produits: Agent SMS/Voix/Messenger + Mandats d'automatisation custom + API
@@ -85,12 +85,30 @@ SMTP_PASS = os.getenv("SMTP_PASS", "")
 SMTP_FROM = os.getenv("SMTP_FROM", "noreply@novalis.ai")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "novalisproia@gmail.com")
 
+# Stripe (facturation abonnements — optionnel)
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_PRICE_STARTER = os.getenv("STRIPE_PRICE_STARTER", "")
+STRIPE_PRICE_PRO = os.getenv("STRIPE_PRICE_PRO", "")
+STRIPE_PRICE_ENTERPRISE = os.getenv("STRIPE_PRICE_ENTERPRISE", "")
+APP_URL = os.getenv("APP_URL", "")
+
+stripe = None
+if STRIPE_SECRET_KEY:
+    try:
+        import stripe as _stripe
+        _stripe.api_key = STRIPE_SECRET_KEY
+        stripe = _stripe
+        logging.getLogger("novalis").info("Stripe billing activé")
+    except ImportError:
+        logging.getLogger("novalis").warning("stripe package non installé — billing désactivé")
+
 # Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "3.4.0"
+VERSION = "5.0"
 
 # Landing page HTML — lu depuis le fichier source pour éviter la duplication
 def _load_landing_html() -> str:
@@ -318,6 +336,70 @@ async def init_db():
             )
         """)
 
+        # === BASE DE CONNAISSANCES PAR CLIENT ===
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS knowledge_base (
+                id TEXT PRIMARY KEY,
+                client_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                kb_type TEXT DEFAULT 'faq',
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (client_id) REFERENCES clients(id)
+            )
+        """)
+
+        # === CAMPAGNES SMS/WHATSAPP ===
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS campaigns (
+                id TEXT PRIMARY KEY,
+                client_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                message TEXT NOT NULL,
+                channel TEXT DEFAULT 'sms',
+                contacts TEXT DEFAULT '[]',
+                status TEXT DEFAULT 'draft',
+                scheduled_at TEXT DEFAULT '',
+                sent_count INTEGER DEFAULT 0,
+                delivered_count INTEGER DEFAULT 0,
+                response_count INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (client_id) REFERENCES clients(id)
+            )
+        """)
+
+        # === WEBHOOKS SORTANTS (intégrations CRM) ===
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS client_webhooks (
+                id TEXT PRIMARY KEY,
+                client_id TEXT NOT NULL,
+                url TEXT NOT NULL,
+                events TEXT DEFAULT '["new_appointment","transfer_requested","new_message"]',
+                secret TEXT NOT NULL,
+                is_active INTEGER DEFAULT 1,
+                last_triggered TEXT DEFAULT '',
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (client_id) REFERENCES clients(id)
+            )
+        """)
+
+        # === RAPPORTS IA HEBDOMADAIRES ===
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS weekly_reports (
+                id TEXT PRIMARY KEY,
+                client_id TEXT NOT NULL,
+                week_start TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                highlights TEXT DEFAULT '',
+                recommendations TEXT DEFAULT '',
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (client_id) REFERENCES clients(id)
+            )
+        """)
+
         # === TABLE R&D LOG (pour RS&DE) ===
         await db.execute("""
             CREATE TABLE IF NOT EXISTS rd_log (
@@ -347,16 +429,26 @@ async def init_db():
         await db.execute("CREATE INDEX IF NOT EXISTS idx_pmsg_project ON project_messages(project_id)")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_catalog_active ON service_catalog(is_active)")
 
-        # Migration : ajout des colonnes si absentes (installations existantes)
-        try:
-            await db.execute("ALTER TABLE clients ADD COLUMN fb_page_id TEXT DEFAULT ''")
-            await db.commit()
-            logger.info("Migration: colonne fb_page_id ajoutée")
-        except Exception:
-            pass  # Colonne déjà présente
+        # Migrations pour installations existantes
+        migrations = [
+            "ALTER TABLE clients ADD COLUMN fb_page_id TEXT DEFAULT ''",
+            "ALTER TABLE clients ADD COLUMN stripe_customer_id TEXT DEFAULT ''",
+            "ALTER TABLE clients ADD COLUMN portal_token TEXT DEFAULT ''",
+        ]
+        for migration in migrations:
+            try:
+                await db.execute(migration)
+                await db.commit()
+            except Exception:
+                pass  # Colonne déjà présente
+
+        # Index pour les nouvelles tables
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_kb_client ON knowledge_base(client_id, is_active)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_campaigns_client ON campaigns(client_id, status)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_webhooks_client ON client_webhooks(client_id, is_active)")
 
         await db.commit()
-        logger.info("Base de données V3.1 (agence IA) initialisée")
+        logger.info("Base de données V5.0 (agence IA) initialisée")
 
 
 async def appointment_reminder_task():
@@ -407,9 +499,16 @@ async def startup():
         logger.warning("⚠️  ANTHROPIC_API_KEY non définie — les réponses IA seront désactivées.")
     if not TWILIO_ACCOUNT_SID:
         logger.warning("⚠️  Twilio non configuré — SMS/Voix désactivés.")
+    # SQLite WAL mode — bien meilleure performance en production (concurrent reads/writes)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA journal_mode=WAL")
+        await db.execute("PRAGMA cache_size=10000")
+        await db.execute("PRAGMA synchronous=NORMAL")
+        await db.execute("PRAGMA temp_store=MEMORY")
     await init_db()
     await seed_service_catalog()
     asyncio.create_task(appointment_reminder_task())
+    asyncio.create_task(weekly_report_task())
     logger.info(f"Novalis V{VERSION} démarré — Agence IA")
 
 # ============================================================
@@ -676,71 +775,99 @@ async def update_daily_stats(client_id: str, intent: str, response_ms: int = 0):
 # ============================================================
 # MOTEUR IA (CLAUDE) - MULTI-TENANT
 # ============================================================
-def get_system_prompt(client: Dict) -> str:
+async def get_client_knowledge_base(client_id: str) -> str:
+    """Récupère la base de connaissances active d'un client."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT title, content, kb_type FROM knowledge_base WHERE client_id = ? AND is_active = 1 ORDER BY kb_type, created_at",
+            (client_id,)
+        )
+        rows = await cursor.fetchall()
+    if not rows:
+        return ""
+    sections = []
+    for title, content, kb_type in rows:
+        sections.append(f"[{title}]\n{content}")
+    return "\n\n".join(sections)
+
+
+async def get_system_prompt(client: Dict) -> str:
     now = datetime.now()
     days_fr = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
     current_day = days_fr[now.weekday()]
 
     hours_note = ""
     if not is_within_hours(client.get("hours", "")):
-        hours_note = "\n- ⚠️ NOUS SOMMES ACTUELLEMENT FERMÉS."
+        hours_note = "\n- ⚠️ NOUS SOMMES ACTUELLEMENT FERMÉS. Propose de rappeler le prochain jour ouvrable."
 
     custom = client.get("custom_prompt", "")
-    custom_section = f"\n\nINSTRUCTIONS SUPPLÉMENTAIRES DU PROPRIÉTAIRE :\n{custom}" if custom else ""
+    custom_section = f"\n\nINSTRUCTIONS SPÉCIALES DU PROPRIÉTAIRE :\n{custom}" if custom else ""
 
-    return f"""Tu es l'assistant de "{client['business_name']}" ({client.get('business_type', 'Commerce')}) situé à {client.get('address', 'Québec')}.
+    kb = await get_client_knowledge_base(client["id"])
+    kb_section = f"\n\nBASE DE CONNAISSANCES (utilise ces infos pour répondre précisément) :\n{kb}" if kb else ""
+
+    return f"""Tu es l'assistant virtuel de "{client['business_name']}" ({client.get('business_type', 'Commerce')}) situé à {client.get('address', 'Québec, Canada')}.
 
 INFORMATIONS SUR L'ENTREPRISE :
 - Services et prix : {client.get('services', 'Services variés')}
 - Heures d'ouverture : {client.get('hours', 'Lundi-Vendredi 9h-17h')}
 - Adresse : {client.get('address', '')}
-- Informations supplémentaires : {client.get('info', '')}
+- Infos additionnelles : {client.get('info', '')}
 
-CONTEXTE :
-- Nous sommes {current_day} le {now.strftime('%d/%m/%Y')} à {now.strftime('%Hh%M')}.{hours_note}
+CONTEXTE ACTUEL :
+- Nous sommes {current_day} le {now.strftime('%d/%m/%Y')} à {now.strftime('%Hh%M')}.{hours_note}{kb_section}
 
-RÈGLES STRICTES :
-1. Réponds TOUJOURS en français québécois naturel et professionnel
-2. Utilise le vouvoiement
-3. Sois CONCIS — maximum 2-3 phrases par SMS
-4. Si on demande un rendez-vous, propose des créneaux selon les heures d'ouverture
-5. Les prix sont en dollars canadiens ($)
-6. Ne mentionne JAMAIS que tu es une intelligence artificielle
-7. Agis comme un(e) secrétaire/réceptionniste chaleureux(se)
-8. Si c'est urgent ou complexe, propose de faire rappeler par le propriétaire
-9. Termine par une question ou une invitation si pertinent
-10. Si tu ne connais pas la réponse, dis que tu vas vérifier et revenir rapidement
-
-RENDEZ-VOUS :
-- Si le client veut prendre rendez-vous, demande : la date souhaitée, l'heure préférée, et le service
-- Confirme les détails avant de valider
-- Mentionne que le rendez-vous sera confirmé par le commerce{custom_section}"""
+RÈGLES ABSOLUES :
+1. Réponds TOUJOURS en français québécois naturel et chaleureux
+2. Utilise le vouvoiement avec respect
+3. SMS : maximum 2-3 phrases. Sois direct et utile.
+4. Pour les rendez-vous : demande date, heure préférée et service voulu
+5. Prix en dollars canadiens ($). Toujours précis sur les prix si connus.
+6. Ne révèle JAMAIS que tu es une IA — tu es un(e) assistant(e) du commerce
+7. Pour les urgences ou plaintes : empathie immédiate, propose un rappel humain
+8. Si tu ne connais pas la réponse : "Je vais vérifier et vous revenir rapidement !"
+9. Termine toujours par une question ou un appel à l'action pertinent{custom_section}"""
 
 
-async def generate_response(client: Dict, conv_id: str, message: str, max_retries: int = 3) -> tuple:
+def select_model(message: str, intent: str, history_length: int) -> str:
+    """Sélectionne Haiku ou Sonnet selon la complexité de la conversation."""
+    # Sonnet pour les cas qui nécessitent plus de nuance
+    if (len(message) > 200 or
+            intent in ["complaint", "urgent"] or
+            history_length > 8 or
+            any(w in message.lower() for w in ["problème", "mécontent", "remboursement", "juridique", "avocat"])):
+        return "claude-sonnet-4-6"
+    # Haiku pour tout le reste (rapide, économique)
+    return "claude-haiku-4-5-20251001"
+
+
+async def generate_response(client: Dict, conv_id: str, message: str,
+                            intent: str = "general", max_retries: int = 3) -> tuple:
     """Génère une réponse IA. Retourne (response, response_time_ms, tokens_used)."""
     if not claude_client:
         return ("Merci pour votre message ! Nous allons vous répondre très bientôt.", 0, 0)
 
-    history = await get_recent_history(conv_id, limit=10)
-    messages = []
+    history = await get_recent_history(conv_id, limit=12)
+    messages_payload = []
     for msg in history:
-        messages.append({
+        messages_payload.append({
             "role": "user" if msg["role"] == "client" else "assistant",
             "content": msg["content"]
         })
-    messages.append({"role": "user", "content": message})
+    messages_payload.append({"role": "user", "content": message})
+
+    model = select_model(message, intent, len(history))
+    system_text = await get_system_prompt(client)
+    system_payload = [{"type": "text", "text": system_text, "cache_control": {"type": "ephemeral"}}]
 
     start_time = datetime.now()
-    system_payload = [{"type": "text", "text": get_system_prompt(client),
-                       "cache_control": {"type": "ephemeral"}}]
     for attempt in range(max_retries):
         try:
             response = claude_client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=300,
+                model=model,
+                max_tokens=400,
                 system=system_payload,
-                messages=messages,
+                messages=messages_payload,
                 extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
             )
             elapsed = (datetime.now() - start_time).total_seconds() * 1000
@@ -748,10 +875,10 @@ async def generate_response(client: Dict, conv_id: str, message: str, max_retrie
             tokens = usage.input_tokens + usage.output_tokens
             cache_hit = getattr(usage, "cache_read_input_tokens", 0) or 0
             if cache_hit:
-                logger.debug(f"Cache hit: {cache_hit} tokens économisés pour client {client['id']}")
+                logger.debug(f"Cache hit: {cache_hit} tokens économisés (client {client['id']}, modèle {model})")
             return (response.content[0].text, int(elapsed), tokens)
         except Exception as e:
-            logger.warning(f"Claude API tentative #{attempt + 1}: {e}")
+            logger.warning(f"Claude API ({model}) tentative #{attempt + 1}: {e}")
             if attempt < max_retries - 1:
                 await asyncio.sleep(2 ** attempt)
             else:
@@ -815,7 +942,7 @@ async def handle_incoming_sms(request: Request):
     await add_message(conv_id, client["id"], "client", body, intent)
 
     # Générer réponse IA
-    ai_response, response_ms, tokens = await generate_response(client, conv_id, body)
+    ai_response, response_ms, tokens = await generate_response(client, conv_id, body, intent)
     await add_message(conv_id, client["id"], "agent", ai_response, response_time_ms=response_ms, tokens_used=tokens)
 
     # Alerter le propriétaire
@@ -863,7 +990,7 @@ async def handle_incoming_whatsapp(request: Request):
     await update_daily_stats(client["id"], intent)
     await add_message(conv_id, client["id"], "client", body, intent)
 
-    ai_response, response_ms, tokens = await generate_response(client, conv_id, body)
+    ai_response, response_ms, tokens = await generate_response(client, conv_id, body, intent)
     await add_message(conv_id, client["id"], "agent", ai_response, response_time_ms=response_ms, tokens_used=tokens)
     await notify_owner(client, from_number, body, intent)
 
@@ -922,7 +1049,7 @@ async def handle_voice_response(request: Request):
     await update_daily_stats(client["id"], intent)
     await add_message(conv_id, client["id"], "client", speech, intent)
 
-    ai_response, response_ms, tokens = await generate_response(client, conv_id, speech)
+    ai_response, response_ms, tokens = await generate_response(client, conv_id, speech, intent)
     await add_message(conv_id, client["id"], "agent", ai_response, response_time_ms=response_ms, tokens_used=tokens)
     await notify_owner(client, from_number, speech, intent)
 
@@ -972,7 +1099,7 @@ async def handle_messenger(request: Request):
             intent = detect_intent(message)
             await update_daily_stats(client["id"], intent)
             await add_message(conv_id, client["id"], "client", message, intent)
-            ai_response, response_ms, tokens = await generate_response(client, conv_id, message)
+            ai_response, response_ms, tokens = await generate_response(client, conv_id, message, intent)
             await add_message(conv_id, client["id"], "agent", ai_response, response_time_ms=response_ms, tokens_used=tokens)
 
             if client.get("fb_page_token"):
@@ -1017,33 +1144,37 @@ async def create_client(request: Request, username: str = Depends(verify_admin))
 
     client_id = generate_id("client")
     api_key = generate_api_key()
+    portal_token = secrets.token_urlsafe(32)
     now = datetime.now().isoformat()
 
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             INSERT INTO clients (id, business_name, business_type, services, hours, address, info,
                                owner_name, owner_email, owner_phone, twilio_phone, fb_page_token,
-                               fb_page_id, api_key, plan, status, custom_prompt, language, max_messages_month,
+                               fb_page_id, api_key, portal_token, plan, status, custom_prompt, language, max_messages_month,
                                created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 'fr-CA', ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 'fr-CA', ?, ?, ?)
         """, (
             client_id, data["business_name"], data.get("business_type", "Commerce"),
             data.get("services", ""), data.get("hours", "Lundi-Vendredi 9h-17h"),
             data.get("address", ""), data.get("info", ""),
             data["owner_name"], data["owner_email"],
             data.get("owner_phone", ""), data.get("twilio_phone", ""),
-            data.get("fb_page_token", ""), data.get("fb_page_id", ""), api_key,
+            data.get("fb_page_token", ""), data.get("fb_page_id", ""), api_key, portal_token,
             data.get("plan", "starter"), data.get("custom_prompt", ""),
             data.get("max_messages_month", 500), now, now
         ))
         await db.commit()
 
+    portal_url = f"/portal?t={portal_token}"
     return {
         "id": client_id,
         "api_key": api_key,
+        "portal_token": portal_token,
+        "portal_url": portal_url,
         "business_name": data["business_name"],
         "status": "active",
-        "message": f"Client créé avec succès. Clé API: {api_key}"
+        "message": f"Client créé. API: {api_key} | Portail: {portal_url}"
     }
 
 @app.get("/api/v1/clients")
@@ -1052,7 +1183,7 @@ async def list_clients(username: str = Depends(verify_admin)):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
-            "SELECT id, business_name, business_type, owner_name, owner_email, plan, status, twilio_phone, messages_used_month, max_messages_month, created_at FROM clients ORDER BY created_at DESC"
+            "SELECT id, business_name, business_type, owner_name, owner_email, plan, status, twilio_phone, api_key, messages_used_month, max_messages_month, created_at FROM clients ORDER BY created_at DESC"
         )
         rows = await cursor.fetchall()
         return [dict(r) for r in rows]
@@ -1856,10 +1987,14 @@ async def dashboard(username: str = Depends(verify_admin)):
                         <div><label>Numéro Twilio</label><input id="nc_twilio" placeholder="+1..."/></div>
                         <div><label>Adresse</label><input id="nc_address"/></div>
                         <div><label>Heures d'ouverture</label><input id="nc_hours" value="Lundi-Vendredi 9h-17h"/></div>
+                        <div><label>Facebook Page ID</label><input id="nc_fb_page_id" placeholder="ex: 1234567890"/></div>
+                        <div><label>FB Page Access Token</label><input id="nc_fb_token" type="password" placeholder="EAABw..."/></div>
+                        <div><label>Max messages / mois</label><input id="nc_max_msgs" type="number" value="500" min="100"/></div>
                     </div>
                     <label>Services et prix</label><textarea id="nc_services" rows="3" placeholder="Coupe homme: 25$, Coupe femme: 45$..."></textarea>
                     <label>Infos supplémentaires</label><textarea id="nc_info" rows="2"></textarea>
-                    <label>Plan</label><select id="nc_plan"><option value="starter">Starter (39$/mois - 500 msg)</option><option value="pro">Pro (99$/mois - 2000 msg)</option><option value="enterprise">Enterprise (249$/mois - illimité)</option></select>
+                    <label>Prompt personnalisé (optionnel — override du prompt standard)</label><textarea id="nc_custom_prompt" rows="2" placeholder="Laissez vide pour utiliser le prompt standard..."></textarea>
+                    <label>Plan</label><select id="nc_plan"><option value="starter">Starter (497$/mois — 500 msg)</option><option value="pro">Pro (1 497$/mois — 2 000 msg)</option><option value="enterprise">Enterprise (sur mesure — illimité)</option></select>
                     <br/><button class="btn" onclick="createClient()">Créer le client</button>
                     <div id="nc_result" style="margin-top:12px;color:#34d399;"></div>
                 </div>
@@ -1932,13 +2067,92 @@ async function loadClients(){{
     const l=document.getElementById('clientList');
     if(!d.length){{l.innerHTML='<div style="color:#94a3b8;text-align:center;padding:20px;">Aucun client</div>';return;}}
     l.innerHTML=d.map(c=>`<div class="client-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
             <div class="client-name">${{c.business_name}}</div>
-            <div><span class="badge ${{c.status}}">${{c.status}}</span> <span class="badge ${{c.plan}}">${{c.plan}}</span></div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
+                <span class="badge ${{c.status}}">${{c.status}}</span>
+                <span class="badge ${{c.plan}}">${{c.plan}}</span>
+                <button class="btn btn-sm" onclick="getPortalLink('${{c.id}}')" title="Copier lien portail">🔗 Portail</button>
+                <button class="btn btn-sm" style="background:#1e3a5f;color:#a855f7;" onclick="openEditModal('${{c.id}}')" title="Modifier">✏️</button>
+                <button class="btn btn-sm" style="background:${{c.status==='active'?'rgba(239,68,68,0.12)':'rgba(52,211,153,0.12)'}};color:${{c.status==='active'?'#ef4444':'#34d399'}};" onclick="toggleStatus('${{c.id}}','${{c.status}}')">${{c.status==='active'?'⏸':'▶'}}</button>
+            </div>
         </div>
-        <div class="client-meta">${{c.owner_name}} · ${{c.owner_email}} · ${{c.twilio_phone||'Pas de tel'}} · ${{c.messages_used_month}}/${{c.max_messages_month}} msg</div>
+        <div class="client-meta">${{c.owner_name}} · ${{c.owner_email}} · ${{c.twilio_phone||'—'}} · ${{c.messages_used_month}}/${{c.max_messages_month}} msg</div>
+        <div style="font-size:0.7rem;color:#475569;margin-top:3px;">ID: ${{c.id}} · Créé: ${{c.created_at?.slice(0,10)||'—'}}</div>
     </div>`).join('');
-    }}catch(e){{}}
+    }}catch(e){{console.error(e);}}
+}}
+
+async function getPortalLink(id){{
+    try{{
+        const c=await fetch('/api/v1/clients/'+id).then(r=>r.json());
+        const url=window.location.origin+'/portal?key='+c.api_key;
+        await navigator.clipboard.writeText(url).catch(()=>{{}});
+        alert('✅ Lien copié dans le presse-papier :\n'+url);
+    }}catch(e){{alert('Erreur: '+e);}}
+}}
+
+async function openEditModal(id){{
+    try{{
+        const c=await fetch('/api/v1/clients/'+id).then(r=>r.json());
+        document.getElementById('em_id').value=c.id;
+        document.getElementById('em_name').value=c.business_name||'';
+        document.getElementById('em_type').value=c.business_type||'';
+        document.getElementById('em_owner').value=c.owner_name||'';
+        document.getElementById('em_email').value=c.owner_email||'';
+        document.getElementById('em_phone').value=c.owner_phone||'';
+        document.getElementById('em_twilio').value=c.twilio_phone||'';
+        document.getElementById('em_address').value=c.address||'';
+        document.getElementById('em_hours').value=c.hours||'';
+        document.getElementById('em_services').value=c.services||'';
+        document.getElementById('em_info').value=c.info||'';
+        document.getElementById('em_custom_prompt').value=c.custom_prompt||'';
+        document.getElementById('em_fb_page_id').value=c.fb_page_id||'';
+        document.getElementById('em_max_msgs').value=c.max_messages_month||500;
+        document.getElementById('em_plan').value=c.plan||'starter';
+        document.getElementById('em_apikey').textContent=c.api_key||'';
+        document.getElementById('em_result').textContent='';
+        document.getElementById('editModalOverlay').style.display='flex';
+    }}catch(e){{alert('Erreur: '+e);}}
+}}
+
+function closeEditModal(){{document.getElementById('editModalOverlay').style.display='none';}}
+
+async function saveClientEdit(){{
+    const id=document.getElementById('em_id').value;
+    const data={{
+        business_name:document.getElementById('em_name').value,
+        business_type:document.getElementById('em_type').value,
+        owner_name:document.getElementById('em_owner').value,
+        owner_email:document.getElementById('em_email').value,
+        owner_phone:document.getElementById('em_phone').value,
+        twilio_phone:document.getElementById('em_twilio').value,
+        address:document.getElementById('em_address').value,
+        hours:document.getElementById('em_hours').value,
+        services:document.getElementById('em_services').value,
+        info:document.getElementById('em_info').value,
+        custom_prompt:document.getElementById('em_custom_prompt').value,
+        fb_page_id:document.getElementById('em_fb_page_id').value,
+        max_messages_month:parseInt(document.getElementById('em_max_msgs').value)||500,
+        plan:document.getElementById('em_plan').value,
+    }};
+    try{{
+        const r=await fetch('/api/v1/clients/'+id,{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
+        if(r.ok){{
+            document.getElementById('em_result').innerHTML='<span style="color:#34d399;">✓ Sauvegardé !</span>';
+            setTimeout(()=>{{closeEditModal();loadClients();}},1200);
+        }}else{{
+            const e=await r.json();
+            document.getElementById('em_result').textContent='❌ '+(e.detail||'Erreur');
+        }}
+    }}catch(e){{document.getElementById('em_result').textContent='❌ Erreur réseau';}}
+}}
+
+async function toggleStatus(id,status){{
+    const newStatus=status==='active'?'inactive':'active';
+    if(!confirm((newStatus==='inactive'?'Désactiver':'Réactiver')+' ce client ?'))return;
+    await fetch('/api/v1/clients/'+id,{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{status:newStatus}})}}).catch(()=>{{}});
+    loadClients();
 }}
 
 async function createClient(){{
@@ -1954,6 +2168,10 @@ async function createClient(){{
         services:document.getElementById('nc_services').value,
         info:document.getElementById('nc_info').value,
         plan:document.getElementById('nc_plan').value,
+        fb_page_id:document.getElementById('nc_fb_page_id').value,
+        fb_page_token:document.getElementById('nc_fb_token').value,
+        custom_prompt:document.getElementById('nc_custom_prompt').value,
+        max_messages_month:parseInt(document.getElementById('nc_max_msgs').value)||500,
     }};
     try{{const r=await fetch('/api/v1/clients',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
     const d=await r.json();
@@ -1994,39 +2212,412 @@ function exportRd(){{window.location.href='/api/v1/rd/export?format=csv';}}
 function tick(){{document.getElementById('clock').textContent=new Date().toLocaleTimeString('fr-CA',{{hour:'2-digit',minute:'2-digit'}});}}
 loadPlatformStats();tick();setInterval(loadPlatformStats,10000);setInterval(tick,1000);
 </script>
+
+<!-- MODAL MODIFIER CLIENT -->
+<div id="editModalOverlay" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.75);align-items:flex-start;justify-content:center;padding:60px 16px 40px;overflow-y:auto;">
+    <div style="background:#1a2332;border:1px solid #1e3a5f;border-radius:16px;padding:28px;max-width:640px;width:100%;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="color:#38bdf8;margin:0;">✏️ Modifier le client</h3>
+            <button onclick="closeEditModal()" style="background:transparent;border:none;color:#94a3b8;font-size:2rem;cursor:pointer;line-height:1;padding:0 4px;">×</button>
+        </div>
+        <input id="em_id" type="hidden"/>
+        <div class="form-grid">
+            <div><label>Nom du commerce</label><input id="em_name"/></div>
+            <div><label>Type</label><input id="em_type"/></div>
+            <div><label>Propriétaire</label><input id="em_owner"/></div>
+            <div><label>Email</label><input id="em_email" type="email"/></div>
+            <div><label>Tél propriétaire</label><input id="em_phone"/></div>
+            <div><label>Numéro Twilio</label><input id="em_twilio"/></div>
+            <div><label>Adresse</label><input id="em_address"/></div>
+            <div><label>Heures d'ouverture</label><input id="em_hours"/></div>
+            <div><label>Facebook Page ID</label><input id="em_fb_page_id"/></div>
+            <div><label>Max msg / mois</label><input id="em_max_msgs" type="number"/></div>
+        </div>
+        <label>Services et prix</label><textarea id="em_services" rows="3"></textarea>
+        <label>Infos supplémentaires</label><textarea id="em_info" rows="2"></textarea>
+        <label>Prompt personnalisé</label><textarea id="em_custom_prompt" rows="2" placeholder="Laissez vide pour le prompt standard"></textarea>
+        <label>Plan</label>
+        <select id="em_plan" style="margin-bottom:14px;">
+            <option value="starter">Starter (497$/mois)</option>
+            <option value="pro">Pro (1 497$/mois)</option>
+            <option value="enterprise">Enterprise (sur mesure)</option>
+        </select>
+        <div style="background:#0f1f2e;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:0.8rem;word-break:break-all;">
+            <span style="color:#64748b;">Clé API : </span><code id="em_apikey" style="color:#fbbf24;"></code>
+        </div>
+        <div style="display:flex;gap:12px;">
+            <button class="btn" onclick="saveClientEdit()">Enregistrer</button>
+            <button class="btn" style="background:#334155;color:#94a3b8;" onclick="closeEditModal()">Annuler</button>
+        </div>
+        <div id="em_result" style="margin-top:10px;font-size:0.9rem;"></div>
+    </div>
+</div>
 </body>
 </html>"""
+
+# ============================================================
+# KNOWLEDGE BASE — Base de connaissances par client
+# ============================================================
+@app.get("/api/v1/me/knowledge-base")
+async def get_my_knowledge_base(client: dict = Depends(verify_api_key)):
+    """Liste la base de connaissances du client."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM knowledge_base WHERE client_id = ? ORDER BY kb_type, created_at",
+            (client["id"],)
+        )
+        return [dict(r) for r in await cursor.fetchall()]
+
+@app.post("/api/v1/me/knowledge-base")
+async def add_knowledge_entry(request: Request, client: dict = Depends(verify_api_key)):
+    """Ajoute une entrée à la base de connaissances (FAQ, menu, politique...)."""
+    data = await request.json()
+    if not data.get("title") or not data.get("content"):
+        raise HTTPException(status_code=400, detail="title et content requis")
+    if len(data["content"]) > 5000:
+        raise HTTPException(status_code=400, detail="Contenu trop long (max 5000 caractères)")
+    kb_id = generate_id("kb")
+    now = datetime.now().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO knowledge_base (id, client_id, title, content, kb_type, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?)",
+            (kb_id, client["id"], data["title"], data["content"], data.get("kb_type", "faq"), now, now)
+        )
+        await db.commit()
+    return {"id": kb_id, "status": "created"}
+
+@app.put("/api/v1/me/knowledge-base/{kb_id}")
+async def update_knowledge_entry(kb_id: str, request: Request, client: dict = Depends(verify_api_key)):
+    data = await request.json()
+    allowed = ["title", "content", "kb_type", "is_active"]
+    updates, values = [], []
+    for f in allowed:
+        if f in data:
+            updates.append(f"{f} = ?")
+            values.append(data[f])
+    if not updates:
+        raise HTTPException(status_code=400, detail="Rien à mettre à jour")
+    updates.append("updated_at = ?")
+    values.extend([datetime.now().isoformat(), kb_id, client["id"]])
+    async with aiosqlite.connect(DB_PATH) as db:
+        set_clause = ", ".join(updates)
+        await db.execute(f"UPDATE knowledge_base SET {set_clause} WHERE id = ? AND client_id = ?", values)
+        await db.commit()
+    return {"status": "updated"}
+
+@app.delete("/api/v1/me/knowledge-base/{kb_id}")
+async def delete_knowledge_entry(kb_id: str, client: dict = Depends(verify_api_key)):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM knowledge_base WHERE id = ? AND client_id = ?", (kb_id, client["id"]))
+        await db.commit()
+    return {"status": "deleted"}
+
+# ============================================================
+# CAMPAGNES SMS/WHATSAPP PROACTIVES
+# ============================================================
+@app.get("/api/v1/me/campaigns")
+async def get_my_campaigns(client: dict = Depends(verify_api_key)):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM campaigns WHERE client_id = ? ORDER BY created_at DESC", (client["id"],)
+        )
+        rows = await cursor.fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            try:
+                d["contacts"] = json.loads(d["contacts"])
+            except Exception:
+                d["contacts"] = []
+            result.append(d)
+        return result
+
+@app.post("/api/v1/me/campaigns")
+async def create_campaign(request: Request, client: dict = Depends(verify_api_key)):
+    data = await request.json()
+    if not data.get("name") or not data.get("message"):
+        raise HTTPException(status_code=400, detail="name et message requis")
+    contacts = data.get("contacts", [])
+    if len(contacts) > 1000:
+        raise HTTPException(status_code=400, detail="Maximum 1000 contacts par campagne")
+    camp_id = generate_id("camp")
+    now = datetime.now().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO campaigns (id, client_id, name, message, channel, contacts, status, scheduled_at, sent_count, delivered_count, response_count, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, 0, 0, 0, ?, ?)""",
+            (camp_id, client["id"], data["name"], data["message"],
+             data.get("channel", "sms"), json.dumps(contacts),
+             data.get("scheduled_at", ""), now, now)
+        )
+        await db.commit()
+    return {"id": camp_id, "status": "created", "contacts_count": len(contacts)}
+
+@app.post("/api/v1/me/campaigns/{camp_id}/send")
+async def send_campaign_endpoint(camp_id: str, client: dict = Depends(verify_api_key)):
+    if not twilio_client or not client.get("twilio_phone"):
+        raise HTTPException(status_code=400, detail="Twilio non configuré")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT * FROM campaigns WHERE id = ? AND client_id = ?", (camp_id, client["id"]))
+        camp = await cursor.fetchone()
+        if not camp:
+            raise HTTPException(status_code=404, detail="Campagne non trouvée")
+        camp = dict(camp)
+        if camp["status"] not in ("draft", "scheduled"):
+            camp_status = camp['status']
+        raise HTTPException(status_code=400, detail=f"Statut invalide: {camp_status}")
+    asyncio.create_task(_execute_campaign(camp, client))
+    contacts_count = len(json.loads(camp["contacts"]))
+    return {"status": "sending", "message": f"Envoi en cours vers {contacts_count} contacts"}
+
+async def _execute_campaign(camp: dict, client: dict):
+    contacts = json.loads(camp["contacts"])
+    channel = camp["channel"]
+    sent = 0
+    from_number = client["twilio_phone"]
+    if channel == "whatsapp":
+        from_number = f"whatsapp:{from_number}"
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE campaigns SET status = 'sending', updated_at = ? WHERE id = ?",
+                        (datetime.now().isoformat(), camp["id"]))
+        await db.commit()
+    for phone in contacts:
+        try:
+            to = f"whatsapp:{phone}" if channel == "whatsapp" else phone
+            twilio_client.messages.create(body=camp["message"], from_=from_number, to=to)
+            sent += 1
+            await asyncio.sleep(0.1)
+        except Exception as e:
+            logger.error(f"Campagne {camp.get('id','?')} — erreur {phone}: {e}")
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE campaigns SET status = 'completed', sent_count = ?, updated_at = ? WHERE id = ?",
+                        (sent, datetime.now().isoformat(), camp["id"]))
+        await db.commit()
+    logger.info(f"Campagne {camp.get('id','?')} terminée: {sent}/{len(contacts)}")
+
+@app.delete("/api/v1/me/campaigns/{camp_id}")
+async def delete_campaign(camp_id: str, client: dict = Depends(verify_api_key)):
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT status FROM campaigns WHERE id = ? AND client_id = ?", (camp_id, client["id"]))
+        row = await cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Campagne non trouvée")
+        if row[0] not in ("draft", "cancelled"):
+            raise HTTPException(status_code=400, detail="Seules les campagnes en brouillon peuvent être supprimées")
+        await db.execute("DELETE FROM campaigns WHERE id = ?", (camp_id,))
+        await db.commit()
+    return {"status": "deleted"}
+
+# ============================================================
+# WEBHOOKS SORTANTS — Intégrations CRM
+# ============================================================
+async def trigger_outgoing_webhooks(client_id: str, event: str, payload: dict):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM client_webhooks WHERE client_id = ? AND is_active = 1", (client_id,)
+        )
+        webhooks = [dict(r) for r in await cursor.fetchall()]
+    for wh in webhooks:
+        try:
+            events = json.loads(wh.get("events", "[]"))
+            if event not in events:
+                continue
+            body = json.dumps({"event": event, "timestamp": datetime.now().isoformat(), "data": payload})
+            sig = hashlib.sha256(f"{wh.get('secret','')}{body}".encode()).hexdigest()
+            http_requests.post(wh["url"], data=body,
+                headers={"Content-Type": "application/json", "X-Novalis-Signature": sig}, timeout=5)
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute("UPDATE client_webhooks SET last_triggered = ? WHERE id = ?",
+                                (datetime.now().isoformat(), wh["id"]))
+                await db.commit()
+        except Exception as e:
+            logger.error(f"Webhook {wh.get('id','?')} erreur: {e}")
+
+@app.get("/api/v1/me/webhooks")
+async def get_my_webhooks(client: dict = Depends(verify_api_key)):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT id, url, events, is_active, last_triggered, created_at FROM client_webhooks WHERE client_id = ?",
+            (client["id"],)
+        )
+        rows = await cursor.fetchall()
+        return [{**dict(r), "events": json.loads(r["events"] or "[]")} for r in rows]
+
+@app.post("/api/v1/me/webhooks")
+async def create_webhook(request: Request, client: dict = Depends(verify_api_key)):
+    data = await request.json()
+    if not data.get("url") or not data["url"].startswith("https://"):
+        raise HTTPException(status_code=400, detail="URL HTTPS requise")
+    wh_id = generate_id("wh")
+    secret = secrets.token_hex(32)
+    events = data.get("events", ["new_appointment", "transfer_requested", "new_message"])
+    now = datetime.now().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO client_webhooks (id, client_id, url, events, secret, is_active, created_at) VALUES (?, ?, ?, ?, ?, 1, ?)",
+            (wh_id, client["id"], data["url"], json.dumps(events), secret, now)
+        )
+        await db.commit()
+    return {"id": wh_id, "secret": secret, "message": "Conservez ce secret — il ne sera plus affiché."}
+
+@app.delete("/api/v1/me/webhooks/{wh_id}")
+async def delete_webhook(wh_id: str, client: dict = Depends(verify_api_key)):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM client_webhooks WHERE id = ? AND client_id = ?", (wh_id, client["id"]))
+        await db.commit()
+    return {"status": "deleted"}
+
+# ============================================================
+# RAPPORTS IA HEBDOMADAIRES
+# ============================================================
+async def generate_weekly_report_text(client: dict) -> Optional[str]:
+    if not claude_client:
+        return None
+    week_start = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT SUM(interactions), SUM(rdv_requests), SUM(questions), SUM(complaints), SUM(transfers) FROM stats_daily WHERE client_id = ? AND date >= ?",
+            (client["id"], week_start)
+        )
+        row = await cursor.fetchone()
+        total, rdv, questions, complaints, transfers = (row[i] or 0 for i in range(5))
+        cursor = await db.execute(
+            "SELECT content FROM messages WHERE client_id = ? AND role = 'client' AND timestamp >= ? ORDER BY RANDOM() LIMIT 20",
+            (client["id"], f"{week_start}T00:00:00")
+        )
+        sample_messages = [r[0] for r in await cursor.fetchall()]
+    if total == 0:
+        return None
+    prompt = f"""Génère un rapport hebdomadaire professionnel pour {client['business_name']}.
+DONNÉES : {total} interactions, {rdv} RDV, {questions} questions, {complaints} plaintes, {transfers} transferts.
+MESSAGES ÉCHANTILLON : {'; '.join(m[:80] for m in sample_messages[:8])}
+FORMAT : 1) Résumé (2-3 phrases) 2) Points forts (3 bullets) 3) Recommandation concrète.
+Ton professionnel et positif. En français québécois."""
+    try:
+        response = claude_client.messages.create(
+            model="claude-sonnet-4-6", max_tokens=500,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.content[0].text
+    except Exception as e:
+        logger.error(f"Erreur rapport IA: {e}")
+        return None
+
+async def weekly_report_task():
+    while True:
+        try:
+            now = datetime.now()
+            days_until_sunday = (6 - now.weekday()) % 7
+            if days_until_sunday == 0 and now.hour >= 8:
+                days_until_sunday = 7
+            next_run = now.replace(hour=8, minute=0, second=0) + timedelta(days=days_until_sunday)
+            await asyncio.sleep(max((next_run - now).total_seconds(), 60))
+            logger.info("Génération des rapports hebdomadaires...")
+            week_start = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+            async with aiosqlite.connect(DB_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute("SELECT * FROM clients WHERE status = 'active' AND plan != 'inquiry'")
+                clients = [dict(r) for r in await cursor.fetchall()]
+            for client in clients:
+                try:
+                    summary = await generate_weekly_report_text(client)
+                    if not summary:
+                        continue
+                    report_id = generate_id("rpt")
+                    async with aiosqlite.connect(DB_PATH) as db:
+                        await db.execute(
+                            "INSERT INTO weekly_reports (id, client_id, week_start, summary, highlights, recommendations, created_at) VALUES (?, ?, ?, ?, ''', ''', ?)",
+                            (report_id, client["id"], week_start, summary, datetime.now().isoformat())
+                        )
+                        await db.commit()
+                    if client.get("owner_email"):
+                        await send_email(to=client["owner_email"],
+                            subject=f"📊 Rapport Novalis — semaine du {week_start}",
+                            body=f"<div style='font-family:sans-serif;max-width:640px;margin:0 auto;'><h2 style='color:#38bdf8;'>Rapport hebdomadaire — {client['business_name']}</h2><pre style='white-space:pre-wrap;color:#1e293b;'>{summary}</pre></div>")
+                except Exception as e:
+                    logger.error(f"Erreur rapport {client['id']}: {e}")
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Erreur tâche rapports: {e}")
+            await asyncio.sleep(3600)
+
+@app.get("/api/v1/me/reports")
+async def get_my_reports(client: dict = Depends(verify_api_key)):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT id, week_start, summary, created_at FROM weekly_reports WHERE client_id = ? ORDER BY week_start DESC LIMIT 12",
+            (client["id"],)
+        )
+        return [dict(r) for r in await cursor.fetchall()]
 
 # ============================================================
 # PORTAIL CLIENT
 # ============================================================
 @app.get("/portal", response_class=HTMLResponse)
-async def client_portal(key: str = Query(None)):
-    """Portail client authentifié par clé API (query param)."""
-    if not key:
-        return HTMLResponse("""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-        <title>Portail Novalis</title>
-        <style>body{font-family:sans-serif;background:#0a0e17;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}
-        .box{background:#1a2332;border:1px solid #1e3a5f;border-radius:16px;padding:40px;max-width:400px;width:90%;text-align:center;}
-        h2{color:#38bdf8;margin-bottom:16px;}input{width:100%;padding:12px;border-radius:8px;border:1px solid #1e3a5f;background:#0a0e17;color:#e2e8f0;font-size:1rem;margin-bottom:16px;box-sizing:border-box;}
-        button{background:#38bdf8;color:#0a0e17;border:none;padding:12px 24px;border-radius:8px;font-weight:700;cursor:pointer;width:100%;font-size:1rem;}
-        p{color:#94a3b8;font-size:0.9rem;}</style></head><body>
-        <div class="box"><h2>Portail Client Novalis</h2>
-        <p>Entrez votre clé API pour accéder à votre tableau de bord.</p>
-        <input id="k" placeholder="nvls_..." type="password" onkeydown="if(event.key==='Enter')go()"/>
-        <button onclick="go()">Accéder au portail</button></div>
-        <script>function go(){const k=document.getElementById('k').value.trim();if(k)window.location.href='/portal?key='+encodeURIComponent(k);}</script>
-        </body></html>""", status_code=200)
+async def client_portal(key: str = Query(None), t: str = Query(None)):
+    """Portail client — auth par token sécurisé (?t=) ou clé API legacy (?key=)."""
+    login_page = """<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+    <title>Portail Novalis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Inter',sans-serif;background:#060a12;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;}
+        .box{background:linear-gradient(135deg,rgba(17,24,39,0.9),rgba(13,21,32,0.9));border:1px solid rgba(56,189,248,0.15);border-radius:20px;padding:48px 40px;max-width:420px;width:90%;text-align:center;backdrop-filter:blur(20px);}
+        .logo{font-size:1.5rem;font-weight:900;background:linear-gradient(135deg,#38bdf8,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px;}
+        h2{color:#f1f5f9;font-size:1.4rem;margin-bottom:8px;}
+        p{color:#64748b;font-size:0.9rem;margin-bottom:28px;}
+        input{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);color:#e2e8f0;font-size:1rem;margin-bottom:16px;outline:none;transition:border 0.2s;}
+        input:focus{border-color:rgba(56,189,248,0.4);}
+        button{background:linear-gradient(135deg,#38bdf8,#0ea5e9);color:#060a12;border:none;padding:14px 24px;border-radius:10px;font-weight:700;cursor:pointer;width:100%;font-size:1rem;transition:opacity 0.2s;}
+        button:hover{opacity:0.9;}
+    </style></head><body>
+    <div class="box">
+        <div class="logo">NOVALIS</div>
+        <h2>Portail client</h2>
+        <p>Entrez votre clé d'accès pour consulter votre tableau de bord.</p>
+        <input id="k" placeholder="Clé d'accès..." type="password" onkeydown="if(event.key==='Enter')go()"/>
+        <button onclick="go()">Accéder →</button>
+    </div>
+    <script>function go(){const k=document.getElementById('k').value.trim();if(k)window.location.href='/portal?key='+encodeURIComponent(k);}</script>
+    </body></html>"""
 
-    # Vérifier la clé
+    if not key and not t:
+        return HTMLResponse(login_page, status_code=200)
+
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        cursor = await db.execute("SELECT * FROM clients WHERE api_key = ? AND status = 'active'", (key,))
+        if t:
+            cursor = await db.execute("SELECT * FROM clients WHERE portal_token = ? AND status = 'active'", (t,))
+        else:
+            cursor = await db.execute("SELECT * FROM clients WHERE api_key = ? AND status = 'active'", (key,))
         client = await cursor.fetchone()
+
     if not client:
-        return HTMLResponse("<p style='color:red;font-family:sans-serif;padding:40px;'>Clé API invalide.</p>", status_code=401)
+        return HTMLResponse("""<html><body style="font-family:sans-serif;background:#060a12;color:#ef4444;display:flex;align-items:center;justify-content:center;min-height:100vh;"><div style="text-align:center"><h2>Accès refusé</h2><p style="color:#64748b;margin-top:8px;">Clé invalide ou compte inactif. <a href="/portal" style="color:#38bdf8;">Réessayer</a></p></div></body></html>""", status_code=401)
 
     c = dict(client)
+
+    # Rétro-compat: si authentifié par api_key, générer/utiliser le portal_token et rediriger
+    if key and not t:
+        tok = c.get("portal_token") or ""
+        if not tok:
+            tok = secrets.token_urlsafe(32)
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute("UPDATE clients SET portal_token = ? WHERE id = ?", (tok, c["id"]))
+                await db.commit()
+            c["portal_token"] = tok
+        return Response(status_code=302, headers={"Location": f"/portal?t={tok}", "Cache-Control": "no-store"})
+
+    c_api_key = c["api_key"]
+    c_api_key_masked = "•" * len(c_api_key)
+
     portal_html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -2091,7 +2682,11 @@ async def client_portal(key: str = Query(None)):
         <button class="nav-link" onclick="showPage('conversations')">💬 Conversations</button>
         <button class="nav-link" onclick="showPage('appointments')">📅 Rendez-vous</button>
         <button class="nav-link" onclick="showPage('projects')">🗂 Projets</button>
-        <button class="nav-link" onclick="showPage('roi')">💰 Rapport ROI</button>
+        <button class="nav-link" onclick="showPage('knowledge')">🧠 Base de connaissances</button>
+        <button class="nav-link" onclick="showPage('campaigns')">📣 Campagnes</button>
+        <button class="nav-link" onclick="showPage('webhooks')">🔗 Intégrations</button>
+        <button class="nav-link" onclick="showPage('reports')">📈 Rapports IA</button>
+        <button class="nav-link" onclick="showPage('roi')">💰 ROI</button>
         <button class="nav-link" onclick="showPage('settings')">⚙️ Mon compte</button>
     </div>
     <div class="main">
@@ -2153,6 +2748,88 @@ async def client_portal(key: str = Query(None)):
             <div id="roiContent"><div style="color:#64748b;">Chargement...</div></div>
         </div>
 
+        <!-- KNOWLEDGE BASE -->
+        <div class="page" id="page-knowledge">
+            <div class="page-title">Base de connaissances</div>
+            <p style="color:#64748b;margin-bottom:20px;font-size:0.9rem;">Tout ce que vous ajoutez ici, votre IA le connaîtra et pourra en parler avec vos clients.</p>
+            <div class="card">
+                <h3>Ajouter une entrée</h3>
+                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:4px;">Type</label>
+                <select id="kb_type" style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e3a5f;background:#0f1f2e;color:#e2e8f0;margin-bottom:10px;">
+                    <option value="faq">FAQ — Questions fréquentes</option>
+                    <option value="menu">Menu / Catalogue / Prix</option>
+                    <option value="policy">Politiques / Conditions</option>
+                    <option value="team">Équipe / Personnel</option>
+                    <option value="custom">Autre information</option>
+                </select>
+                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:4px;">Titre</label>
+                <input id="kb_title" placeholder="ex: Nos tarifs 2026" style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e3a5f;background:#0f1f2e;color:#e2e8f0;margin-bottom:10px;">
+                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:4px;">Contenu (max 5000 caractères)</label>
+                <textarea id="kb_content" rows="5" placeholder="Coupe homme: 25$&#10;Coupe femme: 45$&#10;Coloration: 80$+..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e3a5f;background:#0f1f2e;color:#e2e8f0;margin-bottom:12px;resize:vertical;"></textarea>
+                <button class="btn" onclick="addKbEntry()">Ajouter à ma base de connaissances</button>
+            </div>
+            <div class="card">
+                <h3>Mes entrées</h3>
+                <div id="kbList"><div style="color:#64748b;">Chargement...</div></div>
+            </div>
+        </div>
+
+        <!-- CAMPAGNES -->
+        <div class="page" id="page-campaigns">
+            <div class="page-title">Campagnes SMS / WhatsApp</div>
+            <p style="color:#64748b;margin-bottom:20px;font-size:0.9rem;">Envoyez des messages proactifs à vos clients : promotions, rappels, annonces.</p>
+            <div class="card">
+                <h3>Nouvelle campagne</h3>
+                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:4px;">Nom de la campagne</label>
+                <input id="camp_name" placeholder="ex: Promo été 2026" style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e3a5f;background:#0f1f2e;color:#e2e8f0;margin-bottom:10px;">
+                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:4px;">Canal</label>
+                <select id="camp_channel" style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e3a5f;background:#0f1f2e;color:#e2e8f0;margin-bottom:10px;">
+                    <option value="sms">SMS</option>
+                    <option value="whatsapp">WhatsApp</option>
+                </select>
+                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:4px;">Message (max 160 car. pour SMS)</label>
+                <textarea id="camp_message" rows="4" placeholder="Bonjour ! Profitez de notre spécial été : 20% de rabais sur tous nos services jusqu'au 31 juillet. Répondez OUI pour réserver !" style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e3a5f;background:#0f1f2e;color:#e2e8f0;margin-bottom:6px;resize:vertical;"></textarea>
+                <div id="charCount" style="color:#64748b;font-size:0.75rem;margin-bottom:10px;">0 / 160</div>
+                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:4px;">Numéros de téléphone (un par ligne, format +15141234567)</label>
+                <textarea id="camp_contacts" rows="5" placeholder="+15141234567&#10;+14381234567&#10;..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e3a5f;background:#0f1f2e;color:#e2e8f0;margin-bottom:12px;resize:vertical;"></textarea>
+                <button class="btn" onclick="createCampaign()">Créer la campagne</button>
+            </div>
+            <div class="card">
+                <h3>Mes campagnes</h3>
+                <div id="campList"><div style="color:#64748b;">Chargement...</div></div>
+            </div>
+        </div>
+
+        <!-- WEBHOOKS -->
+        <div class="page" id="page-webhooks">
+            <div class="page-title">Intégrations — Webhooks</div>
+            <p style="color:#64748b;margin-bottom:20px;font-size:0.9rem;">Recevez des notifications en temps réel dans votre CRM ou tout autre outil quand un événement se produit.</p>
+            <div class="card">
+                <h3>Ajouter un webhook</h3>
+                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:4px;">URL HTTPS de destination</label>
+                <input id="wh_url" placeholder="https://votre-crm.com/webhook/novalis" style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e3a5f;background:#0f1f2e;color:#e2e8f0;margin-bottom:12px;">
+                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:8px;">Événements à écouter</label>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+                    <label style="color:#e2e8f0;font-size:0.9rem;"><input type="checkbox" id="ev_appt" checked> Nouveau RDV</label>
+                    <label style="color:#e2e8f0;font-size:0.9rem;"><input type="checkbox" id="ev_transfer" checked> Transfert demandé</label>
+                    <label style="color:#e2e8f0;font-size:0.9rem;"><input type="checkbox" id="ev_msg"> Nouveau message</label>
+                </div>
+                <button class="btn" onclick="createWebhook()">Ajouter le webhook</button>
+                <div id="wh_result" style="margin-top:12px;"></div>
+            </div>
+            <div class="card">
+                <h3>Webhooks configurés</h3>
+                <div id="whList"><div style="color:#64748b;">Chargement...</div></div>
+            </div>
+        </div>
+
+        <!-- RAPPORTS IA -->
+        <div class="page" id="page-reports">
+            <div class="page-title">Rapports IA hebdomadaires</div>
+            <p style="color:#64748b;margin-bottom:20px;font-size:0.9rem;">Chaque dimanche, votre IA analyse vos conversations et vous envoie un rapport personnalisé par email.</p>
+            <div id="reportsList"><div style="color:#64748b;">Chargement...</div></div>
+        </div>
+
         <!-- SETTINGS -->
         <div class="page" id="page-settings">
             <div class="page-title">Mon compte</div>
@@ -2170,7 +2847,7 @@ async def client_portal(key: str = Query(None)):
             <div class="card">
                 <h3>Clé API</h3>
                 <p style="color:#64748b;font-size:0.85rem;margin-bottom:12px;">Utilisez cette clé pour intégrer Novalis à vos outils. Gardez-la secrète.</p>
-                <div class="api-key-box" id="apiKeyDisplay">{'•' * len(key)}</div>
+                <div class="api-key-box" id="apiKeyDisplay">{c_api_key_masked}</div>
                 <button class="copy-btn" onclick="revealKey()">Afficher / Copier</button>
             </div>
             <div class="card">
@@ -2184,7 +2861,7 @@ async def client_portal(key: str = Query(None)):
 </div>
 
 <script>
-const API_KEY = '{key}';
+const API_KEY = '{c_api_key}';
 const headers = {{'X-API-Key': API_KEY}};
 let activityChart = null;
 
@@ -2197,6 +2874,10 @@ function showPage(name) {{
     if(name==='conversations') loadConversations();
     if(name==='appointments') loadAppointments('');
     if(name==='projects') loadProjects();
+    if(name==='knowledge') loadKnowledgeBase();
+    if(name==='campaigns') loadCampaigns();
+    if(name==='webhooks') loadWebhooks();
+    if(name==='reports') loadReports();
     if(name==='roi') loadRoi();
 }}
 
@@ -2351,13 +3032,131 @@ async function loadRoi() {{
     `;
 }}
 
+// ---- KNOWLEDGE BASE ----
+async function loadKnowledgeBase() {{
+    const entries = await fetch('/api/v1/me/knowledge-base',{{headers}}).then(r=>r.json()).catch(()=>[]);
+    const typeLabel = {{faq:'FAQ',menu:'Menu/Prix',policy:'Politiques',team:'Équipe',custom:'Autre'}};
+    document.getElementById('kbList').innerHTML = entries.length ? entries.map(e=>`
+        <div style="background:#0f1f2e;border-radius:10px;padding:14px;margin-bottom:10px;border-left:3px solid ${{e.is_active?'#38bdf8':'#334155'}}">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <div>
+                    <span style="font-weight:600;color:#e2e8f0;">${{e.title}}</span>
+                    <span class="badge badge-blue" style="margin-left:8px;">${{typeLabel[e.kb_type]||e.kb_type}}</span>
+                </div>
+                <button onclick="deleteKbEntry('${{e.id}}')" style="background:transparent;border:1px solid #ef4444;color:#ef4444;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:0.75rem;">Supprimer</button>
+            </div>
+            <div style="color:#94a3b8;font-size:0.85rem;margin-top:8px;white-space:pre-wrap;">${{e.content.slice(0,200)}}${{e.content.length>200?'...':''}}</div>
+        </div>`).join('') : '<div style="color:#64748b;">Aucune entrée. Ajoutez vos FAQ, tarifs et infos pour que votre IA réponde plus précisément !</div>';
+}}
+async function addKbEntry() {{
+    const data = {{title:document.getElementById('kb_title').value,content:document.getElementById('kb_content').value,kb_type:document.getElementById('kb_type').value}};
+    if(!data.title||!data.content){{alert('Titre et contenu requis');return;}}
+    const r = await fetch('/api/v1/me/knowledge-base',{{method:'POST',headers:{{...headers,'Content-Type':'application/json'}},body:JSON.stringify(data)}});
+    if(r.ok){{document.getElementById('kb_title').value='';document.getElementById('kb_content').value='';loadKnowledgeBase();}}
+    else{{const e=await r.json();alert(e.detail||'Erreur');}}
+}}
+async function deleteKbEntry(id) {{
+    if(!confirm('Supprimer cette entrée ?'))return;
+    await fetch('/api/v1/me/knowledge-base/'+id,{{method:'DELETE',headers}});
+    loadKnowledgeBase();
+}}
+
+// ---- CAMPAGNES ----
+document.addEventListener('DOMContentLoaded',()=>{{
+    const msg = document.getElementById('camp_message');
+    if(msg) msg.addEventListener('input',()=>{{document.getElementById('charCount').textContent=msg.value.length+' / 160';}});
+}});
+async function loadCampaigns() {{
+    const camps = await fetch('/api/v1/me/campaigns',{{headers}}).then(r=>r.json()).catch(()=>[]);
+    const statusBadge = {{draft:'badge-gray',sending:'badge-yellow',completed:'badge-green',cancelled:'badge-gray'}};
+    const statusLabel = {{draft:'Brouillon',sending:'Envoi en cours',completed:'Terminée',cancelled:'Annulée'}};
+    document.getElementById('campList').innerHTML = camps.length ? camps.map(c=>`
+        <div style="background:#0f1f2e;border-radius:10px;padding:14px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <div>
+                    <span style="font-weight:600;">${{c.name}}</span>
+                    <span class="badge badge-blue" style="margin-left:8px;">${{c.channel.toUpperCase()}}</span>
+                    <span class="badge ${{statusBadge[c.status]||'badge-gray'}}" style="margin-left:6px;">${{statusLabel[c.status]||c.status}}</span>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    ${{c.status==='draft'?`<button class="btn" style="padding:4px 10px;font-size:0.75rem;" onclick="sendCampaign('${{c.id}}')">▶ Envoyer</button>`:''}}
+                    <span style="color:#64748b;font-size:0.8rem;padding:4px 0;">${{c.sent_count}}/${{Array.isArray(c.contacts)?c.contacts.length:0}} envoyés</span>
+                </div>
+            </div>
+            <div style="color:#94a3b8;font-size:0.85rem;margin-top:8px;">${{c.message.slice(0,100)}}${{c.message.length>100?'...':''}}</div>
+        </div>`).join('') : '<div style="color:#64748b;">Aucune campagne. Créez votre première campagne ci-dessus.</div>';
+}}
+async function createCampaign() {{
+    const contacts = document.getElementById('camp_contacts').value.split('\\n').map(s=>s.trim()).filter(Boolean);
+    const data = {{name:document.getElementById('camp_name').value,message:document.getElementById('camp_message').value,channel:document.getElementById('camp_channel').value,contacts}};
+    if(!data.name||!data.message){{alert('Nom et message requis');return;}}
+    const r = await fetch('/api/v1/me/campaigns',{{method:'POST',headers:{{...headers,'Content-Type':'application/json'}},body:JSON.stringify(data)}});
+    const d = await r.json();
+    if(r.ok){{alert(`Campagne créée pour ${{d.contacts_count}} contacts.`);loadCampaigns();}}
+    else{{alert(d.detail||'Erreur');}}
+}}
+async function sendCampaign(id) {{
+    if(!confirm('Envoyer cette campagne maintenant ?'))return;
+    const r = await fetch('/api/v1/me/campaigns/'+id+'/send',{{method:'POST',headers}});
+    const d = await r.json();
+    alert(d.message||'Envoi lancé');
+    loadCampaigns();
+}}
+
+// ---- WEBHOOKS ----
+async function loadWebhooks() {{
+    const whs = await fetch('/api/v1/me/webhooks',{{headers}}).then(r=>r.json()).catch(()=>[]);
+    document.getElementById('whList').innerHTML = whs.length ? whs.map(w=>`
+        <div style="background:#0f1f2e;border-radius:10px;padding:14px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                <div style="word-break:break-all;color:#38bdf8;font-size:0.9rem;">${{w.url}}</div>
+                <button onclick="deleteWebhook('${{w.id}}')" style="background:transparent;border:1px solid #ef4444;color:#ef4444;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:0.75rem;">Supprimer</button>
+            </div>
+            <div style="color:#64748b;font-size:0.8rem;margin-top:6px;">Événements: ${{w.events.join(', ')}} · Dernier déclenchement: ${{w.last_triggered?w.last_triggered.slice(0,16):'Jamais'}}</div>
+        </div>`).join('') : '<div style="color:#64748b;">Aucun webhook configuré.</div>';
+}}
+async function createWebhook() {{
+    const events = [];
+    if(document.getElementById('ev_appt').checked) events.push('new_appointment');
+    if(document.getElementById('ev_transfer').checked) events.push('transfer_requested');
+    if(document.getElementById('ev_msg').checked) events.push('new_message');
+    const data = {{url:document.getElementById('wh_url').value,events}};
+    if(!data.url){{alert('URL requise');return;}}
+    const r = await fetch('/api/v1/me/webhooks',{{method:'POST',headers:{{...headers,'Content-Type':'application/json'}},body:JSON.stringify(data)}});
+    const d = await r.json();
+    if(r.ok){{
+        document.getElementById('wh_result').innerHTML=`<div style="background:#0f1f2e;border-radius:8px;padding:12px;margin-top:12px;"><strong style="color:#34d399;">✓ Webhook créé !</strong><br><span style="color:#64748b;font-size:0.85rem;">Secret (conservez-le):</span><br><code style="color:#fbbf24;word-break:break-all;">${{d.secret}}</code></div>`;
+        document.getElementById('wh_url').value='';
+        loadWebhooks();
+    }} else {{alert(d.detail||'Erreur');}}
+}}
+async function deleteWebhook(id) {{
+    if(!confirm('Supprimer ce webhook ?'))return;
+    await fetch('/api/v1/me/webhooks/'+id,{{method:'DELETE',headers}});
+    loadWebhooks();
+}}
+
+// ---- RAPPORTS IA ----
+async function loadReports() {{
+    const reports = await fetch('/api/v1/me/reports',{{headers}}).then(r=>r.json()).catch(()=>[]);
+    document.getElementById('reportsList').innerHTML = reports.length ? reports.map(r=>`
+        <div class="card" style="margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 style="margin:0;">Semaine du ${{r.week_start}}</h3>
+                <span style="color:#64748b;font-size:0.8rem;">${{r.created_at?.slice(0,10)||''}}</span>
+            </div>
+            <div style="white-space:pre-wrap;color:#cbd5e1;font-size:0.9rem;line-height:1.7;">${{r.summary}}</div>
+        </div>`).join('') :
+    '<div class="card" style="text-align:center;color:#64748b;"><p>Aucun rapport disponible.</p><p style="font-size:0.85rem;margin-top:8px;">Votre premier rapport sera généré automatiquement dimanche prochain.</p></div>';
+}}
+
 function revealKey() {{
     const el = document.getElementById('apiKeyDisplay');
     if(el.textContent.includes('•')) {{
         el.textContent = API_KEY;
         navigator.clipboard.writeText(API_KEY).catch(()=>{{}});
     }} else {{
-        el.textContent = '{'•' * len(key)}';
+        el.textContent = '{c_api_key_masked}';
     }}
 }}
 
@@ -2367,6 +3166,267 @@ loadDashboard();
 </body>
 </html>"""
     return HTMLResponse(portal_html)
+
+# ============================================================
+# SSE — Mises à jour temps réel pour le portail
+# ============================================================
+from fastapi.responses import StreamingResponse
+
+@app.get("/api/v1/me/stream")
+async def client_event_stream(request: Request, client: dict = Depends(verify_api_key)):
+    """Server-Sent Events — détecte nouveaux messages et RDV en temps réel."""
+    client_id = client["id"]
+
+    async def generator():
+        last_ts = datetime.now().isoformat()
+        ping_count = 0
+        while True:
+            if await request.is_disconnected():
+                break
+            try:
+                async with aiosqlite.connect(DB_PATH) as db:
+                    db.row_factory = aiosqlite.Row
+                    cur = await db.execute(
+                        "SELECT COUNT(*) as n FROM messages WHERE client_id=? AND timestamp>? AND role='client'",
+                        (client_id, last_ts)
+                    )
+                    new_msgs = (await cur.fetchone())["n"]
+                    cur = await db.execute(
+                        "SELECT COUNT(*) as n FROM appointments WHERE client_id=? AND created_at>?",
+                        (client_id, last_ts)
+                    )
+                    new_appts = (await cur.fetchone())["n"]
+
+                last_ts = datetime.now().isoformat()
+                ping_count += 1
+                payload = json.dumps({"type": "update", "new_messages": new_msgs,
+                                      "new_appointments": new_appts, "ping": ping_count})
+                yield f"data: {payload}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'type':'error','msg':str(e)})}\n\n"
+            await asyncio.sleep(15)
+
+    return StreamingResponse(
+        generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"}
+    )
+
+# ============================================================
+# UPLOAD FICHIERS — Base de connaissances (TXT, CSV, PDF)
+# ============================================================
+from fastapi import UploadFile, File, Form as FastForm
+
+@app.post("/api/v1/me/knowledge-base/upload")
+async def upload_kb_file(
+    title: str = FastForm(...),
+    kb_type: str = FastForm("custom"),
+    file: UploadFile = File(...),
+    client: dict = Depends(verify_api_key)
+):
+    """Importe un fichier TXT, CSV ou PDF dans la base de connaissances."""
+    raw = await file.read()
+    if len(raw) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Fichier trop volumineux (max 5 Mo)")
+
+    fname = (file.filename or "").lower()
+    ext = fname.rsplit(".", 1)[-1] if "." in fname else ""
+
+    if ext in ("txt", "text", "csv", "md"):
+        text = raw.decode("utf-8", errors="replace")
+    elif ext == "pdf":
+        try:
+            import pypdf
+            import io as _io
+            reader = pypdf.PdfReader(_io.BytesIO(raw))
+            text = "\n".join(p.extract_text() or "" for p in reader.pages)
+        except ImportError:
+            raise HTTPException(status_code=400, detail="pypdf non installé. Envoyez un fichier TXT.")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Impossible de lire le PDF: {e}")
+    else:
+        raise HTTPException(status_code=400, detail="Formats acceptés: TXT, CSV, MD, PDF")
+
+    text = text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Aucun texte extractible du fichier")
+    if len(text) > 10_000:
+        text = text[:10_000]
+
+    kb_id = generate_id("kb")
+    now = datetime.now().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO knowledge_base (id, client_id, title, content, kb_type, is_active, created_at, updated_at) VALUES (?,?,?,?,?,1,?,?)",
+            (kb_id, client["id"], title, text, kb_type, now, now)
+        )
+        await db.commit()
+
+    return {"id": kb_id, "title": title, "chars": len(text), "message": "Fichier importé avec succès"}
+
+# ============================================================
+# GOOGLE CALENDAR — Génération de liens 'Ajouter au calendrier'
+# ============================================================
+def make_gcal_link(title: str, date: str, time_str: str, duration_min: int = 60, description: str = "") -> str:
+    """Génère un lien Google Calendar pour un rendez-vous."""
+    from urllib.parse import quote
+    try:
+        start = datetime.strptime(f"{date} {time_str}", "%Y-%m-%d %H:%M")
+        end = start + timedelta(minutes=duration_min)
+        fmt = "%Y%m%dT%H%M%S"
+        return (f"https://calendar.google.com/calendar/render?action=TEMPLATE"
+                f"&text={quote(title)}&dates={start.strftime(fmt)}/{end.strftime(fmt)}"
+                f"&details={quote(description)}")
+    except Exception:
+        return ""
+
+@app.get("/api/v1/me/appointments/{appt_id}/gcal")
+async def get_gcal_link(appt_id: str, client: dict = Depends(verify_api_key)):
+    """Retourne un lien Google Calendar pour un rendez-vous."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute("SELECT * FROM appointments WHERE id=? AND client_id=?", (appt_id, client["id"]))
+        appt = await cur.fetchone()
+    if not appt:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+    appt = dict(appt)
+    title = f"RDV — {appt.get('service','') or 'Rendez-vous'} chez {client['business_name']}"
+    url = make_gcal_link(title, appt["date"], appt["time"], appt.get("duration_min", 60),
+                         appt.get("notes", ""))
+    return {"gcal_url": url}
+
+# ============================================================
+# OG IMAGE — Image de prévisualisation sociale (SVG dynamique)
+# ============================================================
+@app.get("/og-image.svg")
+async def og_image():
+    """SVG dynamique pour og:image (réseaux sociaux, partage de lien)."""
+    svg = """<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#060a12"/>
+      <stop offset="100%" stop-color="#0d1520"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <filter id="blur">
+      <feGaussianBlur stdDeviation="60"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="200" cy="150" r="300" fill="rgba(56,189,248,0.08)" filter="url(#blur)"/>
+  <circle cx="1000" cy="480" r="250" fill="rgba(168,85,247,0.07)" filter="url(#blur)"/>
+  <rect x="60" y="60" width="1080" height="510" rx="24" fill="none" stroke="rgba(56,189,248,0.12)" stroke-width="1"/>
+  <text x="600" y="220" font-family="Inter,system-ui,sans-serif" font-weight="900" font-size="96" fill="url(#accent)" text-anchor="middle">NOVALIS</text>
+  <text x="600" y="300" font-family="Inter,system-ui,sans-serif" font-weight="400" font-size="32" fill="#94a3b8" text-anchor="middle">Agence d&#8217;intelligence artificielle · Qu&#233;bec</text>
+  <line x1="480" y1="340" x2="720" y2="340" stroke="rgba(56,189,248,0.3)" stroke-width="1"/>
+  <text x="600" y="400" font-family="Inter,system-ui,sans-serif" font-size="26" fill="#64748b" text-anchor="middle">SMS · WhatsApp · Voix · Messenger · Automatisation</text>
+  <text x="600" y="510" font-family="Inter,system-ui,sans-serif" font-weight="600" font-size="22" fill="#38bdf8" text-anchor="middle">novalis.ai · novalisproia@gmail.com</text>
+</svg>"""
+    return Response(content=svg, media_type="image/svg+xml",
+                    headers={"Cache-Control": "public, max-age=86400"})
+
+# ============================================================
+# STRIPE — Facturation abonnements (optionnel)
+# ============================================================
+@app.post("/api/v1/checkout/{plan}")
+@limiter.limit("5/minute")
+async def create_checkout_session(plan: str, request: Request, client: dict = Depends(verify_api_key)):
+    """Crée une session de paiement Stripe pour un plan d'abonnement."""
+    if not stripe:
+        raise HTTPException(status_code=503, detail="Facturation Stripe non configurée sur cette instance")
+
+    price_map = {
+        "starter": STRIPE_PRICE_STARTER,
+        "pro": STRIPE_PRICE_PRO,
+        "enterprise": STRIPE_PRICE_ENTERPRISE,
+    }
+    price_id = price_map.get(plan)
+    if not price_id:
+        raise HTTPException(status_code=400, detail=f"Plan invalide: {plan}. Valides: starter, pro, enterprise")
+
+    try:
+        base_url = APP_URL or str(request.base_url).rstrip("/")
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url=f"{base_url}/portal?key={client['api_key']}&upgraded=1",
+            cancel_url=f"{base_url}/#pricing",
+            customer_email=client["owner_email"],
+            metadata={"client_id": client["id"], "plan": plan},
+        )
+        return {"checkout_url": session.url}
+    except Exception as e:
+        logger.error(f"Stripe checkout error: {e}")
+        raise HTTPException(status_code=500, detail="Erreur de paiement — contactez le support")
+
+
+@app.post("/stripe/webhook")
+async def handle_stripe_webhook(request: Request):
+    """Webhook Stripe — met à jour le plan client après paiement ou annulation."""
+    if not stripe:
+        return {"status": "disabled"}
+
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+    except Exception as e:
+        logger.warning(f"Stripe webhook signature invalide: {e}")
+        raise HTTPException(status_code=400, detail="Signature invalide")
+
+    event_type = event.get("type", "")
+    data = event.get("data", {}).get("object", {})
+
+    if event_type == "checkout.session.completed":
+        client_id = data.get("metadata", {}).get("client_id")
+        plan = data.get("metadata", {}).get("plan")
+        stripe_customer = data.get("customer", "")
+        if client_id and plan:
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute(
+                    "UPDATE clients SET plan = ?, stripe_customer_id = ?, status = 'active', updated_at = ? WHERE id = ?",
+                    (plan, stripe_customer, datetime.now().isoformat(), client_id)
+                )
+                await db.commit()
+            logger.info(f"Client {client_id} → plan {plan} activé via Stripe")
+
+    elif event_type == "customer.subscription.deleted":
+        stripe_customer = data.get("customer", "")
+        if stripe_customer:
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute(
+                    "UPDATE clients SET plan = 'starter', updated_at = ? WHERE stripe_customer_id = ?",
+                    (datetime.now().isoformat(), stripe_customer)
+                )
+                await db.commit()
+            logger.info(f"Abonnement annulé — customer Stripe {stripe_customer} rétrogradé au plan starter")
+
+    return {"status": "ok"}
+
+
+@app.get("/api/v1/billing/portal")
+async def billing_portal(request: Request, client: dict = Depends(verify_api_key)):
+    """Génère un lien vers le portail de gestion d'abonnement Stripe."""
+    if not stripe:
+        raise HTTPException(status_code=503, detail="Facturation non configurée")
+    customer_id = client.get("stripe_customer_id", "")
+    if not customer_id:
+        raise HTTPException(status_code=400, detail="Aucun abonnement Stripe actif pour ce compte")
+    try:
+        base_url = APP_URL or str(request.base_url).rstrip("/")
+        session = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=f"{base_url}/portal?key={client['api_key']}",
+        )
+        return {"portal_url": session.url}
+    except Exception as e:
+        logger.error(f"Stripe billing portal error: {e}")
+        raise HTTPException(status_code=500, detail="Erreur Stripe — contactez le support")
+
 
 # ============================================================
 # LANDING PAGE PUBLIQUE
