@@ -1865,6 +1865,32 @@ async def submit_inquiry(request: Request):
     }
 
 # ============================================================
+# TEST SMS (debug)
+# ============================================================
+@app.get("/api/v1/test-sms")
+async def test_sms(username: str = Depends(verify_admin)):
+    result = {
+        "twilio_configured": bool(twilio_client),
+        "twilio_phone": TWILIO_PHONE or "MANQUANT",
+        "owner_phone": OWNER_PHONE or "MANQUANT",
+    }
+    if twilio_client and TWILIO_PHONE and OWNER_PHONE:
+        try:
+            msg = twilio_client.messages.create(
+                body="Test SMS Novalis — configuration OK!",
+                from_=TWILIO_PHONE,
+                to=OWNER_PHONE
+            )
+            result["sms_status"] = "envoyé"
+            result["sid"] = msg.sid
+        except Exception as e:
+            result["sms_status"] = "erreur"
+            result["error"] = str(e)
+    else:
+        result["sms_status"] = "variables manquantes"
+    return result
+
+# ============================================================
 # ANALYTICS PLATEFORME (admin)
 # ============================================================
 @app.get("/api/v1/platform/stats")
