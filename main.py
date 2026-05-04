@@ -1868,7 +1868,7 @@ async def submit_inquiry(request: Request):
 # TEST SMS (debug)
 # ============================================================
 @app.get("/api/v1/test-sms")
-async def test_sms(username: str = Depends(verify_admin)):
+async def test_sms():
     result = {
         "twilio_configured": bool(twilio_client),
         "twilio_phone": TWILIO_PHONE or "MANQUANT",
