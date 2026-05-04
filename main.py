@@ -62,6 +62,8 @@ load_dotenv()
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_PHONE = os.getenv("TWILIO_PHONE", "")
+OWNER_PHONE = os.getenv("OWNER_PHONE", "")
 
 # Admin plateforme
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
@@ -1843,6 +1845,17 @@ async def submit_inquiry(request: Request):
         subject=f"🔔 Nouvelle demande : {name} — {service_type}",
         body=f"<p><b>Nom:</b> {name}<br><b>Email:</b> {email}<br><b>Service:</b> {service_type}<br><b>Description:</b> {description}</p>"
     ))
+
+    # SMS de notification à l'owner
+    if twilio_client and TWILIO_PHONE and OWNER_PHONE:
+        try:
+            twilio_client.messages.create(
+                body=f"🔔 Nouvelle demande Novalis!\nNom: {name}\nEmail: {email}\nService: {service_type}\nMessage: {description[:100]}",
+                from_=TWILIO_PHONE,
+                to=OWNER_PHONE
+            )
+        except Exception as e:
+            logger.warning(f"SMS owner non envoyé: {e}")
 
     return {
         "status": "received",
