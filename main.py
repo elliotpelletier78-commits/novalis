@@ -35,7 +35,8 @@ from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response, HTTPException, Depends, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -142,6 +143,11 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
+
+# Serve React build assets (JS, CSS, images) — mounted before API routes so /assets/* is served
+_FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "frontend", "dist")
+if os.path.isdir(_FRONTEND_DIST):
+    app.mount("/assets", StaticFiles(directory=os.path.join(_FRONTEND_DIST, "assets")), name="assets")
 
 # Clients API
 claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
@@ -3458,7 +3464,10 @@ async def billing_portal(request: Request, client: dict = Depends(verify_api_key
 # ============================================================
 @app.get("/", response_class=HTMLResponse)
 async def landing_page():
-    """Landing page publique — Novalis Agence IA."""
+    """Sert le build React s'il existe, sinon la landing HTML statique."""
+    react_index = os.path.join(_FRONTEND_DIST, "index.html")
+    if os.path.isfile(react_index):
+        return FileResponse(react_index)
     return LANDING_HTML
 
 # ============================================================
