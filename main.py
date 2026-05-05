@@ -35,7 +35,8 @@ from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response, HTTPException, Depends, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -110,7 +111,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "5.0"
+VERSION = "6.0"
 
 # Landing page HTML — lu depuis le fichier source pour éviter la duplication
 def _load_landing_html() -> str:
@@ -144,6 +145,11 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
+
+# Serve React build assets (JS, CSS, images) — mounted before API routes so /assets/* is served
+_FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "frontend", "dist")
+if os.path.isdir(_FRONTEND_DIST):
+    app.mount("/assets", StaticFiles(directory=os.path.join(_FRONTEND_DIST, "assets")), name="assets")
 
 # Clients API
 claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
@@ -1446,7 +1452,7 @@ async def get_roi_report(client: dict = Depends(verify_api_key)):
         hours_saved = round(total * avg_call_duration_min / 60, 1)
         money_saved = round(total * avg_call_cost, 2)
 
-        plan_cost = {"starter": 497, "agence": 1497, "pro": 997, "enterprise": 2500}.get(client.get("plan", "starter"), 497)
+        plan_cost = {"starter": 497, "pro": 1497, "agence": 1497, "enterprise": 2500}.get(client.get("plan", "starter"), 497)
         roi_ratio = round(money_saved / plan_cost, 1) if plan_cost > 0 else 0
 
     return {
@@ -1868,7 +1874,7 @@ async def submit_inquiry(request: Request):
 # TEST SMS (debug)
 # ============================================================
 @app.get("/api/v1/test-sms")
-async def test_sms():
+async def test_sms(username: str = Depends(verify_admin)):
     result = {
         "twilio_configured": bool(twilio_client),
         "twilio_phone": TWILIO_PHONE or "MANQUANT",
@@ -1916,7 +1922,7 @@ async def platform_stats(username: str = Depends(verify_admin)):
         # MRR calculation (cohérent avec landing page)
         cursor = await db.execute("SELECT plan, COUNT(*) FROM clients WHERE status = 'active' GROUP BY plan")
         plans = await cursor.fetchall()
-        prices = {"starter": 497, "agence": 1497, "pro": 997, "enterprise": 0}
+        prices = {"starter": 497, "pro": 1497, "agence": 1497, "enterprise": 2500}
         mrr = sum(prices.get(p[0], 0) * p[1] for p in plans)
 
     return {
@@ -2033,7 +2039,7 @@ async def dashboard(username: str = Depends(verify_admin)):
                     <label>Services et prix</label><textarea id="nc_services" rows="3" placeholder="Coupe homme: 25$, Coupe femme: 45$..."></textarea>
                     <label>Infos supplémentaires</label><textarea id="nc_info" rows="2"></textarea>
                     <label>Prompt personnalisé (optionnel — override du prompt standard)</label><textarea id="nc_custom_prompt" rows="2" placeholder="Laissez vide pour utiliser le prompt standard..."></textarea>
-                    <label>Plan</label><select id="nc_plan"><option value="starter">Starter (497$/mois — 500 msg)</option><option value="pro">Pro (1 497$/mois — 2 000 msg)</option><option value="enterprise">Enterprise (sur mesure — illimité)</option></select>
+                    <label>Plan</label><select id="nc_plan"><option value="starter">Starter (497$/mois — 500 msg)</option><option value="pro">Pro (1 497$/mois — 2 000 msg)</option><option value="enterprise">Enterprise (2 500$/mois — illimité)</option></select>
                     <br/><button class="btn" onclick="createClient()">Créer le client</button>
                     <div id="nc_result" style="margin-top:12px;color:#34d399;"></div>
                 </div>
@@ -2125,7 +2131,7 @@ async function loadClients(){{
 async function getPortalLink(id){{
     try{{
         const c=await fetch('/api/v1/clients/'+id).then(r=>r.json());
-        const url=window.location.origin+'/portal?key='+c.api_key;
+        const url=window.location.origin+'/portal?t='+c.portal_token;
         await navigator.clipboard.writeText(url).catch(()=>{{}});
         alert('✅ Lien copié dans le presse-papier :\n'+url);
     }}catch(e){{alert('Erreur: '+e);}}
@@ -2279,7 +2285,7 @@ loadPlatformStats();tick();setInterval(loadPlatformStats,10000);setInterval(tick
         <select id="em_plan" style="margin-bottom:14px;">
             <option value="starter">Starter (497$/mois)</option>
             <option value="pro">Pro (1 497$/mois)</option>
-            <option value="enterprise">Enterprise (sur mesure)</option>
+            <option value="enterprise">Enterprise (2 500$/mois)</option>
         </select>
         <div style="background:#0f1f2e;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:0.8rem;word-break:break-all;">
             <span style="color:#64748b;">Clé API : </span><code id="em_apikey" style="color:#fbbf24;"></code>
@@ -2406,8 +2412,7 @@ async def send_campaign_endpoint(camp_id: str, client: dict = Depends(verify_api
             raise HTTPException(status_code=404, detail="Campagne non trouvée")
         camp = dict(camp)
         if camp["status"] not in ("draft", "scheduled"):
-            camp_status = camp['status']
-        raise HTTPException(status_code=400, detail=f"Statut invalide: {camp_status}")
+            raise HTTPException(status_code=400, detail=f"Statut invalide: {camp['status']}")
     asyncio.create_task(_execute_campaign(camp, client))
     contacts_count = len(json.loads(camp["contacts"]))
     return {"status": "sending", "message": f"Envoi en cours vers {contacts_count} contacts"}
@@ -2570,7 +2575,7 @@ async def weekly_report_task():
                     report_id = generate_id("rpt")
                     async with aiosqlite.connect(DB_PATH) as db:
                         await db.execute(
-                            "INSERT INTO weekly_reports (id, client_id, week_start, summary, highlights, recommendations, created_at) VALUES (?, ?, ?, ?, ''', ''', ?)",
+                            "INSERT INTO weekly_reports (id, client_id, week_start, summary, highlights, recommendations, created_at) VALUES (?, ?, ?, ?, '', '', ?)",
                             (report_id, client["id"], week_start, summary, datetime.now().isoformat())
                         )
                         await db.commit()
@@ -3472,7 +3477,10 @@ async def billing_portal(request: Request, client: dict = Depends(verify_api_key
 # ============================================================
 @app.get("/", response_class=HTMLResponse)
 async def landing_page():
-    """Landing page publique — Novalis Agence IA."""
+    """Sert le build React s'il existe, sinon la landing HTML statique."""
+    react_index = os.path.join(_FRONTEND_DIST, "index.html")
+    if os.path.isfile(react_index):
+        return FileResponse(react_index)
     return LANDING_HTML
 
 # ============================================================
