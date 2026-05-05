@@ -140,7 +140,7 @@ export default function Contact() {
             ) : (
               <form
                 onSubmit={submit}
-                className="glass-card p-8 space-y-5"
+                className="glass-card p-8 space-y-5 relative"
                 noValidate
               >
                 {/* Top accent */}

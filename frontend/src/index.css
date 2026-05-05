@@ -54,6 +54,7 @@
 
 @layer components {
   .glass-card {
+    position: relative;
     background: rgba(29, 39, 51, 0.8);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
@@ -62,6 +63,7 @@
   }
 
   .glass-card-subtle {
+    position: relative;
     background: rgba(29, 39, 51, 0.5);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -207,6 +209,16 @@ section {
   font-size: 0.9rem;
   transition: border-color 0.2s ease;
   outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+select.form-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234A5260' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  padding-right: 2.5rem;
+  cursor: pointer;
 }
 
 .form-input:focus {

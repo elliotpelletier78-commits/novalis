@@ -152,7 +152,7 @@ export default function Hero() {
 
             {/* Floating badge */}
             <motion.div
-              className="glass-card-subtle flex items-center gap-3 px-5 py-3 mt-4 ml-8 copper-border inline-flex"
+              className="glass-card-subtle inline-flex items-center gap-3 px-5 py-3 mt-4 ml-8 copper-border"
               animate={{ y: [0, -6, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
             >
