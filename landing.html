@@ -426,15 +426,15 @@
 <body>
 <div id="scroll-progress"></div>
 
-<nav>
+<nav aria-label="Navigation principale">
     <div class="nav-inner">
         <div class="logo">NOVALIS</div>
         <div class="nav-links">
             <a href="#services">Services</a>
-            <a href="#cases">Cas d'usage</a>
+            <a href="#demo">Démo</a>
             <a href="#pricing">Tarifs</a>
             <a href="#faq">FAQ</a>
-            <a href="#contact" class="btn-nav">Demander une consultation</a>
+            <a href="#contact" class="btn-nav">Consultation gratuite</a>
         </div>
         <div class="hamburger" onclick="toggleMobileMenu()" aria-label="Menu">
             <span></span><span></span><span></span>
@@ -443,7 +443,7 @@
 </nav>
 <div class="mobile-menu" id="mobileMenu">
     <a href="#services" onclick="toggleMobileMenu()">Services</a>
-    <a href="#cases" onclick="toggleMobileMenu()">Cas d'usage</a>
+    <a href="#demo" onclick="toggleMobileMenu()">Démo</a>
     <a href="#pricing" onclick="toggleMobileMenu()">Tarifs</a>
     <a href="#faq" onclick="toggleMobileMenu()">FAQ</a>
     <a href="#contact" onclick="toggleMobileMenu()" style="color:var(--accent)">Consultation gratuite →</a>
@@ -507,7 +507,7 @@
 <section id="services">
     <div class="section-title reveal">
         <h2>Nos services d'automatisation IA</h2>
-        <p>On ne vend pas un seul produit — on analyse votre business et on automatise ce qui a le plus d'impact sur vos revenus</p>
+        <p>On ne vend pas un seul produit — on analyse votre entreprise et on automatise ce qui a le plus d'impact sur vos revenus</p>
     </div>
     <div class="services-grid">
         <div class="service-card grad-card reveal reveal-delay-1">
@@ -544,8 +544,8 @@
         <div class="service-card grad-card reveal reveal-delay-3">
             <div class="service-icon icon-purple">🧠</div>
             <h3>Consultation stratégique IA</h3>
-            <p>Audit complet de vos processus, identification des opportunités d'automatisation, plan d'implementation et accompagnement a chaque étape.</p>
-            <span class="tag tag-purple">Strategie</span>
+            <p>Audit complet de vos processus, identification des opportunités d'automatisation, plan d'implémentation et accompagnement à chaque étape.</p>
+            <span class="tag tag-purple">Stratégie</span>
         </div>
     </div>
 </section>
@@ -787,10 +787,10 @@
         <div class="pricing-card">
             <h3>Starter</h3>
             <div class="price">497$<span>/mois</span></div>
-            <p class="desc">Idéal pour les petites entreprises qui veulent commencer a automatiser</p>
+            <p class="desc">Idéal pour les petites entreprises qui veulent commencer à automatiser</p>
             <ul>
                 <li>1 agent conversationnel IA (SMS)</li>
-                <li>Jusqu'a 500 conversations/mois</li>
+                <li>Jusqu'à 500 conversations/mois</li>
                 <li>Gestion de rendez-vous</li>
                 <li>Tableau de bord analytics</li>
                 <li>Support par email</li>
@@ -798,14 +798,14 @@
             <a href="#contact" class="pricing-btn pricing-btn-outline">Commencer</a>
         </div>
         <div class="pricing-card featured">
-            <h3>Agence</h3>
+            <h3>Pro</h3>
             <div class="price">1 497$<span>/mois</span></div>
-            <p class="desc">Pour les PME qui veulent une automatisation complete</p>
+            <p class="desc">Pour les PME qui veulent une automatisation complète</p>
             <ul>
                 <li>Agent IA multi-canal (SMS, voix, Messenger)</li>
-                <li>Conversations illimitees</li>
+                <li>Conversations illimitées</li>
                 <li>2 automatisations sur mesure incluses</li>
-                <li>Integrations CRM et outils</li>
+                <li>Intégrations CRM et outils</li>
                 <li>Portail client avec suivi en temps réel</li>
                 <li>Rapport ROI mensuel</li>
                 <li>Support prioritaire</li>
@@ -815,13 +815,13 @@
         <div class="pricing-card">
             <h3>Enterprise</h3>
             <div class="price">Sur mesure</div>
-            <p class="desc">Transformation IA complete pour les entreprises ambitieuses</p>
+            <p class="desc">Transformation IA complète pour les entreprises ambitieuses</p>
             <ul>
                 <li>Audit complet de vos processus</li>
-                <li>Automatisations illimitees</li>
-                <li>IA entrainee sur vos donnees</li>
-                <li>Développement d'outils proprietaires</li>
-                <li>Gestionnaire de compte dedie</li>
+                <li>Automatisations illimitées</li>
+                <li>IA entraînée sur vos données</li>
+                <li>Développement d'outils propriétaires</li>
+                <li>Gestionnaire de compte dédié</li>
                 <li>SLA garanti 99.9%</li>
                 <li>Accompagnement subventions</li>
             </ul>
@@ -834,7 +834,7 @@
 <section id="tech">
     <div class="section-title">
         <h2>Notre stack technologique</h2>
-        <p>On utilise les meilleures technologies pour garantir performance, sécurité et fiabilite</p>
+        <p>On utilise les meilleures technologies pour garantir performance, sécurité et fiabilité</p>
     </div>
     <div class="tech-grid">
         <div class="tech-item"><span class="ti">🤖</span>Claude Sonnet (Anthropic)</div>
@@ -954,18 +954,18 @@
 <!-- CTA / CONTACT -->
 <div class="cta" id="contact">
     <h2>Prêt à automatiser votre entreprise?</h2>
-    <p>Dites-nous ce que vous voulez automatiser. On vous revient en 24h avec une proposition concrete et un estimé du ROI.</p>
+    <p>Dites-nous ce que vous voulez automatiser. On vous revient en 24h avec une proposition concrète et un estimé du ROI.</p>
 
     <div class="inquiry-form" id="inquiryForm">
-        <label>Votre nom</label>
+        <label for="inqName">Votre nom</label>
         <input type="text" id="inqName" placeholder="Jean Tremblay">
-        <label>Courriel</label>
+        <label for="inqEmail">Courriel</label>
         <input type="email" id="inqEmail" placeholder="jean@monentreprise.com">
-        <label>Telephone</label>
+        <label for="inqPhone">Téléphone</label>
         <input type="tel" id="inqPhone" placeholder="514-555-1234">
-        <label>Nom de votre entreprise</label>
+        <label for="inqBusiness">Nom de votre entreprise</label>
         <input type="text" id="inqBusiness" placeholder="Mon Entreprise Inc.">
-        <label>Type de service recherche</label>
+        <label for="inqService">Type de service recherché</label>
         <select id="inqService">
             <option value="">-- Sélectionnez --</option>
             <option value="chatbot">Agent conversationnel IA</option>
@@ -975,7 +975,7 @@
             <option value="consulting">Consultation stratégique</option>
             <option value="custom">Projet personnalisé</option>
         </select>
-        <label>Décrivez votre besoin</label>
+        <label for="inqDesc">Décrivez votre besoin</label>
         <textarea id="inqDesc" placeholder="Ex: Je veux automatiser la prise de rendez-vous et le suivi de mes clients par SMS..."></textarea>
         <button class="btn-primary" style="width:100%" onclick="submitInquiry()">Envoyer ma demande</button>
     </div>
@@ -1060,6 +1060,13 @@ document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
 function toggleMobileMenu() {
     document.getElementById('mobileMenu').classList.toggle('open');
 }
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('mobileMenu');
+    const nav = document.querySelector('nav');
+    if (menu.classList.contains('open') && !nav.contains(e.target)) {
+        menu.classList.remove('open');
+    }
+});
 
 // FAQ accordion
 function toggleFaq(el) {
@@ -1211,6 +1218,22 @@ async function submitInquiry() {
         btn.disabled = false;
         btn.textContent = 'Envoyer ma demande';
     }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ProfessionalService",
+  "name": "Novalis IA",
+  "description": "Agence d'intelligence artificielle au Québec — automatisation sur mesure, agents conversationnels SMS/WhatsApp/Voix, intégrations CRM.",
+  "url": "https://novalis.ai",
+  "email": "novalisproia@gmail.com",
+  "areaServed": {"@type": "Place", "name": "Québec, Canada"},
+  "knowsAbout": ["Intelligence artificielle", "Automatisation", "Agents conversationnels", "SMS", "WhatsApp"],
+  "offers": [
+    {"@type": "Offer", "name": "Starter", "price": "497", "priceCurrency": "CAD", "priceSpecification": {"@type": "UnitPriceSpecification", "billingDuration": "P1M"}},
+    {"@type": "Offer", "name": "Pro", "price": "1497", "priceCurrency": "CAD", "priceSpecification": {"@type": "UnitPriceSpecification", "billingDuration": "P1M"}}
+  ]
 }
 </script>
 </body>
