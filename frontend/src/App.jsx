@@ -6,6 +6,7 @@ import Services from './components/Services'
 import Process from './components/Process'
 import Cases from './components/Cases'
 import Demo from './components/Demo'
+import AICapabilities from './components/AICapabilities'
 import Testimonials from './components/Testimonials'
 import Subsidies from './components/Subsidies'
 import Pricing from './components/Pricing'
@@ -27,6 +28,7 @@ export default function App() {
         <Process />
         <Cases />
         <Demo />
+        <AICapabilities />
         <Testimonials />
         <RoiCalc />
         <Subsidies />

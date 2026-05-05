@@ -7,5 +7,4 @@ push_to_github.command
 
 # Frontend
 frontend/node_modules/
-frontend/dist/
 frontend/.vite/
