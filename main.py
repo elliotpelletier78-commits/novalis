@@ -517,6 +517,7 @@ async def init_db():
             "ALTER TABLE clients ADD COLUMN stripe_customer_id TEXT DEFAULT ''",
             "ALTER TABLE clients ADD COLUMN portal_token TEXT DEFAULT ''",
             "ALTER TABLE clients ADD COLUMN portal_token_expires_at TEXT DEFAULT ''",
+            "ALTER TABLE clients ADD COLUMN onboarding_step INTEGER DEFAULT 0",
             "ALTER TABLE messages ADD COLUMN sentiment_score REAL DEFAULT 0.0",
             "ALTER TABLE messages ADD COLUMN language TEXT DEFAULT 'fr'",
         ]
@@ -1666,6 +1667,35 @@ async def get_my_info(client: dict = Depends(verify_api_key)):
         "status": client["status"]
     }
 
+@app.patch("/api/v1/me/profile")
+async def update_my_profile(request: Request, client: dict = Depends(verify_api_key)):
+    """Met à jour le profil de l'entreprise (accessible au client)."""
+    data = await request.json()
+    allowed = ["business_name", "business_type", "hours", "owner_phone", "services", "address", "info", "language", "custom_prompt"]
+    updates = {k: v for k, v in data.items() if k in allowed and isinstance(v, str)}
+    if not updates:
+        raise HTTPException(400, "Aucun champ valide fourni")
+    updates["updated_at"] = datetime.now().isoformat()
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    values = list(updates.values()) + [client["id"]]
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(f"UPDATE clients SET {set_clause} WHERE id = ?", values)
+        await db.commit()
+    return {"status": "updated", "fields": list(updates.keys())}
+
+
+@app.post("/api/v1/me/onboarding/complete")
+async def complete_onboarding(client: dict = Depends(verify_api_key)):
+    """Marque l'onboarding comme complété."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE clients SET onboarding_step = 4, status = CASE WHEN status = 'inquiry' THEN 'active' ELSE status END, updated_at = ? WHERE id = ?",
+            (datetime.now().isoformat(), client["id"])
+        )
+        await db.commit()
+    return {"status": "onboarding_complete"}
+
+
 @app.get("/api/v1/me/stats")
 async def get_my_stats(days: int = Query(30, ge=1, le=365), client: dict = Depends(verify_api_key)):
     """Stats du client authentifié."""
@@ -2232,32 +2262,82 @@ async def submit_inquiry(request: Request):
 
     logger.info(f"Nouvelle demande de {name} ({email}) — service: {service_type}")
 
-    # Email de confirmation au prospect
+    onboarding_url = f"{APP_URL}/onboarding?key={api_key}" if APP_URL else f"/onboarding?key={api_key}"
+
+    # Email de bienvenue — branding Novalis copper/obsidian
     asyncio.create_task(send_email(
         to=email,
-        subject="Votre demande Novalis — On vous revient sous 24h",
-        body=f"""<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a1a2e;">
-        <div style="background:linear-gradient(135deg,#38bdf8,#34d399);padding:24px;border-radius:12px 12px 0 0;text-align:center;">
-            <h1 style="color:#fff;margin:0;font-size:1.8rem;">NOVALIS</h1>
-            <p style="color:rgba(255,255,255,0.9);margin:8px 0 0;">Agence IA — Québec</p>
-        </div>
-        <div style="background:#f8fafc;padding:32px;border-radius:0 0 12px 12px;">
-            <h2 style="color:#0f172a;">Bonjour {name},</h2>
-            <p style="color:#475569;">Nous avons bien reçu votre demande pour <strong>{service_type}</strong>.</p>
-            <p style="color:#475569;">Notre équipe va analyser votre projet et vous contacter dans les prochaines 24 heures avec une proposition concrète et un estimé du ROI.</p>
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin:20px 0;">
-                <p style="margin:0;color:#64748b;font-size:0.9rem;"><strong>Référence:</strong> {proj_id}</p>
-            </div>
-            <p style="color:#475569;">En attendant, n'hésitez pas à nous écrire à <a href="mailto:{ADMIN_EMAIL}" style="color:#38bdf8;">{ADMIN_EMAIL}</a></p>
-            <p style="color:#94a3b8;font-size:0.85rem;margin-top:24px;">— L'équipe Novalis</p>
-        </div></div>"""
+        subject=f"Bienvenue chez Novalis IA — Configurez votre assistant maintenant",
+        body=f"""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#090C0F;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+
+  <!-- Header -->
+  <div style="border-bottom:1px solid rgba(168,104,68,0.3);padding-bottom:24px;margin-bottom:32px;">
+    <p style="margin:0;font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;">Novalis IA</p>
+  </div>
+
+  <!-- Body -->
+  <h1 style="color:#EDE8DF;font-size:1.9rem;font-weight:400;margin:0 0 8px;font-style:italic;">Bonjour {name},</h1>
+  <p style="color:#4A5260;margin:0 0 28px;font-size:1rem;line-height:1.6;">
+    Votre demande pour <strong style="color:#EDE8DF;">{service_type}</strong> a bien été reçue.<br>
+    Pendant que notre équipe prépare votre proposition, <strong style="color:#EDE8DF;">configurez votre assistant IA maintenant</strong> — ça prend 3 minutes.
+  </p>
+
+  <!-- CTA Principal -->
+  <div style="text-align:center;margin:32px 0;">
+    <a href="{onboarding_url}"
+       style="display:inline-block;background:#A86844;color:#EDE8DF;text-decoration:none;
+              padding:14px 36px;font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;
+              border:1px solid #C4895A;">
+      Configurer mon assistant →
+    </a>
+  </div>
+
+  <!-- Steps -->
+  <div style="border:0.5px solid rgba(168,104,68,0.2);padding:24px;margin:24px 0;">
+    <p style="margin:0 0 16px;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#A86844;">Ce qui vous attend</p>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <span style="color:#A86844;font-size:0.7rem;margin-top:2px;min-width:16px;">01</span>
+        <p style="margin:0;color:#EDE8DF;font-size:0.85rem;">Profil de votre entreprise — nom, heures, services</p>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <span style="color:#A86844;font-size:0.7rem;margin-top:2px;min-width:16px;">02</span>
+        <p style="margin:0;color:#EDE8DF;font-size:0.85rem;">Base de connaissances — collez votre FAQ, catalogue, politiques</p>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <span style="color:#A86844;font-size:0.7rem;margin-top:2px;min-width:16px;">03</span>
+        <p style="margin:0;color:#EDE8DF;font-size:0.85rem;">Accès à votre portail — analytics, conversations, gestion</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reference -->
+  <p style="color:#4A5260;font-size:0.78rem;margin:16px 0 0;">Référence : <span style="color:#EDE8DF;font-family:monospace;">{proj_id}</span></p>
+  <p style="color:#4A5260;font-size:0.78rem;margin:4px 0 0;">Questions ? Écrivez-nous à <a href="mailto:{ADMIN_EMAIL}" style="color:#A86844;">{ADMIN_EMAIL}</a></p>
+
+  <!-- Footer -->
+  <div style="border-top:0.5px solid rgba(237,232,223,0.08);margin-top:40px;padding-top:20px;">
+    <p style="color:#4A5260;font-size:0.72rem;margin:0;">Novalis IA · Québec · <a href="{APP_URL or ''}/portal?key={api_key}" style="color:#A86844;">Accès portail</a></p>
+  </div>
+</div>
+</body></html>"""
     ))
 
     # Email de notification à l'admin
     asyncio.create_task(send_email(
         to=ADMIN_EMAIL,
         subject=f"🔔 Nouvelle demande : {name} — {service_type}",
-        body=f"<p><b>Nom:</b> {name}<br><b>Email:</b> {email}<br><b>Service:</b> {service_type}<br><b>Description:</b> {description}</p>"
+        body=f"""<div style="font-family:sans-serif;max-width:500px;margin:0 auto;background:#090C0F;color:#EDE8DF;padding:24px;">
+<h2 style="color:#A86844;margin-top:0;">Nouvelle demande</h2>
+<p><b>Nom :</b> {name}</p>
+<p><b>Email :</b> {email}</p>
+<p><b>Service :</b> {service_type}</p>
+<p><b>Description :</b> {description}</p>
+<p><b>Clé API :</b> <code style="background:rgba(168,104,68,0.1);color:#C4895A;padding:2px 6px;">{api_key}</code></p>
+<p><a href="{APP_URL or ''}/onboarding?key={api_key}" style="color:#A86844;">Lien onboarding client</a></p>
+</div>"""
     ))
 
     # SMS de notification à l'owner
@@ -3254,6 +3334,284 @@ async def demo_chat(request: Request):
         ai_text = "Je suis là pour vous aider ! Contactez-nous pour une démo complète personnalisée." if lang != "en" else "I'm here to help! Contact us for a full personalized demo."
 
     return {"response": ai_text, "intent": intent}
+
+
+# ============================================================
+# ONBOARDING WIZARD
+# ============================================================
+@app.get("/onboarding", response_class=HTMLResponse)
+async def onboarding_wizard(key: str = Query(None), t: str = Query(None)):
+    """Assistant de configuration guidée pour les nouveaux clients."""
+    # Auth identique au portail
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        if t:
+            cursor = await db.execute("SELECT * FROM clients WHERE portal_token = ? AND status IN ('active','inquiry')", (t,))
+        elif key:
+            cursor = await db.execute("SELECT * FROM clients WHERE api_key = ? AND status IN ('active','inquiry')", (key,))
+        else:
+            return Response(status_code=302, headers={"Location": "/portal"})
+        client = await cursor.fetchone()
+
+    if not client:
+        return Response(status_code=302, headers={"Location": "/portal"})
+
+    c = dict(client)
+
+    # Générer/récupérer le portal_token pour injecter dans le wizard
+    tok = c.get("portal_token") or ""
+    if not tok:
+        tok = secrets.token_urlsafe(32)
+        expires_at = (datetime.now() + timedelta(days=30)).isoformat()
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute("UPDATE clients SET portal_token = ?, portal_token_expires_at = ? WHERE id = ?",
+                             (tok, expires_at, c["id"]))
+            await db.commit()
+
+    bname  = c["business_name"].replace("'", "\\'")
+    bphone = (c.get("owner_phone") or "").replace("'", "\\'")
+    api_k  = c["api_key"]
+
+    html = f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Configuration — Novalis IA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;1,400&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{{--obsidian:#090C0F;--pearl:#EDE8DF;--copper:#A86844;--copper-light:#C4895A;--slate:#1D2733;--dim:#4A5260;}}
+*{{box-sizing:border-box;margin:0;padding:0;}}
+body{{background:var(--obsidian);color:var(--pearl);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;}}
+.wizard{{max-width:680px;margin:0 auto;padding:3rem 1.5rem;}}
+.logo{{font-family:'Cormorant Garamond',Georgia,serif;font-size:1.2rem;color:var(--copper);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:2.5rem;}}
+.progress{{display:flex;gap:4px;margin-bottom:2.5rem;}}
+.dot{{flex:1;height:2px;background:rgba(237,232,223,0.1);transition:background 0.4s;}}
+.dot.active{{background:var(--copper);}}
+.dot.done{{background:var(--copper-light);}}
+.step{{display:none;}}
+.step.active{{display:block;animation:fadeIn 0.3s ease;}}
+@keyframes fadeIn{{from{{opacity:0;transform:translateY(8px)}}to{{opacity:1;transform:none}}}}
+.step-label{{font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--copper);margin-bottom:0.75rem;}}
+h1{{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:clamp(2rem,5vw,2.8rem);color:var(--pearl);margin-bottom:0.5rem;line-height:1;}}
+.sub{{color:var(--dim);font-size:0.9rem;margin-bottom:2rem;}}
+label{{display:block;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--dim);margin-bottom:0.5rem;}}
+input,textarea,select{{width:100%;background:rgba(29,39,51,0.6);border:0.5px solid rgba(237,232,223,0.15);color:var(--pearl);padding:0.875rem 1rem;font-family:inherit;font-size:0.9rem;outline:none;transition:border-color 0.2s;margin-bottom:1.25rem;-webkit-appearance:none;appearance:none;}}
+input:focus,textarea:focus,select:focus{{border-color:rgba(168,104,68,0.5);}}
+textarea{{resize:vertical;min-height:160px;}}
+select{{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234A5260' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 1rem center;padding-right:2.5rem;}}
+.row{{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}}
+@media(max-width:600px){{.row{{grid-template-columns:1fr;}}}}
+.btn{{background:var(--copper);color:var(--pearl);border:0.5px solid var(--copper);padding:0.875rem 2rem;font-family:inherit;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px;text-decoration:none;}}
+.btn:hover{{background:var(--copper-light);box-shadow:0 0 30px rgba(168,104,68,0.3);}}
+.btn:disabled{{opacity:0.5;cursor:not-allowed;}}
+.btn-ghost{{background:transparent;border:0.5px solid rgba(237,232,223,0.2);color:var(--pearl);}}
+.btn-ghost:hover{{border-color:var(--copper);color:var(--copper-light);box-shadow:none;}}
+.actions{{display:flex;justify-content:space-between;align-items:center;margin-top:2rem;gap:1rem;}}
+.err{{color:#f87171;font-size:0.8rem;margin-top:-0.75rem;margin-bottom:1rem;min-height:1.2em;}}
+.info-box{{background:rgba(168,104,68,0.07);border-left:2px solid var(--copper);padding:1rem 1.25rem;margin-bottom:1.5rem;font-size:0.83rem;color:rgba(237,232,223,0.7);line-height:1.6;}}
+.card{{background:rgba(29,39,51,0.8);border:0.5px solid rgba(168,104,68,0.35);padding:1.75rem;margin-top:1.5rem;}}
+.api-display{{background:rgba(0,0,0,0.35);border:0.5px solid rgba(168,104,68,0.25);padding:1rem;font-family:monospace;font-size:0.82rem;color:var(--copper-light);word-break:break-all;margin:0.75rem 0 0.25rem;cursor:pointer;transition:border-color 0.2s;}}
+.api-display:hover{{border-color:rgba(168,104,68,0.6);}}
+.check-list{{margin-top:1.5rem;display:flex;flex-direction:column;gap:0.75rem;}}
+.check-item{{display:flex;align-items:flex-start;gap:0.75rem;font-size:0.83rem;color:rgba(237,232,223,0.65);}}
+.check-icon{{width:18px;height:18px;border:0.5px solid var(--copper);display:flex;align-items:center;justify-content:center;shrink:0;color:var(--copper);font-size:10px;flex-shrink:0;margin-top:1px;}}
+.spinner{{display:inline-block;width:13px;height:13px;border:1.5px solid rgba(237,232,223,0.3);border-top-color:var(--pearl);border-radius:50%;animation:spin 0.6s linear infinite;}}
+@keyframes spin{{to{{transform:rotate(360deg)}}}}
+</style>
+</head>
+<body>
+<div class="wizard">
+  <div class="logo">Novalis IA</div>
+  <div class="progress">
+    <div class="dot active" id="dot-1"></div>
+    <div class="dot" id="dot-2"></div>
+    <div class="dot" id="dot-3"></div>
+  </div>
+
+  <!-- Étape 1 : Profil -->
+  <div class="step active" id="step-1">
+    <div class="step-label">Étape 1 sur 3</div>
+    <h1>Votre entreprise</h1>
+    <p class="sub">Ces informations permettront à votre IA de répondre précisément à vos clients.</p>
+    <div class="row">
+      <div>
+        <label>Nom de l'entreprise *</label>
+        <input type="text" id="business_name" placeholder="Ex: Distribution Tremblay inc." />
+      </div>
+      <div>
+        <label>Secteur d'activité</label>
+        <select id="business_type">
+          <option>Distribution</option><option>Commerce de détail</option>
+          <option>Services professionnels</option><option>Immobilier</option>
+          <option>Restauration</option><option>Santé</option>
+          <option>Finance</option><option>Manufacturier</option><option>Autre</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Heures d'ouverture</label>
+        <input type="text" id="hours" placeholder="Lun-Ven 9h-17h, Sam 10h-14h" />
+      </div>
+      <div>
+        <label>Téléphone (affiché aux clients)</label>
+        <input type="text" id="owner_phone" placeholder="+1 514 000-0000" />
+      </div>
+    </div>
+    <label>Services offerts (séparés par des virgules)</label>
+    <input type="text" id="services" placeholder="Vente, Livraison express, SAV, Location..." />
+    <label>Adresse ou région desservie</label>
+    <input type="text" id="address" placeholder="Montréal, QC ou 1234 rue Principale, Laval" />
+    <div class="err" id="err-1"></div>
+    <div class="actions">
+      <span></span>
+      <button class="btn" id="btn1" onclick="goStep2()">Continuer →</button>
+    </div>
+  </div>
+
+  <!-- Étape 2 : Base de connaissances -->
+  <div class="step" id="step-2">
+    <div class="step-label">Étape 2 sur 3</div>
+    <h1>Base de connaissances</h1>
+    <p class="sub">Collez les informations que votre IA doit maîtriser pour répondre à vos clients.</p>
+    <div class="info-box">
+      💡 <strong>Conseil :</strong> Copiez votre FAQ, vos tarifs, vos politiques de retour, vos délais de livraison. Plus vous donnez d'informations, plus votre IA sera précise et autonome.
+    </div>
+    <label>Informations clés — FAQ, catalogue, procédures, politiques</label>
+    <textarea id="kb_content" placeholder="Q: Quels sont vos délais de livraison ?
+R: 2-3 jours ouvrables au Québec, 5-7 jours pour le reste du Canada.
+
+Q: Acceptez-vous les retours ?
+R: Oui, dans les 30 jours avec preuve d'achat. Contactez le SAV.
+
+Prix de nos forfaits :
+- Starter : 497$/mois — 1 assistant, 500 interactions
+- Pro : 1 497$/mois — 3 assistants, interactions illimitées
+..."></textarea>
+    <p style="font-size:0.75rem;color:var(--dim);margin-top:-0.75rem;margin-bottom:1.5rem;">Vous pouvez ajouter d'autres documents (PDF, CSV) depuis votre portail après configuration.</p>
+    <div class="err" id="err-2"></div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="showStep(1)">← Retour</button>
+      <button class="btn" id="btn2" onclick="goStep3()">Finaliser →</button>
+    </div>
+  </div>
+
+  <!-- Étape 3 : Confirmé -->
+  <div class="step" id="step-3">
+    <div class="step-label">Configuration complète</div>
+    <h1>Votre IA est prête.</h1>
+    <p class="sub">Voici vos accès. Notre équipe vous contactera sous 24h pour connecter vos canaux.</p>
+    <div class="card">
+      <label>Votre clé API — ne jamais partager</label>
+      <div class="api-display" id="key-display" onclick="copyKey()" title="Cliquer pour copier">…</div>
+      <p style="font-size:0.7rem;color:var(--dim);">Cliquez pour copier · Accessible à tout moment depuis votre portail</p>
+    </div>
+    <div class="check-list">
+      <div class="check-item"><div class="check-icon">✓</div><span>Profil d'entreprise enregistré</span></div>
+      <div class="check-item"><div class="check-icon">✓</div><span>Base de connaissances indexée (recherche sémantique FTS5 active)</span></div>
+      <div class="check-item"><div class="check-icon" id="kb-check" style="opacity:0.4">…</div><span>Notre équipe configure vos canaux SMS/Voix/WhatsApp sous 24h</span></div>
+    </div>
+    <div class="actions" style="margin-top:2.5rem;">
+      <span></span>
+      <a id="portal-btn" href="/portal" class="btn">Accéder à mon portail →</a>
+    </div>
+  </div>
+</div>
+
+<script>
+const TOKEN = '{tok}';
+const API_KEY = '{api_k}';
+let kbUploaded = false;
+
+document.getElementById('business_name').value = '{bname}';
+document.getElementById('owner_phone').value = '{bphone}';
+document.getElementById('key-display').textContent = API_KEY;
+document.getElementById('portal-btn').href = '/portal?t=' + TOKEN;
+
+function showStep(n) {{
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.getElementById('step-' + n).classList.add('active');
+  ['dot-1','dot-2','dot-3'].forEach((id, i) => {{
+    const d = document.getElementById(id);
+    d.className = 'dot' + (i+1 < n ? ' done' : i+1 === n ? ' active' : '');
+  }});
+  window.scrollTo({{top:0, behavior:'smooth'}});
+}}
+
+async function goStep2() {{
+  const name = document.getElementById('business_name').value.trim();
+  const errEl = document.getElementById('err-1');
+  if (!name) {{ errEl.textContent = 'Le nom de votre entreprise est requis.'; return; }}
+  errEl.textContent = '';
+  const btn = document.getElementById('btn1');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {{
+    await fetch('/api/v1/me/profile', {{
+      method: 'PATCH',
+      headers: {{'Content-Type': 'application/json', 'X-API-Key': API_KEY}},
+      body: JSON.stringify({{
+        business_name: name,
+        business_type: document.getElementById('business_type').value,
+        hours: document.getElementById('hours').value,
+        owner_phone: document.getElementById('owner_phone').value,
+        services: document.getElementById('services').value,
+        address: document.getElementById('address').value,
+      }})
+    }});
+  }} catch(e) {{ console.error(e); }}
+  btn.disabled = false;
+  btn.textContent = 'Continuer →';
+  showStep(2);
+}}
+
+async function goStep3() {{
+  const btn = document.getElementById('btn2');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>&nbsp;Configuration…';
+  const content = document.getElementById('kb_content').value.trim();
+  if (content) {{
+    try {{
+      const blob = new Blob([content], {{type: 'text/plain'}});
+      const fd = new FormData();
+      fd.append('file', blob, 'base-de-connaissances.txt');
+      fd.append('title', 'Base de connaissances principale');
+      fd.append('kb_type', 'faq');
+      const r = await fetch('/api/v1/me/knowledge-base/upload', {{
+        method: 'POST', headers: {{'X-API-Key': API_KEY}}, body: fd
+      }});
+      if (r.ok) {{ kbUploaded = true; }}
+    }} catch(e) {{ console.error(e); }}
+  }}
+  try {{
+    await fetch('/api/v1/me/onboarding/complete', {{
+      method: 'POST', headers: {{'X-API-Key': API_KEY}}
+    }});
+  }} catch(e) {{ console.error(e); }}
+  if (kbUploaded || content) {{
+    document.getElementById('kb-check').textContent = '✓';
+    document.getElementById('kb-check').style.opacity = '1';
+  }}
+  btn.disabled = false;
+  btn.textContent = 'Finaliser →';
+  showStep(3);
+}}
+
+function copyKey() {{
+  navigator.clipboard.writeText(API_KEY).then(() => {{
+    const el = document.getElementById('key-display');
+    const orig = el.textContent;
+    el.textContent = '✓ Copié dans le presse-papier';
+    setTimeout(() => el.textContent = orig, 1800);
+  }});
+}}
+</script>
+</body>
+</html>"""
+
+    return HTMLResponse(html)
 
 
 # ============================================================
