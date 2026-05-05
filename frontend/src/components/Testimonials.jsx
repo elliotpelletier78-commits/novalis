@@ -1,25 +1,26 @@
 import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
+import { ArrowRight, Star } from 'lucide-react'
 import { fadeUp, stagger, viewportOnce } from '../lib/animations'
 
-const testimonials = [
+// Honest early-adopter section — no fake testimonials
+
+const perks = [
   {
-    quote: "Notre coût de service client a baissé de 62 % en deux mois. Novalis a livré exactement ce qu'ils avaient promis, dans les délais annoncés.",
-    name: "Marie Rioux",
-    title: "DG, Groupe Rioux Distribution",
-    initials: "MR",
+    title: 'Tarif fondateur',
+    desc: 'Les 10 premiers clients bénéficient d\'un tarif bloqué à vie — quel que soit l\'évolution de nos prix.',
   },
   {
-    quote: "Le ROI était au rendez-vous dès la troisième semaine. Notre équipe commerciale passe maintenant son temps sur de vrais prospects, pas à qualifier des appels.",
-    name: "Jean-François Côté",
-    title: "Directeur commercial, Immobilier Côte-Nord",
-    initials: "JC",
+    title: 'Intégration prioritaire',
+    desc: 'Votre projet passe en tête de file. Mise en production en 2 semaines au lieu de 4.',
   },
   {
-    quote: "Nous traitions 500 documents par semaine manuellement. Aujourd'hui, 90 % sont traités automatiquement avec zéro erreur. C'est transformateur.",
-    name: "Sylvie Tremblay",
-    title: "Associée, Cabinet Tremblay & Associés",
-    initials: "ST",
+    title: 'Influence sur le produit',
+    desc: 'Vos besoins façonnent directement nos prochaines fonctionnalités. Accès direct à notre équipe fondatrice.',
+  },
+  {
+    title: 'Garantie ROI étendue',
+    desc: 'Si votre ROI n\'est pas positif à 60 jours, on rembourse 100% — sans conditions, sans questions.',
   },
 ]
 
@@ -30,61 +31,93 @@ export default function Testimonials() {
   return (
     <section ref={ref} className="relative py-24 overflow-hidden">
       <div className="max-w-7xl mx-auto px-6">
+
+        {/* Header */}
         <motion.div
-          className="mb-14"
+          className="grid lg:grid-cols-12 gap-8 mb-14"
           variants={fadeUp}
           initial="hidden"
           animate={inView ? 'visible' : 'hidden'}
         >
-          <div className="flex items-center gap-3 mb-6">
-            <div className="copper-line w-10" />
-            <span className="label-caps">Témoignages</span>
+          <div className="lg:col-span-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="copper-line w-10" />
+              <span className="label-caps">Offre de lancement</span>
+            </div>
+            <h2
+              className="display-heading"
+              style={{ fontSize: 'clamp(2.5rem, 5vw, 4.5rem)' }}
+            >
+              Rejoignez les
+              <br />
+              <em>10 premiers clients</em>
+            </h2>
           </div>
-          <h2
-            className="display-heading max-w-lg"
-            style={{ fontSize: 'clamp(2.5rem, 5vw, 4.5rem)' }}
-          >
-            Ils ont fait
-            <br />
-            <em>confiance à Novalis</em>
-          </h2>
+          <div className="lg:col-span-5 lg:col-start-8 self-end">
+            <p className="text-dim leading-relaxed text-sm">
+              Novalis IA est en phase de lancement. Pas de faux témoignages, pas de clients inventés.
+              Ce qu'on offre à la place : un deal fondateur exceptionnel pour les entreprises qui nous
+              font confiance en premier.
+            </p>
+          </div>
         </motion.div>
 
+        {/* Perks grid */}
         <motion.div
-          className="grid md:grid-cols-3 gap-4"
+          className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10"
           variants={stagger}
           initial="hidden"
           animate={inView ? 'visible' : 'hidden'}
         >
-          {testimonials.map((t) => (
-            <motion.figure
-              key={t.name}
+          {perks.map((p, i) => (
+            <motion.div
+              key={p.title}
               variants={fadeUp}
-              className="glass-card p-8 flex flex-col"
+              className="glass-card p-7 group"
             >
               <div
-                className="absolute top-0 left-0 right-0 h-[0.5px]"
-                style={{ background: 'linear-gradient(90deg, var(--copper) 0%, transparent 100%)' }}
+                className="absolute top-0 left-0 w-6 h-[0.5px] transition-all duration-500 group-hover:w-full"
+                style={{ background: 'var(--copper)' }}
               />
-
-              <blockquote className="font-display italic text-lg text-pearl leading-relaxed flex-1 mb-6">
-                "{t.quote}"
-              </blockquote>
-
-              <figcaption className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 flex items-center justify-center text-xs font-sans font-medium shrink-0"
-                  style={{ background: 'rgba(168,104,68,0.2)', color: 'var(--copper)', border: '0.5px solid rgba(168,104,68,0.3)' }}
-                >
-                  {t.initials}
-                </div>
-                <div>
-                  <div className="text-sm text-pearl font-sans">{t.name}</div>
-                  <div className="text-[0.65rem] text-dim">{t.title}</div>
-                </div>
-              </figcaption>
-            </motion.figure>
+              <div
+                className="font-display italic text-4xl mb-4 leading-none"
+                style={{ color: 'rgba(168,104,68,0.25)' }}
+              >
+                {String(i + 1).padStart(2, '0')}
+              </div>
+              <h3 className="text-pearl font-sans font-medium text-sm mb-2">{p.title}</h3>
+              <p className="text-dim text-xs leading-relaxed">{p.desc}</p>
+            </motion.div>
           ))}
+        </motion.div>
+
+        {/* CTA band */}
+        <motion.div
+          className="glass-card p-8 flex flex-col sm:flex-row items-center justify-between gap-6"
+          variants={fadeUp}
+          initial="hidden"
+          animate={inView ? 'visible' : 'hidden'}
+          transition={{ delay: 0.3 }}
+          style={{ borderTop: '0.5px solid var(--copper)' }}
+        >
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} size={10} style={{ fill: 'var(--copper)', color: 'var(--copper)' }} />
+              ))}
+              <span className="text-xs text-dim ml-1">Ce que vous méritez d'un partenaire IA</span>
+            </div>
+            <p className="font-display italic text-xl text-pearl">
+              Places limitées — <span style={{ color: 'var(--copper-light)' }}>offre valide jusqu'à ce qu'elles soient comblées</span>
+            </p>
+          </div>
+          <a
+            href="#contact"
+            className="btn-copper shrink-0 inline-flex items-center gap-2"
+          >
+            Réclamer ma place
+            <ArrowRight size={13} />
+          </a>
         </motion.div>
       </div>
     </section>
