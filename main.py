@@ -3621,26 +3621,36 @@ function copyKey() {{
 async def client_portal(key: str = Query(None), t: str = Query(None)):
     """Portail client — auth par token sécurisé (?t=) ou clé API legacy (?key=)."""
     login_page = """<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-    <title>Portail Novalis</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>Portail — Novalis IA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,400&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box;}
-        body{font-family:'Inter',sans-serif;background:#060a12;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;}
-        .box{background:linear-gradient(135deg,rgba(17,24,39,0.9),rgba(13,21,32,0.9));border:1px solid rgba(56,189,248,0.15);border-radius:20px;padding:48px 40px;max-width:420px;width:90%;text-align:center;backdrop-filter:blur(20px);}
-        .logo{font-size:1.5rem;font-weight:900;background:linear-gradient(135deg,#38bdf8,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px;}
-        h2{color:#f1f5f9;font-size:1.4rem;margin-bottom:8px;}
-        p{color:#64748b;font-size:0.9rem;margin-bottom:28px;}
-        input{width:100%;padding:14px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);color:#e2e8f0;font-size:1rem;margin-bottom:16px;outline:none;transition:border 0.2s;}
-        input:focus{border-color:rgba(56,189,248,0.4);}
-        button{background:linear-gradient(135deg,#38bdf8,#0ea5e9);color:#060a12;border:none;padding:14px 24px;border-radius:10px;font-weight:700;cursor:pointer;width:100%;font-size:1rem;transition:opacity 0.2s;}
-        button:hover{opacity:0.9;}
+        :root{--obs:#090C0F;--pearl:#EDE8DF;--cu:#A86844;--cl:#C4895A;--sl:#1D2733;--dim:#4A5260;--b:rgba(168,104,68,0.2);}
+        body{font-family:'DM Sans',system-ui,sans-serif;background:var(--obs);color:var(--pearl);display:flex;align-items:center;justify-content:center;min-height:100vh;-webkit-font-smoothing:antialiased;}
+        .box{background:rgba(29,39,51,0.9);border:0.5px solid var(--b);padding:48px 40px;max-width:400px;width:90%;text-align:center;backdrop-filter:blur(20px);position:relative;}
+        .box::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cu),transparent);}
+        .logo{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:2rem;color:var(--pearl);margin-bottom:4px;letter-spacing:0.05em;}
+        .tagline{font-size:0.6rem;letter-spacing:0.25em;text-transform:uppercase;color:var(--cu);margin-bottom:28px;}
+        h2{color:var(--pearl);font-size:1.1rem;font-weight:500;margin-bottom:6px;}
+        p{color:var(--dim);font-size:0.82rem;margin-bottom:24px;line-height:1.5;}
+        input{width:100%;padding:12px 14px;border:0.5px solid var(--b);background:rgba(255,255,255,0.03);color:var(--pearl);font-size:0.9rem;font-family:inherit;margin-bottom:14px;outline:none;transition:border 0.2s;}
+        input:focus{border-color:rgba(168,104,68,0.5);}
+        input::placeholder{color:var(--dim);}
+        button{background:var(--cu);color:var(--obs);border:none;padding:12px 24px;font-family:inherit;font-weight:500;cursor:pointer;width:100%;font-size:0.9rem;transition:background 0.2s;letter-spacing:0.03em;}
+        button:hover{background:var(--cl);}
+        .hint{margin-top:20px;font-size:0.7rem;color:var(--dim);}
+        .hint a{color:var(--cu);text-decoration:none;}
+        .hint a:hover{color:var(--cl);}
     </style></head><body>
     <div class="box">
-        <div class="logo">NOVALIS</div>
+        <div class="logo">Novalis</div>
+        <div class="tagline">Intelligence Artificielle</div>
         <h2>Portail client</h2>
         <p>Entrez votre clé d'accès pour consulter votre tableau de bord.</p>
-        <input id="k" placeholder="Clé d'accès..." type="password" onkeydown="if(event.key==='Enter')go()"/>
-        <button onclick="go()">Accéder →</button>
+        <input id="k" placeholder="Clé d'accès…" type="password" onkeydown="if(event.key==='Enter')go()"/>
+        <button onclick="go()">Accéder</button>
+        <p class="hint">Clé perdue ? <a href="mailto:novalisproia@gmail.com">Contactez-nous</a></p>
     </div>
     <script>function go(){const k=document.getElementById('k').value.trim();if(k)window.location.href='/portal?key='+encodeURIComponent(k);}</script>
     </body></html>"""
@@ -3657,7 +3667,7 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
         client = await cursor.fetchone()
 
     if not client:
-        return HTMLResponse("""<html><body style="font-family:sans-serif;background:#060a12;color:#ef4444;display:flex;align-items:center;justify-content:center;min-height:100vh;"><div style="text-align:center"><h2>Accès refusé</h2><p style="color:#64748b;margin-top:8px;">Clé invalide ou compte inactif. <a href="/portal" style="color:#38bdf8;">Réessayer</a></p></div></body></html>""", status_code=401)
+        return HTMLResponse("""<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Accès refusé — Novalis</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'DM Sans',system-ui,sans-serif;background:#090C0F;color:#EDE8DF;display:flex;align-items:center;justify-content:center;min-height:100vh;}div{text-align:center;}h2{font-size:1.2rem;font-weight:500;margin-bottom:8px;}p{color:#4A5260;font-size:0.85rem;}a{color:#A86844;text-decoration:none;}a:hover{color:#C4895A;}</style></head><body><div><h2>Accès refusé</h2><p>Clé invalide ou compte inactif. <a href="/portal">Réessayer</a></p></div></body></html>""", status_code=401)
 
     c = dict(client)
 
@@ -3689,6 +3699,7 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
 
     c_api_key = c["api_key"]
     c_api_key_masked = "•" * len(c_api_key)
+    portal_tok = t or c.get("portal_token", "")
 
     portal_html = f"""<!DOCTYPE html>
 <html lang="fr">
@@ -3697,542 +3708,687 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portail — {c['business_name']} | Novalis</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,400&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        :root{{--obs:#090C0F;--pearl:#EDE8DF;--cu:#A86844;--cl:#C4895A;--sl:#1D2733;--sl2:#253345;--dim:#4A5260;--b:rgba(168,104,68,0.2);}}
         *{{margin:0;padding:0;box-sizing:border-box;}}
-        body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0e17;color:#e2e8f0;}}
+        body{{font-family:'DM Sans',system-ui,sans-serif;background:var(--obs);color:var(--pearl);-webkit-font-smoothing:antialiased;}}
         .layout{{display:flex;min-height:100vh;}}
-        .sidebar{{width:220px;background:#0f1419;border-right:1px solid #1e3a5f;padding:24px 0;position:fixed;height:100vh;overflow-y:auto;}}
-        .sidebar-logo{{padding:0 20px 24px;border-bottom:1px solid #1e3a5f;margin-bottom:16px;}}
-        .logo-name{{font-size:1.1rem;font-weight:800;background:linear-gradient(135deg,#38bdf8,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}}
-        .logo-biz{{color:#64748b;font-size:0.8rem;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
-        .nav-link{{display:flex;align-items:center;gap:10px;padding:10px 20px;color:#94a3b8;text-decoration:none;font-size:0.9rem;font-weight:500;transition:all 0.2s;cursor:pointer;border:none;background:none;width:100%;text-align:left;}}
-        .nav-link:hover,.nav-link.active{{background:rgba(56,189,248,0.1);color:#38bdf8;}}
-        .main{{margin-left:220px;padding:24px;flex:1;}}
-        .page{{display:none;}}.page.active{{display:block;}}
-        .page-title{{font-size:1.5rem;font-weight:700;margin-bottom:24px;color:#f1f5f9;}}
-        .stats-row{{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px;}}
-        .stat-card{{background:#1a2332;border:1px solid #1e3a5f;border-radius:12px;padding:20px;}}
-        .stat-lbl{{color:#64748b;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;}}
-        .stat-val{{font-size:1.8rem;font-weight:700;color:#38bdf8;margin-top:4px;}}
-        .stat-sub{{color:#64748b;font-size:0.75rem;margin-top:2px;}}
-        .card{{background:#1a2332;border:1px solid #1e3a5f;border-radius:12px;padding:20px;margin-bottom:16px;}}
-        .card h3{{color:#38bdf8;font-size:1rem;margin-bottom:16px;}}
+        .sidebar{{width:236px;background:rgba(29,39,51,0.97);border-right:0.5px solid var(--b);padding:0;position:fixed;height:100vh;overflow-y:auto;display:flex;flex-direction:column;}}
+        .sb-logo{{padding:24px 20px 20px;border-bottom:0.5px solid var(--b);}}
+        .sb-brand{{font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--cu);}}
+        .sb-biz{{color:var(--pearl);font-size:0.85rem;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;}}
+        .sb-plan{{display:inline-block;margin-top:6px;padding:2px 8px;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;background:rgba(168,104,68,0.12);color:var(--cu);border:0.5px solid rgba(168,104,68,0.3);}}
+        nav{{flex:1;padding:12px 0;}}
+        .nl{{display:flex;align-items:center;gap:10px;padding:9px 20px;color:var(--dim);text-decoration:none;font-size:0.8rem;font-weight:500;transition:all 0.15s;cursor:pointer;border:none;background:none;width:100%;text-align:left;border-left:2px solid transparent;}}
+        .nl:hover{{color:var(--pearl);background:rgba(168,104,68,0.06);}}
+        .nl.active{{color:var(--pearl);background:rgba(168,104,68,0.1);border-left-color:var(--cu);}}
+        .nl .ico{{width:16px;text-align:center;font-size:0.85rem;}}
+        .sb-footer{{padding:16px 20px;border-top:0.5px solid var(--b);font-size:0.7rem;color:var(--dim);}}
+        .main{{margin-left:236px;padding:32px;flex:1;max-width:calc(100vw - 236px);}}
+        .page{{display:none;animation:fi 0.2s ease;}}.page.active{{display:block;}}
+        @keyframes fi{{from{{opacity:0;transform:translateY(6px)}}to{{opacity:1;transform:none}}}}
+        .pg-hdr{{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:28px;gap:16px;flex-wrap:wrap;}}
+        .pg-title{{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:2rem;color:var(--pearl);line-height:1;}}
+        .pg-sub{{color:var(--dim);font-size:0.8rem;margin-top:4px;}}
+        .stats-row{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;}}
+        .sc{{background:rgba(29,39,51,0.8);border:0.5px solid var(--b);padding:20px;position:relative;}}
+        .sc::before{{content:'';position:absolute;top:0;left:0;width:32px;height:1px;background:var(--cu);}}
+        .sc-lbl{{color:var(--dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;}}
+        .sc-val{{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:2rem;color:var(--pearl);margin-top:4px;line-height:1;}}
+        .sc-sub{{color:var(--dim);font-size:0.7rem;margin-top:2px;}}
+        .card{{background:rgba(29,39,51,0.8);border:0.5px solid var(--b);padding:20px;margin-bottom:14px;position:relative;}}
+        .card-title{{font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--cu);margin-bottom:16px;}}
         table{{width:100%;border-collapse:collapse;}}
-        th{{color:#64748b;font-size:0.75rem;text-transform:uppercase;padding:8px 12px;text-align:left;border-bottom:1px solid #1e3a5f;}}
-        td{{padding:12px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.9rem;color:#cbd5e1;}}
-        tr:hover td{{background:rgba(56,189,248,0.04);}}
-        .badge{{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.7rem;font-weight:600;}}
-        .badge-green{{background:rgba(52,211,153,0.15);color:#34d399;}}
-        .badge-yellow{{background:rgba(251,191,36,0.15);color:#fbbf24;}}
-        .badge-blue{{background:rgba(56,189,248,0.15);color:#38bdf8;}}
-        .badge-gray{{background:rgba(148,163,184,0.15);color:#94a3b8;}}
-        .roi-box{{background:linear-gradient(135deg,rgba(56,189,248,0.1),rgba(52,211,153,0.1));border:1px solid rgba(56,189,248,0.2);border-radius:12px;padding:24px;}}
-        .roi-num{{font-size:2.5rem;font-weight:900;background:linear-gradient(135deg,#38bdf8,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}}
-        .progress-bar{{background:#1e3a5f;border-radius:4px;height:8px;margin-top:8px;}}
-        .progress-fill{{height:8px;border-radius:4px;background:linear-gradient(90deg,#38bdf8,#34d399);transition:width 0.5s;}}
-        .usage-pct{{color:#94a3b8;font-size:0.8rem;margin-top:4px;}}
-        .insight{{background:#0f1f2e;border-left:3px solid #38bdf8;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:8px;font-size:0.9rem;color:#cbd5e1;}}
-        .btn{{background:#38bdf8;color:#0a0e17;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.85rem;}}
-        .btn:hover{{background:#34d399;}}
-        .api-key-box{{background:#0f1f2e;border:1px solid #1e3a5f;border-radius:8px;padding:12px 16px;font-family:monospace;font-size:0.85rem;color:#fbbf24;word-break:break-all;}}
-        .copy-btn{{background:transparent;border:1px solid #1e3a5f;color:#94a3b8;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:0.75rem;margin-top:8px;}}
-        .copy-btn:hover{{border-color:#38bdf8;color:#38bdf8;}}
-        .chart-container{{position:relative;height:220px;}}
-        .empty-state{{text-align:center;padding:40px;color:#64748b;}}
-        .project-progress{{margin-top:8px;}}
-        @media(max-width:768px){{.sidebar{{width:100%;height:auto;position:static;}}.main{{margin-left:0;padding:16px;}}.stats-row{{grid-template-columns:repeat(2,1fr);}}}}
+        th{{color:var(--dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;padding:8px 12px;text-align:left;border-bottom:0.5px solid var(--b);}}
+        td{{padding:10px 12px;border-bottom:0.5px solid rgba(237,232,223,0.04);font-size:0.82rem;color:rgba(237,232,223,0.75);}}
+        tr:hover td{{background:rgba(168,104,68,0.04);}}
+        .badge{{display:inline-block;padding:2px 8px;font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;border:0.5px solid;}}
+        .bg{{background:rgba(74,195,111,0.1);color:#4ac36f;border-color:rgba(74,195,111,0.3);}}
+        .by{{background:rgba(251,191,36,0.1);color:#fbbf24;border-color:rgba(251,191,36,0.3);}}
+        .bc{{background:rgba(168,104,68,0.12);color:var(--cu);border-color:rgba(168,104,68,0.3);}}
+        .bd{{background:rgba(237,232,223,0.06);color:var(--dim);border-color:rgba(237,232,223,0.15);}}
+        .br{{background:rgba(239,68,68,0.1);color:#f87171;border-color:rgba(239,68,68,0.3);}}
+        .pb{{height:4px;background:rgba(237,232,223,0.08);margin-top:8px;}}
+        .pf{{height:4px;background:var(--cu);transition:width 0.5s;}}
+        .insight{{border-left:2px solid var(--cu);padding:10px 14px;margin-bottom:8px;font-size:0.82rem;color:rgba(237,232,223,0.7);background:rgba(168,104,68,0.05);}}
+        .roi-val{{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:3rem;color:var(--cl);line-height:1;}}
+        .chart-wrap{{position:relative;height:200px;}}
+        .chart-wrap-sm{{position:relative;height:160px;}}
+        .empty{{text-align:center;padding:32px;color:var(--dim);font-size:0.85rem;}}
+        label.lbl{{display:block;font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;}}
+        input.fi,textarea.fi,select.fi{{width:100%;background:rgba(29,39,51,0.6);border:0.5px solid rgba(237,232,223,0.12);color:var(--pearl);padding:10px 12px;font-family:'DM Sans',sans-serif;font-size:0.85rem;outline:none;transition:border-color 0.2s;margin-bottom:12px;-webkit-appearance:none;appearance:none;}}
+        input.fi:focus,textarea.fi:focus,select.fi:focus{{border-color:rgba(168,104,68,0.5);}}
+        textarea.fi{{resize:vertical;min-height:100px;}}
+        select.fi{{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%234A5260' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}}
+        .btn{{background:var(--cu);color:var(--pearl);border:0.5px solid var(--cu);padding:8px 18px;font-family:'DM Sans',sans-serif;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px;}}
+        .btn:hover{{background:var(--cl);box-shadow:0 0 20px rgba(168,104,68,0.25);}}
+        .btn:disabled{{opacity:0.4;cursor:not-allowed;}}
+        .btn-sm{{padding:5px 12px;font-size:0.65rem;}}
+        .btn-ghost{{background:transparent;border:0.5px solid rgba(237,232,223,0.2);color:var(--pearl);}}
+        .btn-ghost:hover{{border-color:var(--cu);color:var(--cl);box-shadow:none;}}
+        .btn-danger{{background:transparent;border:0.5px solid rgba(239,68,68,0.4);color:#f87171;}}
+        .btn-danger:hover{{background:rgba(239,68,68,0.1);box-shadow:none;}}
+        .api-box{{background:rgba(0,0,0,0.3);border:0.5px solid rgba(168,104,68,0.25);padding:12px;font-family:monospace;font-size:0.8rem;color:var(--cl);word-break:break-all;cursor:pointer;}}
+        .api-box:hover{{border-color:rgba(168,104,68,0.5);}}
+        .row2{{display:grid;grid-template-columns:1fr 1fr;gap:12px;}}
+        .sent-pos{{color:#4ac36f;}} .sent-neg{{color:#f87171;}} .sent-neu{{color:var(--dim);}}
+        .spinner{{display:inline-block;width:12px;height:12px;border:1.5px solid rgba(237,232,223,0.2);border-top-color:var(--pearl);border-radius:50%;animation:sp 0.6s linear infinite;}}
+        @keyframes sp{{to{{transform:rotate(360deg)}}}}
+        @media(max-width:900px){{.sidebar{{width:100%;height:auto;position:static;}}.main{{margin-left:0;padding:16px;max-width:100%;}}.row2{{grid-template-columns:1fr;}}}}
     </style>
 </head>
 <body>
 <div class="layout">
-    <div class="sidebar">
-        <div class="sidebar-logo">
-            <div class="logo-name">NOVALIS</div>
-            <div class="logo-biz">{c['business_name']}</div>
-        </div>
-        <button class="nav-link active" onclick="showPage('dashboard')">📊 Tableau de bord</button>
-        <button class="nav-link" onclick="showPage('conversations')">💬 Conversations</button>
-        <button class="nav-link" onclick="showPage('appointments')">📅 Rendez-vous</button>
-        <button class="nav-link" onclick="showPage('projects')">🗂 Projets</button>
-        <button class="nav-link" onclick="showPage('knowledge')">🧠 Base de connaissances</button>
-        <button class="nav-link" onclick="showPage('campaigns')">📣 Campagnes</button>
-        <button class="nav-link" onclick="showPage('webhooks')">🔗 Intégrations</button>
-        <button class="nav-link" onclick="showPage('reports')">📈 Rapports IA</button>
-        <button class="nav-link" onclick="showPage('roi')">💰 ROI</button>
-        <button class="nav-link" onclick="showPage('settings')">⚙️ Mon compte</button>
+  <div class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-brand">Novalis IA</div>
+      <div class="sb-biz">{c['business_name']}</div>
+      <div class="sb-plan">{c['plan']}</div>
     </div>
-    <div class="main">
+    <nav>
+      <button class="nl active" onclick="nav(this,'dashboard')"><span class="ico">▦</span> Tableau de bord</button>
+      <button class="nl" onclick="nav(this,'conversations')"><span class="ico">◎</span> Conversations</button>
+      <button class="nl" onclick="nav(this,'analytics')"><span class="ico">◈</span> Analytics sentiment</button>
+      <button class="nl" onclick="nav(this,'escalation')"><span class="ico">⚡</span> Règles d'escalade</button>
+      <button class="nl" onclick="nav(this,'appointments')"><span class="ico">◷</span> Rendez-vous</button>
+      <button class="nl" onclick="nav(this,'projects')"><span class="ico">◫</span> Projets</button>
+      <button class="nl" onclick="nav(this,'knowledge')"><span class="ico">◉</span> Base de connaissances</button>
+      <button class="nl" onclick="nav(this,'campaigns')"><span class="ico">◈</span> Campagnes</button>
+      <button class="nl" onclick="nav(this,'webhooks')"><span class="ico">◌</span> Intégrations</button>
+      <button class="nl" onclick="nav(this,'reports')"><span class="ico">◐</span> Rapports IA</button>
+      <button class="nl" onclick="nav(this,'roi')"><span class="ico">◑</span> ROI</button>
+      <button class="nl" onclick="nav(this,'settings')"><span class="ico">◎</span> Mon compte</button>
+    </nav>
+    <div class="sb-footer">Novalis IA · {c['owner_email']}</div>
+  </div>
+  <div class="main">
 
-        <!-- DASHBOARD -->
-        <div class="page active" id="page-dashboard">
-            <div class="page-title">Tableau de bord</div>
-            <div class="stats-row" id="statsRow"><div style="color:#64748b;">Chargement...</div></div>
-            <div class="card">
-                <h3>Activité — 30 derniers jours</h3>
-                <div class="chart-container"><canvas id="activityChart"></canvas></div>
-            </div>
-            <div class="card">
-                <h3>Utilisation du plan</h3>
-                <div id="usageSection"></div>
-            </div>
-        </div>
 
-        <!-- CONVERSATIONS -->
-        <div class="page" id="page-conversations">
-            <div class="page-title">Conversations récentes</div>
-            <div class="card">
-                <table>
-                    <thead><tr><th>Client</th><th>Canal</th><th>Dernière activité</th><th>Messages</th><th>Action</th></tr></thead>
-                    <tbody id="convsTable"><tr><td colspan="5" style="text-align:center;color:#64748b;">Chargement...</td></tr></tbody>
-                </table>
-            </div>
-            <div class="card" id="convDetail" style="display:none;">
-                <h3 id="convDetailTitle">Conversation</h3>
-                <div id="convMessages" style="max-height:400px;overflow-y:auto;"></div>
-            </div>
-        </div>
-
-        <!-- RENDEZ-VOUS -->
-        <div class="page" id="page-appointments">
-            <div class="page-title">Rendez-vous</div>
-            <div class="card">
-                <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
-                    <button class="btn" onclick="filterAppts('')">Tous</button>
-                    <button class="btn" style="background:#1e3a5f;color:#38bdf8;" onclick="filterAppts('pending')">En attente</button>
-                    <button class="btn" style="background:#1e3a5f;color:#34d399;" onclick="filterAppts('confirmed')">Confirmés</button>
-                </div>
-                <table>
-                    <thead><tr><th>Date / Heure</th><th>Client</th><th>Service</th><th>Statut</th><th>Action</th></tr></thead>
-                    <tbody id="apptsTable"><tr><td colspan="5" style="text-align:center;color:#64748b;">Chargement...</td></tr></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- PROJETS -->
-        <div class="page" id="page-projects">
-            <div class="page-title">Mes projets</div>
-            <div id="projectsList"></div>
-        </div>
-
-        <!-- ROI -->
-        <div class="page" id="page-roi">
-            <div class="page-title">Rapport ROI — 30 jours</div>
-            <div id="roiContent"><div style="color:#64748b;">Chargement...</div></div>
-        </div>
-
-        <!-- KNOWLEDGE BASE -->
-        <div class="page" id="page-knowledge">
-            <div class="page-title">Base de connaissances</div>
-            <p style="color:#64748b;margin-bottom:20px;font-size:0.9rem;">Tout ce que vous ajoutez ici, votre IA le connaîtra et pourra en parler avec vos clients.</p>
-            <div class="card">
-                <h3>Ajouter une entrée</h3>
-                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:4px;">Type</label>
-                <select id="kb_type" style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e3a5f;background:#0f1f2e;color:#e2e8f0;margin-bottom:10px;">
-                    <option value="faq">FAQ — Questions fréquentes</option>
-                    <option value="menu">Menu / Catalogue / Prix</option>
-                    <option value="policy">Politiques / Conditions</option>
-                    <option value="team">Équipe / Personnel</option>
-                    <option value="custom">Autre information</option>
-                </select>
-                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:4px;">Titre</label>
-                <input id="kb_title" placeholder="ex: Nos tarifs 2026" style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e3a5f;background:#0f1f2e;color:#e2e8f0;margin-bottom:10px;">
-                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:4px;">Contenu (max 5000 caractères)</label>
-                <textarea id="kb_content" rows="5" placeholder="Coupe homme: 25$&#10;Coupe femme: 45$&#10;Coloration: 80$+..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e3a5f;background:#0f1f2e;color:#e2e8f0;margin-bottom:12px;resize:vertical;"></textarea>
-                <button class="btn" onclick="addKbEntry()">Ajouter à ma base de connaissances</button>
-            </div>
-            <div class="card">
-                <h3>Mes entrées</h3>
-                <div id="kbList"><div style="color:#64748b;">Chargement...</div></div>
-            </div>
-        </div>
-
-        <!-- CAMPAGNES -->
-        <div class="page" id="page-campaigns">
-            <div class="page-title">Campagnes SMS / WhatsApp</div>
-            <p style="color:#64748b;margin-bottom:20px;font-size:0.9rem;">Envoyez des messages proactifs à vos clients : promotions, rappels, annonces.</p>
-            <div class="card">
-                <h3>Nouvelle campagne</h3>
-                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:4px;">Nom de la campagne</label>
-                <input id="camp_name" placeholder="ex: Promo été 2026" style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e3a5f;background:#0f1f2e;color:#e2e8f0;margin-bottom:10px;">
-                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:4px;">Canal</label>
-                <select id="camp_channel" style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e3a5f;background:#0f1f2e;color:#e2e8f0;margin-bottom:10px;">
-                    <option value="sms">SMS</option>
-                    <option value="whatsapp">WhatsApp</option>
-                </select>
-                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:4px;">Message (max 160 car. pour SMS)</label>
-                <textarea id="camp_message" rows="4" placeholder="Bonjour ! Profitez de notre spécial été : 20% de rabais sur tous nos services jusqu'au 31 juillet. Répondez OUI pour réserver !" style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e3a5f;background:#0f1f2e;color:#e2e8f0;margin-bottom:6px;resize:vertical;"></textarea>
-                <div id="charCount" style="color:#64748b;font-size:0.75rem;margin-bottom:10px;">0 / 160</div>
-                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:4px;">Numéros de téléphone (un par ligne, format +15141234567)</label>
-                <textarea id="camp_contacts" rows="5" placeholder="+15141234567&#10;+14381234567&#10;..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e3a5f;background:#0f1f2e;color:#e2e8f0;margin-bottom:12px;resize:vertical;"></textarea>
-                <button class="btn" onclick="createCampaign()">Créer la campagne</button>
-            </div>
-            <div class="card">
-                <h3>Mes campagnes</h3>
-                <div id="campList"><div style="color:#64748b;">Chargement...</div></div>
-            </div>
-        </div>
-
-        <!-- WEBHOOKS -->
-        <div class="page" id="page-webhooks">
-            <div class="page-title">Intégrations — Webhooks</div>
-            <p style="color:#64748b;margin-bottom:20px;font-size:0.9rem;">Recevez des notifications en temps réel dans votre CRM ou tout autre outil quand un événement se produit.</p>
-            <div class="card">
-                <h3>Ajouter un webhook</h3>
-                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:4px;">URL HTTPS de destination</label>
-                <input id="wh_url" placeholder="https://votre-crm.com/webhook/novalis" style="width:100%;padding:10px;border-radius:8px;border:1px solid #1e3a5f;background:#0f1f2e;color:#e2e8f0;margin-bottom:12px;">
-                <label style="color:#64748b;font-size:0.8rem;display:block;margin-bottom:8px;">Événements à écouter</label>
-                <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
-                    <label style="color:#e2e8f0;font-size:0.9rem;"><input type="checkbox" id="ev_appt" checked> Nouveau RDV</label>
-                    <label style="color:#e2e8f0;font-size:0.9rem;"><input type="checkbox" id="ev_transfer" checked> Transfert demandé</label>
-                    <label style="color:#e2e8f0;font-size:0.9rem;"><input type="checkbox" id="ev_msg"> Nouveau message</label>
-                </div>
-                <button class="btn" onclick="createWebhook()">Ajouter le webhook</button>
-                <div id="wh_result" style="margin-top:12px;"></div>
-            </div>
-            <div class="card">
-                <h3>Webhooks configurés</h3>
-                <div id="whList"><div style="color:#64748b;">Chargement...</div></div>
-            </div>
-        </div>
-
-        <!-- RAPPORTS IA -->
-        <div class="page" id="page-reports">
-            <div class="page-title">Rapports IA hebdomadaires</div>
-            <p style="color:#64748b;margin-bottom:20px;font-size:0.9rem;">Chaque dimanche, votre IA analyse vos conversations et vous envoie un rapport personnalisé par email.</p>
-            <div id="reportsList"><div style="color:#64748b;">Chargement...</div></div>
-        </div>
-
-        <!-- SETTINGS -->
-        <div class="page" id="page-settings">
-            <div class="page-title">Mon compte</div>
-            <div class="card">
-                <h3>Informations</h3>
-                <table>
-                    <tr><td style="color:#64748b;width:160px;">Commerce</td><td>{c['business_name']}</td></tr>
-                    <tr><td style="color:#64748b;">Type</td><td>{c.get('business_type','—')}</td></tr>
-                    <tr><td style="color:#64748b;">Propriétaire</td><td>{c['owner_name']}</td></tr>
-                    <tr><td style="color:#64748b;">Courriel</td><td>{c['owner_email']}</td></tr>
-                    <tr><td style="color:#64748b;">Plan</td><td><span class="badge badge-blue">{c['plan'].upper()}</span></td></tr>
-                    <tr><td style="color:#64748b;">Statut</td><td><span class="badge badge-green">Actif</span></td></tr>
-                </table>
-            </div>
-            <div class="card">
-                <h3>Clé API</h3>
-                <p style="color:#64748b;font-size:0.85rem;margin-bottom:12px;">Utilisez cette clé pour intégrer Novalis à vos outils. Gardez-la secrète.</p>
-                <div class="api-key-box" id="apiKeyDisplay">{c_api_key_masked}</div>
-                <button class="copy-btn" onclick="revealKey()">Afficher / Copier</button>
-            </div>
-            <div class="card">
-                <h3>Support</h3>
-                <p style="color:#94a3b8;font-size:0.9rem;">Pour toute question ou modification, contactez-nous :</p>
-                <p style="margin-top:12px;"><a href="mailto:{ADMIN_EMAIL}" style="color:#38bdf8;">{ADMIN_EMAIL}</a></p>
-            </div>
-        </div>
-
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="pg-hdr">
+        <div><div class="pg-title">Tableau de bord</div><div class="pg-sub">30 derniers jours</div></div>
+      </div>
+      <div class="stats-row" id="statsRow"><div class="sc" style="grid-column:1/-1;color:var(--dim);">Chargement…</div></div>
+      <div class="row2">
+        <div class="card"><div class="card-title">Activité quotidienne</div><div class="chart-wrap"><canvas id="chartAct"></canvas></div></div>
+        <div class="card"><div class="card-title">Humeur des clients</div><div class="chart-wrap"><canvas id="chartSent"></canvas></div></div>
+      </div>
+      <div class="card"><div class="card-title">Utilisation du plan</div><div id="usageSection"></div></div>
     </div>
+
+    <!-- CONVERSATIONS -->
+    <div class="page" id="page-conversations">
+      <div class="pg-hdr"><div><div class="pg-title">Conversations</div></div></div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Contact</th><th>Canal</th><th>Dernière activité</th><th>Messages</th><th>Sentiment</th><th></th></tr></thead>
+          <tbody id="convsTable"><tr><td colspan="6" class="empty">Chargement…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card" id="convDetail" style="display:none;">
+        <div class="card-title" id="convDetailTitle">Conversation</div>
+        <div id="convMessages" style="max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div class="page" id="page-analytics">
+      <div class="pg-hdr"><div><div class="pg-title">Analytics sentiment</div><div class="pg-sub">Indicateurs IA avancés</div></div></div>
+      <div class="stats-row" id="analyticsStats"><div class="sc" style="grid-column:1/-1;color:var(--dim);">Chargement…</div></div>
+      <div class="row2">
+        <div class="card"><div class="card-title">Distribution des intentions</div><div class="chart-wrap-sm"><canvas id="chartIntent"></canvas></div></div>
+        <div class="card"><div class="card-title">Sentiment par canal</div><div id="sentByChannel"></div></div>
+      </div>
+    </div>
+
+    <!-- ESCALADE -->
+    <div class="page" id="page-escalation">
+      <div class="pg-hdr"><div><div class="pg-title">Règles d'escalade</div><div class="pg-sub">Transfert automatique vers votre équipe</div></div></div>
+      <div class="card">
+        <div class="card-title">Ajouter une règle</div>
+        <div class="row2">
+          <div>
+            <label class="lbl">Type de règle</label>
+            <select id="esc_type" class="fi" onchange="updateEscPlaceholder()">
+              <option value="sentiment_threshold">Sentiment négatif (seuil)</option>
+              <option value="keyword">Mot-clé critique</option>
+              <option value="message_count">Nombre de messages</option>
+              <option value="intent">Intention détectée</option>
+            </select>
+          </div>
+          <div>
+            <label class="lbl" id="esc_val_lbl">Valeur seuil (ex: -0.6)</label>
+            <input id="esc_val" class="fi" placeholder="-0.6" />
+          </div>
+        </div>
+        <button class="btn" onclick="addEscRule()">Ajouter la règle</button>
+        <div id="esc_msg" style="margin-top:10px;font-size:0.8rem;"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Règles actives</div>
+        <div id="escList"><div class="empty">Chargement…</div></div>
+      </div>
+    </div>
+
+    <!-- RENDEZ-VOUS -->
+    <div class="page" id="page-appointments">
+      <div class="pg-hdr">
+        <div><div class="pg-title">Rendez-vous</div></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="filterAppts('')">Tous</button>
+          <button class="btn btn-ghost btn-sm" onclick="filterAppts('pending')">En attente</button>
+          <button class="btn btn-ghost btn-sm" onclick="filterAppts('confirmed')">Confirmés</button>
+        </div>
+      </div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Date / Heure</th><th>Client</th><th>Service</th><th>Statut</th><th></th></tr></thead>
+          <tbody id="apptsTable"><tr><td colspan="5" class="empty">Chargement…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PROJETS -->
+    <div class="page" id="page-projects">
+      <div class="pg-hdr"><div><div class="pg-title">Mes projets</div></div></div>
+      <div id="projectsList"></div>
+    </div>
+
+    <!-- KNOWLEDGE BASE -->
+    <div class="page" id="page-knowledge">
+      <div class="pg-hdr"><div><div class="pg-title">Base de connaissances</div><div class="pg-sub">Tout ce que vous ajoutez ici, votre IA le maîtrisera.</div></div></div>
+      <div class="row2">
+        <div>
+          <div class="card">
+            <div class="card-title">Saisie manuelle</div>
+            <label class="lbl">Type</label>
+            <select id="kb_type" class="fi">
+              <option value="faq">FAQ</option><option value="menu">Catalogue / Prix</option>
+              <option value="policy">Politiques</option><option value="team">Équipe</option><option value="custom">Autre</option>
+            </select>
+            <label class="lbl">Titre</label>
+            <input id="kb_title" class="fi" placeholder="Ex: Nos tarifs 2026" />
+            <label class="lbl">Contenu</label>
+            <textarea id="kb_content" class="fi" placeholder="Collez votre FAQ, catalogue, politiques..."></textarea>
+            <button class="btn" onclick="addKbEntry()">Ajouter</button>
+          </div>
+          <div class="card">
+            <div class="card-title">Upload fichier</div>
+            <p style="font-size:0.8rem;color:var(--dim);margin-bottom:12px;">Formats acceptés : .txt, .pdf, .csv, .md</p>
+            <label class="lbl">Titre du document</label>
+            <input id="kb_file_title" class="fi" placeholder="Ex: Catalogue produits 2026" />
+            <label class="lbl">Fichier</label>
+            <input type="file" id="kb_file" accept=".txt,.pdf,.csv,.md" class="fi" style="padding:6px;" />
+            <button class="btn" id="btn_upload" onclick="uploadKbFile()" style="margin-top:4px;">Uploader le fichier</button>
+            <div id="upload_msg" style="margin-top:8px;font-size:0.8rem;"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Entrées indexées</div>
+          <div id="kbList"><div class="empty">Chargement…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CAMPAGNES -->
+    <div class="page" id="page-campaigns">
+      <div class="pg-hdr"><div><div class="pg-title">Campagnes</div><div class="pg-sub">SMS et WhatsApp proactifs</div></div></div>
+      <div class="row2">
+        <div class="card">
+          <div class="card-title">Nouvelle campagne</div>
+          <label class="lbl">Nom</label><input id="camp_name" class="fi" placeholder="Ex: Promo été 2026" />
+          <label class="lbl">Canal</label>
+          <select id="camp_channel" class="fi"><option value="sms">SMS</option><option value="whatsapp">WhatsApp</option></select>
+          <label class="lbl">Message</label>
+          <textarea id="camp_message" class="fi" placeholder="Bonjour ! Profitez de notre spécial…"></textarea>
+          <div id="charCount" style="color:var(--dim);font-size:0.7rem;margin-top:-8px;margin-bottom:10px;">0 / 160</div>
+          <label class="lbl">Numéros (un par ligne)</label>
+          <textarea id="camp_contacts" class="fi" placeholder="+15141234567&#10;+14381234567"></textarea>
+          <button class="btn" onclick="createCampaign()">Créer la campagne</button>
+        </div>
+        <div class="card">
+          <div class="card-title">Mes campagnes</div>
+          <div id="campList"><div class="empty">Chargement…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WEBHOOKS -->
+    <div class="page" id="page-webhooks">
+      <div class="pg-hdr"><div><div class="pg-title">Intégrations</div><div class="pg-sub">Webhooks vers votre CRM</div></div></div>
+      <div class="row2">
+        <div class="card">
+          <div class="card-title">Ajouter un webhook</div>
+          <label class="lbl">URL HTTPS</label>
+          <input id="wh_url" class="fi" placeholder="https://votre-crm.com/webhook/novalis" />
+          <label class="lbl">Événements</label>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px;">
+            <label style="font-size:0.8rem;color:var(--pearl);display:flex;align-items:center;gap:6px;"><input type="checkbox" id="ev_appt" checked> Nouveau RDV</label>
+            <label style="font-size:0.8rem;color:var(--pearl);display:flex;align-items:center;gap:6px;"><input type="checkbox" id="ev_transfer" checked> Transfert</label>
+            <label style="font-size:0.8rem;color:var(--pearl);display:flex;align-items:center;gap:6px;"><input type="checkbox" id="ev_msg"> Nouveau message</label>
+          </div>
+          <button class="btn" onclick="createWebhook()">Ajouter</button>
+          <div id="wh_result" style="margin-top:12px;"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Webhooks actifs</div>
+          <div id="whList"><div class="empty">Chargement…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RAPPORTS IA -->
+    <div class="page" id="page-reports">
+      <div class="pg-hdr"><div><div class="pg-title">Rapports IA</div><div class="pg-sub">Généré automatiquement chaque dimanche</div></div></div>
+      <div id="reportsList"><div class="empty">Chargement…</div></div>
+    </div>
+
+    <!-- ROI -->
+    <div class="page" id="page-roi">
+      <div class="pg-hdr"><div><div class="pg-title">Rapport ROI</div><div class="pg-sub">30 derniers jours</div></div></div>
+      <div id="roiContent"><div class="empty">Chargement…</div></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="pg-hdr"><div><div class="pg-title">Mon compte</div></div></div>
+      <div class="row2">
+        <div>
+          <div class="card">
+            <div class="card-title">Profil de l'entreprise</div>
+            <label class="lbl">Nom de l'entreprise</label>
+            <input id="s_bname" class="fi" value="{c['business_name']}" />
+            <label class="lbl">Secteur</label>
+            <input id="s_btype" class="fi" value="{c.get('business_type','')}" placeholder="Distribution, Retail…" />
+            <label class="lbl">Heures d'ouverture</label>
+            <input id="s_hours" class="fi" value="{c.get('hours','')}" placeholder="Lun-Ven 9h-17h" />
+            <label class="lbl">Téléphone (affiché aux clients)</label>
+            <input id="s_phone" class="fi" value="{c.get('owner_phone','')}" placeholder="+1 514 000-0000" />
+            <label class="lbl">Services offerts</label>
+            <input id="s_services" class="fi" value="{c.get('services','')}" placeholder="Vente, Livraison, SAV…" />
+            <label class="lbl">Adresse</label>
+            <input id="s_addr" class="fi" value="{c.get('address','')}" placeholder="Montréal, QC" />
+            <button class="btn" id="btn_save_profile" onclick="saveProfile()">Enregistrer</button>
+            <div id="save_msg" style="margin-top:8px;font-size:0.8rem;"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-title">Informations du compte</div>
+            <table>
+              <tr><td style="color:var(--dim);padding:8px 0;font-size:0.8rem;">Propriétaire</td><td style="font-size:0.8rem;">{c['owner_name']}</td></tr>
+              <tr><td style="color:var(--dim);padding:8px 0;font-size:0.8rem;">Courriel</td><td style="font-size:0.8rem;">{c['owner_email']}</td></tr>
+              <tr><td style="color:var(--dim);padding:8px 0;font-size:0.8rem;">Plan</td><td><span class="badge bc">{c['plan'].upper()}</span></td></tr>
+              <tr><td style="color:var(--dim);padding:8px 0;font-size:0.8rem;">Statut</td><td><span class="badge bg">Actif</span></td></tr>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-title">Clé API</div>
+            <p style="font-size:0.78rem;color:var(--dim);margin-bottom:10px;">Ne jamais partager. Cliquez pour afficher et copier.</p>
+            <div class="api-box" id="apiKeyDisplay" onclick="revealKey()" title="Cliquer pour afficher / copier">{c_api_key_masked}</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Support</div>
+            <p style="font-size:0.82rem;color:var(--dim);">Pour toute question : <a href="mailto:{ADMIN_EMAIL}" style="color:var(--cu);">{ADMIN_EMAIL}</a></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <script>
 const API_KEY = '{c_api_key}';
-const headers = {{'X-API-Key': API_KEY}};
-let activityChart = null;
+const H = {{'X-API-Key': API_KEY}};
+let charts = {{}};
 
-function showPage(name) {{
-    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-    document.querySelectorAll('.nav-link').forEach(n=>n.classList.remove('active'));
-    document.getElementById('page-'+name).classList.add('active');
-    event.currentTarget.classList.add('active');
-    if(name==='dashboard') loadDashboard();
-    if(name==='conversations') loadConversations();
-    if(name==='appointments') loadAppointments('');
-    if(name==='projects') loadProjects();
-    if(name==='knowledge') loadKnowledgeBase();
-    if(name==='campaigns') loadCampaigns();
-    if(name==='webhooks') loadWebhooks();
-    if(name==='reports') loadReports();
-    if(name==='roi') loadRoi();
+function nav(btn, name) {{
+  document.querySelectorAll('.nl').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('page-'+name).classList.add('active');
+  const loaders = {{dashboard:loadDashboard,conversations:loadConversations,analytics:loadAnalytics,
+    escalation:loadEscalation,appointments:()=>loadAppointments(''),projects:loadProjects,
+    knowledge:loadKnowledgeBase,campaigns:loadCampaigns,webhooks:loadWebhooks,
+    reports:loadReports,roi:loadRoi}};
+  if(loaders[name]) loaders[name]();
 }}
 
+function mkChart(id, cfg) {{
+  if(charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id);
+  if(!ctx) return;
+  charts[id] = new Chart(ctx, cfg);
+}}
+
+const CU = 'rgba(168,104,68,';
+const GR = 'rgba(237,232,223,0.04)';
+
 async function loadDashboard() {{
-    const [me, stats] = await Promise.all([
-        fetch('/api/v1/me',{{headers}}).then(r=>r.json()),
-        fetch('/api/v1/me/stats?days=30',{{headers}}).then(r=>r.json())
-    ]);
-
-    const s = stats.summary;
-    document.getElementById('statsRow').innerHTML = `
-        <div class="stat-card"><div class="stat-lbl">Interactions</div><div class="stat-val">${{s.total_interactions}}</div><div class="stat-sub">30 derniers jours</div></div>
-        <div class="stat-card"><div class="stat-lbl">RDV gérés</div><div class="stat-val">${{s.rdv_requests}}</div><div class="stat-sub">automatiquement</div></div>
-        <div class="stat-card"><div class="stat-lbl">Heures sauvées</div><div class="stat-val">${{s.estimated_hours_saved}}</div><div class="stat-sub">estimé</div></div>
-        <div class="stat-card"><div class="stat-lbl">Valeur créée</div><div class="stat-val">${{s.estimated_value_saved}}</div><div class="stat-sub">estimé</div></div>
-    `;
-
-    // Usage bar
-    const pct = Math.min(100, Math.round(me.messages_used / Math.max(me.messages_limit, 1) * 100));
-    document.getElementById('usageSection').innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <span style="font-weight:600;">${{me.messages_used}} / ${{me.messages_limit === 0 ? '∞' : me.messages_limit}} messages</span>
-            <span class="badge badge-blue">${{me.plan.toUpperCase()}}</span>
-        </div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${{pct}}%"></div></div>
-        <div class="usage-pct">${{pct}}% utilisé ce mois</div>
-    `;
-
-    // Graphique activité
-    const daily = stats.daily;
-    const labels = daily.map(d => d.date.slice(5));
-    const data = daily.map(d => d.interactions);
-    const ctx = document.getElementById('activityChart').getContext('2d');
-    if(activityChart) activityChart.destroy();
-    activityChart = new Chart(ctx, {{
-        type: 'bar',
-        data: {{
-            labels,
-            datasets: [{{
-                label: 'Interactions',
-                data,
-                backgroundColor: 'rgba(56,189,248,0.4)',
-                borderColor: '#38bdf8',
-                borderWidth: 1,
-                borderRadius: 4
-            }}]
-        }},
-        options: {{
-            responsive: true, maintainAspectRatio: false,
-            plugins: {{legend: {{display:false}}}},
-            scales: {{
-                x: {{ticks:{{color:'#64748b',font:{{size:10}}}},grid:{{color:'rgba(255,255,255,0.04)'}}}},
-                y: {{ticks:{{color:'#64748b'}},grid:{{color:'rgba(255,255,255,0.04)'}},beginAtZero:true}}
-            }}
-        }}
-    }});
+  const [me, stats] = await Promise.all([
+    fetch('/api/v1/me',{{headers:H}}).then(r=>r.json()),
+    fetch('/api/v1/me/stats?days=30',{{headers:H}}).then(r=>r.json())
+  ]);
+  const s = stats.summary;
+  document.getElementById('statsRow').innerHTML = `
+    <div class="sc"><div class="sc-lbl">Interactions</div><div class="sc-val">${{s.total_interactions}}</div><div class="sc-sub">30 jours</div></div>
+    <div class="sc"><div class="sc-lbl">RDV gérés</div><div class="sc-val">${{s.rdv_requests}}</div><div class="sc-sub">automatiquement</div></div>
+    <div class="sc"><div class="sc-lbl">Heures sauvées</div><div class="sc-val">${{s.estimated_hours_saved}}</div><div class="sc-sub">estimé</div></div>
+    <div class="sc"><div class="sc-lbl">Valeur créée</div><div class="sc-val">${{s.estimated_value_saved}}</div><div class="sc-sub">ce mois</div></div>`;
+  const pct = Math.min(100, Math.round(me.messages_used/Math.max(me.messages_limit||1,1)*100));
+  document.getElementById('usageSection').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <span style="font-size:0.85rem;">${{me.messages_used}} / ${{me.messages_limit===0?'∞':me.messages_limit}} messages</span>
+      <span class="badge bc">${{me.plan.toUpperCase()}}</span>
+    </div>
+    <div class="pb"><div class="pf" style="width:${{pct}}%"></div></div>
+    <div style="font-size:0.7rem;color:var(--dim);margin-top:6px;">${{pct}}% utilisé ce mois</div>`;
+  const daily = stats.daily||[];
+  mkChart('chartAct',{{type:'bar',data:{{
+    labels:daily.map(d=>d.date.slice(5)),
+    datasets:[{{data:daily.map(d=>d.interactions),backgroundColor:CU+'0.5)',borderColor:CU+'0.9)',borderWidth:1,borderRadius:2}}]
+  }},options:{{responsive:true,maintainAspectRatio:false,plugins:{{legend:{{display:false}}}},
+    scales:{{x:{{ticks:{{color:'#4A5260',font:{{size:9}}}},grid:{{color:GR}}}},y:{{ticks:{{color:'#4A5260'}},grid:{{color:GR}},beginAtZero:true}}}}
+  }}}});
+  // Sentiment trend
+  try {{
+    const sa = await fetch('/api/v1/me/analytics/sentiment',{{headers:H}}).then(r=>r.json());
+    const sd = sa.daily_sentiment||[];
+    mkChart('chartSent',{{type:'line',data:{{
+      labels:sd.map(d=>d.date?.slice(5)||''),
+      datasets:[{{data:sd.map(d=>d.avg_sentiment||0),borderColor:CU+'0.9)',backgroundColor:CU+'0.1)',fill:true,tension:0.4,pointRadius:2}}]
+    }},options:{{responsive:true,maintainAspectRatio:false,plugins:{{legend:{{display:false}}}},
+      scales:{{x:{{ticks:{{color:'#4A5260',font:{{size:9}}}},grid:{{color:GR}}}},
+               y:{{ticks:{{color:'#4A5260'}},grid:{{color:GR}},min:-1,max:1}}}}
+    }}}});
+  }} catch(e) {{}}
 }}
 
 async function loadConversations() {{
-    const rows = await fetch('/api/v1/me/conversations',{{headers}}).then(r=>r.json());
-    const channelIcon = {{sms:'📱',voice:'📞',messenger:'💬',whatsapp:'🟢',}};
-    document.getElementById('convsTable').innerHTML = rows.length ? rows.map(r=>`
-        <tr>
-            <td>${{r.phone}}</td>
-            <td>${{channelIcon[r.channel]||'📩'}} ${{r.channel}}</td>
-            <td>${{r.last_activity?.slice(0,16).replace('T',' ')||'—'}}</td>
-            <td>${{r.message_count}}</td>
-            <td><button class="btn" style="padding:4px 10px;font-size:0.75rem;" onclick="loadConvDetail('${{r.id}}','${{r.phone}}')">Voir</button></td>
-        </tr>`).join('') : '<tr><td colspan="5" class="empty-state">Aucune conversation</td></tr>';
+  const rows = await fetch('/api/v1/me/conversations',{{headers:H}}).then(r=>r.json()).catch(()=>[]);
+  const chIcon = {{sms:'SMS',voice:'Voix',messenger:'Messenger',whatsapp:'WA'}};
+  const sentFmt = s => s===undefined||s===null?'—':s>0.2?`<span class="sent-pos">▲ ${{s.toFixed(2)}}</span>`:s<-0.2?`<span class="sent-neg">▼ ${{s.toFixed(2)}}</span>`:`<span class="sent-neu">— ${{s.toFixed(2)}}</span>`;
+  document.getElementById('convsTable').innerHTML = rows.length ? rows.map(r=>`
+    <tr>
+      <td>${{r.phone}}</td>
+      <td><span class="badge bd">${{chIcon[r.channel]||r.channel}}</span></td>
+      <td style="font-size:0.75rem;">${{r.last_activity?.slice(0,16).replace('T',' ')||'—'}}</td>
+      <td>${{r.message_count}}</td>
+      <td>${{sentFmt(r.avg_sentiment)}}</td>
+      <td><button class="btn btn-sm btn-ghost" onclick="loadConvDetail('${{r.id}}','${{r.phone}}')">Voir →</button></td>
+    </tr>`).join('') : '<tr><td colspan="6" class="empty">Aucune conversation pour l\'instant.</td></tr>';
 }}
 
 async function loadConvDetail(id, phone) {{
-    const msgs = await fetch(`/api/v1/me/conversations/${{id}}`,{{headers}}).then(r=>r.json());
-    const intentBadge = {{rdv:'badge-blue',complaint:'badge-yellow',urgent:'badge-yellow',thanks:'badge-green',general:'badge-gray'}};
-    document.getElementById('convDetailTitle').textContent = `Conversation avec ${{phone}}`;
-    document.getElementById('convMessages').innerHTML = msgs.map(m=>`
-        <div style="margin-bottom:12px;display:flex;${{m.role==='agent'?'justify-content:flex-end;':''}}">
-            <div style="max-width:75%;background:${{m.role==='agent'?'rgba(56,189,248,0.15)':'#1e3a5f'}};border-radius:12px;padding:10px 14px;">
-                <div style="font-size:0.85rem;color:#cbd5e1;">${{m.content}}</div>
-                <div style="font-size:0.7rem;color:#64748b;margin-top:4px;">${{m.timestamp?.slice(0,16).replace('T',' ')}} · ${{m.role}}</div>
-            </div>
-        </div>`).join('');
-    document.getElementById('convDetail').style.display='block';
-    document.getElementById('convMessages').scrollTop = 99999;
+  const msgs = await fetch(`/api/v1/me/conversations/${{id}}`,{{headers:H}}).then(r=>r.json());
+  document.getElementById('convDetailTitle').textContent = `${{phone}}`;
+  document.getElementById('convMessages').innerHTML = msgs.map(m=>`
+    <div style="display:flex;${{m.role==='agent'?'justify-content:flex-end;':''}}">
+      <div style="max-width:78%;background:${{m.role==='agent'?'rgba(168,104,68,0.15)':'rgba(29,39,51,0.9)'}};border:0.5px solid ${{m.role==='agent'?'rgba(168,104,68,0.3)':'rgba(237,232,223,0.08)'}};padding:10px 14px;">
+        <div style="font-size:0.82rem;color:var(--pearl);line-height:1.5;">${{m.content}}</div>
+        <div style="font-size:0.65rem;color:var(--dim);margin-top:4px;">${{m.timestamp?.slice(0,16).replace('T',' ')}} · ${{m.role}}</div>
+      </div>
+    </div>`).join('');
+  document.getElementById('convDetail').style.display='block';
+  document.getElementById('convMessages').scrollTop=99999;
+}}
+
+async function loadAnalytics() {{
+  try {{
+    const [adv, sent] = await Promise.all([
+      fetch('/api/v1/me/analytics/advanced',{{headers:H}}).then(r=>r.json()),
+      fetch('/api/v1/me/analytics/sentiment',{{headers:H}}).then(r=>r.json())
+    ]);
+    const ov = adv.overview||{{}};
+    document.getElementById('analyticsStats').innerHTML = `
+      <div class="sc"><div class="sc-lbl">Taux escalade</div><div class="sc-val">${{(ov.escalation_rate||0).toFixed(1)}}%</div></div>
+      <div class="sc"><div class="sc-lbl">Taux résolution</div><div class="sc-val">${{(ov.resolution_rate||0).toFixed(1)}}%</div></div>
+      <div class="sc"><div class="sc-lbl">Sentiment moyen</div><div class="sc-val" style="color:${{(ov.avg_sentiment||0)>0?'#4ac36f':'#f87171'}}">${{(ov.avg_sentiment||0).toFixed(2)}}</div></div>
+      <div class="sc"><div class="sc-lbl">Conversations</div><div class="sc-val">${{ov.total_conversations||0}}</div></div>`;
+    // Intent pie
+    const intents = adv.intent_distribution||{{}};
+    const iKeys = Object.keys(intents);
+    const colors = ['${{CU}}0.8)','${{CU}}0.5)','rgba(196,137,90,0.7)','rgba(74,82,96,0.8)','rgba(237,232,223,0.3)'];
+    mkChart('chartIntent',{{type:'doughnut',data:{{
+      labels:iKeys,datasets:[{{data:iKeys.map(k=>intents[k]),backgroundColor:colors,borderWidth:0}}]
+    }},options:{{responsive:true,maintainAspectRatio:false,
+      plugins:{{legend:{{position:'right',labels:{{color:'#4A5260',font:{{size:10}},boxWidth:10}}}}}}
+    }}}});
+    // Sentiment by channel
+    const byChannel = sent.by_channel||{{}};
+    document.getElementById('sentByChannel').innerHTML = Object.keys(byChannel).length ?
+      Object.entries(byChannel).map(([ch,v])=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid rgba(237,232,223,0.06);">
+          <span style="font-size:0.82rem;">${{ch}}</span>
+          <span style="font-size:0.9rem;color:${{v>0?'#4ac36f':v<-0.1?'#f87171':'var(--dim)'}};font-family:monospace;">${{v.toFixed(3)}}</span>
+        </div>`).join('') : '<div class="empty">Pas encore de données.</div>';
+  }} catch(e) {{ document.getElementById('analyticsStats').innerHTML='<div class="sc" style="grid-column:1/-1;color:var(--dim);">Données insuffisantes — revenez après quelques conversations.</div>'; }}
+}}
+
+async function loadEscalation() {{
+  const rules = await fetch('/api/v1/me/escalation-rules',{{headers:H}}).then(r=>r.json()).catch(()=>[]);
+  const typeLabel = {{sentiment_threshold:'Sentiment ≤',keyword:'Mot-clé :',message_count:'N° messages ≥',intent:'Intention :'}};
+  document.getElementById('escList').innerHTML = rules.length ? rules.map(r=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:0.5px solid rgba(237,232,223,0.06);">
+      <div>
+        <span style="font-size:0.82rem;color:var(--pearl);">${{typeLabel[r.rule_type]||r.rule_type}} <strong style="color:var(--cu);">${{r.rule_value}}</strong></span>
+        <span class="badge ${{r.is_active?'bg':'bd'}}" style="margin-left:8px;">${{r.is_active?'Active':'Inactive'}}</span>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="delEscRule('${{r.id}}')">Supprimer</button>
+    </div>`).join('') : '<div class="empty">Aucune règle. Ajoutez-en une pour automatiser les escalades.</div>';
+}}
+function updateEscPlaceholder() {{
+  const t = document.getElementById('esc_type').value;
+  const lbl = document.getElementById('esc_val_lbl');
+  const inp = document.getElementById('esc_val');
+  const map = {{sentiment_threshold:['Valeur seuil (ex: -0.6)','-0.6'],keyword:['Mot-clé critique','annuler'],message_count:['Nb messages (ex: 10)','10'],intent:['Intention (ex: complaint)','complaint']}};
+  lbl.textContent=map[t][0]; inp.placeholder=map[t][1];
+}}
+async function addEscRule() {{
+  const data={{rule_type:document.getElementById('esc_type').value,rule_value:document.getElementById('esc_val').value}};
+  if(!data.rule_value){{document.getElementById('esc_msg').textContent='Valeur requise.';return;}}
+  const r = await fetch('/api/v1/me/escalation-rules',{{method:'POST',headers:{{...H,'Content-Type':'application/json'}},body:JSON.stringify(data)}});
+  if(r.ok){{document.getElementById('esc_val').value='';document.getElementById('esc_msg').style.color='#4ac36f';document.getElementById('esc_msg').textContent='✓ Règle ajoutée.';loadEscalation();}}
+  else{{document.getElementById('esc_msg').style.color='#f87171';document.getElementById('esc_msg').textContent='Erreur.';}}
+}}
+async function delEscRule(id) {{
+  if(!confirm('Supprimer cette règle ?'))return;
+  await fetch('/api/v1/me/escalation-rules/'+id,{{method:'DELETE',headers:H}});
+  loadEscalation();
 }}
 
 async function loadAppointments(status) {{
-    const url = '/api/v1/me/appointments' + (status ? `?status=${{status}}` : '');
-    const rows = await fetch(url,{{headers}}).then(r=>r.json());
-    const statusBadge = {{pending:'badge-yellow',confirmed:'badge-green',cancelled:'badge-gray',completed:'badge-blue'}};
-    document.getElementById('apptsTable').innerHTML = rows.length ? rows.map(r=>`
-        <tr>
-            <td>${{r.date}} ${{r.time}}</td>
-            <td>${{r.customer_name||r.customer_phone||'—'}}</td>
-            <td>${{r.service||'—'}}</td>
-            <td><span class="badge ${{statusBadge[r.status]||'badge-gray'}}">${{r.status}}</span></td>
-            <td>
-                ${{r.status==='pending'?`<button class="btn" style="padding:4px 10px;font-size:0.75rem;" onclick="confirmAppt('${{r.id}}')">Confirmer</button>`:''}}
-            </td>
-        </tr>`).join('') : '<tr><td colspan="5" class="empty-state">Aucun rendez-vous</td></tr>';
+  const rows = await fetch('/api/v1/me/appointments'+(status?'?status='+status:''),{{headers:H}}).then(r=>r.json()).catch(()=>[]);
+  const sb={{pending:'by',confirmed:'bg',cancelled:'bd',completed:'bc'}};
+  const sl={{pending:'En attente',confirmed:'Confirmé',cancelled:'Annulé',completed:'Terminé'}};
+  document.getElementById('apptsTable').innerHTML = rows.length ? rows.map(r=>`
+    <tr>
+      <td>${{r.date}} ${{r.time}}</td>
+      <td>${{r.customer_name||r.customer_phone||'—'}}</td>
+      <td>${{r.service||'—'}}</td>
+      <td><span class="badge ${{sb[r.status]||'bd'}}">${{sl[r.status]||r.status}}</span></td>
+      <td>${{r.status==='pending'?`<button class="btn btn-sm" onclick="confirmAppt('${{r.id}}')">Confirmer</button>`:''}}</td>
+    </tr>`).join('') : '<tr><td colspan="5" class="empty">Aucun rendez-vous.</td></tr>';
 }}
-
-function filterAppts(s) {{ loadAppointments(s); }}
-
-async function confirmAppt(id) {{
-    await fetch(`/api/v1/me/appointments/${{id}}`,{{method:'PUT',headers:{{...headers,'Content-Type':'application/json'}},body:JSON.stringify({{status:'confirmed'}})}});
-    loadAppointments('');
+function filterAppts(s){{loadAppointments(s);}}
+async function confirmAppt(id){{
+  await fetch('/api/v1/me/appointments/'+id,{{method:'PUT',headers:{{...H,'Content-Type':'application/json'}},body:JSON.stringify({{status:'confirmed'}})}});
+  loadAppointments('');
 }}
 
 async function loadProjects() {{
-    const projs = await fetch('/api/v1/me/projects',{{headers}}).then(r=>r.json());
-    const statusColor = {{inquiry:'badge-gray',in_progress:'badge-blue',review:'badge-yellow',completed:'badge-green',cancelled:'badge-gray'}};
-    const statusLabel = {{inquiry:'Demande reçue',in_progress:'En cours',review:'En révision',completed:'Terminé',cancelled:'Annulé'}};
-    document.getElementById('projectsList').innerHTML = projs.length ? projs.map(p=>`
-        <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
-                <div>
-                    <div style="font-weight:700;font-size:1.05rem;">${{p.title}}</div>
-                    <div style="color:#64748b;font-size:0.85rem;margin-top:4px;">${{p.service_type}} · Créé le ${{p.created_at?.slice(0,10)}}</div>
-                </div>
-                <span class="badge ${{statusColor[p.status]||'badge-gray'}}">${{statusLabel[p.status]||p.status}}</span>
-            </div>
-            ${{p.description?`<p style="color:#94a3b8;font-size:0.9rem;margin-top:12px;">${{p.description.slice(0,200)}}</p>`:''}}
-            <div class="project-progress">
-                <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:#64748b;margin-bottom:4px;">
-                    <span>Progression</span><span>${{p.progress||0}}%</span>
-                </div>
-                <div class="progress-bar"><div class="progress-fill" style="width:${{p.progress||0}}%"></div></div>
-            </div>
-        </div>`).join('') : '<div class="card empty-state" style="text-align:center;color:#64748b;">Aucun projet en cours.</div>';
+  const projs = await fetch('/api/v1/me/projects',{{headers:H}}).then(r=>r.json()).catch(()=>[]);
+  const sc={{inquiry:'bd',in_progress:'bc',review:'by',completed:'bg',cancelled:'bd'}};
+  const sl={{inquiry:'Demande reçue',in_progress:'En cours',review:'En révision',completed:'Terminé',cancelled:'Annulé'}};
+  document.getElementById('projectsList').innerHTML = projs.length ? projs.map(p=>`
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+        <div>
+          <div style="font-weight:500;font-size:0.95rem;">${{p.title}}</div>
+          <div style="color:var(--dim);font-size:0.75rem;margin-top:2px;">${{p.service_type}} · ${{p.created_at?.slice(0,10)}}</div>
+        </div>
+        <span class="badge ${{sc[p.status]||'bd'}}">${{sl[p.status]||p.status}}</span>
+      </div>
+      ${{p.description?`<p style="color:rgba(237,232,223,0.55);font-size:0.82rem;margin-bottom:12px;">${{p.description.slice(0,200)}}</p>`:''}}
+      <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--dim);margin-bottom:4px;"><span>Progression</span><span>${{p.progress||0}}%</span></div>
+      <div class="pb"><div class="pf" style="width:${{p.progress||0}}%"></div></div>
+    </div>`).join('') : '<div class="card empty">Aucun projet en cours.</div>';
 }}
 
-async function loadRoi() {{
-    const roi = await fetch('/api/v1/me/roi',{{headers}}).then(r=>r.json());
-    const r = roi.roi; const i = roi.interactions;
-    document.getElementById('roiContent').innerHTML = `
-        <div class="stats-row">
-            <div class="stat-card"><div class="stat-lbl">Interactions totales</div><div class="stat-val">${{i.total}}</div></div>
-            <div class="stat-card"><div class="stat-lbl">RDV automatisés</div><div class="stat-val">${{i.rdv_requests}}</div></div>
-            <div class="stat-card"><div class="stat-lbl">Heures sauvées</div><div class="stat-val">${{r.hours_saved}}</div></div>
-            <div class="stat-card"><div class="stat-lbl">Appels évités</div><div class="stat-val">${{r.calls_avoided}}</div></div>
-        </div>
-        <div class="roi-box" style="margin-bottom:16px;">
-            <div style="color:#94a3b8;font-size:0.85rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Retour sur investissement</div>
-            <div class="roi-num">${{r.roi_ratio}}</div>
-            <div style="color:#94a3b8;margin-top:8px;">Économies estimées : <strong style="color:#34d399;">${{r.estimated_savings}}</strong> ce mois</div>
-        </div>
-        <div class="card">
-            <h3>Insights</h3>
-            ${{roi.insights.map(ins=>`<div class="insight">${{ins}}</div>`).join('')}}
-        </div>
-    `;
-}}
-
-// ---- KNOWLEDGE BASE ----
 async function loadKnowledgeBase() {{
-    const entries = await fetch('/api/v1/me/knowledge-base',{{headers}}).then(r=>r.json()).catch(()=>[]);
-    const typeLabel = {{faq:'FAQ',menu:'Menu/Prix',policy:'Politiques',team:'Équipe',custom:'Autre'}};
-    document.getElementById('kbList').innerHTML = entries.length ? entries.map(e=>`
-        <div style="background:#0f1f2e;border-radius:10px;padding:14px;margin-bottom:10px;border-left:3px solid ${{e.is_active?'#38bdf8':'#334155'}}">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-                <div>
-                    <span style="font-weight:600;color:#e2e8f0;">${{e.title}}</span>
-                    <span class="badge badge-blue" style="margin-left:8px;">${{typeLabel[e.kb_type]||e.kb_type}}</span>
-                </div>
-                <button onclick="deleteKbEntry('${{e.id}}')" style="background:transparent;border:1px solid #ef4444;color:#ef4444;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:0.75rem;">Supprimer</button>
-            </div>
-            <div style="color:#94a3b8;font-size:0.85rem;margin-top:8px;white-space:pre-wrap;">${{e.content.slice(0,200)}}${{e.content.length>200?'...':''}}</div>
-        </div>`).join('') : '<div style="color:#64748b;">Aucune entrée. Ajoutez vos FAQ, tarifs et infos pour que votre IA réponde plus précisément !</div>';
+  const entries = await fetch('/api/v1/me/knowledge-base',{{headers:H}}).then(r=>r.json()).catch(()=>[]);
+  const tl={{faq:'FAQ',menu:'Catalogue',policy:'Politiques',team:'Équipe',custom:'Autre'}};
+  document.getElementById('kbList').innerHTML = entries.length ? entries.map(e=>`
+    <div style="padding:12px 0;border-bottom:0.5px solid rgba(237,232,223,0.06);">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div><span style="font-size:0.85rem;font-weight:500;">${{e.title}}</span> <span class="badge bc" style="margin-left:6px;">${{tl[e.kb_type]||e.kb_type}}</span></div>
+        <button class="btn btn-danger btn-sm" onclick="deleteKbEntry('${{e.id}}')">×</button>
+      </div>
+      <div style="color:var(--dim);font-size:0.78rem;margin-top:6px;">${{e.content.slice(0,120)}}${{e.content.length>120?'…':''}}</div>
+    </div>`).join('') : '<div class="empty">Aucune entrée — ajoutez votre FAQ pour que l\'IA soit précise.</div>';
 }}
 async function addKbEntry() {{
-    const data = {{title:document.getElementById('kb_title').value,content:document.getElementById('kb_content').value,kb_type:document.getElementById('kb_type').value}};
-    if(!data.title||!data.content){{alert('Titre et contenu requis');return;}}
-    const r = await fetch('/api/v1/me/knowledge-base',{{method:'POST',headers:{{...headers,'Content-Type':'application/json'}},body:JSON.stringify(data)}});
-    if(r.ok){{document.getElementById('kb_title').value='';document.getElementById('kb_content').value='';loadKnowledgeBase();}}
-    else{{const e=await r.json();alert(e.detail||'Erreur');}}
+  const data={{title:document.getElementById('kb_title').value,content:document.getElementById('kb_content').value,kb_type:document.getElementById('kb_type').value}};
+  if(!data.title||!data.content){{alert('Titre et contenu requis');return;}}
+  const r=await fetch('/api/v1/me/knowledge-base',{{method:'POST',headers:{{...H,'Content-Type':'application/json'}},body:JSON.stringify(data)}});
+  if(r.ok){{document.getElementById('kb_title').value='';document.getElementById('kb_content').value='';loadKnowledgeBase();}}
+  else{{alert((await r.json()).detail||'Erreur');}}
 }}
-async function deleteKbEntry(id) {{
-    if(!confirm('Supprimer cette entrée ?'))return;
-    await fetch('/api/v1/me/knowledge-base/'+id,{{method:'DELETE',headers}});
-    loadKnowledgeBase();
+async function uploadKbFile() {{
+  const title=document.getElementById('kb_file_title').value.trim();
+  const file=document.getElementById('kb_file').files[0];
+  const msg=document.getElementById('upload_msg');
+  if(!file){{msg.textContent='Choisissez un fichier.';return;}}
+  const btn=document.getElementById('btn_upload');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';
+  const fd=new FormData();
+  fd.append('file',file,file.name);
+  fd.append('title',title||file.name);
+  fd.append('kb_type','custom');
+  const r=await fetch('/api/v1/me/knowledge-base/upload',{{method:'POST',headers:H,body:fd}});
+  btn.disabled=false;btn.textContent='Uploader le fichier';
+  if(r.ok){{msg.style.color='#4ac36f';msg.textContent='✓ Fichier indexé.';document.getElementById('kb_file').value='';loadKnowledgeBase();}}
+  else{{msg.style.color='#f87171';msg.textContent='Erreur upload.';}}
+}}
+async function deleteKbEntry(id){{
+  if(!confirm('Supprimer ?'))return;
+  await fetch('/api/v1/me/knowledge-base/'+id,{{method:'DELETE',headers:H}});
+  loadKnowledgeBase();
 }}
 
-// ---- CAMPAGNES ----
 document.addEventListener('DOMContentLoaded',()=>{{
-    const msg = document.getElementById('camp_message');
-    if(msg) msg.addEventListener('input',()=>{{document.getElementById('charCount').textContent=msg.value.length+' / 160';}});
+  const m=document.getElementById('camp_message');
+  if(m)m.addEventListener('input',()=>document.getElementById('charCount').textContent=m.value.length+' / 160');
 }});
 async function loadCampaigns() {{
-    const camps = await fetch('/api/v1/me/campaigns',{{headers}}).then(r=>r.json()).catch(()=>[]);
-    const statusBadge = {{draft:'badge-gray',sending:'badge-yellow',completed:'badge-green',cancelled:'badge-gray'}};
-    const statusLabel = {{draft:'Brouillon',sending:'Envoi en cours',completed:'Terminée',cancelled:'Annulée'}};
-    document.getElementById('campList').innerHTML = camps.length ? camps.map(c=>`
-        <div style="background:#0f1f2e;border-radius:10px;padding:14px;margin-bottom:10px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-                <div>
-                    <span style="font-weight:600;">${{c.name}}</span>
-                    <span class="badge badge-blue" style="margin-left:8px;">${{c.channel.toUpperCase()}}</span>
-                    <span class="badge ${{statusBadge[c.status]||'badge-gray'}}" style="margin-left:6px;">${{statusLabel[c.status]||c.status}}</span>
-                </div>
-                <div style="display:flex;gap:8px;">
-                    ${{c.status==='draft'?`<button class="btn" style="padding:4px 10px;font-size:0.75rem;" onclick="sendCampaign('${{c.id}}')">▶ Envoyer</button>`:''}}
-                    <span style="color:#64748b;font-size:0.8rem;padding:4px 0;">${{c.sent_count}}/${{Array.isArray(c.contacts)?c.contacts.length:0}} envoyés</span>
-                </div>
-            </div>
-            <div style="color:#94a3b8;font-size:0.85rem;margin-top:8px;">${{c.message.slice(0,100)}}${{c.message.length>100?'...':''}}</div>
-        </div>`).join('') : '<div style="color:#64748b;">Aucune campagne. Créez votre première campagne ci-dessus.</div>';
+  const camps=await fetch('/api/v1/me/campaigns',{{headers:H}}).then(r=>r.json()).catch(()=>[]);
+  const sl={{draft:'Brouillon',sending:'Envoi…',completed:'Terminée',cancelled:'Annulée'}};
+  const sb={{draft:'bd',sending:'by',completed:'bg',cancelled:'bd'}};
+  document.getElementById('campList').innerHTML=camps.length?camps.map(c=>`
+    <div style="padding:12px 0;border-bottom:0.5px solid rgba(237,232,223,0.06);">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div><span style="font-weight:500;font-size:0.85rem;">${{c.name}}</span> <span class="badge bd" style="margin-left:6px;">${{c.channel}}</span> <span class="badge ${{sb[c.status]}}" style="margin-left:4px;">${{sl[c.status]||c.status}}</span></div>
+        ${{c.status==='draft'?`<button class="btn btn-sm" onclick="sendCampaign('${{c.id}}')">▶ Envoyer</button>`:''}}
+      </div>
+      <div style="color:var(--dim);font-size:0.75rem;margin-top:6px;">${{c.message.slice(0,80)}}… · ${{c.sent_count}} envoyés</div>
+    </div>`).join('') : '<div class="empty">Aucune campagne.</div>';
 }}
-async function createCampaign() {{
-    const contacts = document.getElementById('camp_contacts').value.split('\\n').map(s=>s.trim()).filter(Boolean);
-    const data = {{name:document.getElementById('camp_name').value,message:document.getElementById('camp_message').value,channel:document.getElementById('camp_channel').value,contacts}};
-    if(!data.name||!data.message){{alert('Nom et message requis');return;}}
-    const r = await fetch('/api/v1/me/campaigns',{{method:'POST',headers:{{...headers,'Content-Type':'application/json'}},body:JSON.stringify(data)}});
-    const d = await r.json();
-    if(r.ok){{alert(`Campagne créée pour ${{d.contacts_count}} contacts.`);loadCampaigns();}}
-    else{{alert(d.detail||'Erreur');}}
+async function createCampaign(){{
+  const contacts=document.getElementById('camp_contacts').value.split('\\n').map(s=>s.trim()).filter(Boolean);
+  const data={{name:document.getElementById('camp_name').value,message:document.getElementById('camp_message').value,channel:document.getElementById('camp_channel').value,contacts}};
+  if(!data.name||!data.message){{alert('Nom et message requis');return;}}
+  const r=await fetch('/api/v1/me/campaigns',{{method:'POST',headers:{{...H,'Content-Type':'application/json'}},body:JSON.stringify(data)}});
+  const d=await r.json();
+  if(r.ok){{alert('Campagne créée pour '+d.contacts_count+' contacts.');loadCampaigns();}}
+  else{{alert(d.detail||'Erreur');}}
 }}
-async function sendCampaign(id) {{
-    if(!confirm('Envoyer cette campagne maintenant ?'))return;
-    const r = await fetch('/api/v1/me/campaigns/'+id+'/send',{{method:'POST',headers}});
-    const d = await r.json();
-    alert(d.message||'Envoi lancé');
-    loadCampaigns();
+async function sendCampaign(id){{
+  if(!confirm('Envoyer maintenant ?'))return;
+  const r=await fetch('/api/v1/me/campaigns/'+id+'/send',{{method:'POST',headers:H}});
+  alert((await r.json()).message||'Envoi lancé');loadCampaigns();
 }}
 
-// ---- WEBHOOKS ----
-async function loadWebhooks() {{
-    const whs = await fetch('/api/v1/me/webhooks',{{headers}}).then(r=>r.json()).catch(()=>[]);
-    document.getElementById('whList').innerHTML = whs.length ? whs.map(w=>`
-        <div style="background:#0f1f2e;border-radius:10px;padding:14px;margin-bottom:10px;">
-            <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-                <div style="word-break:break-all;color:#38bdf8;font-size:0.9rem;">${{w.url}}</div>
-                <button onclick="deleteWebhook('${{w.id}}')" style="background:transparent;border:1px solid #ef4444;color:#ef4444;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:0.75rem;">Supprimer</button>
-            </div>
-            <div style="color:#64748b;font-size:0.8rem;margin-top:6px;">Événements: ${{w.events.join(', ')}} · Dernier déclenchement: ${{w.last_triggered?w.last_triggered.slice(0,16):'Jamais'}}</div>
-        </div>`).join('') : '<div style="color:#64748b;">Aucun webhook configuré.</div>';
+async function loadWebhooks(){{
+  const whs=await fetch('/api/v1/me/webhooks',{{headers:H}}).then(r=>r.json()).catch(()=>[]);
+  document.getElementById('whList').innerHTML=whs.length?whs.map(w=>`
+    <div style="padding:12px 0;border-bottom:0.5px solid rgba(237,232,223,0.06);">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div style="word-break:break-all;font-size:0.8rem;color:var(--cu);">${{w.url}}</div>
+        <button class="btn btn-danger btn-sm" onclick="deleteWebhook('${{w.id}}')">×</button>
+      </div>
+      <div style="font-size:0.72rem;color:var(--dim);margin-top:4px;">${{(w.events||[]).join(', ')}} · Dernier: ${{w.last_triggered?w.last_triggered.slice(0,16):'—'}}</div>
+    </div>`).join('') : '<div class="empty">Aucun webhook.</div>';
 }}
-async function createWebhook() {{
-    const events = [];
-    if(document.getElementById('ev_appt').checked) events.push('new_appointment');
-    if(document.getElementById('ev_transfer').checked) events.push('transfer_requested');
-    if(document.getElementById('ev_msg').checked) events.push('new_message');
-    const data = {{url:document.getElementById('wh_url').value,events}};
-    if(!data.url){{alert('URL requise');return;}}
-    const r = await fetch('/api/v1/me/webhooks',{{method:'POST',headers:{{...headers,'Content-Type':'application/json'}},body:JSON.stringify(data)}});
-    const d = await r.json();
-    if(r.ok){{
-        document.getElementById('wh_result').innerHTML=`<div style="background:#0f1f2e;border-radius:8px;padding:12px;margin-top:12px;"><strong style="color:#34d399;">✓ Webhook créé !</strong><br><span style="color:#64748b;font-size:0.85rem;">Secret (conservez-le):</span><br><code style="color:#fbbf24;word-break:break-all;">${{d.secret}}</code></div>`;
-        document.getElementById('wh_url').value='';
-        loadWebhooks();
-    }} else {{alert(d.detail||'Erreur');}}
+async function createWebhook(){{
+  const events=[];
+  if(document.getElementById('ev_appt').checked)events.push('new_appointment');
+  if(document.getElementById('ev_transfer').checked)events.push('transfer_requested');
+  if(document.getElementById('ev_msg').checked)events.push('new_message');
+  const r=await fetch('/api/v1/me/webhooks',{{method:'POST',headers:{{...H,'Content-Type':'application/json'}},body:JSON.stringify({{url:document.getElementById('wh_url').value,events}})}});
+  const d=await r.json();
+  if(r.ok){{document.getElementById('wh_result').innerHTML=`<div style="border-left:2px solid var(--cu);padding:8px 12px;font-size:0.8rem;margin-top:10px;"><strong style="color:#4ac36f;">✓ Webhook créé</strong><br><span style="color:var(--dim);">Secret :</span> <code style="color:var(--cu);word-break:break-all;">${{d.secret}}</code></div>`;document.getElementById('wh_url').value='';loadWebhooks();}}
+  else{{alert(d.detail||'Erreur');}}
 }}
-async function deleteWebhook(id) {{
-    if(!confirm('Supprimer ce webhook ?'))return;
-    await fetch('/api/v1/me/webhooks/'+id,{{method:'DELETE',headers}});
-    loadWebhooks();
+async function deleteWebhook(id){{if(!confirm('Supprimer ?'))return;await fetch('/api/v1/me/webhooks/'+id,{{method:'DELETE',headers:H}});loadWebhooks();}}
+
+async function loadReports(){{
+  const reps=await fetch('/api/v1/me/reports',{{headers:H}}).then(r=>r.json()).catch(()=>[]);
+  document.getElementById('reportsList').innerHTML=reps.length?reps.map(r=>`
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+        <div class="card-title">Semaine du ${{r.week_start}}</div>
+        <span style="font-size:0.72rem;color:var(--dim);">${{r.created_at?.slice(0,10)||''}}</span>
+      </div>
+      <div style="white-space:pre-wrap;font-size:0.82rem;line-height:1.7;color:rgba(237,232,223,0.7);">${{r.summary}}</div>
+    </div>`).join('') :
+  '<div class="card empty">Aucun rapport disponible. Votre premier rapport sera généré dimanche prochain.</div>';
 }}
 
-// ---- RAPPORTS IA ----
-async function loadReports() {{
-    const reports = await fetch('/api/v1/me/reports',{{headers}}).then(r=>r.json()).catch(()=>[]);
-    document.getElementById('reportsList').innerHTML = reports.length ? reports.map(r=>`
-        <div class="card" style="margin-bottom:16px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                <h3 style="margin:0;">Semaine du ${{r.week_start}}</h3>
-                <span style="color:#64748b;font-size:0.8rem;">${{r.created_at?.slice(0,10)||''}}</span>
-            </div>
-            <div style="white-space:pre-wrap;color:#cbd5e1;font-size:0.9rem;line-height:1.7;">${{r.summary}}</div>
-        </div>`).join('') :
-    '<div class="card" style="text-align:center;color:#64748b;"><p>Aucun rapport disponible.</p><p style="font-size:0.85rem;margin-top:8px;">Votre premier rapport sera généré automatiquement dimanche prochain.</p></div>';
+async function loadRoi(){{
+  const roi=await fetch('/api/v1/me/roi',{{headers:H}}).then(r=>r.json()).catch(()=>({{}}));
+  const r=roi.roi||{{}};const i=roi.interactions||{{}};
+  document.getElementById('roiContent').innerHTML=`
+    <div class="stats-row">
+      <div class="sc"><div class="sc-lbl">Interactions</div><div class="sc-val">${{i.total||0}}</div></div>
+      <div class="sc"><div class="sc-lbl">RDV automatisés</div><div class="sc-val">${{i.rdv_requests||0}}</div></div>
+      <div class="sc"><div class="sc-lbl">Heures sauvées</div><div class="sc-val">${{r.hours_saved||0}}</div></div>
+      <div class="sc"><div class="sc-lbl">Appels évités</div><div class="sc-val">${{r.calls_avoided||0}}</div></div>
+    </div>
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-title">Retour sur investissement</div>
+      <div class="roi-val">${{r.roi_ratio||'—'}}</div>
+      <div style="color:var(--dim);font-size:0.82rem;margin-top:8px;">Économies estimées : <span style="color:#4ac36f;">${{r.estimated_savings||'—'}}</span> ce mois</div>
+    </div>
+    <div class="card">${{(roi.insights||[]).map(ins=>`<div class="insight">${{ins}}</div>`).join('')||'<div class="empty">Pas encore de données.</div>'}}</div>`;
 }}
 
-function revealKey() {{
-    const el = document.getElementById('apiKeyDisplay');
-    if(el.textContent.includes('•')) {{
-        el.textContent = API_KEY;
-        navigator.clipboard.writeText(API_KEY).catch(()=>{{}});
-    }} else {{
-        el.textContent = '{c_api_key_masked}';
-    }}
+async function saveProfile(){{
+  const btn=document.getElementById('btn_save_profile');
+  const msg=document.getElementById('save_msg');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';
+  const r=await fetch('/api/v1/me/profile',{{method:'PATCH',headers:{{...H,'Content-Type':'application/json'}},body:JSON.stringify({{
+    business_name:document.getElementById('s_bname').value,
+    business_type:document.getElementById('s_btype').value,
+    hours:document.getElementById('s_hours').value,
+    owner_phone:document.getElementById('s_phone').value,
+    services:document.getElementById('s_services').value,
+    address:document.getElementById('s_addr').value,
+  }})}});
+  btn.disabled=false;btn.textContent='Enregistrer';
+  if(r.ok){{msg.style.color='#4ac36f';msg.textContent='✓ Profil mis à jour.';}}
+  else{{msg.style.color='#f87171';msg.textContent='Erreur.';}}
 }}
 
-// Chargement initial
+function revealKey(){{
+  const el=document.getElementById('apiKeyDisplay');
+  if(el.textContent.includes('•')){{el.textContent=API_KEY;navigator.clipboard.writeText(API_KEY).catch(()=>{{}});}}
+  else{{el.textContent='{c_api_key_masked}';}}
+}}
+
 loadDashboard();
 </script>
 </body>
