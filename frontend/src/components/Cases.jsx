@@ -2,44 +2,43 @@ import { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { fadeUp, fadeLeft, stagger, viewportOnce } from '../lib/animations'
 
-const cases = [
+// Honest section: shows what a typical mandate looks like without fake clients
+
+const mandates = [
   {
-    industry: 'Distribution',
-    company: 'Groupe Rioux Distribution',
-    challenge: 'Service client débordé, 200+ appels/jour, 4 agents à temps plein.',
-    solution: 'Assistant vocal IA + chatbot WhatsApp intégré à leur ERP.',
-    results: [
-      { metric: '80%', label: 'des demandes résolues sans agent' },
-      { metric: '-62%', label: 'coûts de service client' },
-      { metric: '< 1 s', label: 'temps de réponse moyen' },
+    type: 'Service client',
+    challenge: 'Votre équipe passe la moitié de sa journée à répondre aux mêmes 20 questions.',
+    whatWeDo: 'On configure un assistant IA qui répond aux demandes courantes 24/7 et transfère les cas complexes à votre équipe avec le contexte complet.',
+    outcomes: [
+      'Volume d\'appels entrants réduit de 50 à 80%',
+      'Réponse instantanée, même la nuit et les weekends',
+      'Vos agents se concentrent sur les vrais problèmes',
     ],
   },
   {
-    industry: 'Immobilier',
-    company: 'Immobilier Côte-Nord',
-    challenge: 'Qualification manuelle des leads, 40% des appels non pertinents.',
-    solution: 'IA de qualification téléphonique + scoring CRM automatisé.',
-    results: [
-      { metric: '+340%', label: 'leads qualifiés/mois' },
-      { metric: '-40%', label: 'temps agents sur qualification' },
-      { metric: '22 j', label: 'ROI atteint' },
+    type: 'Qualification de leads',
+    challenge: 'Vous perdez du temps sur des prospects non qualifiés ou vous ratez des opportunités parce que personne ne rappelle assez vite.',
+    whatWeDo: 'On déploie un agent qui contacte, qualifie et pré-classe chaque lead en moins de 5 minutes après sa soumission, en tout temps.',
+    outcomes: [
+      'Temps de réponse : de 4h à moins de 5 minutes',
+      'Leads qualifiés livrés directement dans votre CRM',
+      'Aucun prospect ne passe entre les mailles',
     ],
   },
   {
-    industry: 'Services professionnels',
-    company: 'Cabinet Tremblay & Associés',
-    challenge: 'Traitement manuel de 500 documents juridiques par semaine.',
-    solution: 'Pipeline d\'extraction IA + validation automatique + routage.',
-    results: [
-      { metric: '90%', label: 'documents traités automatiquement' },
-      { metric: '8h → 40 min', label: 'temps de traitement hebdo' },
-      { metric: '0 erreur', label: 'sur 12 semaines d\'opération' },
+    type: 'Traitement de documents',
+    challenge: 'Vos équipes saisissent manuellement des données depuis des bons de commande, factures ou formulaires — lentement et avec des erreurs.',
+    whatWeDo: 'On automatise l\'extraction, la validation et le routage des documents dans vos systèmes existants sans intervention humaine.',
+    outcomes: [
+      '80 à 95% des documents traités automatiquement',
+      'Taux d\'erreur proche de zéro',
+      'Intégration directe à votre ERP ou comptabilité',
     ],
   },
 ]
 
 export default function Cases() {
-  const ref = useRef(null)
+  const ref    = useRef(null)
   const inView = useInView(ref, viewportOnce)
 
   return (
@@ -53,19 +52,23 @@ export default function Cases() {
           initial="hidden"
           animate={inView ? 'visible' : 'hidden'}
         >
-          <div className="lg:col-span-6">
+          <div className="lg:col-span-7">
             <div className="flex items-center gap-3 mb-6">
               <div className="copper-line w-10" />
-              <span className="label-caps">Cas clients</span>
+              <span className="label-caps">Ce qu'on fait concrètement</span>
             </div>
             <h2
               className="display-heading"
               style={{ fontSize: 'clamp(2.5rem, 5vw, 4.5rem)' }}
             >
-              Des résultats
+              À quoi ressemble
               <br />
-              <em>documentés</em>
+              <em>un mandat type</em>
             </h2>
+            <p className="text-dim text-sm mt-6 max-w-lg leading-relaxed">
+              Pas de promesses vagues. Voici exactement ce que nous livrons, selon votre situation.
+              Chaque mandat commence par un audit gratuit pour valider que le ROI est réel.
+            </p>
           </div>
         </motion.div>
 
@@ -75,55 +78,70 @@ export default function Cases() {
           initial="hidden"
           animate={inView ? 'visible' : 'hidden'}
         >
-          {cases.map((c, i) => (
+          {mandates.map((m) => (
             <motion.article
-              key={c.company}
+              key={m.type}
               variants={fadeUp}
-              className="glass-card relative overflow-hidden group flex flex-col"
-              style={{ paddingTop: '2.5rem' }}
+              className="glass-card flex flex-col"
             >
-              {/* Top accent */}
               <div
                 className="absolute top-0 left-0 right-0 h-[0.5px]"
                 style={{ background: 'linear-gradient(90deg, var(--copper) 30%, transparent 100%)' }}
               />
 
-              <div className="px-8 pb-0 flex-1">
-                <span className="label-caps block mb-4">{c.industry}</span>
-                <h3 className="font-display italic text-xl text-pearl mb-5 leading-tight">
-                  {c.company}
-                </h3>
+              <div className="p-8 flex-1 flex flex-col">
+                <span className="label-caps block mb-4">{m.type}</span>
 
-                <div className="space-y-4 text-sm mb-6">
-                  <div>
-                    <div className="text-[0.6rem] tracking-widest uppercase text-dim mb-1">Défi</div>
-                    <p className="text-pearl/70">{c.challenge}</p>
-                  </div>
-                  <div>
-                    <div className="text-[0.6rem] tracking-widest uppercase text-dim mb-1">Solution</div>
-                    <p className="text-pearl/70">{c.solution}</p>
-                  </div>
+                <div className="mb-5">
+                  <div className="text-[0.6rem] tracking-widest uppercase text-dim mb-2">Situation typique</div>
+                  <p className="text-pearl/70 text-sm leading-relaxed italic font-display text-lg">
+                    "{m.challenge}"
+                  </p>
                 </div>
-              </div>
 
-              {/* Results bar */}
-              <div
-                className="mt-auto px-8 py-6 grid grid-cols-3 gap-3"
-                style={{ borderTop: '0.5px solid rgba(237,232,223,0.06)' }}
-              >
-                {c.results.map((r) => (
-                  <div key={r.label} className="text-center">
-                    <div className="font-display italic text-lg text-copper-light leading-none mb-1">
-                      {r.metric}
-                    </div>
-                    <div className="text-[0.55rem] tracking-wider uppercase text-dim leading-tight">
-                      {r.label}
-                    </div>
-                  </div>
-                ))}
+                <div className="mb-6">
+                  <div className="text-[0.6rem] tracking-widest uppercase text-dim mb-2">Ce qu'on déploie</div>
+                  <p className="text-pearl/75 text-sm leading-relaxed">{m.whatWeDo}</p>
+                </div>
+
+                <div
+                  className="mt-auto pt-6"
+                  style={{ borderTop: '0.5px solid rgba(237,232,223,0.06)' }}
+                >
+                  <div className="text-[0.6rem] tracking-widest uppercase text-dim mb-3">Résultats attendus</div>
+                  <ul className="space-y-2">
+                    {m.outcomes.map((o) => (
+                      <li key={o} className="flex items-start gap-2 text-xs text-pearl/70">
+                        <span style={{ color: 'var(--copper)', marginTop: '1px' }}>→</span>
+                        {o}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </motion.article>
           ))}
+        </motion.div>
+
+        {/* Honest note */}
+        <motion.div
+          className="mt-10 glass-card-subtle pearl-border p-6 flex items-start gap-4"
+          variants={fadeUp}
+          initial="hidden"
+          animate={inView ? 'visible' : 'hidden'}
+          transition={{ delay: 0.4 }}
+        >
+          <div
+            className="shrink-0 w-5 h-5 flex items-center justify-center text-xs mt-0.5"
+            style={{ border: '0.5px solid rgba(168,104,68,0.4)', color: 'var(--copper)' }}
+          >
+            i
+          </div>
+          <p className="text-dim text-sm leading-relaxed">
+            <span className="text-pearl">Novalis IA est en phase de lancement.</span> Ces résultats sont basés sur des benchmarks
+            sectoriels et les standards de l'industrie IA — pas sur des témoignages inventés.
+            Votre audit gratuit établira des projections honnêtes adaptées à votre situation réelle.
+          </p>
         </motion.div>
       </div>
     </section>

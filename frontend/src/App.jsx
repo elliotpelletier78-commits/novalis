@@ -1,4 +1,5 @@
 import Grain from './components/Grain'
+import Cursor from './components/Cursor'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
 import Stats from './components/Stats'
@@ -20,6 +21,7 @@ export default function App() {
   return (
     <>
       <Grain />
+      <Cursor />
       <Navbar />
       <main>
         <Hero />
