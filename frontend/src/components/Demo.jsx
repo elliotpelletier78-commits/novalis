@@ -17,20 +17,19 @@ const QUICK_PROMPTS = [
   'Quels secteurs servez-vous ?',
 ]
 
-const DEMO_RESPONSES = {
-  'vocal': "L'assistant vocal IA répond à vos appels 24/7. Il identifie l'intention du client, répond aux questions courantes, prend des rendez-vous et transfère les cas complexes à votre équipe — le tout en moins d'une seconde.",
-  'prix': "Le forfait Starter est à 497$/mois et inclut un assistant IA, jusqu'à 500 interactions/mois et un tableau de bord. Le forfait Pro (1 497$/mois) offre des interactions illimitées et des intégrations avancées.",
-  'résultat': "Nos clients voient généralement un premier ROI mesurable en 22 à 30 jours. Le cas le plus rapide : 9 jours pour un cabinet immobilier qui a vu ses leads qualifiés tripler.",
-  'secteur': "Nous intervenons dans la distribution, l'immobilier, les services professionnels, la santé, la finance, le commerce de détail et le manufacturier. Si vous avez des processus répétitifs, l'IA peut les automatiser.",
-}
-
-function getResponse(input) {
-  const lower = input.toLowerCase()
-  if (lower.includes('vocal') || lower.includes('appel') || lower.includes('téléphone')) return DEMO_RESPONSES['vocal']
-  if (lower.includes('prix') || lower.includes('tarif') || lower.includes('coût') || lower.includes('starter') || lower.includes('forfait')) return DEMO_RESPONSES['prix']
-  if (lower.includes('résultat') || lower.includes('temps') || lower.includes('roi') || lower.includes('rapide') || lower.includes('délai')) return DEMO_RESPONSES['résultat']
-  if (lower.includes('secteur') || lower.includes('industrie') || lower.includes('entreprise') || lower.includes('client')) return DEMO_RESPONSES['secteur']
-  return "Excellente question ! Pour une réponse personnalisée à votre situation, je recommande une consultation gratuite avec notre équipe. Nous analyserons votre contexte et vous présenterons un plan d'action concret. Réservez votre appel via le formulaire de contact."
+async function getResponse(input) {
+  try {
+    const res = await fetch('/api/v1/demo-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: input }),
+    })
+    if (!res.ok) throw new Error('API error')
+    const data = await res.json()
+    return data.response
+  } catch {
+    return "Excellente question ! Pour une réponse personnalisée, contactez-nous via le formulaire — notre équipe vous répond en moins de 24h."
+  }
 }
 
 export default function Demo() {
@@ -51,8 +50,8 @@ export default function Demo() {
     setInput('')
     setMessages((m) => [...m, { role: 'user', text: msg }])
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 900 + Math.random() * 600))
-    setMessages((m) => [...m, { role: 'assistant', text: getResponse(msg) }])
+    const reply = await getResponse(msg)
+    setMessages((m) => [...m, { role: 'assistant', text: reply }])
     setLoading(false)
   }
 
@@ -220,9 +219,9 @@ export default function Demo() {
                 className="glass-card p-6"
                 style={{ borderTop: '0.5px solid var(--copper)' }}
               >
-                <p className="text-[0.65rem] tracking-widest uppercase text-dim mb-3">Note</p>
+                <p className="text-[0.65rem] tracking-widest uppercase text-dim mb-3">Modèle actif</p>
                 <p className="text-sm text-pearl/60 leading-relaxed">
-                  Ceci est une démo simplifiée. Votre assistant IA sera entraîné sur vos données,
+                  Vous chattez avec Claude Haiku en temps réel. Votre assistant sera entraîné sur vos données,
                   votre catalogue et vos processus spécifiques.
                 </p>
               </div>

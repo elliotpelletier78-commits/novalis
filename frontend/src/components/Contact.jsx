@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Send, CheckCircle } from 'lucide-react'
 import { fadeUp, fadeLeft, fadeRight, viewportOnce } from '../lib/animations'
@@ -13,8 +13,24 @@ const SERVICE_OPTIONS = [
   'Autre / Consultation générale',
 ]
 
+const PLAN_TO_SERVICE = {
+  starter:    'Chatbot / Messagerie',
+  pro:        'Assistant vocal IA',
+  enterprise: 'Intégration sur mesure',
+}
+
 export default function Contact() {
   const [form, setForm]       = useState({ name: '', email: '', phone: '', business: '', service: '', desc: '' })
+
+  // Pré-remplir le service si #contact?plan=xxx
+  useEffect(() => {
+    const hash = window.location.hash
+    if (hash.includes('?plan=')) {
+      const plan = hash.split('?plan=')[1]
+      const service = PLAN_TO_SERVICE[plan]
+      if (service) setForm((f) => ({ ...f, service }))
+    }
+  }, [])
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError]     = useState('')

@@ -53,6 +53,7 @@ import re
 import smtplib
 import math
 import tempfile
+import hmac
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -72,7 +73,8 @@ ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "EXAVITQu4vr4xnSDxMaL")  
 
 # Admin plateforme
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
-ADMIN_PASS = os.getenv("ADMIN_PASS", "novalis2024")
+_GENERATED_ADMIN_PASS = secrets.token_urlsafe(14)
+ADMIN_PASS = os.getenv("ADMIN_PASS", _GENERATED_ADMIN_PASS)
 PLATFORM_SECRET = os.getenv("PLATFORM_SECRET", secrets.token_hex(32))
 
 # CORS
@@ -80,6 +82,7 @@ ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
 # Facebook
 FB_VERIFY_TOKEN = os.getenv("FB_VERIFY_TOKEN", "novalis_verify_token")
+FB_APP_SECRET   = os.getenv("FB_APP_SECRET", "")
 
 # Base de données
 DB_PATH = os.getenv("DATABASE_PATH", "novalis.db")
@@ -477,6 +480,23 @@ async def init_db():
             )
         """)
 
+        # === IDEMPOTENCE WEBHOOKS ===
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS processed_webhooks (
+                message_sid TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL
+            )
+        """)
+
+        # === AUDIO VOIX TEMPORAIRE (ElevenLabs) ===
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS voice_audio (
+                id TEXT PRIMARY KEY,
+                audio_bytes BLOB NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+
         # === INDEX pour performance ===
         await db.execute("CREATE INDEX IF NOT EXISTS idx_conv_client ON conversations(client_id)")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_conv_phone ON conversations(phone, client_id)")
@@ -496,6 +516,7 @@ async def init_db():
             "ALTER TABLE clients ADD COLUMN fb_page_id TEXT DEFAULT ''",
             "ALTER TABLE clients ADD COLUMN stripe_customer_id TEXT DEFAULT ''",
             "ALTER TABLE clients ADD COLUMN portal_token TEXT DEFAULT ''",
+            "ALTER TABLE clients ADD COLUMN portal_token_expires_at TEXT DEFAULT ''",
             "ALTER TABLE messages ADD COLUMN sentiment_score REAL DEFAULT 0.0",
             "ALTER TABLE messages ADD COLUMN language TEXT DEFAULT 'fr'",
         ]
@@ -560,8 +581,10 @@ async def appointment_reminder_task():
 
 @app.on_event("startup")
 async def startup():
-    if ADMIN_PASS == "novalis2024":
-        logger.warning("⚠️  SÉCURITÉ: Mot de passe admin par défaut détecté. Définissez ADMIN_PASS dans votre .env !")
+    if not os.getenv("ADMIN_PASS"):
+        logger.warning(f"⚠️  ADMIN_PASS non défini. Mot de passe généré pour cette session : {ADMIN_PASS}")
+    if ALLOWED_ORIGINS == ["*"] and os.getenv("RAILWAY_ENVIRONMENT"):
+        logger.warning("⚠️  CORS ouvert (*) en production. Définissez ALLOWED_ORIGINS dans Railway.")
     if not ANTHROPIC_API_KEY:
         logger.warning("⚠️  ANTHROPIC_API_KEY non définie — les réponses IA seront désactivées.")
     if not TWILIO_ACCOUNT_SID:
@@ -700,9 +723,9 @@ async def verify_api_key(x_api_key: str = Header(None)):
         return dict(client)
 
 def validate_twilio_signature(request_url: str, params: dict, signature: str) -> bool:
-    """Valide la signature Twilio pour sécuriser les webhooks."""
+    """Valide la signature Twilio. Fail-secure: rejette si token absent."""
     if not TWILIO_AUTH_TOKEN:
-        return True  # Skip si pas configuré
+        return False
     validator = RequestValidator(TWILIO_AUTH_TOKEN)
     return validator.validate(request_url, params, signature)
 
@@ -882,11 +905,14 @@ async def index_knowledge_chunks(client_id: str, kb_id: str, content: str):
                 "INSERT INTO knowledge_chunks (id, client_id, kb_id, chunk_text, chunk_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
                 (chunk_id, client_id, kb_id, chunk, i, now)
             )
-        # Reconstruire l'index FTS5
-        try:
-            await db.execute("INSERT INTO knowledge_fts(knowledge_fts) VALUES('rebuild')")
-        except Exception:
-            pass
+            # Mise à jour incrémentale FTS5 (O(1) vs O(n) pour rebuild)
+            try:
+                await db.execute(
+                    "INSERT INTO knowledge_fts(rowid, chunk_text) SELECT rowid, chunk_text FROM knowledge_chunks WHERE id = ?",
+                    (chunk_id,)
+                )
+            except Exception:
+                pass
         await db.commit()
 
 
@@ -1227,10 +1253,23 @@ async def notify_owner(client: Dict, customer_phone: str, message: str, intent: 
 async def handle_incoming_sms(request: Request):
     """Webhook Twilio — route le SMS au bon client."""
     form = await request.form()
-    signature = request.headers.get("X-Twilio-Signature", "")
-    url = str(request.url)
-    if TWILIO_AUTH_TOKEN and not validate_twilio_signature(url, dict(form), signature):
-        raise HTTPException(status_code=403, detail="Signature Twilio invalide")
+    message_sid = form.get("MessageSid", "")
+
+    # Signature Twilio — obligatoire en production
+    if TWILIO_AUTH_TOKEN:
+        signature = request.headers.get("X-Twilio-Signature", "")
+        if not validate_twilio_signature(str(request.url), dict(form), signature):
+            raise HTTPException(status_code=403, detail="Signature Twilio invalide")
+
+    # Idempotence : ignorer les doublons de webhook
+    if message_sid:
+        async with aiosqlite.connect(DB_PATH) as db:
+            cur = await db.execute("SELECT 1 FROM processed_webhooks WHERE message_sid = ?", (message_sid,))
+            if await cur.fetchone():
+                return Response(content="", media_type="text/xml")
+            await db.execute("INSERT OR IGNORE INTO processed_webhooks (message_sid, created_at) VALUES (?, ?)",
+                             (message_sid, datetime.now().isoformat()))
+            await db.commit()
 
     from_number = form.get("From", "").strip()
     to_number = form.get("To", "").strip()
@@ -1406,8 +1445,25 @@ async def handle_voice_response(request: Request):
         client["id"], conv_id, "voice", sentiment, escalate, response_ms
     ))
 
+    # Utiliser ElevenLabs si configuré (voix naturelle), sinon Polly
     gather = Gather(input="speech", action="/voice/respond", method="POST",
                     language=voice_lang, speechTimeout="auto", timeout=5)
+    if ELEVENLABS_API_KEY and APP_URL:
+        audio_bytes = await generate_elevenlabs_audio(ai_response)
+        if audio_bytes:
+            audio_id = generate_id("aud")
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute(
+                    "INSERT INTO voice_audio (id, audio_bytes, created_at) VALUES (?, ?, ?)",
+                    (audio_id, audio_bytes, datetime.now().isoformat())
+                )
+                await db.commit()
+            gather.play(f"{APP_URL}/audio/{audio_id}")
+            response.append(gather)
+            farewell = "Thank you for calling!" if lang == "en" else "Merci d'avoir appelé !"
+            response.say(farewell, voice=voice_name, language=voice_lang)
+            return Response(content=str(response), media_type="text/xml")
+
     gather.say(ai_response, voice=voice_name, language=voice_lang)
     response.append(gather)
     farewell = "Thank you for calling. Have a great day!" if lang == "en" else "Merci d'avoir appelé. Bonne journée !"
@@ -1426,7 +1482,13 @@ async def verify_messenger(request: Request):
 
 @app.post("/messenger/webhook")
 async def handle_messenger(request: Request):
-    data = await request.json()
+    raw_body = await request.body()
+    if FB_APP_SECRET:
+        sig_header = request.headers.get("X-Hub-Signature", "")
+        expected = "sha1=" + hmac.new(FB_APP_SECRET.encode(), raw_body, "sha1").hexdigest()
+        if not hmac.compare_digest(sig_header, expected):
+            raise HTTPException(status_code=403, detail="Signature Facebook invalide")
+    data = json.loads(raw_body)
     for entry in data.get("entry", []):
         page_id = entry.get("id", "")
         for event in entry.get("messaging", []):
@@ -3123,6 +3185,77 @@ async def text_to_speech_endpoint(request: Request, client: dict = Depends(verif
                     headers={"Content-Disposition": "attachment; filename=tts.mp3"})
 
 
+@app.get("/audio/{audio_id}")
+async def serve_voice_audio(audio_id: str):
+    """Sert les fichiers audio temporaires pour les appels vocaux ElevenLabs."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT audio_bytes FROM voice_audio WHERE id = ?", (audio_id,))
+        row = await cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Audio non trouvé ou expiré")
+    asyncio.create_task(_cleanup_old_voice_audio())
+    return Response(content=row[0], media_type="audio/mpeg",
+                    headers={"Cache-Control": "no-store"})
+
+async def _cleanup_old_voice_audio():
+    """Supprime les fichiers audio temporaires de plus de 10 minutes."""
+    cutoff = (datetime.now() - timedelta(minutes=10)).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM voice_audio WHERE created_at < ?", (cutoff,))
+        await db.commit()
+
+
+# ============================================================
+# DÉMO CHAT PUBLIQUE
+# ============================================================
+@app.post("/api/v1/demo-chat")
+@limiter.limit("15/minute")
+async def demo_chat(request: Request):
+    """Démo IA publique (sans auth). Utilise Claude Haiku pour répondre aux visiteurs."""
+    data = await request.json()
+    message = sanitize_input(data.get("message", "").strip()[:300])
+    if not message:
+        raise HTTPException(400, "message requis")
+    if not claude_client:
+        lang = detect_language(message)
+        fallback = "Our AI is momentarily unavailable. Contact us for a personalized demo." if lang == "en" else "L'IA est momentanément indisponible. Contactez-nous pour une démo personnalisée."
+        return {"response": fallback}
+
+    lang = detect_language(message)
+    intent = detect_intent(message)
+
+    if lang == "en":
+        system_text = (
+            "You are the Novalis AI demo assistant — a concise, expert AI for Quebec SMBs. "
+            "Answer in 2-3 sentences max, in English. Be specific and helpful. "
+            "If asked about pricing: Starter $497/mo, Pro $1,497/mo, Enterprise custom. "
+            "If asked about results: first ROI in 22-30 days, -40% to -80% customer service costs. "
+            "Encourage them to book a free consultation via the contact form."
+        )
+    else:
+        system_text = (
+            "Tu es l'assistant démo de Novalis IA — une IA concise et experte pour les PME québécoises. "
+            "Réponds en 2-3 phrases max, en français québécois. Sois précis et utile. "
+            "Prix: Starter 497$/mois, Pro 1 497$/mois, Entreprise sur mesure. "
+            "Résultats: premier ROI en 22-30 jours, -40% à -80% coûts service client. "
+            "Encourage la prise de contact via le formulaire."
+        )
+
+    try:
+        resp = claude_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            system=system_text,
+            messages=[{"role": "user", "content": message}]
+        )
+        ai_text = resp.content[0].text
+    except Exception as e:
+        logger.error(f"Demo chat error: {e}")
+        ai_text = "Je suis là pour vous aider ! Contactez-nous pour une démo complète personnalisée." if lang != "en" else "I'm here to help! Contact us for a full personalized demo."
+
+    return {"response": ai_text, "intent": intent}
+
+
 # ============================================================
 # PORTAIL CLIENT
 # ============================================================
@@ -3170,13 +3303,28 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
 
     c = dict(client)
 
+    # Vérifier expiry du token (30 jours)
+    if t:
+        expires = c.get("portal_token_expires_at", "")
+        if expires:
+            try:
+                if datetime.fromisoformat(expires) < datetime.now():
+                    async with aiosqlite.connect(DB_PATH) as db:
+                        await db.execute("UPDATE clients SET portal_token = '', portal_token_expires_at = '' WHERE id = ?", (c["id"],))
+                        await db.commit()
+                    return Response(status_code=302, headers={"Location": "/portal", "Cache-Control": "no-store"})
+            except ValueError:
+                pass
+
     # Rétro-compat: si authentifié par api_key, générer/utiliser le portal_token et rediriger
     if key and not t:
         tok = c.get("portal_token") or ""
         if not tok:
             tok = secrets.token_urlsafe(32)
+            expires_at = (datetime.now() + timedelta(days=30)).isoformat()
             async with aiosqlite.connect(DB_PATH) as db:
-                await db.execute("UPDATE clients SET portal_token = ? WHERE id = ?", (tok, c["id"]))
+                await db.execute("UPDATE clients SET portal_token = ?, portal_token_expires_at = ? WHERE id = ?",
+                                 (tok, expires_at, c["id"]))
                 await db.commit()
             c["portal_token"] = tok
         return Response(status_code=302, headers={"Location": f"/portal?t={tok}", "Cache-Control": "no-store"})

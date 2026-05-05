@@ -6,6 +6,7 @@ import { fadeUp, stagger, viewportOnce } from '../lib/animations'
 const plans = [
   {
     name:   'Starter',
+    plan:   'starter',
     price:  '497',
     period: '/mois',
     desc:   'Pour les PME qui démarrent leur transformation IA.',
@@ -22,6 +23,7 @@ const plans = [
   },
   {
     name:   'Pro',
+    plan:   'pro',
     price:  '1 497',
     period: '/mois',
     desc:   'Pour les entreprises qui veulent maximiser leur ROI IA.',
@@ -40,6 +42,7 @@ const plans = [
   },
   {
     name:   'Entreprise',
+    plan:   'enterprise',
     price:  null,
     period: 'sur mesure',
     desc:   'Pour les grandes organisations avec des besoins complexes.',
@@ -51,7 +54,7 @@ const plans = [
       'Équipe dédiée',
       'Formation de vos équipes',
       'Conformité RGPD / Loi 25',
-      'Tarification à l\'usage possible',
+      "Tarification à l'usage possible",
     ],
     cta:       'Nous contacter',
     highlight: false,
@@ -178,7 +181,7 @@ export default function Pricing() {
 
                 {/* CTA */}
                 <a
-                  href="#contact"
+                  href={`#contact?plan=${plan.plan}`}
                   className={`inline-flex items-center justify-center gap-2 ${
                     plan.highlight ? 'btn-copper' : 'btn-ghost'
                   }`}
