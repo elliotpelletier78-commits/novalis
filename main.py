@@ -51,6 +51,8 @@ import requests as http_requests
 import asyncio
 import re
 import smtplib
+import math
+import tempfile
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -65,6 +67,8 @@ TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
 TWILIO_PHONE = os.getenv("TWILIO_PHONE", "")
 OWNER_PHONE = os.getenv("OWNER_PHONE", "")
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "EXAVITQu4vr4xnSDxMaL")  # Sarah (FR)
 
 # Admin plateforme
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
@@ -423,6 +427,56 @@ async def init_db():
             )
         """)
 
+        # === RAG — CHUNKS DE CONNAISSANCES ===
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS knowledge_chunks (
+                id TEXT PRIMARY KEY,
+                client_id TEXT NOT NULL,
+                kb_id TEXT NOT NULL,
+                chunk_text TEXT NOT NULL,
+                chunk_index INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (client_id) REFERENCES clients(id)
+            )
+        """)
+        # FTS5 pour recherche sémantique rapide
+        await db.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts
+            USING fts5(chunk_text, content=knowledge_chunks, content_rowid=rowid, tokenize='unicode61')
+        """)
+
+        # === ANALYTICS PAR CONVERSATION ===
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS conversation_analytics (
+                id TEXT PRIMARY KEY,
+                client_id TEXT NOT NULL,
+                conv_id TEXT NOT NULL UNIQUE,
+                channel TEXT DEFAULT 'sms',
+                message_count INTEGER DEFAULT 0,
+                resolved INTEGER DEFAULT 0,
+                escalated INTEGER DEFAULT 0,
+                avg_sentiment REAL DEFAULT 0.0,
+                first_response_ms INTEGER DEFAULT 0,
+                date TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (client_id) REFERENCES clients(id)
+            )
+        """)
+
+        # === RÈGLES D'ESCALADE INTELLIGENTES ===
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS escalation_rules (
+                id TEXT PRIMARY KEY,
+                client_id TEXT NOT NULL,
+                rule_type TEXT NOT NULL,
+                rule_value TEXT NOT NULL,
+                action TEXT DEFAULT 'notify',
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (client_id) REFERENCES clients(id)
+            )
+        """)
+
         # === INDEX pour performance ===
         await db.execute("CREATE INDEX IF NOT EXISTS idx_conv_client ON conversations(client_id)")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_conv_phone ON conversations(phone, client_id)")
@@ -442,6 +496,8 @@ async def init_db():
             "ALTER TABLE clients ADD COLUMN fb_page_id TEXT DEFAULT ''",
             "ALTER TABLE clients ADD COLUMN stripe_customer_id TEXT DEFAULT ''",
             "ALTER TABLE clients ADD COLUMN portal_token TEXT DEFAULT ''",
+            "ALTER TABLE messages ADD COLUMN sentiment_score REAL DEFAULT 0.0",
+            "ALTER TABLE messages ADD COLUMN language TEXT DEFAULT 'fr'",
         ]
         for migration in migrations:
             try:
@@ -454,9 +510,12 @@ async def init_db():
         await db.execute("CREATE INDEX IF NOT EXISTS idx_kb_client ON knowledge_base(client_id, is_active)")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_campaigns_client ON campaigns(client_id, status)")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_webhooks_client ON client_webhooks(client_id, is_active)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_chunks_client ON knowledge_chunks(client_id)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_ca_client ON conversation_analytics(client_id, date)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_escalation_client ON escalation_rules(client_id, is_active)")
 
         await db.commit()
-        logger.info("Base de données V5.0 (agence IA) initialisée")
+        logger.info("Base de données V6.0 (agence IA premium) initialisée")
 
 
 async def appointment_reminder_task():
@@ -726,19 +785,28 @@ async def get_or_create_conversation(client_id: str, phone: str, channel: str = 
         return conv_id
 
 async def add_message(conv_id: str, client_id: str, role: str, content: str,
-                      intent: str = None, response_time_ms: int = 0, tokens_used: int = 0):
+                      intent: str = None, response_time_ms: int = 0, tokens_used: int = 0,
+                      sentiment_score: float = 0.0, language: str = "fr"):
     msg_id = generate_id("msg")
     now = datetime.now().isoformat()
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            """INSERT INTO messages (id, conversation_id, client_id, role, content, intent, response_time_ms, tokens_used, timestamp)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (msg_id, conv_id, client_id, role, content, intent, response_time_ms, tokens_used, now)
+            """INSERT INTO messages (id, conversation_id, client_id, role, content, intent,
+               response_time_ms, tokens_used, sentiment_score, language, timestamp)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (msg_id, conv_id, client_id, role, content, intent,
+             response_time_ms, tokens_used, sentiment_score, language, now)
         )
         await db.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (now, conv_id))
-        # Incrémenter compteur mensuel
         await db.execute("UPDATE clients SET messages_used_month = messages_used_month + 1 WHERE id = ?", (client_id,))
         await db.commit()
+
+async def _get_message_count(conv_id: str) -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT COUNT(*) FROM messages WHERE conversation_id = ?", (conv_id,))
+        row = await cursor.fetchone()
+    return row[0] if row else 0
+
 
 async def get_recent_history(conv_id: str, limit: int = 10) -> List[Dict]:
     async with aiosqlite.connect(DB_PATH) as db:
@@ -783,6 +851,216 @@ async def update_daily_stats(client_id: str, intent: str, response_ms: int = 0):
 # ============================================================
 # MOTEUR IA (CLAUDE) - MULTI-TENANT
 # ============================================================
+
+def chunk_text(text: str, chunk_size: int = 500, overlap: int = 80) -> List[str]:
+    """Découpe le texte en chunks avec chevauchement pour le RAG."""
+    paragraphs = [p.strip() for p in re.split(r'\n{1,}', text) if p.strip()]
+    chunks, current = [], ""
+    for para in paragraphs:
+        if len(current) + len(para) + 1 <= chunk_size:
+            current = (current + "\n" + para).strip()
+        else:
+            if current:
+                chunks.append(current)
+            overlap_text = current[-overlap:] if len(current) > overlap else current
+            current = (overlap_text + "\n" + para).strip() if overlap_text else para
+    if current:
+        chunks.append(current)
+    return chunks if chunks else [text[:chunk_size]]
+
+
+async def index_knowledge_chunks(client_id: str, kb_id: str, content: str):
+    """Chunk et indexe un document KB dans FTS5 pour le RAG."""
+    chunks = chunk_text(content)
+    now = datetime.now().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Supprimer anciens chunks de ce document
+        await db.execute("DELETE FROM knowledge_chunks WHERE kb_id = ?", (kb_id,))
+        for i, chunk in enumerate(chunks):
+            chunk_id = generate_id("ck")
+            await db.execute(
+                "INSERT INTO knowledge_chunks (id, client_id, kb_id, chunk_text, chunk_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (chunk_id, client_id, kb_id, chunk, i, now)
+            )
+        # Reconstruire l'index FTS5
+        try:
+            await db.execute("INSERT INTO knowledge_fts(knowledge_fts) VALUES('rebuild')")
+        except Exception:
+            pass
+        await db.commit()
+
+
+async def search_knowledge_rag(client_id: str, query: str, top_k: int = 4) -> str:
+    """Recherche sémantique FTS5 dans la base de connaissances d'un client."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        try:
+            # Préparer la requête FTS5 (échapper les caractères spéciaux)
+            fts_query = " ".join([f'"{w}"' for w in query.split()[:8] if len(w) > 2])
+            if not fts_query:
+                raise ValueError("query vide")
+            cursor = await db.execute("""
+                SELECT kc.chunk_text
+                FROM knowledge_fts fts
+                JOIN knowledge_chunks kc ON fts.rowid = kc.rowid
+                WHERE knowledge_fts MATCH ? AND kc.client_id = ?
+                ORDER BY rank
+                LIMIT ?
+            """, (fts_query, client_id, top_k))
+            rows = await cursor.fetchall()
+            if rows:
+                return "\n---\n".join(r[0] for r in rows)
+        except Exception:
+            pass
+        # Fallback : recherche LIKE sur mots-clés
+        words = [w for w in query.lower().split() if len(w) > 3][:5]
+        if not words:
+            return ""
+        conds = " OR ".join(["LOWER(chunk_text) LIKE ?" for _ in words])
+        cursor = await db.execute(
+            f"SELECT chunk_text FROM knowledge_chunks WHERE ({conds}) AND client_id = ? LIMIT ?",
+            [f"%{w}%" for w in words] + [client_id, top_k]
+        )
+        rows = await cursor.fetchall()
+        return "\n---\n".join(r[0] for r in rows)
+
+
+async def analyze_sentiment(text: str) -> float:
+    """Analyse le sentiment d'un message. Retourne -1.0 (négatif) à 1.0 (positif)."""
+    neg_kw = ["terrible","nul","incompétent","arnaque","remboursement","scandaleux",
+              "honteux","mécontent","fâché","furieux","dégoûté","catastrophe","mensonge",
+              "horrible","inacceptable","pourri","incompétence","ridicule"]
+    pos_kw = ["excellent","parfait","merci","super","génial","très bien","satisfait",
+              "bravo","fantastique","adorable","merci beaucoup","magnifique","impressionnant"]
+    text_lower = text.lower()
+    neg = sum(1 for k in neg_kw if k in text_lower)
+    pos = sum(1 for k in pos_kw if k in text_lower)
+    if neg >= 2: return -0.8
+    if neg == 1 and pos == 0: return -0.4
+    if pos >= 1 and neg == 0: return 0.7
+    if not claude_client: return 0.0
+    try:
+        resp = claude_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=5,
+            messages=[{"role": "user", "content":
+                f"Rate sentiment -10 to 10 (integer only):\n{text[:200]}"}]
+        )
+        return max(-1.0, min(1.0, float(resp.content[0].text.strip()) / 10.0))
+    except Exception:
+        return 0.0
+
+
+def detect_language(text: str) -> str:
+    """Détecte la langue du message (fr/en)."""
+    en_words = ["hello","hi","help","please","thank","thanks","what","when","where",
+                "how","can you","i need","i want","do you","good morning","good evening",
+                "sorry","excuse me","yes","no"]
+    text_lower = text.lower()
+    en_score = sum(1 for w in en_words if w in text_lower)
+    return "en" if en_score >= 1 else "fr"
+
+
+async def summarize_conversation(conv_id: str) -> str:
+    """Génère un résumé de la conversation pour le handoff humain."""
+    history = await get_recent_history(conv_id, limit=20)
+    if not history:
+        return "Aucun message."
+    transcript = "\n".join([
+        f"{'Client' if m['role'] == 'client' else 'IA'}: {m['content']}"
+        for m in history
+    ])
+    if not claude_client:
+        return transcript[:400]
+    try:
+        resp = claude_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=180,
+            messages=[{"role": "user", "content":
+                f"Résume en 2-3 phrases: problème principal, ton du client, action requise.\n\n{transcript[:1500]}"}]
+        )
+        return resp.content[0].text.strip()
+    except Exception:
+        return transcript[:300]
+
+
+async def should_auto_escalate(client_id: str, sentiment: float, intent: str,
+                                message_count: int, message: str) -> bool:
+    """Détermine si la conversation doit être escaladée automatiquement."""
+    if sentiment <= -0.7:
+        return True
+    if intent in ["complaint", "urgent"] and message_count >= 3:
+        return True
+    if intent == "transfer_human":
+        return True
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM escalation_rules WHERE client_id = ? AND is_active = 1",
+            (client_id,)
+        )
+        rules = [dict(r) for r in await cursor.fetchall()]
+    for rule in rules:
+        rtype, rval = rule["rule_type"], rule["rule_value"]
+        if rtype == "sentiment_threshold" and sentiment <= float(rval):
+            return True
+        elif rtype == "keyword" and rval.lower() in message.lower():
+            return True
+        elif rtype == "message_count" and message_count >= int(rval):
+            return True
+    return False
+
+
+async def track_conversation_analytics(client_id: str, conv_id: str, channel: str,
+                                        sentiment: float, escalated: bool, response_ms: int):
+    """Enregistre ou met à jour les analytics d'une conversation."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    now = datetime.now().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT id, message_count, avg_sentiment FROM conversation_analytics WHERE conv_id = ?",
+            (conv_id,)
+        )
+        row = await cursor.fetchone()
+        if row:
+            old_id, count, old_sent = row
+            new_count = count + 1
+            new_sent = (old_sent * count + sentiment) / new_count
+            await db.execute(
+                "UPDATE conversation_analytics SET message_count=?, avg_sentiment=?, escalated=? WHERE id=?",
+                (new_count, new_sent, 1 if escalated else 0, old_id)
+            )
+        else:
+            await db.execute(
+                """INSERT INTO conversation_analytics
+                   (id,client_id,conv_id,channel,message_count,resolved,escalated,
+                    avg_sentiment,first_response_ms,date,created_at)
+                   VALUES (?,?,?,?,1,0,?,?,?,?,?)""",
+                (generate_id("ca"), client_id, conv_id, channel,
+                 1 if escalated else 0, sentiment, response_ms, today, now)
+            )
+        await db.commit()
+
+
+async def generate_elevenlabs_audio(text: str, voice_id: str = None) -> Optional[bytes]:
+    """Synthétise la parole via ElevenLabs. Retourne bytes audio/mpeg ou None."""
+    if not ELEVENLABS_API_KEY:
+        return None
+    vid = voice_id or ELEVENLABS_VOICE_ID
+    try:
+        resp = http_requests.post(
+            f"https://api.elevenlabs.io/v1/text-to-speech/{vid}",
+            headers={"xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json"},
+            json={"text": text, "model_id": "eleven_multilingual_v2",
+                  "voice_settings": {"stability": 0.5, "similarity_boost": 0.8}},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            return resp.content
+    except Exception as e:
+        logger.warning(f"ElevenLabs TTS erreur: {e}")
+    return None
+
+
 async def get_client_knowledge_base(client_id: str) -> str:
     """Récupère la base de connaissances active d'un client."""
     async with aiosqlite.connect(DB_PATH) as db:
@@ -799,7 +1077,7 @@ async def get_client_knowledge_base(client_id: str) -> str:
     return "\n\n".join(sections)
 
 
-async def get_system_prompt(client: Dict) -> str:
+async def get_system_prompt(client: Dict, query: str = "", language: str = "fr") -> str:
     now = datetime.now()
     days_fr = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
     current_day = days_fr[now.weekday()]
@@ -811,8 +1089,25 @@ async def get_system_prompt(client: Dict) -> str:
     custom = client.get("custom_prompt", "")
     custom_section = f"\n\nINSTRUCTIONS SPÉCIALES DU PROPRIÉTAIRE :\n{custom}" if custom else ""
 
-    kb = await get_client_knowledge_base(client["id"])
-    kb_section = f"\n\nBASE DE CONNAISSANCES (utilise ces infos pour répondre précisément) :\n{kb}" if kb else ""
+    # RAG : recherche les chunks pertinents pour la question courante
+    if query:
+        rag_context = await search_knowledge_rag(client["id"], query)
+    else:
+        rag_context = ""
+
+    # Fallback sur KB complète si RAG vide
+    if not rag_context:
+        kb_full = await get_client_knowledge_base(client["id"])
+        kb_section = f"\n\nBASE DE CONNAISSANCES :\n{kb_full}" if kb_full else ""
+    else:
+        kb_section = f"\n\nINFORMATIONS PERTINENTES (extraites de votre base de connaissances) :\n{rag_context}"
+
+    # Instruction de langue
+    if language == "en":
+        lang_rule = "The customer is writing in English. Respond naturally in English while keeping your helpful, warm persona. Use Canadian English."
+        lang_preamble = "LANGUAGE RULE: " + lang_rule
+    else:
+        lang_preamble = "Réponds TOUJOURS en français québécois naturel et chaleureux. Utilise le vouvoiement."
 
     return f"""Tu es l'assistant virtuel de "{client['business_name']}" ({client.get('business_type', 'Commerce')}) situé à {client.get('address', 'Québec, Canada')}.
 
@@ -826,14 +1121,14 @@ CONTEXTE ACTUEL :
 - Nous sommes {current_day} le {now.strftime('%d/%m/%Y')} à {now.strftime('%Hh%M')}.{hours_note}{kb_section}
 
 RÈGLES ABSOLUES :
-1. Réponds TOUJOURS en français québécois naturel et chaleureux
-2. Utilise le vouvoiement avec respect
-3. SMS : maximum 2-3 phrases. Sois direct et utile.
-4. Pour les rendez-vous : demande date, heure préférée et service voulu
-5. Prix en dollars canadiens ($). Toujours précis sur les prix si connus.
-6. Ne révèle JAMAIS que tu es une IA — tu es un(e) assistant(e) du commerce
-7. Pour les urgences ou plaintes : empathie immédiate, propose un rappel humain
-8. Si tu ne connais pas la réponse : "Je vais vérifier et vous revenir rapidement !"
+1. {lang_preamble}
+2. SMS / Voix : maximum 2-3 phrases. Direct et utile.
+3. Pour les rendez-vous : demande date, heure préférée et service voulu
+4. Prix en dollars canadiens ($). Toujours précis sur les prix si connus.
+5. Ne révèle JAMAIS que tu es une IA — tu es un(e) assistant(e) du commerce
+6. Pour les urgences ou plaintes : empathie immédiate, propose un rappel humain
+7. Si tu ne connais pas la réponse : réponds honnêtement que tu vas vérifier
+8. Utilise les informations pertinentes fournies ci-dessus pour répondre avec précision
 9. Termine toujours par une question ou un appel à l'action pertinent{custom_section}"""
 
 
@@ -864,8 +1159,9 @@ async def generate_response(client: Dict, conv_id: str, message: str,
         })
     messages_payload.append({"role": "user", "content": message})
 
+    language = detect_language(message)
     model = select_model(message, intent, len(history))
-    system_text = await get_system_prompt(client)
+    system_text = await get_system_prompt(client, query=message, language=language)
     system_payload = [{"type": "text", "text": system_text, "cache_control": {"type": "ephemeral"}}]
 
     start_time = datetime.now()
@@ -896,14 +1192,30 @@ async def generate_response(client: Dict, conv_id: str, message: str,
 # ============================================================
 # ALERTES AU PROPRIÉTAIRE
 # ============================================================
-async def notify_owner(client: Dict, customer_phone: str, message: str, intent: str):
+async def notify_owner(client: Dict, customer_phone: str, message: str, intent: str,
+                       conv_id: str = "", sentiment: float = 0.0):
     if not twilio_client or not client.get("owner_phone") or not client.get("twilio_phone"):
         return
     if intent not in ["urgent", "rdv", "complaint", "transfer_human"]:
         return
     try:
         emoji = {"urgent": "🚨", "rdv": "📅", "complaint": "⚠️", "transfer_human": "👤"}.get(intent, "📢")
-        alert = f"{emoji} NOVALIS - {intent.upper()}\nCommerce: {client['business_name']}\nClient: {customer_phone}\nMessage: {message[:100]}"
+        sentiment_note = ""
+        if sentiment <= -0.5:
+            sentiment_note = " 😠 CLIENT INSATISFAIT"
+        elif sentiment >= 0.5:
+            sentiment_note = " 😊"
+        summary = ""
+        if conv_id and intent in ["complaint", "transfer_human", "urgent"]:
+            try:
+                summary = await summarize_conversation(conv_id)
+                summary = f"\nRésumé: {summary[:200]}"
+            except Exception:
+                pass
+        alert = (f"{emoji} NOVALIS - {intent.upper()}{sentiment_note}\n"
+                 f"Commerce: {client['business_name']}\n"
+                 f"Client: {customer_phone}\n"
+                 f"Message: {message[:100]}{summary}")
         twilio_client.messages.create(body=alert, from_=client["twilio_phone"], to=client["owner_phone"])
     except Exception as e:
         logger.error(f"Erreur alerte: {e}")
@@ -946,15 +1258,34 @@ async def handle_incoming_sms(request: Request):
     body = sanitize_input(body)
     conv_id = await get_or_create_conversation(client["id"], from_number, "sms")
     intent = detect_intent(body)
-    await update_daily_stats(client["id"], intent)
-    await add_message(conv_id, client["id"], "client", body, intent)
+    lang = detect_language(body)
 
-    # Générer réponse IA
+    # Analyse sentiment + escalade intelligente (en parallèle)
+    sentiment, msg_count_row = await asyncio.gather(
+        analyze_sentiment(body),
+        _get_message_count(conv_id)
+    )
+    msg_count = msg_count_row
+
+    # Vérifier si escalade automatique nécessaire
+    escalate = await should_auto_escalate(client["id"], sentiment, intent, msg_count, body)
+    if escalate and intent not in ["transfer_human", "rdv"]:
+        intent = "transfer_human"
+
+    await update_daily_stats(client["id"], intent)
+    await add_message(conv_id, client["id"], "client", body, intent, sentiment_score=sentiment, language=lang)
+
+    # Générer réponse IA avec RAG + langue
     ai_response, response_ms, tokens = await generate_response(client, conv_id, body, intent)
     await add_message(conv_id, client["id"], "agent", ai_response, response_time_ms=response_ms, tokens_used=tokens)
 
-    # Alerter le propriétaire
-    await notify_owner(client, from_number, body, intent)
+    # Tracker analytics conversation
+    asyncio.create_task(track_conversation_analytics(
+        client["id"], conv_id, "sms", sentiment, escalate, response_ms
+    ))
+
+    # Alerter le propriétaire (avec résumé si escalade)
+    await notify_owner(client, from_number, body, intent, conv_id=conv_id, sentiment=sentiment)
 
     # Gérer les rendez-vous détectés
     if intent == "rdv":
@@ -1052,20 +1383,35 @@ async def handle_voice_response(request: Request):
                      voice="Polly.Gabrielle", language="fr-CA")
         return Response(content=str(response), media_type="text/xml")
 
+    lang = detect_language(speech)
+    voice_lang = "en-US" if lang == "en" else "fr-CA"
+    voice_name = "Polly.Joanna" if lang == "en" else "Polly.Gabrielle"
+
     conv_id = await get_or_create_conversation(client["id"], from_number, "voice")
     intent = detect_intent(speech)
+    sentiment = await analyze_sentiment(speech)
+    msg_count = await _get_message_count(conv_id)
+
+    escalate = await should_auto_escalate(client["id"], sentiment, intent, msg_count, speech)
+    if escalate and intent not in ["transfer_human", "rdv"]:
+        intent = "transfer_human"
+
     await update_daily_stats(client["id"], intent)
-    await add_message(conv_id, client["id"], "client", speech, intent)
+    await add_message(conv_id, client["id"], "client", speech, intent, sentiment_score=sentiment, language=lang)
 
     ai_response, response_ms, tokens = await generate_response(client, conv_id, speech, intent)
     await add_message(conv_id, client["id"], "agent", ai_response, response_time_ms=response_ms, tokens_used=tokens)
-    await notify_owner(client, from_number, speech, intent)
+    await notify_owner(client, from_number, speech, intent, conv_id=conv_id, sentiment=sentiment)
+    asyncio.create_task(track_conversation_analytics(
+        client["id"], conv_id, "voice", sentiment, escalate, response_ms
+    ))
 
     gather = Gather(input="speech", action="/voice/respond", method="POST",
-                    language="fr-CA", speechTimeout="auto", timeout=5)
-    gather.say(ai_response, voice="Polly.Gabrielle", language="fr-CA")
+                    language=voice_lang, speechTimeout="auto", timeout=5)
+    gather.say(ai_response, voice=voice_name, language=voice_lang)
     response.append(gather)
-    response.say("Merci d'avoir appelé. Bonne journée !", voice="Polly.Gabrielle", language="fr-CA")
+    farewell = "Thank you for calling. Have a great day!" if lang == "en" else "Merci d'avoir appelé. Bonne journée !"
+    response.say(farewell, voice=voice_name, language=voice_lang)
     return Response(content=str(response), media_type="text/xml")
 
 # ============================================================
@@ -2330,7 +2676,9 @@ async def add_knowledge_entry(request: Request, client: dict = Depends(verify_ap
             (kb_id, client["id"], data["title"], data["content"], data.get("kb_type", "faq"), now, now)
         )
         await db.commit()
-    return {"id": kb_id, "status": "created"}
+    # Indexer pour RAG
+    asyncio.create_task(index_knowledge_chunks(client["id"], kb_id, data["content"]))
+    return {"id": kb_id, "status": "created", "chunks": len(chunk_text(data["content"]))}
 
 @app.put("/api/v1/me/knowledge-base/{kb_id}")
 async def update_knowledge_entry(kb_id: str, request: Request, client: dict = Depends(verify_api_key)):
@@ -2600,6 +2948,180 @@ async def get_my_reports(client: dict = Depends(verify_api_key)):
             (client["id"],)
         )
         return [dict(r) for r in await cursor.fetchall()]
+
+# ============================================================
+# ANALYTICS AVANCÉS — SENTIMENT & RÉSOLUTION
+# ============================================================
+@app.get("/api/v1/me/analytics/advanced")
+async def get_advanced_analytics(client: dict = Depends(verify_api_key), days: int = Query(30, le=90)):
+    """Analytics avancés : sentiment moyen, taux de résolution, taux d'escalade, temps de réponse."""
+    since = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        # Vue d'ensemble conversations
+        cursor = await db.execute("""
+            SELECT
+                COUNT(*) as total_conversations,
+                AVG(avg_sentiment) as avg_sentiment,
+                SUM(escalated) as escalated_count,
+                SUM(resolved) as resolved_count,
+                AVG(first_response_ms) as avg_response_ms,
+                AVG(message_count) as avg_messages_per_conv
+            FROM conversation_analytics
+            WHERE client_id = ? AND date >= ?
+        """, (client["id"], since))
+        overview = dict(await cursor.fetchone() or {})
+
+        # Tendance sentiment par jour (7 derniers jours)
+        cursor = await db.execute("""
+            SELECT date, AVG(avg_sentiment) as daily_sentiment, COUNT(*) as conversations
+            FROM conversation_analytics
+            WHERE client_id = ? AND date >= ?
+            GROUP BY date ORDER BY date DESC LIMIT 7
+        """, (client["id"], since))
+        sentiment_trend = [dict(r) for r in await cursor.fetchall()]
+
+        # Distribution des intents
+        cursor = await db.execute("""
+            SELECT intent, COUNT(*) as count
+            FROM messages WHERE client_id = ? AND role = 'client'
+            AND timestamp >= ? AND intent IS NOT NULL
+            GROUP BY intent ORDER BY count DESC LIMIT 10
+        """, (client["id"], (datetime.now() - timedelta(days=days)).isoformat()))
+        intent_distribution = [dict(r) for r in await cursor.fetchall()]
+
+        # Messages avec sentiment négatif récents
+        cursor = await db.execute("""
+            SELECT m.content, m.sentiment_score, m.timestamp, m.language
+            FROM messages m
+            WHERE m.client_id = ? AND m.role = 'client'
+            AND m.sentiment_score <= -0.5
+            AND m.timestamp >= ?
+            ORDER BY m.timestamp DESC LIMIT 5
+        """, (client["id"], (datetime.now() - timedelta(days=days)).isoformat()))
+        negative_messages = [dict(r) for r in await cursor.fetchall()]
+
+    total = overview.get("total_conversations") or 0
+    escalated = overview.get("escalated_count") or 0
+    resolved = overview.get("resolved_count") or 0
+    return {
+        "period_days": days,
+        "total_conversations": total,
+        "avg_sentiment": round(overview.get("avg_sentiment") or 0, 3),
+        "sentiment_label": "positif" if (overview.get("avg_sentiment") or 0) > 0.2 else
+                           ("négatif" if (overview.get("avg_sentiment") or 0) < -0.2 else "neutre"),
+        "escalation_rate": round(escalated / total * 100, 1) if total else 0,
+        "resolution_rate": round(resolved / total * 100, 1) if total else 0,
+        "avg_response_ms": round(overview.get("avg_response_ms") or 0),
+        "avg_messages_per_conversation": round(overview.get("avg_messages_per_conv") or 0, 1),
+        "sentiment_trend": sentiment_trend,
+        "intent_distribution": intent_distribution,
+        "recent_negative_messages": negative_messages,
+    }
+
+
+@app.get("/api/v1/me/analytics/sentiment")
+async def get_sentiment_trends(client: dict = Depends(verify_api_key), days: int = Query(30, le=90)):
+    """Tendances sentiment par canal (sms/voice/whatsapp)."""
+    since = (datetime.now() - timedelta(days=days)).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("""
+            SELECT
+                c.channel,
+                COUNT(m.id) as message_count,
+                AVG(m.sentiment_score) as avg_sentiment,
+                SUM(CASE WHEN m.sentiment_score <= -0.5 THEN 1 ELSE 0 END) as negative_count,
+                SUM(CASE WHEN m.sentiment_score >= 0.5 THEN 1 ELSE 0 END) as positive_count
+            FROM messages m
+            JOIN conversations c ON m.conversation_id = c.id
+            WHERE m.client_id = ? AND m.role = 'client' AND m.timestamp >= ?
+            GROUP BY c.channel
+        """, (client["id"], since))
+        by_channel = [dict(r) for r in await cursor.fetchall()]
+
+        cursor = await db.execute("""
+            SELECT language, COUNT(*) as count
+            FROM messages
+            WHERE client_id = ? AND role = 'client' AND timestamp >= ?
+            GROUP BY language
+        """, (client["id"], since))
+        by_language = [dict(r) for r in await cursor.fetchall()]
+
+    return {"by_channel": by_channel, "by_language": by_language}
+
+
+# ============================================================
+# RÈGLES D'ESCALADE INTELLIGENTES
+# ============================================================
+@app.get("/api/v1/me/escalation-rules")
+async def get_my_escalation_rules(client: dict = Depends(verify_api_key)):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM escalation_rules WHERE client_id = ? ORDER BY created_at",
+            (client["id"],)
+        )
+        return [dict(r) for r in await cursor.fetchall()]
+
+
+@app.post("/api/v1/me/escalation-rules")
+async def create_escalation_rule(request: Request, client: dict = Depends(verify_api_key)):
+    """
+    Crée une règle d'escalade automatique.
+    rule_type: sentiment_threshold | keyword | message_count | intent
+    rule_value: ex. "-0.6" | "remboursement" | "5" | "complaint"
+    action: notify (défaut) | auto_respond
+    """
+    data = await request.json()
+    rule_type = data.get("rule_type", "").strip()
+    rule_value = data.get("rule_value", "").strip()
+    action = data.get("action", "notify")
+    if rule_type not in ["sentiment_threshold", "keyword", "message_count", "intent"]:
+        raise HTTPException(400, "rule_type invalide")
+    if not rule_value:
+        raise HTTPException(400, "rule_value requis")
+    rule_id = generate_id("rule")
+    now = datetime.now().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO escalation_rules (id,client_id,rule_type,rule_value,action,created_at) VALUES (?,?,?,?,?,?)",
+            (rule_id, client["id"], rule_type, rule_value, action, now)
+        )
+        await db.commit()
+    return {"id": rule_id, "rule_type": rule_type, "rule_value": rule_value, "action": action}
+
+
+@app.delete("/api/v1/me/escalation-rules/{rule_id}")
+async def delete_escalation_rule(rule_id: str, client: dict = Depends(verify_api_key)):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "DELETE FROM escalation_rules WHERE id = ? AND client_id = ?",
+            (rule_id, client["id"])
+        )
+        await db.commit()
+    return {"status": "deleted"}
+
+
+# ============================================================
+# ELEVENLABS TTS
+# ============================================================
+@app.post("/api/v1/tts")
+async def text_to_speech_endpoint(request: Request, client: dict = Depends(verify_api_key)):
+    """Synthèse vocale ElevenLabs (requiert ELEVENLABS_API_KEY)."""
+    data = await request.json()
+    text = data.get("text", "").strip()[:500]
+    voice_id = data.get("voice_id", ELEVENLABS_VOICE_ID)
+    if not text:
+        raise HTTPException(400, "text requis")
+    if not ELEVENLABS_API_KEY:
+        raise HTTPException(503, "ElevenLabs non configuré (ajoutez ELEVENLABS_API_KEY)")
+    audio = await generate_elevenlabs_audio(text, voice_id)
+    if not audio:
+        raise HTTPException(500, "Erreur génération audio")
+    return Response(content=audio, media_type="audio/mpeg",
+                    headers={"Content-Disposition": "attachment; filename=tts.mp3"})
+
 
 # ============================================================
 # PORTAIL CLIENT
@@ -3306,7 +3828,13 @@ async def upload_kb_file(
         )
         await db.commit()
 
-    return {"id": kb_id, "title": title, "chars": len(text), "message": "Fichier importé avec succès"}
+    # Indexer les chunks pour le RAG (en arrière-plan)
+    asyncio.create_task(index_knowledge_chunks(client["id"], kb_id, text))
+    chunks_count = len(chunk_text(text))
+
+    return {"id": kb_id, "title": title, "chars": len(text),
+            "chunks_indexed": chunks_count,
+            "message": f"Fichier importé et indexé ({chunks_count} segments RAG)"}
 
 # ============================================================
 # GOOGLE CALENDAR — Génération de liens 'Ajouter au calendrier'
