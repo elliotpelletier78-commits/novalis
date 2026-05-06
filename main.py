@@ -1256,12 +1256,19 @@ async def handle_incoming_sms(request: Request):
     form = await request.form()
     message_sid = form.get("MessageSid", "")
 
-    # Signature Twilio — temporairement désactivé pour debug
-    # if TWILIO_AUTH_TOKEN:
-    #     signature = request.headers.get("X-Twilio-Signature", "")
-    #     public_url = (APP_URL.rstrip("/") + str(request.url.path)) if APP_URL else str(request.url)
-    #     if not validate_twilio_signature(public_url, dict(form), signature):
-    #         raise HTTPException(status_code=403, detail="Signature Twilio invalide")
+    # Signature Twilio — validation avec URL publique (Railway proxy)
+    if TWILIO_AUTH_TOKEN:
+        signature = request.headers.get("X-Twilio-Signature", "")
+        forwarded_proto = request.headers.get("X-Forwarded-Proto", "https")
+        forwarded_host = request.headers.get("X-Forwarded-Host", "") or request.headers.get("Host", "")
+        if forwarded_host:
+            public_url = f"{forwarded_proto}://{forwarded_host}{request.url.path}"
+        elif APP_URL:
+            public_url = APP_URL.rstrip("/") + str(request.url.path)
+        else:
+            public_url = str(request.url)
+        if not validate_twilio_signature(public_url, dict(form), signature):
+            raise HTTPException(status_code=403, detail="Signature Twilio invalide")
 
     # Idempotence : ignorer les doublons de webhook
     if message_sid:
