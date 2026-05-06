@@ -106,11 +106,18 @@ export default function Footer() {
             © {year} Novalis IA inc. · Tous droits réservés · Québec, Canada
           </p>
           <div className="flex gap-6">
-            {['Politique de confidentialité', 'Conditions d\'utilisation'].map((l) => (
-              <a key={l} href="#" className="text-[0.65rem] text-dim hover:text-pearl transition-colors">
-                {l}
-              </a>
-            ))}
+            <a
+              href="mailto:novalisproia@gmail.com?subject=Politique%20de%20confidentialit%C3%A9"
+              className="text-[0.65rem] text-dim hover:text-pearl transition-colors"
+            >
+              Politique de confidentialité
+            </a>
+            <a
+              href="mailto:novalisproia@gmail.com?subject=Conditions%20d%27utilisation"
+              className="text-[0.65rem] text-dim hover:text-pearl transition-colors"
+            >
+              Conditions d&apos;utilisation
+            </a>
           </div>
         </div>
       </div>

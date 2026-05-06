@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import { motion, useScroll, useTransform, useSpring } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
-import { stagger, fadeUp, blurIn } from '../lib/animations'
+import { stagger, fadeUp } from '../lib/animations'
 
 export default function Hero() {
   const ref        = useRef(null)

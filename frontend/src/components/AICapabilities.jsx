@@ -111,7 +111,7 @@ export default function AICapabilities() {
 
             {/* Live indicator */}
             <div
-              className="mt-6 flex items-center gap-3 px-4 py-3 glass-card-subtle copper-border inline-flex"
+              className="mt-6 inline-flex items-center gap-3 px-4 py-3 glass-card-subtle copper-border"
             >
               <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
               <span className="text-xs text-pearl/70 font-sans">

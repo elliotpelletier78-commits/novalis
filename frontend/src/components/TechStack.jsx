@@ -4,7 +4,7 @@ import { fadeUp, stagger, viewportOnce } from '../lib/animations'
 
 const techs = [
   { name: 'Claude (Anthropic)', category: 'IA générative' },
-  { name: 'GPT-4o', category: 'IA générative' },
+  { name: 'ElevenLabs', category: 'Voix IA' },
   { name: 'Twilio', category: 'Téléphonie' },
   { name: 'WhatsApp Business', category: 'Messagerie' },
   { name: 'Salesforce', category: 'CRM' },

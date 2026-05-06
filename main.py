@@ -27,6 +27,7 @@ import json
 import logging
 import csv
 import io
+import html as html_module
 import hashlib
 import uuid
 import secrets
@@ -822,7 +823,7 @@ async def check_and_notify_trial_expiry():
   </div>
   <h1 style="color:#EDE8DF;font-size:1.6rem;font-weight:400;margin:0 0 8px;font-style:italic;">Votre essai se termine bientôt</h1>
   <p style="color:#4A5260;font-size:1rem;line-height:1.6;margin:0 0 24px;">
-    Bonjour {c['owner_name']}, il vous reste <strong style="color:#EDE8DF;">2 jours</strong> sur votre essai gratuit Novalis IA.
+    Bonjour {html_module.escape(c['owner_name'])}, il vous reste <strong style="color:#EDE8DF;">2 jours</strong> sur votre essai gratuit Novalis IA.
     Pour continuer à recevoir et répondre automatiquement à vos clients, choisissez un plan.
   </p>
   <div style="text-align:center;margin:32px 0;">
@@ -848,7 +849,7 @@ async def check_and_notify_trial_expiry():
   </div>
   <h1 style="color:#EDE8DF;font-size:1.6rem;font-weight:400;margin:0 0 8px;font-style:italic;">Votre essai est terminé</h1>
   <p style="color:#4A5260;font-size:1rem;line-height:1.6;margin:0 0 24px;">
-    Bonjour {c['owner_name']}, votre essai gratuit de 7 jours est maintenant terminé.
+    Bonjour {html_module.escape(c['owner_name'])}, votre essai gratuit de 7 jours est maintenant terminé.
     Choisissez un plan pour réactiver votre assistant IA et continuer à servir vos clients automatiquement.
   </p>
   <div style="text-align:center;margin:32px 0;">
@@ -2419,6 +2420,11 @@ async def submit_inquiry(request: Request):
     logger.info(f"Nouvelle demande de {name} ({email}) — service: {service_type} — trial 7 jours activé")
 
     onboarding_url = f"{APP_URL}/onboarding?key={api_key}" if APP_URL else f"/onboarding?key={api_key}"
+    # Échapper les entrées utilisateur avant injection dans HTML
+    h_name         = html_module.escape(name)
+    h_service_type = html_module.escape(str(service_type))
+    h_description  = html_module.escape(str(description))
+    h_email        = html_module.escape(email)
     twilio_section = f"""
   <div style="background:rgba(168,104,68,0.08);border:0.5px solid rgba(168,104,68,0.3);padding:20px;margin:24px 0;">
     <p style="margin:0 0 8px;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#A86844;">Votre numéro IA</p>
@@ -2440,7 +2446,7 @@ async def submit_inquiry(request: Request):
   </div>
 
   <!-- Body -->
-  <h1 style="color:#EDE8DF;font-size:1.9rem;font-weight:400;margin:0 0 8px;font-style:italic;">Bonjour {name},</h1>
+  <h1 style="color:#EDE8DF;font-size:1.9rem;font-weight:400;margin:0 0 8px;font-style:italic;">Bonjour {h_name},</h1>
   <p style="color:#4A5260;margin:0 0 16px;font-size:1rem;line-height:1.6;">
     Votre <strong style="color:#EDE8DF;">essai gratuit de 7 jours</strong> est maintenant actif.<br>
     Configurez votre assistant IA en 3 minutes et commencez à recevoir des réponses automatiques dès aujourd'hui.
@@ -2494,10 +2500,10 @@ async def submit_inquiry(request: Request):
         subject=f"🔔 Nouvelle demande : {name} — {service_type}",
         body=f"""<div style="font-family:sans-serif;max-width:500px;margin:0 auto;background:#090C0F;color:#EDE8DF;padding:24px;">
 <h2 style="color:#A86844;margin-top:0;">Nouvelle demande</h2>
-<p><b>Nom :</b> {name}</p>
-<p><b>Email :</b> {email}</p>
-<p><b>Service :</b> {service_type}</p>
-<p><b>Description :</b> {description}</p>
+<p><b>Nom :</b> {h_name}</p>
+<p><b>Email :</b> {h_email}</p>
+<p><b>Service :</b> {h_service_type}</p>
+<p><b>Description :</b> {h_description}</p>
 <p><b>Clé API :</b> <code style="background:rgba(168,104,68,0.1);color:#C4895A;padding:2px 6px;">{api_key}</code></p>
 <p><a href="{APP_URL or ''}/onboarding?key={api_key}" style="color:#A86844;">Lien onboarding client</a></p>
 </div>"""

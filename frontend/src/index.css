@@ -15,7 +15,13 @@
 @layer base {
   *, *::before, *::after {
     box-sizing: border-box;
-    cursor: none !important;
+  }
+
+  /* Custom cursor uniquement sur appareils avec souris précise */
+  @media (pointer: fine) {
+    *, *::before, *::after {
+      cursor: none !important;
+    }
   }
 
   html {
