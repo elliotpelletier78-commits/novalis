@@ -1259,7 +1259,9 @@ async def handle_incoming_sms(request: Request):
     # Signature Twilio — obligatoire en production
     if TWILIO_AUTH_TOKEN:
         signature = request.headers.get("X-Twilio-Signature", "")
-        if not validate_twilio_signature(str(request.url), dict(form), signature):
+        # Reconstruire l'URL publique (Railway proxy change l'URL interne)
+        public_url = (APP_URL.rstrip("/") + str(request.url.path)) if APP_URL else str(request.url)
+        if not validate_twilio_signature(public_url, dict(form), signature):
             raise HTTPException(status_code=403, detail="Signature Twilio invalide")
 
     # Idempotence : ignorer les doublons de webhook
@@ -1286,11 +1288,11 @@ async def handle_incoming_sms(request: Request):
     if not client:
         logger.warning(f"Aucun client pour le numéro {to_number}")
         twiml = MessagingResponse()
-        twiml.message("Merci pour votre message. Ce service n'est pas encore configuré.")
+        twiml.message("Bonjour ! Je suis l'assistant Novalis IA. Comment puis-je vous aider aujourd'hui ?")
         return Response(content=str(twiml), media_type="text/xml")
 
-    # Vérifier la limite mensuelle
-    if client["messages_used_month"] >= client["max_messages_month"]:
+    # Vérifier la limite mensuelle (0 = illimité)
+    if client["max_messages_month"] > 0 and client["messages_used_month"] >= client["max_messages_month"]:
         twiml = MessagingResponse()
         twiml.message("Merci pour votre message ! Veuillez contacter directement le commerce.")
         return Response(content=str(twiml), media_type="text/xml")
@@ -1387,7 +1389,8 @@ async def handle_incoming_whatsapp(request: Request):
 async def handle_incoming_call(request: Request):
     form = await request.form()
     signature = request.headers.get("X-Twilio-Signature", "")
-    if TWILIO_AUTH_TOKEN and not validate_twilio_signature(str(request.url), dict(form), signature):
+    public_url = (APP_URL.rstrip("/") + str(request.url.path)) if APP_URL else str(request.url)
+    if TWILIO_AUTH_TOKEN and not validate_twilio_signature(public_url, dict(form), signature):
         raise HTTPException(status_code=403, detail="Signature Twilio invalide")
     to_number = form.get("To", "").strip()
     client = await get_client_by_phone(to_number)
@@ -2245,7 +2248,7 @@ async def submit_inquiry(request: Request):
                 """INSERT INTO clients (id, business_name, owner_name, owner_email, owner_phone,
                    api_key, plan, status, created_at, updated_at, business_type, services, hours, address, info,
                    twilio_phone, fb_page_token, fb_page_id, custom_prompt, language, max_messages_month, messages_used_month)
-                   VALUES (?, ?, ?, ?, ?, ?, 'inquiry', 'active', ?, ?, '', '', '', '', '', '', '', '', '', 'fr-CA', 0, 0)""",
+                   VALUES (?, ?, ?, ?, ?, ?, 'inquiry', 'active', ?, ?, '', '', '', '', '', '', '', '', '', 'fr-CA', 500, 0)""",
                 (client_id, data.get("business_name", name), name, email,
                  data.get("phone", ""), api_key, now, now)
             )
