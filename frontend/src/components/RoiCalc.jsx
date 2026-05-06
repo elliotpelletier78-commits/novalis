@@ -15,7 +15,8 @@ export default function RoiCalc() {
   const aiSaving    = Math.round(yearlyLoss * 0.65)
   const monthlySub  = 1497
   const netAnnual   = aiSaving - (monthlySub * 12)
-  const payback     = Math.round((monthlySub * 12) / (aiSaving / 12))
+  const roiPositif  = netAnnual > 0
+  const payback     = roiPositif ? Math.round((monthlySub * 12) / (aiSaving / 12)) : null
 
   const fmt = (n) => n.toLocaleString('fr-CA')
 
@@ -136,13 +137,16 @@ export default function RoiCalc() {
                     <span className="text-sm text-pearl font-medium">Gain net annuel</span>
                     <span
                       className="font-display italic"
-                      style={{ fontSize: '2.5rem', color: netAnnual > 0 ? 'var(--copper-light)' : 'rgba(237,232,223,0.5)' }}
+                      style={{ fontSize: '2.5rem', color: roiPositif ? 'var(--copper-light)' : 'rgba(237,232,223,0.5)' }}
                     >
-                      {fmt(Math.max(0, netAnnual))} $
+                      {roiPositif ? `${fmt(netAnnual)} $` : '—'}
                     </span>
                   </div>
                   <p className="text-xs text-dim mt-2">
-                    Retour sur investissement estimé en <strong className="text-pearl">{payback} mois</strong>
+                    {roiPositif
+                      ? <>Retour sur investissement estimé en <strong className="text-pearl">{payback} mois</strong></>
+                      : <>Vos économies ne couvrent pas encore le forfait Pro — <a href="#contact" className="text-copper hover:underline">parlons du forfait Starter</a></>
+                    }
                   </p>
                 </div>
               </div>

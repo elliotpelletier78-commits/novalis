@@ -22,14 +22,19 @@ const PLAN_TO_SERVICE = {
 export default function Contact() {
   const [form, setForm]       = useState({ name: '', email: '', phone: '', business: '', service: '', desc: '' })
 
-  // Pré-remplir le service si #contact?plan=xxx
+  // Pré-remplir le service si #contact?plan=xxx (fonctionne aussi sur navigation interne)
   useEffect(() => {
-    const hash = window.location.hash
-    if (hash.includes('?plan=')) {
-      const plan = hash.split('?plan=')[1]
-      const service = PLAN_TO_SERVICE[plan]
-      if (service) setForm((f) => ({ ...f, service }))
+    const fillFromHash = () => {
+      const hash = window.location.hash
+      if (hash.includes('?plan=')) {
+        const plan = hash.split('?plan=')[1]
+        const service = PLAN_TO_SERVICE[plan]
+        if (service) setForm((f) => ({ ...f, service }))
+      }
     }
+    fillFromHash()
+    window.addEventListener('hashchange', fillFromHash)
+    return () => window.removeEventListener('hashchange', fillFromHash)
   }, [])
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
