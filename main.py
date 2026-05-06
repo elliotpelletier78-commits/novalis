@@ -520,6 +520,8 @@ async def init_db():
             "ALTER TABLE clients ADD COLUMN onboarding_step INTEGER DEFAULT 0",
             "ALTER TABLE messages ADD COLUMN sentiment_score REAL DEFAULT 0.0",
             "ALTER TABLE messages ADD COLUMN language TEXT DEFAULT 'fr'",
+            "ALTER TABLE clients ADD COLUMN trial_expires_at TEXT DEFAULT ''",
+            "ALTER TABLE clients ADD COLUMN trial_warning_sent INTEGER DEFAULT 0",
         ]
         for migration in migrations:
             try:
@@ -600,6 +602,7 @@ async def startup():
     await seed_service_catalog()
     asyncio.create_task(appointment_reminder_task())
     asyncio.create_task(weekly_report_task())
+    asyncio.create_task(trial_monitor_task())
     logger.info(f"Novalis V{VERSION} démarré — Agence IA")
 
 # ============================================================
@@ -747,6 +750,115 @@ async def send_email(to: str, subject: str, body: str):
         logger.info(f"Email envoyé à {to}")
     except Exception as e:
         logger.error(f"Erreur email: {e}")
+
+async def provision_twilio_number(preferred_area_code: str = "819") -> Optional[str]:
+    """Achète automatiquement un numéro Twilio local et configure les webhooks."""
+    if not twilio_client or not APP_URL:
+        return None
+    try:
+        # Chercher un numéro disponible dans l'area code préféré
+        numbers = twilio_client.available_phone_numbers("CA").local.list(
+            area_code=preferred_area_code, sms_enabled=True, voice_enabled=True, limit=1
+        )
+        if not numbers:
+            # Fallback: n'importe quel numéro canadien
+            numbers = twilio_client.available_phone_numbers("CA").local.list(
+                sms_enabled=True, voice_enabled=True, limit=1
+            )
+        if not numbers:
+            return None
+        purchased = twilio_client.incoming_phone_numbers.create(
+            phone_number=numbers[0].phone_number,
+            sms_url=f"{APP_URL}/sms/incoming",
+            sms_method="POST",
+            voice_url=f"{APP_URL}/voice/incoming",
+            voice_method="POST",
+        )
+        logger.info(f"Numéro Twilio acheté automatiquement : {purchased.phone_number}")
+        return purchased.phone_number
+    except Exception as e:
+        logger.error(f"Erreur achat numéro Twilio: {e}")
+        return None
+
+async def is_trial_active(client: dict) -> bool:
+    """Retourne True si le client est en trial valide."""
+    expires = client.get("trial_expires_at", "")
+    if not expires:
+        return False
+    try:
+        return datetime.fromisoformat(expires) > datetime.now()
+    except Exception:
+        return False
+
+async def check_and_notify_trial_expiry():
+    """Tâche de fond — envoie emails J-2 et expiration trial."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM clients WHERE trial_expires_at != '' AND status = 'active' AND plan = 'trial'"
+        )
+        clients = await cursor.fetchall()
+    for c in clients:
+        c = dict(c)
+        expires = c.get("trial_expires_at", "")
+        if not expires:
+            continue
+        try:
+            exp_dt = datetime.fromisoformat(expires)
+        except Exception:
+            continue
+        days_left = (exp_dt - datetime.now()).days
+        portal_url = f"{APP_URL}/portal?key={c['api_key']}" if APP_URL else f"/portal?key={c['api_key']}"
+        pricing_url = f"{APP_URL}/#pricing" if APP_URL else "/#pricing"
+        if days_left <= 2 and not c.get("trial_warning_sent"):
+            asyncio.create_task(send_email(
+                to=c["owner_email"],
+                subject="⏳ Votre essai Novalis IA se termine dans 2 jours",
+                body=f"""<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#090C0F;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+  <div style="border-bottom:1px solid rgba(168,104,68,0.3);padding-bottom:24px;margin-bottom:32px;">
+    <p style="margin:0;font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;">Novalis IA</p>
+  </div>
+  <h1 style="color:#EDE8DF;font-size:1.6rem;font-weight:400;margin:0 0 8px;font-style:italic;">Votre essai se termine bientôt</h1>
+  <p style="color:#4A5260;font-size:1rem;line-height:1.6;margin:0 0 24px;">
+    Bonjour {c['owner_name']}, il vous reste <strong style="color:#EDE8DF;">2 jours</strong> sur votre essai gratuit Novalis IA.
+    Pour continuer à recevoir et répondre automatiquement à vos clients, choisissez un plan.
+  </p>
+  <div style="text-align:center;margin:32px 0;">
+    <a href="{pricing_url}" style="display:inline-block;background:#A86844;color:#EDE8DF;text-decoration:none;padding:14px 36px;font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;border:1px solid #C4895A;">
+      Voir les plans →
+    </a>
+  </div>
+  <p style="color:#4A5260;font-size:0.78rem;">Questions ? <a href="mailto:{ADMIN_EMAIL}" style="color:#A86844;">{ADMIN_EMAIL}</a></p>
+</div></body></html>"""
+            ))
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute("UPDATE clients SET trial_warning_sent = 1 WHERE id = ?", (c["id"],))
+                await db.commit()
+        elif days_left <= 0:
+            asyncio.create_task(send_email(
+                to=c["owner_email"],
+                subject="Votre essai Novalis IA est terminé — continuez maintenant",
+                body=f"""<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#090C0F;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+  <div style="border-bottom:1px solid rgba(168,104,68,0.3);padding-bottom:24px;margin-bottom:32px;">
+    <p style="margin:0;font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;">Novalis IA</p>
+  </div>
+  <h1 style="color:#EDE8DF;font-size:1.6rem;font-weight:400;margin:0 0 8px;font-style:italic;">Votre essai est terminé</h1>
+  <p style="color:#4A5260;font-size:1rem;line-height:1.6;margin:0 0 24px;">
+    Bonjour {c['owner_name']}, votre essai gratuit de 7 jours est maintenant terminé.
+    Choisissez un plan pour réactiver votre assistant IA et continuer à servir vos clients automatiquement.
+  </p>
+  <div style="text-align:center;margin:32px 0;">
+    <a href="{pricing_url}" style="display:inline-block;background:#A86844;color:#EDE8DF;text-decoration:none;padding:14px 36px;font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;border:1px solid #C4895A;">
+      Choisir mon plan →
+    </a>
+  </div>
+  <p style="color:#4A5260;font-size:0.78rem;">Des questions ? On vous rappelle gratuitement — <a href="mailto:{ADMIN_EMAIL}" style="color:#A86844;">{ADMIN_EMAIL}</a></p>
+</div></body></html>"""
+            ))
 
 async def get_client_by_phone(twilio_phone: str) -> Optional[Dict]:
     """Retrouve le client associé à un numéro Twilio."""
@@ -1256,10 +1368,18 @@ async def handle_incoming_sms(request: Request):
     form = await request.form()
     message_sid = form.get("MessageSid", "")
 
-    # Signature Twilio — obligatoire en production
+    # Signature Twilio — validation avec URL publique (Railway proxy)
     if TWILIO_AUTH_TOKEN:
         signature = request.headers.get("X-Twilio-Signature", "")
-        if not validate_twilio_signature(str(request.url), dict(form), signature):
+        forwarded_proto = request.headers.get("X-Forwarded-Proto", "https")
+        forwarded_host = request.headers.get("X-Forwarded-Host", "") or request.headers.get("Host", "")
+        if forwarded_host:
+            public_url = f"{forwarded_proto}://{forwarded_host}{request.url.path}"
+        elif APP_URL:
+            public_url = APP_URL.rstrip("/") + str(request.url.path)
+        else:
+            public_url = str(request.url)
+        if not validate_twilio_signature(public_url, dict(form), signature):
             raise HTTPException(status_code=403, detail="Signature Twilio invalide")
 
     # Idempotence : ignorer les doublons de webhook
@@ -1286,11 +1406,21 @@ async def handle_incoming_sms(request: Request):
     if not client:
         logger.warning(f"Aucun client pour le numéro {to_number}")
         twiml = MessagingResponse()
-        twiml.message("Merci pour votre message. Ce service n'est pas encore configuré.")
+        twiml.message("Bonjour ! Je suis l'assistant Novalis IA. Comment puis-je vous aider aujourd'hui ?")
         return Response(content=str(twiml), media_type="text/xml")
 
-    # Vérifier la limite mensuelle
-    if client["messages_used_month"] >= client["max_messages_month"]:
+    # Vérifier expiration du trial
+    if client.get("plan") == "trial" and client.get("trial_expires_at"):
+        try:
+            if datetime.fromisoformat(client["trial_expires_at"]) < datetime.now():
+                twiml = MessagingResponse()
+                twiml.message("Votre essai gratuit Novalis IA est terminé. Visitez novalisia.ca pour continuer.")
+                return Response(content=str(twiml), media_type="text/xml")
+        except Exception:
+            pass
+
+    # Vérifier la limite mensuelle (0 = illimité)
+    if client["max_messages_month"] > 0 and client["messages_used_month"] >= client["max_messages_month"]:
         twiml = MessagingResponse()
         twiml.message("Merci pour votre message ! Veuillez contacter directement le commerce.")
         return Response(content=str(twiml), media_type="text/xml")
@@ -1387,7 +1517,8 @@ async def handle_incoming_whatsapp(request: Request):
 async def handle_incoming_call(request: Request):
     form = await request.form()
     signature = request.headers.get("X-Twilio-Signature", "")
-    if TWILIO_AUTH_TOKEN and not validate_twilio_signature(str(request.url), dict(form), signature):
+    public_url = (APP_URL.rstrip("/") + str(request.url.path)) if APP_URL else str(request.url)
+    if TWILIO_AUTH_TOKEN and not validate_twilio_signature(public_url, dict(form), signature):
         raise HTTPException(status_code=403, detail="Signature Twilio invalide")
     to_number = form.get("To", "").strip()
     client = await get_client_by_phone(to_number)
@@ -1696,6 +1827,20 @@ async def complete_onboarding(client: dict = Depends(verify_api_key)):
     return {"status": "onboarding_complete"}
 
 
+@app.post("/api/v1/me/portal-token")
+async def generate_portal_token(client: dict = Depends(verify_api_key)):
+    """Génère ou renouvelle le token d'accès au portail (30 jours)."""
+    tok = secrets.token_urlsafe(32)
+    expires_at = (datetime.now() + timedelta(days=30)).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE clients SET portal_token = ?, portal_token_expires_at = ? WHERE id = ?",
+            (tok, expires_at, client["id"])
+        )
+        await db.commit()
+    portal_url = f"{APP_URL}/portal?t={tok}" if APP_URL else f"/portal?t={tok}"
+    return {"token": tok, "portal_url": portal_url, "expires_at": expires_at}
+
 @app.get("/api/v1/me/stats")
 async def get_my_stats(days: int = Query(30, ge=1, le=365), client: dict = Depends(verify_api_key)):
     """Stats du client authentifié."""
@@ -1890,7 +2035,8 @@ async def get_roi_report(client: dict = Depends(verify_api_key)):
         hours_saved = round(total * avg_call_duration_min / 60, 1)
         money_saved = round(total * avg_call_cost, 2)
 
-        plan_cost = {"starter": 497, "pro": 1497, "agence": 1497, "enterprise": 2500}.get(client.get("plan", "starter"), 497)
+        plan_map = {"starter": 497, "pro": 1497, "agence": 1497, "enterprise": 2500, "trial": 0}
+        plan_cost = plan_map.get(client.get("plan", "starter"), 497)
         roi_ratio = round(money_saved / plan_cost, 1) if plan_cost > 0 else 0
 
     return {
@@ -1907,8 +2053,8 @@ async def get_roi_report(client: dict = Depends(verify_api_key)):
         "roi": {
             "hours_saved": hours_saved,
             "estimated_savings": f"{money_saved}$",
-            "plan_cost": f"{plan_cost}$/mois",
-            "roi_ratio": f"{roi_ratio}x",
+            "plan_cost": "Essai gratuit 7 jours" if client.get("plan") == "trial" else f"{plan_cost}$/mois",
+            "roi_ratio": f"{roi_ratio}x" if plan_cost > 0 else "—",
             "calls_avoided": total - transfers,
             "availability": "24/7 vs heures d'ouverture"
         },
@@ -2240,15 +2386,25 @@ async def submit_inquiry(request: Request):
         if existing:
             client_id = existing[0]
             api_key = existing[1]
+            twilio_number = None
         else:
+            trial_expires = (datetime.now() + timedelta(days=7)).isoformat()
             await db.execute(
                 """INSERT INTO clients (id, business_name, owner_name, owner_email, owner_phone,
                    api_key, plan, status, created_at, updated_at, business_type, services, hours, address, info,
-                   twilio_phone, fb_page_token, fb_page_id, custom_prompt, language, max_messages_month, messages_used_month)
-                   VALUES (?, ?, ?, ?, ?, ?, 'inquiry', 'active', ?, ?, '', '', '', '', '', '', '', '', '', 'fr-CA', 0, 0)""",
+                   twilio_phone, fb_page_token, fb_page_id, custom_prompt, language, max_messages_month, messages_used_month,
+                   trial_expires_at, trial_warning_sent)
+                   VALUES (?, ?, ?, ?, ?, ?, 'trial', 'active', ?, ?, '', '', '', '', '', '', '', '', '', 'fr-CA', 200, 0, ?, 0)""",
                 (client_id, data.get("business_name", name), name, email,
-                 data.get("phone", ""), api_key, now, now)
+                 data.get("phone", ""), api_key, now, now, trial_expires)
             )
+            await db.commit()
+            # Acheter un numéro Twilio automatiquement (en arrière-plan)
+            twilio_number = await provision_twilio_number("819")
+            if twilio_number:
+                await db.execute("UPDATE clients SET twilio_phone = ? WHERE id = ?", (twilio_number, client_id))
+                await db.commit()
+                logger.info(f"Numéro Twilio {twilio_number} assigné à {email}")
 
         await db.execute(
             """INSERT INTO projects (id, client_id, title, description, service_type, status, priority,
@@ -2260,9 +2416,15 @@ async def submit_inquiry(request: Request):
         )
         await db.commit()
 
-    logger.info(f"Nouvelle demande de {name} ({email}) — service: {service_type}")
+    logger.info(f"Nouvelle demande de {name} ({email}) — service: {service_type} — trial 7 jours activé")
 
     onboarding_url = f"{APP_URL}/onboarding?key={api_key}" if APP_URL else f"/onboarding?key={api_key}"
+    twilio_section = f"""
+  <div style="background:rgba(168,104,68,0.08);border:0.5px solid rgba(168,104,68,0.3);padding:20px;margin:24px 0;">
+    <p style="margin:0 0 8px;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#A86844;">Votre numéro IA</p>
+    <p style="margin:0;font-size:1.4rem;color:#EDE8DF;font-family:monospace;">{twilio_number}</p>
+    <p style="margin:8px 0 0;font-size:0.8rem;color:#4A5260;">Partagez ce numéro à vos clients — ils peuvent déjà vous texter et l'IA répondra.</p>
+  </div>""" if twilio_number else ""
 
     # Email de bienvenue — branding Novalis copper/obsidian
     asyncio.create_task(send_email(
@@ -2279,10 +2441,11 @@ async def submit_inquiry(request: Request):
 
   <!-- Body -->
   <h1 style="color:#EDE8DF;font-size:1.9rem;font-weight:400;margin:0 0 8px;font-style:italic;">Bonjour {name},</h1>
-  <p style="color:#4A5260;margin:0 0 28px;font-size:1rem;line-height:1.6;">
-    Votre demande pour <strong style="color:#EDE8DF;">{service_type}</strong> a bien été reçue.<br>
-    Pendant que notre équipe prépare votre proposition, <strong style="color:#EDE8DF;">configurez votre assistant IA maintenant</strong> — ça prend 3 minutes.
+  <p style="color:#4A5260;margin:0 0 16px;font-size:1rem;line-height:1.6;">
+    Votre <strong style="color:#EDE8DF;">essai gratuit de 7 jours</strong> est maintenant actif.<br>
+    Configurez votre assistant IA en 3 minutes et commencez à recevoir des réponses automatiques dès aujourd'hui.
   </p>
+  {twilio_section}
 
   <!-- CTA Principal -->
   <div style="text-align:center;margin:32px 0;">
@@ -3042,6 +3205,15 @@ Ton professionnel et positif. En français québécois."""
         logger.error(f"Erreur rapport IA: {e}")
         return None
 
+async def trial_monitor_task():
+    """Vérifie les trials toutes les 12h — envoie emails J-2 et expiration."""
+    while True:
+        try:
+            await check_and_notify_trial_expiry()
+        except Exception as e:
+            logger.error(f"Erreur trial monitor: {e}")
+        await asyncio.sleep(12 * 3600)  # toutes les 12h
+
 async def weekly_report_task():
     while True:
         try:
@@ -3701,6 +3873,17 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
     c_api_key_masked = "•" * len(c_api_key)
     portal_tok = t or c.get("portal_token", "")
 
+    # Bannière trial
+    trial_exp_date = c.get("trial_expires_at", "")[:10] if c.get("trial_expires_at") else "—"
+    trial_banner = (
+        f'<div style="background:rgba(168,104,68,0.08);border:0.5px solid rgba(168,104,68,0.35);'
+        f'padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">'
+        f'<div><p style="margin:0 0 2px;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#A86844;">Essai gratuit</p>'
+        f'<p style="margin:0;color:#EDE8DF;font-size:0.85rem;">Votre trial se termine le <strong>{trial_exp_date}</strong> — passez à un plan pour continuer.</p></div>'
+        f'<a href="#" onclick="upgradePlan(event,\'starter\')" style="background:#A86844;color:#EDE8DF;text-decoration:none;padding:8px 20px;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;border:0.5px solid #C4895A;white-space:nowrap;">Choisir un plan →</a>'
+        f'</div>'
+    ) if c.get("plan") == "trial" else ""
+
     portal_html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -3811,6 +3994,7 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
       <div class="pg-hdr">
         <div><div class="pg-title">Tableau de bord</div><div class="pg-sub">30 derniers jours</div></div>
       </div>
+      {trial_banner}
       <div class="stats-row" id="statsRow"><div class="sc" style="grid-column:1/-1;color:var(--dim);">Chargement…</div></div>
       <div class="row2">
         <div class="card"><div class="card-title">Activité quotidienne</div><div class="chart-wrap"><canvas id="chartAct"></canvas></div></div>
@@ -4046,6 +4230,12 @@ const API_KEY = '{c_api_key}';
 const H = {{'X-API-Key': API_KEY}};
 let charts = {{}};
 
+async function upgradePlan(e, plan) {{
+  e.preventDefault();
+  const r = await fetch('/api/v1/checkout/'+plan, {{method:'POST',headers:{{'X-API-Key':API_KEY}}}});
+  if(r.ok){{const d=await r.json();window.location.href=d.checkout_url;}}
+  else alert('Erreur — contactez novalisproia@gmail.com');
+}}
 function nav(btn, name) {{
   document.querySelectorAll('.nl').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -4615,29 +4805,59 @@ async def handle_stripe_webhook(request: Request):
     event_type = event.get("type", "")
     data = event.get("data", {}).get("object", {})
 
+    plan_limits = {"starter": 500, "pro": 2000, "enterprise": 0}  # 0 = illimité
+
     if event_type == "checkout.session.completed":
         client_id = data.get("metadata", {}).get("client_id")
         plan = data.get("metadata", {}).get("plan")
         stripe_customer = data.get("customer", "")
         if client_id and plan:
+            max_msgs = plan_limits.get(plan, 500)
             async with aiosqlite.connect(DB_PATH) as db:
                 await db.execute(
-                    "UPDATE clients SET plan = ?, stripe_customer_id = ?, status = 'active', updated_at = ? WHERE id = ?",
-                    (plan, stripe_customer, datetime.now().isoformat(), client_id)
+                    """UPDATE clients SET plan = ?, stripe_customer_id = ?, status = 'active',
+                       trial_expires_at = '', max_messages_month = ?, updated_at = ? WHERE id = ?""",
+                    (plan, stripe_customer, max_msgs, datetime.now().isoformat(), client_id)
                 )
                 await db.commit()
-            logger.info(f"Client {client_id} → plan {plan} activé via Stripe")
+                db.row_factory = aiosqlite.Row
+                cur = await db.execute("SELECT * FROM clients WHERE id = ?", (client_id,))
+                c = dict(await cur.fetchone())
+            logger.info(f"Client {client_id} → plan {plan} activé via Stripe ({max_msgs} msg/mois)")
+            plan_names = {"starter": "Starter — 497$/mois", "pro": "Pro — 1 497$/mois", "enterprise": "Entreprise"}
+            asyncio.create_task(send_email(
+                to=c["owner_email"],
+                subject=f"✓ Bienvenue sur le plan {plan.capitalize()} — Novalis IA",
+                body=f"""<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#090C0F;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+  <div style="border-bottom:1px solid rgba(168,104,68,0.3);padding-bottom:20px;margin-bottom:28px;">
+    <p style="margin:0;font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;">Novalis IA</p>
+  </div>
+  <h1 style="color:#EDE8DF;font-size:1.6rem;font-weight:400;margin:0 0 12px;font-style:italic;">Paiement confirmé !</h1>
+  <p style="color:#4A5260;font-size:0.95rem;line-height:1.7;margin:0 0 20px;">
+    Votre plan <strong style="color:#EDE8DF;">{plan_names.get(plan, plan)}</strong> est maintenant actif.
+    Votre assistant IA continue de répondre à vos clients 24/7.
+  </p>
+  <div style="text-align:center;margin:28px 0;">
+    <a href="{APP_URL or ''}/portal?key={c['api_key']}" style="display:inline-block;background:#A86844;color:#EDE8DF;text-decoration:none;padding:12px 32px;font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;border:1px solid #C4895A;">
+      Accéder à mon portail →
+    </a>
+  </div>
+  <p style="color:#4A5260;font-size:0.78rem;">Questions ? <a href="mailto:{ADMIN_EMAIL}" style="color:#A86844;">{ADMIN_EMAIL}</a></p>
+</div></body></html>"""
+            ))
 
     elif event_type == "customer.subscription.deleted":
         stripe_customer = data.get("customer", "")
         if stripe_customer:
             async with aiosqlite.connect(DB_PATH) as db:
                 await db.execute(
-                    "UPDATE clients SET plan = 'starter', updated_at = ? WHERE stripe_customer_id = ?",
+                    "UPDATE clients SET plan = 'trial', max_messages_month = 0, status = 'active', updated_at = ? WHERE stripe_customer_id = ?",
                     (datetime.now().isoformat(), stripe_customer)
                 )
                 await db.commit()
-            logger.info(f"Abonnement annulé — customer Stripe {stripe_customer} rétrogradé au plan starter")
+            logger.info(f"Abonnement annulé — customer Stripe {stripe_customer}")
 
     return {"status": "ok"}
 
