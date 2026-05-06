@@ -3873,6 +3873,17 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
     c_api_key_masked = "•" * len(c_api_key)
     portal_tok = t or c.get("portal_token", "")
 
+    # Bannière trial
+    trial_exp_date = c.get("trial_expires_at", "")[:10] if c.get("trial_expires_at") else "—"
+    trial_banner = (
+        f'<div style="background:rgba(168,104,68,0.08);border:0.5px solid rgba(168,104,68,0.35);'
+        f'padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">'
+        f'<div><p style="margin:0 0 2px;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#A86844;">Essai gratuit</p>'
+        f'<p style="margin:0;color:#EDE8DF;font-size:0.85rem;">Votre trial se termine le <strong>{trial_exp_date}</strong> — passez à un plan pour continuer.</p></div>'
+        f'<a href="#" onclick="upgradePlan(event,\'starter\')" style="background:#A86844;color:#EDE8DF;text-decoration:none;padding:8px 20px;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;border:0.5px solid #C4895A;white-space:nowrap;">Choisir un plan →</a>'
+        f'</div>'
+    ) if c.get("plan") == "trial" else ""
+
     portal_html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -3983,6 +3994,7 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
       <div class="pg-hdr">
         <div><div class="pg-title">Tableau de bord</div><div class="pg-sub">30 derniers jours</div></div>
       </div>
+      {trial_banner}
       <div class="stats-row" id="statsRow"><div class="sc" style="grid-column:1/-1;color:var(--dim);">Chargement…</div></div>
       <div class="row2">
         <div class="card"><div class="card-title">Activité quotidienne</div><div class="chart-wrap"><canvas id="chartAct"></canvas></div></div>
@@ -4218,6 +4230,12 @@ const API_KEY = '{c_api_key}';
 const H = {{'X-API-Key': API_KEY}};
 let charts = {{}};
 
+async function upgradePlan(e, plan) {{
+  e.preventDefault();
+  const r = await fetch('/api/v1/checkout/'+plan, {{method:'POST',headers:{{'X-API-Key':API_KEY}}}});
+  if(r.ok){{const d=await r.json();window.location.href=d.checkout_url;}}
+  else alert('Erreur — contactez novalisproia@gmail.com');
+}}
 function nav(btn, name) {{
   document.querySelectorAll('.nl').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -4787,29 +4805,59 @@ async def handle_stripe_webhook(request: Request):
     event_type = event.get("type", "")
     data = event.get("data", {}).get("object", {})
 
+    plan_limits = {"starter": 500, "pro": 2000, "enterprise": 0}  # 0 = illimité
+
     if event_type == "checkout.session.completed":
         client_id = data.get("metadata", {}).get("client_id")
         plan = data.get("metadata", {}).get("plan")
         stripe_customer = data.get("customer", "")
         if client_id and plan:
+            max_msgs = plan_limits.get(plan, 500)
             async with aiosqlite.connect(DB_PATH) as db:
                 await db.execute(
-                    "UPDATE clients SET plan = ?, stripe_customer_id = ?, status = 'active', updated_at = ? WHERE id = ?",
-                    (plan, stripe_customer, datetime.now().isoformat(), client_id)
+                    """UPDATE clients SET plan = ?, stripe_customer_id = ?, status = 'active',
+                       trial_expires_at = '', max_messages_month = ?, updated_at = ? WHERE id = ?""",
+                    (plan, stripe_customer, max_msgs, datetime.now().isoformat(), client_id)
                 )
                 await db.commit()
-            logger.info(f"Client {client_id} → plan {plan} activé via Stripe")
+                db.row_factory = aiosqlite.Row
+                cur = await db.execute("SELECT * FROM clients WHERE id = ?", (client_id,))
+                c = dict(await cur.fetchone())
+            logger.info(f"Client {client_id} → plan {plan} activé via Stripe ({max_msgs} msg/mois)")
+            plan_names = {"starter": "Starter — 497$/mois", "pro": "Pro — 1 497$/mois", "enterprise": "Entreprise"}
+            asyncio.create_task(send_email(
+                to=c["owner_email"],
+                subject=f"✓ Bienvenue sur le plan {plan.capitalize()} — Novalis IA",
+                body=f"""<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#090C0F;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+  <div style="border-bottom:1px solid rgba(168,104,68,0.3);padding-bottom:20px;margin-bottom:28px;">
+    <p style="margin:0;font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;">Novalis IA</p>
+  </div>
+  <h1 style="color:#EDE8DF;font-size:1.6rem;font-weight:400;margin:0 0 12px;font-style:italic;">Paiement confirmé !</h1>
+  <p style="color:#4A5260;font-size:0.95rem;line-height:1.7;margin:0 0 20px;">
+    Votre plan <strong style="color:#EDE8DF;">{plan_names.get(plan, plan)}</strong> est maintenant actif.
+    Votre assistant IA continue de répondre à vos clients 24/7.
+  </p>
+  <div style="text-align:center;margin:28px 0;">
+    <a href="{APP_URL or ''}/portal?key={c['api_key']}" style="display:inline-block;background:#A86844;color:#EDE8DF;text-decoration:none;padding:12px 32px;font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;border:1px solid #C4895A;">
+      Accéder à mon portail →
+    </a>
+  </div>
+  <p style="color:#4A5260;font-size:0.78rem;">Questions ? <a href="mailto:{ADMIN_EMAIL}" style="color:#A86844;">{ADMIN_EMAIL}</a></p>
+</div></body></html>"""
+            ))
 
     elif event_type == "customer.subscription.deleted":
         stripe_customer = data.get("customer", "")
         if stripe_customer:
             async with aiosqlite.connect(DB_PATH) as db:
                 await db.execute(
-                    "UPDATE clients SET plan = 'starter', updated_at = ? WHERE stripe_customer_id = ?",
+                    "UPDATE clients SET plan = 'trial', max_messages_month = 0, status = 'active', updated_at = ? WHERE stripe_customer_id = ?",
                     (datetime.now().isoformat(), stripe_customer)
                 )
                 await db.commit()
-            logger.info(f"Abonnement annulé — customer Stripe {stripe_customer} rétrogradé au plan starter")
+            logger.info(f"Abonnement annulé — customer Stripe {stripe_customer}")
 
     return {"status": "ok"}
 
