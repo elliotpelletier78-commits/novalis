@@ -1827,6 +1827,20 @@ async def complete_onboarding(client: dict = Depends(verify_api_key)):
     return {"status": "onboarding_complete"}
 
 
+@app.post("/api/v1/me/portal-token")
+async def generate_portal_token(client: dict = Depends(verify_api_key)):
+    """Génère ou renouvelle le token d'accès au portail (30 jours)."""
+    tok = secrets.token_urlsafe(32)
+    expires_at = (datetime.now() + timedelta(days=30)).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE clients SET portal_token = ?, portal_token_expires_at = ? WHERE id = ?",
+            (tok, expires_at, client["id"])
+        )
+        await db.commit()
+    portal_url = f"{APP_URL}/portal?t={tok}" if APP_URL else f"/portal?t={tok}"
+    return {"token": tok, "portal_url": portal_url, "expires_at": expires_at}
+
 @app.get("/api/v1/me/stats")
 async def get_my_stats(days: int = Query(30, ge=1, le=365), client: dict = Depends(verify_api_key)):
     """Stats du client authentifié."""
@@ -2021,7 +2035,8 @@ async def get_roi_report(client: dict = Depends(verify_api_key)):
         hours_saved = round(total * avg_call_duration_min / 60, 1)
         money_saved = round(total * avg_call_cost, 2)
 
-        plan_cost = {"starter": 497, "pro": 1497, "agence": 1497, "enterprise": 2500}.get(client.get("plan", "starter"), 497)
+        plan_map = {"starter": 497, "pro": 1497, "agence": 1497, "enterprise": 2500, "trial": 0}
+        plan_cost = plan_map.get(client.get("plan", "starter"), 497)
         roi_ratio = round(money_saved / plan_cost, 1) if plan_cost > 0 else 0
 
     return {
@@ -2038,8 +2053,8 @@ async def get_roi_report(client: dict = Depends(verify_api_key)):
         "roi": {
             "hours_saved": hours_saved,
             "estimated_savings": f"{money_saved}$",
-            "plan_cost": f"{plan_cost}$/mois",
-            "roi_ratio": f"{roi_ratio}x",
+            "plan_cost": "Essai gratuit 7 jours" if client.get("plan") == "trial" else f"{plan_cost}$/mois",
+            "roi_ratio": f"{roi_ratio}x" if plan_cost > 0 else "—",
             "calls_avoided": total - transfers,
             "availability": "24/7 vs heures d'ouverture"
         },
