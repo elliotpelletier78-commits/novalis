@@ -4891,6 +4891,27 @@ async def billing_portal(request: Request, client: dict = Depends(verify_api_key
 # ============================================================
 # LANDING PAGE PUBLIQUE
 # ============================================================
+@app.get("/sitemap.xml")
+async def sitemap():
+    path = os.path.join(_FRONTEND_DIST, "sitemap.xml")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="application/xml")
+    return Response(status_code=404)
+
+@app.get("/robots.txt")
+async def robots():
+    path = os.path.join(_FRONTEND_DIST, "robots.txt")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="text/plain")
+    return Response(status_code=404)
+
+@app.get("/favicon.svg")
+async def favicon():
+    path = os.path.join(_FRONTEND_DIST, "favicon.svg")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="image/svg+xml")
+    return Response(status_code=404)
+
 @app.get("/", response_class=HTMLResponse)
 async def landing_page():
     """Sert le build React s'il existe, sinon la landing HTML statique."""
