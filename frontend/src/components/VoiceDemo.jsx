@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import Vapi from '@vapi-ai/web'
 
 const VAPI_PUBLIC_KEY = import.meta.env.VITE_VAPI_PUBLIC_KEY || '448ebe91-bb02-4e05-bdf4-1afef203072b'
-const VAPI_ASSISTANT_ID = import.meta.env.VITE_VAPI_ASSISTANT_ID || ''
+const VAPI_ASSISTANT_ID = import.meta.env.VITE_VAPI_ASSISTANT_ID || 'cc9ca066-4b80-49ef-ae41-22a6d59c5a8d'
 
 export default function VoiceDemo() {
   const [status, setStatus] = useState('idle') // idle | connecting | active | ended
