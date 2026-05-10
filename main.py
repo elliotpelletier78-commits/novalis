@@ -2443,6 +2443,23 @@ async def submit_inquiry(request: Request):
 
     logger.info(f"Nouvelle demande de {name} ({email}) — service: {service_type} — trial 7 jours activé")
 
+    # Analyse IA + création assistant Vapi en arrière-plan
+    ai_profile = await analyze_inquiry_with_ai(name, str(description), str(service_type))
+    vapi_assistant_id = None
+    if ai_profile.get("system_prompt"):
+        vapi_assistant_id = await create_vapi_assistant(
+            client_name=data.get("business_name", name),
+            agent_name=ai_profile.get("agent_name", "Sophie"),
+            system_prompt=ai_profile["system_prompt"],
+            first_message=ai_profile.get("first_message", f"Bonjour, comment puis-je vous aider ?")
+        )
+        if vapi_assistant_id:
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute("UPDATE clients SET custom_prompt = ? WHERE id = ?",
+                                 (ai_profile["system_prompt"], client_id))
+                await db.commit()
+            logger.info(f"Assistant Vapi créé: {vapi_assistant_id} pour {email}")
+
     onboarding_url = f"{APP_URL}/onboarding?key={api_key}" if APP_URL else f"/onboarding?key={api_key}"
     # Échapper les entrées utilisateur avant injection dans HTML
     h_name         = html_module.escape(name)
@@ -2456,61 +2473,65 @@ async def submit_inquiry(request: Request):
     <p style="margin:8px 0 0;font-size:0.8rem;color:#4A5260;">Partagez ce numéro à vos clients — ils peuvent déjà vous texter et l'IA répondra.</p>
   </div>""" if twilio_number else ""
 
-    # Email de bienvenue — branding Novalis copper/obsidian
+    # Email de bienvenue — personnalisé par IA si disponible
+    agent_name = ai_profile.get("agent_name", "Sophie") if ai_profile else "Sophie"
+    email_hook = ai_profile.get("email_hook", f"Votre essai gratuit de 7 jours est maintenant actif.") if ai_profile else f"Votre essai gratuit de 7 jours est maintenant actif."
+    pain_points = ai_profile.get("pain_points", "") if ai_profile else ""
+    vapi_section = f"""
+  <div style="background:rgba(168,104,68,0.08);border:0.5px solid rgba(168,104,68,0.3);padding:20px;margin:24px 0;">
+    <p style="margin:0 0 8px;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#A86844;">Votre agent IA — {html_module.escape(agent_name)}</p>
+    <p style="margin:0 0 12px;color:#EDE8DF;font-size:0.9rem;">L'agent a été configuré spécifiquement pour votre business. Testez-le maintenant :</p>
+    <a href="{APP_URL or ''}/onboarding?key={api_key}" style="color:#A86844;font-size:0.85rem;">Accéder à mon portail →</a>
+  </div>""" if vapi_assistant_id else ""
     asyncio.create_task(send_email(
         to=email,
-        subject=f"Bienvenue chez Novalis IA — Configurez votre assistant maintenant",
+        subject=f"{agent_name} est prête — votre agent IA Novalis est configuré",
         body=f"""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#090C0F;font-family:'Segoe UI',Arial,sans-serif;">
 <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
 
-  <!-- Header -->
   <div style="border-bottom:1px solid rgba(168,104,68,0.3);padding-bottom:24px;margin-bottom:32px;">
     <p style="margin:0;font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;">Novalis IA</p>
   </div>
 
-  <!-- Body -->
   <h1 style="color:#EDE8DF;font-size:1.9rem;font-weight:400;margin:0 0 8px;font-style:italic;">Bonjour {h_name},</h1>
   <p style="color:#4A5260;margin:0 0 16px;font-size:1rem;line-height:1.6;">
-    Votre <strong style="color:#EDE8DF;">essai gratuit de 7 jours</strong> est maintenant actif.<br>
-    Configurez votre assistant IA en 3 minutes et commencez à recevoir des réponses automatiques dès aujourd'hui.
+    {html_module.escape(email_hook)}<br>
+    {f'<strong style="color:#EDE8DF;">{html_module.escape(pain_points)}</strong>' if pain_points else ''}
   </p>
+  {vapi_section}
   {twilio_section}
 
-  <!-- CTA Principal -->
   <div style="text-align:center;margin:32px 0;">
     <a href="{onboarding_url}"
        style="display:inline-block;background:#A86844;color:#EDE8DF;text-decoration:none;
               padding:14px 36px;font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;
               border:1px solid #C4895A;">
-      Configurer mon assistant →
+      Accéder à mon portail →
     </a>
   </div>
 
-  <!-- Steps -->
   <div style="border:0.5px solid rgba(168,104,68,0.2);padding:24px;margin:24px 0;">
-    <p style="margin:0 0 16px;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#A86844;">Ce qui vous attend</p>
+    <p style="margin:0 0 16px;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#A86844;">Prochaines étapes</p>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div style="display:flex;align-items:flex-start;gap:12px;">
         <span style="color:#A86844;font-size:0.7rem;margin-top:2px;min-width:16px;">01</span>
-        <p style="margin:0;color:#EDE8DF;font-size:0.85rem;">Profil de votre entreprise — nom, heures, services</p>
+        <p style="margin:0;color:#EDE8DF;font-size:0.85rem;">Complétez le profil de votre entreprise dans le portail</p>
       </div>
       <div style="display:flex;align-items:flex-start;gap:12px;">
         <span style="color:#A86844;font-size:0.7rem;margin-top:2px;min-width:16px;">02</span>
-        <p style="margin:0;color:#EDE8DF;font-size:0.85rem;">Base de connaissances — collez votre FAQ, catalogue, politiques</p>
+        <p style="margin:0;color:#EDE8DF;font-size:0.85rem;">Ajoutez votre FAQ et vos services dans la base de connaissances</p>
       </div>
       <div style="display:flex;align-items:flex-start;gap:12px;">
         <span style="color:#A86844;font-size:0.7rem;margin-top:2px;min-width:16px;">03</span>
-        <p style="margin:0;color:#EDE8DF;font-size:0.85rem;">Accès à votre portail — analytics, conversations, gestion</p>
+        <p style="margin:0;color:#EDE8DF;font-size:0.85rem;">Notre équipe vous appelle dans les 24h pour finaliser le déploiement</p>
       </div>
     </div>
   </div>
 
-  <!-- Reference -->
   <p style="color:#4A5260;font-size:0.78rem;margin:16px 0 0;">Référence : <span style="color:#EDE8DF;font-family:monospace;">{proj_id}</span></p>
-  <p style="color:#4A5260;font-size:0.78rem;margin:4px 0 0;">Questions ? Écrivez-nous à <a href="mailto:{ADMIN_EMAIL}" style="color:#A86844;">{ADMIN_EMAIL}</a></p>
+  <p style="color:#4A5260;font-size:0.78rem;margin:4px 0 0;">Questions ? <a href="mailto:{ADMIN_EMAIL}" style="color:#A86844;">{ADMIN_EMAIL}</a></p>
 
-  <!-- Footer -->
   <div style="border-top:0.5px solid rgba(237,232,223,0.08);margin-top:40px;padding-top:20px;">
     <p style="color:#4A5260;font-size:0.72rem;margin:0;">Novalis IA · Québec · <a href="{APP_URL or ''}/portal?key={api_key}" style="color:#A86844;">Accès portail</a></p>
   </div>
@@ -2519,6 +2540,16 @@ async def submit_inquiry(request: Request):
     ))
 
     # Email de notification à l'admin
+    ai_summary = ""
+    if ai_profile:
+        ai_summary = f"""
+<div style="background:rgba(168,104,68,0.08);border:0.5px solid rgba(168,104,68,0.3);padding:16px;margin:16px 0;">
+  <p style="margin:0 0 8px;color:#A86844;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.1em;">Analyse IA</p>
+  <p style="margin:0 0 4px;"><b>Business :</b> {html_module.escape(ai_profile.get('business_type',''))}</p>
+  <p style="margin:0 0 4px;"><b>Agent :</b> {html_module.escape(ai_profile.get('agent_name',''))}</p>
+  <p style="margin:0 0 4px;"><b>Problème résolu :</b> {html_module.escape(ai_profile.get('pain_points',''))}</p>
+  <p style="margin:0;"><b>Assistant Vapi :</b> {vapi_assistant_id or 'non créé'}</p>
+</div>"""
     asyncio.create_task(send_email(
         to=ADMIN_EMAIL,
         subject=f"🔔 Nouvelle demande : {name} — {service_type}",
@@ -2528,6 +2559,7 @@ async def submit_inquiry(request: Request):
 <p><b>Email :</b> {h_email}</p>
 <p><b>Service :</b> {h_service_type}</p>
 <p><b>Description :</b> {h_description}</p>
+{ai_summary}
 <p><b>Clé API :</b> <code style="background:rgba(168,104,68,0.1);color:#C4895A;padding:2px 6px;">{api_key}</code></p>
 <p><a href="{APP_URL or ''}/onboarding?key={api_key}" style="color:#A86844;">Lien onboarding client</a></p>
 </div>"""
@@ -2550,6 +2582,84 @@ async def submit_inquiry(request: Request):
         "message": "Merci ! Nous avons reçu votre demande et vous contacterons sous 24h.",
         "api_key": api_key
     }
+
+# ============================================================
+# ONBOARDING IA AUTOMATIQUE
+# ============================================================
+
+async def analyze_inquiry_with_ai(name: str, description: str, service_type: str) -> dict:
+    """Utilise Claude pour analyser la demande et générer un profil client + prompt agent."""
+    if not claude_client:
+        return {}
+    try:
+        resp = claude_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1200,
+            messages=[{"role": "user", "content": f"""Analyse cette demande d'un client québécois pour un agent IA.
+
+Nom: {name}
+Type de service: {service_type}
+Description: {description}
+
+Réponds UNIQUEMENT en JSON valide avec ces champs:
+{{
+  "business_type": "type de business en 3 mots max",
+  "language": "fr" ou "en",
+  "agent_name": "prénom féminin québécois pour l'agent",
+  "tone": "professionnel" ou "chaleureux" ou "dynamique",
+  "key_services": ["service1", "service2", "service3"],
+  "pain_points": "problème principal que l'IA va résoudre en 1 phrase",
+  "system_prompt": "prompt complet pour l'agent IA (2-3 paragraphes, en français québécois naturel, incluant: rôle, style de communication, ce que l'agent peut faire pour ce client spécifique)",
+  "first_message": "premier message que l'agent dit quand il répond (naturel, 1 phrase)",
+  "email_hook": "phrase d'accroche personnalisée pour l'email de bienvenue (mentionne leur business spécifique)"
+}}"""
+            }]
+        )
+        import json as _json
+        text = resp.content[0].text.strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        return _json.loads(text.strip())
+    except Exception as e:
+        logger.error(f"Erreur analyse IA: {e}")
+        return {}
+
+async def create_vapi_assistant(client_name: str, agent_name: str, system_prompt: str, first_message: str) -> str | None:
+    """Crée un assistant Vapi via l'API et retourne son ID."""
+    if not VAPI_API_KEY:
+        return None
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=15) as http:
+            r = await http.post(
+                "https://api.vapi.ai/assistant",
+                headers={"Authorization": f"Bearer {VAPI_API_KEY}", "Content-Type": "application/json"},
+                json={
+                    "name": f"{agent_name} — {client_name}",
+                    "firstMessage": first_message,
+                    "firstMessageMode": "assistant-speaks-first",
+                    "transcriber": {"provider": "deepgram", "model": "nova-2", "language": "fr", "smartFormat": True},
+                    "model": {
+                        "provider": "anthropic",
+                        "model": "claude-haiku-4-5-20251001",
+                        "temperature": 0.7,
+                        "maxTokens": 200,
+                        "messages": [{"role": "system", "content": system_prompt}]
+                    },
+                    "voice": {"provider": "11labs", "voiceId": "cgSgspJ2msm6clMCkdW9", "stability": 0.35, "similarityBoost": 0.75},
+                    "endCallFunctionEnabled": True,
+                    "recordingEnabled": False,
+                }
+            )
+        if r.status_code == 201:
+            return r.json().get("id")
+        logger.warning(f"Vapi assistant creation: {r.status_code} {r.text[:200]}")
+        return None
+    except Exception as e:
+        logger.error(f"Erreur création assistant Vapi: {e}")
+        return None
 
 # ============================================================
 # TEST SMS (debug)
