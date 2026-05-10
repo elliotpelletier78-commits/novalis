@@ -4913,6 +4913,89 @@ async def billing_portal(request: Request, client: dict = Depends(verify_api_key
 
 
 # ============================================================
+# GRANIT COM — CONFIGURATEUR MARQUEURS
+# ============================================================
+@app.get("/marker-config", response_class=HTMLResponse)
+async def marker_config():
+    path = os.path.join(_FRONTEND_DIST, "marker-config.html")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="text/html")
+    raise HTTPException(status_code=404)
+
+
+@app.post("/api/marker-orders")
+async def create_marker_order(request: Request):
+    data = await request.json()
+    required = ["line1", "customer_name", "customer_email", "customer_address"]
+    for field in required:
+        if not data.get(field, "").strip():
+            raise HTTPException(status_code=422, detail=f"Champ requis manquant: {field}")
+
+    order_id = str(uuid.uuid4())
+    now = datetime.utcnow().isoformat()
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS marker_orders (
+                id TEXT PRIMARY KEY,
+                client_id TEXT DEFAULT 'granitecom',
+                model TEXT,
+                font TEXT,
+                line1 TEXT,
+                line2 TEXT,
+                line3 TEXT,
+                customer_name TEXT,
+                customer_email TEXT,
+                customer_phone TEXT,
+                customer_address TEXT,
+                status TEXT DEFAULT 'new',
+                created_at TEXT
+            )
+        """)
+        await db.execute(
+            """INSERT INTO marker_orders
+               (id,client_id,model,font,line1,line2,line3,customer_name,customer_email,customer_phone,customer_address,created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (order_id, data.get("client_id","granitecom"),
+             data.get("model",""), data.get("font",""),
+             data.get("line1",""), data.get("line2",""), data.get("line3",""),
+             data["customer_name"], data["customer_email"],
+             data.get("customer_phone",""), data["customer_address"], now)
+        )
+        await db.commit()
+
+    if SMTP_HOST:
+        try:
+            msg = MIMEMultipart()
+            msg["From"] = SMTP_FROM
+            msg["To"] = ADMIN_EMAIL
+            msg["Subject"] = f"[Granit Com] Nouvelle commande marqueur — {data['customer_name']}"
+            body = (f"Commande #{order_id[:8]}\n\n"
+                    f"Modèle : {data.get('model')}\nPolice : {data.get('font')}\n"
+                    f"Ligne 1 : {data.get('line1')}\nLigne 2 : {data.get('line2')}\nLigne 3 : {data.get('line3')}\n\n"
+                    f"Client : {data['customer_name']}\nCourriel : {data['customer_email']}\n"
+                    f"Téléphone : {data.get('customer_phone','—')}\nAdresse : {data['customer_address']}")
+            msg.attach(MIMEText(body, "plain"))
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+                s.starttls()
+                s.login(SMTP_USER, SMTP_PASS)
+                s.send_message(msg)
+        except Exception as e:
+            logger.error(f"Email commande marqueur: {e}")
+
+    return {"order_id": order_id, "status": "received"}
+
+
+@app.get("/api/marker-orders")
+async def list_marker_orders(credentials: HTTPBasicCredentials = Depends(verify_admin)):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT * FROM marker_orders ORDER BY created_at DESC")
+        rows = await cursor.fetchall()
+    return [dict(r) for r in rows]
+
+
+# ============================================================
 # VAPI — WEBHOOKS AGENT VOCAL
 # ============================================================
 @app.post("/vapi/webhook")
