@@ -4931,6 +4931,19 @@ async def granitecom_pricing():
     raise HTTPException(status_code=404)
 
 
+@app.get("/chatbot-ia-quebec", response_class=HTMLResponse)
+async def seo_chatbot():
+    return FileResponse(os.path.join(_FRONTEND_DIST, "chatbot-ia-quebec.html"), media_type="text/html")
+
+@app.get("/automatisation-ia-pme-quebec", response_class=HTMLResponse)
+async def seo_automatisation():
+    return FileResponse(os.path.join(_FRONTEND_DIST, "automatisation-ia-pme-quebec.html"), media_type="text/html")
+
+@app.get("/agent-vocal-ia-quebec", response_class=HTMLResponse)
+async def seo_agent_vocal():
+    return FileResponse(os.path.join(_FRONTEND_DIST, "agent-vocal-ia-quebec.html"), media_type="text/html")
+
+
 @app.get("/pet-marker-config", response_class=HTMLResponse)
 async def pet_marker_config():
     path = os.path.join(_FRONTEND_DIST, "pet-marker-config.html")
