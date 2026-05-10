@@ -4291,7 +4291,11 @@ async function upgradePlan(e, plan) {{
   e.preventDefault();
   const r = await fetch('/api/v1/checkout/'+plan, {{method:'POST',headers:{{'X-API-Key':API_KEY}}}});
   if(r.ok){{const d=await r.json();window.location.href=d.checkout_url;}}
-  else alert('Erreur — contactez novalisproia@gmail.com');
+  else {{
+    const r2 = await fetch('/api/v1/plan-request', {{method:'POST',headers:{{'X-API-Key':API_KEY,'Content-Type':'application/json'}},body:JSON.stringify({{plan}})}});
+    if(r2.ok) alert('✅ Demande reçue ! L\'équipe Novalis vous contacte dans les 24h pour finaliser votre abonnement ' + plan + '.');
+    else alert('Demande envoyée — contactez novalisproia@gmail.com pour finaliser votre plan.');
+  }}
 }}
 function nav(btn, name) {{
   document.querySelectorAll('.nl').forEach(n=>n.classList.remove('active'));
@@ -4808,6 +4812,26 @@ async def og_image():
 </svg>"""
     return Response(content=svg, media_type="image/svg+xml",
                     headers={"Cache-Control": "public, max-age=86400"})
+
+@app.post("/api/v1/plan-request")
+@limiter.limit("3/minute")
+async def plan_request(request: Request, client: dict = Depends(verify_api_key)):
+    data = await request.json()
+    plan = data.get("plan", "inconnu")
+    name = client.get("owner_name", "")
+    email = client.get("owner_email", "")
+    asyncio.create_task(send_email(
+        to=ADMIN_EMAIL,
+        subject=f"💳 Demande de plan {plan} — {name}",
+        body=f"""<div style="font-family:sans-serif;max-width:500px;background:#090C0F;color:#EDE8DF;padding:24px;">
+<h2 style="color:#A86844;">Demande d'abonnement</h2>
+<p><b>Client :</b> {html_module.escape(name)}</p>
+<p><b>Email :</b> {html_module.escape(email)}</p>
+<p><b>Plan demandé :</b> {html_module.escape(plan)}</p>
+<p>Contactez ce client pour finaliser la facturation.</p>
+</div>"""
+    ))
+    return {"status": "ok"}
 
 # ============================================================
 # STRIPE — Facturation abonnements (optionnel)
