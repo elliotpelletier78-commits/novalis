@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node -e \"const fs=require('fs');['marker-config.html','pet-marker-config.html','granitecom-pricing.html','sitemap.xml','robots.txt'].forEach(f=>{try{fs.copyFileSync('public/'+f,'dist/'+f)}catch{}})\"",
     "preview": "vite preview"
   },
   "dependencies": {
