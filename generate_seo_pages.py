@@ -1,6 +1,6 @@
 import os
 
-DIST = "/home/user/novalis/frontend/dist"
+DIST = "/home/user/novalis/frontend/public"
 
 def page(slug, title, meta_desc, h1, intro, sections, faq):
     faq_schema = ",\n".join([
