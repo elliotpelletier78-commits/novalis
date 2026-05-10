@@ -4923,6 +4923,14 @@ async def marker_config():
     raise HTTPException(status_code=404)
 
 
+@app.get("/granitecom-pricing", response_class=HTMLResponse)
+async def granitecom_pricing():
+    path = os.path.join(_FRONTEND_DIST, "granitecom-pricing.html")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="text/html")
+    raise HTTPException(status_code=404)
+
+
 @app.get("/pet-marker-config", response_class=HTMLResponse)
 async def pet_marker_config():
     path = os.path.join(_FRONTEND_DIST, "pet-marker-config.html")
