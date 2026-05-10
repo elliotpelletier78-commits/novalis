@@ -93,7 +93,7 @@ SMTP_HOST = os.getenv("SMTP_HOST", "")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
-SMTP_FROM = os.getenv("SMTP_FROM", "noreply@novalis.ai")
+SMTP_FROM = os.getenv("SMTP_FROM", "") or SMTP_USER
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "novalisproia@gmail.com")
 
 # Stripe (facturation abonnements — optionnel)
