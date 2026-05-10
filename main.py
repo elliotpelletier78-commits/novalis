@@ -2577,6 +2577,33 @@ async def test_sms(username: str = Depends(verify_admin)):
         result["sms_status"] = "variables manquantes"
     return result
 
+@app.get("/api/v1/test-email")
+async def test_email(username: str = Depends(verify_admin)):
+    config = {
+        "smtp_host": SMTP_HOST or "MANQUANT",
+        "smtp_port": SMTP_PORT,
+        "smtp_user": SMTP_USER or "MANQUANT",
+        "smtp_from": SMTP_FROM or "MANQUANT",
+        "admin_email": ADMIN_EMAIL,
+        "smtp_pass_set": bool(SMTP_PASS),
+    }
+    if not SMTP_HOST or not SMTP_USER:
+        return {"status": "non_configuré", "config": config}
+    try:
+        import smtplib
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "✅ Test email Novalis IA"
+        msg["From"] = SMTP_FROM
+        msg["To"] = ADMIN_EMAIL
+        msg.attach(MIMEText("<p>Email de test Novalis IA — tout fonctionne !</p>", "html", "utf-8"))
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_FROM, [ADMIN_EMAIL], msg.as_string())
+        return {"status": "envoyé", "to": ADMIN_EMAIL, "config": config}
+    except Exception as e:
+        return {"status": "erreur", "error": str(e), "config": config}
+
 # ============================================================
 # ANALYTICS PLATEFORME (admin)
 # ============================================================
