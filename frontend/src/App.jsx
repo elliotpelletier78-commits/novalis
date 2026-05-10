@@ -7,6 +7,7 @@ import Services from './components/Services'
 import Process from './components/Process'
 import Cases from './components/Cases'
 import Demo from './components/Demo'
+import VoiceDemo from './components/VoiceDemo'
 import AICapabilities from './components/AICapabilities'
 import Testimonials from './components/Testimonials'
 import RoiCalc from './components/RoiCalc'
@@ -30,6 +31,7 @@ export default function App() {
         <Process />
         <Cases />
         <Demo />
+        <VoiceDemo />
         <AICapabilities />
         <Testimonials />
         <RoiCalc />
