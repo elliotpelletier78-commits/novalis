@@ -104,6 +104,10 @@ STRIPE_PRICE_PRO = os.getenv("STRIPE_PRICE_PRO", "")
 STRIPE_PRICE_ENTERPRISE = os.getenv("STRIPE_PRICE_ENTERPRISE", "")
 APP_URL = os.getenv("APP_URL", "")
 
+# Vapi (agent vocal)
+VAPI_API_KEY = os.getenv("VAPI_API_KEY", "")
+VAPI_WEBHOOK_SECRET = os.getenv("VAPI_WEBHOOK_SECRET", "")
+
 stripe = None
 if STRIPE_SECRET_KEY:
     try:
@@ -494,6 +498,26 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS voice_audio (
                 id TEXT PRIMARY KEY,
                 audio_bytes BLOB NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS vapi_calls (
+                id TEXT PRIMARY KEY,
+                client_id TEXT NOT NULL DEFAULT '',
+                caller_phone TEXT DEFAULT '',
+                caller_name TEXT DEFAULT '',
+                call_intent TEXT DEFAULT '',
+                resolution TEXT DEFAULT '',
+                summary TEXT DEFAULT '',
+                follow_up_required INTEGER DEFAULT 0,
+                follow_up_note TEXT DEFAULT '',
+                recording_url TEXT DEFAULT '',
+                duration_seconds INTEGER DEFAULT 0,
+                sentiment TEXT DEFAULT '',
+                success_evaluation TEXT DEFAULT '',
+                raw_payload TEXT DEFAULT '',
                 created_at TEXT NOT NULL
             )
         """)
@@ -4886,6 +4910,268 @@ async def billing_portal(request: Request, client: dict = Depends(verify_api_key
     except Exception as e:
         logger.error(f"Stripe billing portal error: {e}")
         raise HTTPException(status_code=500, detail="Erreur Stripe — contactez le support")
+
+
+# ============================================================
+# GRANIT COM — CONFIGURATEUR MARQUEURS
+# ============================================================
+@app.get("/marker-config", response_class=HTMLResponse)
+async def marker_config():
+    path = os.path.join(_FRONTEND_DIST, "marker-config.html")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="text/html")
+    raise HTTPException(status_code=404)
+
+
+@app.post("/api/marker-orders")
+async def create_marker_order(request: Request):
+    data = await request.json()
+    required = ["line1", "customer_name", "customer_email", "customer_address"]
+    for field in required:
+        if not data.get(field, "").strip():
+            raise HTTPException(status_code=422, detail=f"Champ requis manquant: {field}")
+
+    order_id = str(uuid.uuid4())
+    now = datetime.utcnow().isoformat()
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS marker_orders (
+                id TEXT PRIMARY KEY,
+                client_id TEXT DEFAULT 'granitecom',
+                model TEXT,
+                font TEXT,
+                line1 TEXT,
+                line2 TEXT,
+                line3 TEXT,
+                customer_name TEXT,
+                customer_email TEXT,
+                customer_phone TEXT,
+                customer_address TEXT,
+                status TEXT DEFAULT 'new',
+                created_at TEXT
+            )
+        """)
+        await db.execute(
+            """INSERT INTO marker_orders
+               (id,client_id,model,font,line1,line2,line3,customer_name,customer_email,customer_phone,customer_address,created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (order_id, data.get("client_id","granitecom"),
+             data.get("model",""), data.get("font",""),
+             data.get("line1",""), data.get("line2",""), data.get("line3",""),
+             data["customer_name"], data["customer_email"],
+             data.get("customer_phone",""), data["customer_address"], now)
+        )
+        await db.commit()
+
+    if SMTP_HOST:
+        try:
+            msg = MIMEMultipart()
+            msg["From"] = SMTP_FROM
+            msg["To"] = ADMIN_EMAIL
+            msg["Subject"] = f"[Granit Com] Nouvelle commande marqueur — {data['customer_name']}"
+            body = (f"Commande #{order_id[:8]}\n\n"
+                    f"Modèle : {data.get('model')}\nPolice : {data.get('font')}\n"
+                    f"Ligne 1 : {data.get('line1')}\nLigne 2 : {data.get('line2')}\nLigne 3 : {data.get('line3')}\n\n"
+                    f"Client : {data['customer_name']}\nCourriel : {data['customer_email']}\n"
+                    f"Téléphone : {data.get('customer_phone','—')}\nAdresse : {data['customer_address']}")
+            msg.attach(MIMEText(body, "plain"))
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+                s.starttls()
+                s.login(SMTP_USER, SMTP_PASS)
+                s.send_message(msg)
+        except Exception as e:
+            logger.error(f"Email commande marqueur: {e}")
+
+    return {"order_id": order_id, "status": "received"}
+
+
+@app.get("/api/marker-orders")
+async def list_marker_orders(credentials: HTTPBasicCredentials = Depends(verify_admin)):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT * FROM marker_orders ORDER BY created_at DESC")
+        rows = await cursor.fetchall()
+    return [dict(r) for r in rows]
+
+
+# ============================================================
+# VAPI — WEBHOOKS AGENT VOCAL
+# ============================================================
+@app.post("/vapi/webhook")
+async def vapi_webhook(request: Request):
+    """Reçoit les événements Vapi : tool-calls (sendCallSummary, bookAppointment) et end-of-call-report."""
+    if VAPI_WEBHOOK_SECRET:
+        sig = request.headers.get("x-vapi-signature", "")
+        body = await request.body()
+        expected = hmac.new(VAPI_WEBHOOK_SECRET.encode(), body, digestmod="sha256").hexdigest()
+        if not hmac.compare_digest(sig, expected):
+            raise HTTPException(status_code=401, detail="Invalid signature")
+        data = json.loads(body)
+    else:
+        data = await request.json()
+
+    msg = data.get("message", {})
+    msg_type = msg.get("type", "")
+
+    if msg_type == "tool-calls":
+        results = []
+        for tool_call in msg.get("toolCallList", []):
+            fn = tool_call.get("function", {})
+            name = fn.get("name", "")
+            args = fn.get("arguments", {})
+            call_id = tool_call.get("id", "")
+
+            if name == "sendCallSummary":
+                call_record_id = str(uuid.uuid4())
+                caller_phone = msg.get("call", {}).get("customer", {}).get("number", "")
+                now = datetime.utcnow().isoformat()
+                async with aiosqlite.connect(DB_PATH) as db:
+                    await db.execute(
+                        """INSERT INTO vapi_calls
+                           (id, client_id, caller_phone, caller_name, call_intent, resolution,
+                            summary, follow_up_required, follow_up_note, raw_payload, created_at)
+                           VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                        (call_record_id, args.get("client_id", ""), caller_phone,
+                         args.get("caller_name", ""), args.get("call_intent", ""),
+                         args.get("resolution", ""), args.get("summary", ""),
+                         1 if args.get("follow_up_required") else 0,
+                         args.get("follow_up_note", ""), json.dumps(args), now)
+                    )
+                    await db.commit()
+
+                if args.get("follow_up_required") and SMTP_HOST:
+                    try:
+                        asyncio.create_task(_send_followup_email(args, caller_phone))
+                    except Exception:
+                        pass
+
+                results.append({"toolCallId": call_id, "result": "Résumé enregistré."})
+
+            elif name == "bookAppointment":
+                appt_id = str(uuid.uuid4())
+                now = datetime.utcnow().isoformat()
+                caller_phone = args.get("caller_phone", msg.get("call", {}).get("customer", {}).get("number", ""))
+                async with aiosqlite.connect(DB_PATH) as db:
+                    await db.execute(
+                        """INSERT INTO appointments
+                           (id, client_id, customer_name, customer_phone, customer_email,
+                            date, time, service, status, notes, created_at)
+                           VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                        (appt_id, args.get("client_id", ""),
+                         args.get("caller_name", ""), caller_phone,
+                         args.get("caller_email", ""),
+                         args.get("preferred_date", ""), args.get("preferred_time", ""),
+                         args.get("appointment_type", ""), "confirmed",
+                         args.get("notes", ""), now)
+                    )
+                    await db.commit()
+
+                if args.get("caller_email") and SMTP_HOST:
+                    try:
+                        asyncio.create_task(_send_booking_confirmation(args))
+                    except Exception:
+                        pass
+
+                results.append({"toolCallId": call_id, "result": f"Rendez-vous confirmé pour le {args.get('preferred_date')} à {args.get('preferred_time')}."})
+
+        return {"results": results}
+
+    elif msg_type == "end-of-call-report":
+        call = msg.get("call", {})
+        artifact = msg.get("artifact", {})
+        analysis = msg.get("analysis", {})
+        call_id = call.get("id", str(uuid.uuid4()))
+        now = datetime.utcnow().isoformat()
+        start = call.get("startedAt", now)
+        end = call.get("endedAt", now)
+        try:
+            duration = int((datetime.fromisoformat(end.replace("Z","")) - datetime.fromisoformat(start.replace("Z",""))).total_seconds())
+        except Exception:
+            duration = 0
+        structured = analysis.get("structuredData", {})
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute(
+                """INSERT OR IGNORE INTO vapi_calls
+                   (id, caller_phone, call_intent, resolution, summary, follow_up_required,
+                    recording_url, duration_seconds, sentiment, success_evaluation, raw_payload, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (call_id,
+                 call.get("customer", {}).get("number", ""),
+                 structured.get("caller_intent", ""),
+                 structured.get("resolution", ""),
+                 analysis.get("summary", artifact.get("summary", "")),
+                 1 if structured.get("follow_up_required") else 0,
+                 artifact.get("recordingUrl", ""),
+                 duration,
+                 structured.get("sentiment_client", ""),
+                 analysis.get("successEvaluation", ""),
+                 json.dumps(msg)[:4000],
+                 now)
+            )
+            await db.commit()
+        return {"status": "ok"}
+
+    return {"status": "ignored"}
+
+
+async def _send_followup_email(args: dict, caller_phone: str):
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = SMTP_FROM
+        msg["To"] = ADMIN_EMAIL
+        msg["Subject"] = f"[Novalis] Suivi requis — Appel de {args.get('caller_name', caller_phone)}"
+        body = (f"Intent: {args.get('call_intent')}\n"
+                f"Résolution: {args.get('resolution')}\n"
+                f"Résumé: {args.get('summary')}\n\n"
+                f"NOTE: {args.get('follow_up_note')}")
+        msg.attach(MIMEText(body, "plain"))
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+            s.starttls()
+            s.login(SMTP_USER, SMTP_PASS)
+            s.send_message(msg)
+    except Exception as e:
+        logger.error(f"Email suivi Vapi: {e}")
+
+
+async def _send_booking_confirmation(args: dict):
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = SMTP_FROM
+        msg["To"] = args["caller_email"]
+        msg["Subject"] = "Confirmation de votre rendez-vous"
+        body = (f"Bonjour {args.get('caller_name')},\n\n"
+                f"Votre rendez-vous est confirmé :\n"
+                f"Date : {args.get('preferred_date')}\n"
+                f"Heure : {args.get('preferred_time')}\n"
+                f"Service : {args.get('appointment_type')}\n\n"
+                f"À bientôt !")
+        msg.attach(MIMEText(body, "plain"))
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+            s.starttls()
+            s.login(SMTP_USER, SMTP_PASS)
+            s.send_message(msg)
+    except Exception as e:
+        logger.error(f"Email confirmation RDV Vapi: {e}")
+
+
+@app.get("/vapi/calls")
+async def list_vapi_calls(
+    credentials: HTTPBasicCredentials = Depends(verify_admin),
+    limit: int = Query(50, le=200),
+    follow_up_only: bool = Query(False)
+):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        q = "SELECT * FROM vapi_calls"
+        params = []
+        if follow_up_only:
+            q += " WHERE follow_up_required = 1"
+        q += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+        cursor = await db.execute(q, params)
+        rows = await cursor.fetchall()
+    return [dict(r) for r in rows]
 
 
 # ============================================================

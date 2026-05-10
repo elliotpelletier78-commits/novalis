@@ -1,0 +1,189 @@
+{
+  "_comment": "Config Vapi Assistant — Template Novalis IA. Dupliquer et personnaliser par client.",
+  "_version": "1.0",
+
+  "name": "{{AGENT_NAME}} — {{CLIENT_NAME}}",
+  "firstMessage": "Bonjour ! Vous avez rejoint {{CLIENT_NAME}}. Je suis {{AGENT_NAME}}, comment puis-je vous aider aujourd'hui ?",
+  "firstMessageMode": "assistant-speaks-first",
+
+  "transcriber": {
+    "provider": "deepgram",
+    "model": "nova-2",
+    "language": "fr",
+    "smartFormat": true,
+    "languageDetectionEnabled": true
+  },
+
+  "model": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-5",
+    "temperature": 0.4,
+    "maxTokens": 250,
+    "systemPrompt": "INJECTER_ICI_LE_CONTENU_DE_system_prompt_template.md_AVEC_VARIABLES_REMPLIES",
+    "knowledgeBase": {
+      "provider": "canonical",
+      "fileIds": ["{{VAPI_KNOWLEDGE_BASE_FILE_ID}}"]
+    },
+    "tools": [
+      {
+        "type": "transferCall",
+        "destinations": [
+          {
+            "type": "number",
+            "number": "{{PHONE_SUPPORT}}",
+            "message": "Je vous transfère à notre équipe de support. Un instant s'il vous plaît.",
+            "description": "Support client — questions techniques, plaintes, urgences"
+          },
+          {
+            "type": "number",
+            "number": "{{PHONE_VENTES}}",
+            "message": "Je vous transfère à notre équipe des ventes. Un instant s'il vous plaît.",
+            "description": "Équipe ventes — soumissions, nouveaux clients, partenariats"
+          },
+          {
+            "type": "number",
+            "number": "{{PHONE_DIRECTION}}",
+            "message": "Je transfère votre appel à la direction. Un instant s'il vous plaît.",
+            "description": "Direction — escalades majeures, plaintes sérieuses"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "sendCallSummary",
+          "description": "Envoie le résumé de l'appel au CRM via webhook Make.com à la fin de chaque appel. À déclencher systématiquement avant de raccrocher.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "caller_name": {
+                "type": "string",
+                "description": "Nom du client si obtenu durant l'appel, sinon 'Inconnu'"
+              },
+              "caller_phone": {
+                "type": "string",
+                "description": "Numéro de téléphone du client (fourni par Vapi)"
+              },
+              "call_intent": {
+                "type": "string",
+                "enum": ["information", "rendez-vous", "plainte", "vente", "urgence", "autre"],
+                "description": "Raison principale de l'appel"
+              },
+              "resolution": {
+                "type": "string",
+                "enum": ["résolu", "transfert_humain", "rendez-vous_fixé", "rappel_requis", "non_résolu"],
+                "description": "Comment l'appel s'est conclu"
+              },
+              "summary": {
+                "type": "string",
+                "description": "Résumé de l'appel en 2-3 phrases. Ce que le client voulait, ce qui a été fait."
+              },
+              "follow_up_required": {
+                "type": "boolean",
+                "description": "True si une action de suivi est nécessaire de la part de l'équipe"
+              },
+              "follow_up_note": {
+                "type": "string",
+                "description": "Note pour l'équipe si follow_up_required est true. Laisser vide sinon."
+              }
+            },
+            "required": ["call_intent", "resolution", "summary", "follow_up_required"]
+          }
+        },
+        "server": {
+          "url": "{{MAKE_WEBHOOK_URL}}",
+          "timeoutSeconds": 10
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "bookAppointment",
+          "description": "Crée un rendez-vous dans le système du client via Make.com → Google Calendar / Cal.com. Utiliser uniquement si le client confirme vouloir un rendez-vous.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "caller_name": {
+                "type": "string",
+                "description": "Nom complet du client"
+              },
+              "caller_phone": {
+                "type": "string",
+                "description": "Numéro de téléphone du client"
+              },
+              "caller_email": {
+                "type": "string",
+                "description": "Courriel du client si fourni"
+              },
+              "preferred_date": {
+                "type": "string",
+                "description": "Date souhaitée au format YYYY-MM-DD"
+              },
+              "preferred_time": {
+                "type": "string",
+                "description": "Heure souhaitée au format HH:MM (24h, fuseau America/Toronto)"
+              },
+              "appointment_type": {
+                "type": "string",
+                "description": "Type de rendez-vous selon les services du client"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Notes additionnelles ou détails spécifiques du client"
+              }
+            },
+            "required": ["caller_name", "caller_phone", "preferred_date", "preferred_time", "appointment_type"]
+          }
+        },
+        "server": {
+          "url": "{{MAKE_WEBHOOK_URL_BOOKING}}",
+          "timeoutSeconds": 15
+        }
+      }
+    ]
+  },
+
+  "voice": {
+    "provider": "elevenlabs",
+    "voiceId": "{{ELEVENLABS_VOICE_ID}}",
+    "stability": 0.5,
+    "similarityBoost": 0.75,
+    "style": 0.3,
+    "useSpeakerBoost": true
+  },
+
+  "silenceTimeoutSeconds": 20,
+  "maxDurationSeconds": 1200,
+  "backgroundSound": "off",
+  "backchannelingEnabled": false,
+  "backgroundDenoisingEnabled": true,
+
+  "endCallFunctionEnabled": true,
+  "endCallMessage": "Merci d'avoir appelé {{CLIENT_NAME}}. Bonne journée !",
+  "endCallPhrases": [
+    "au revoir",
+    "bonne journée",
+    "merci beaucoup au revoir",
+    "c'est tout pour moi",
+    "goodbye",
+    "have a good day"
+  ],
+
+  "serverUrl": "{{VAPI_SERVER_WEBHOOK_URL}}",
+
+  "analysisPlan": {
+    "summaryPrompt": "Résume cet appel en 3 phrases maximum : (1) qui a appelé et pourquoi, (2) ce qui a été fait ou dit, (3) si un suivi est nécessaire.",
+    "structuredDataPrompt": "Extrais : caller_intent (information/rendez-vous/plainte/vente/urgence/autre), resolution (résolu/transfert/rendez-vous/rappel/non_résolu), sentiment_client (positif/neutre/négatif), duree_appel_secondes.",
+    "structuredDataSchema": {
+      "type": "object",
+      "properties": {
+        "caller_intent": { "type": "string" },
+        "resolution": { "type": "string" },
+        "sentiment_client": { "type": "string" },
+        "follow_up_required": { "type": "boolean" }
+      }
+    },
+    "successEvaluationPrompt": "L'appel a-t-il été résolu positivement ? (Le client a obtenu ce qu'il voulait, ou a été correctement transféré/rappelé.)",
+    "successEvaluationRubric": "PassFail"
+  }
+}

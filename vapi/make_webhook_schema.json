@@ -1,0 +1,93 @@
+{
+  "_comment": "Schéma des payloads Make.com pour l'intégration Vapi → CRM. Deux webhooks distincts : résumé d'appel et prise de rendez-vous.",
+
+  "webhooks": {
+
+    "sendCallSummary": {
+      "_description": "Reçu à la fin de chaque appel. Enregistre dans Airtable + envoie une notification Slack/email si follow_up_required.",
+      "_make_scenario": "Webhook → Router → [Airtable: Create Record] + [Si follow_up_required=true → Email/Slack notification]",
+      "payload_example": {
+        "caller_name": "Jean Tremblay",
+        "caller_phone": "+15141234567",
+        "call_intent": "rendez-vous",
+        "resolution": "rendez-vous_fixé",
+        "summary": "Le client souhaite une consultation pour l'installation d'un système de sécurité. Rendez-vous fixé le 2025-06-15 à 14h00. Aucun suivi requis.",
+        "follow_up_required": false,
+        "follow_up_note": "",
+        "vapi_call_id": "{{call.id}}",
+        "vapi_call_duration": "{{call.endedAt}}",
+        "vapi_recording_url": "{{call.recordingUrl}}",
+        "timestamp": "{{call.endedAt}}",
+        "client_id": "{{CLIENT_ID}}"
+      },
+      "airtable_field_mapping": {
+        "Nom": "caller_name",
+        "Téléphone": "caller_phone",
+        "Intention": "call_intent",
+        "Résolution": "resolution",
+        "Résumé": "summary",
+        "Suivi requis": "follow_up_required",
+        "Note suivi": "follow_up_note",
+        "ID Appel Vapi": "vapi_call_id",
+        "Enregistrement": "vapi_recording_url",
+        "Date": "timestamp",
+        "Client ID": "client_id"
+      }
+    },
+
+    "bookAppointment": {
+      "_description": "Déclenché quand l'agent fixe un rendez-vous. Crée un événement Google Calendar + envoie un courriel de confirmation au client.",
+      "_make_scenario": "Webhook → Google Calendar: Create Event → [Si caller_email fourni → Gmail: Send Confirmation Email]",
+      "payload_example": {
+        "caller_name": "Marie Gagnon",
+        "caller_phone": "+14381234567",
+        "caller_email": "marie.gagnon@example.com",
+        "preferred_date": "2025-06-15",
+        "preferred_time": "14:00",
+        "appointment_type": "Consultation initiale",
+        "notes": "Cliente intéressée par le forfait entreprise. Rappeler de préparer une soumission.",
+        "vapi_call_id": "{{call.id}}",
+        "timestamp": "{{call.startedAt}}",
+        "client_id": "{{CLIENT_ID}}"
+      },
+      "google_calendar_mapping": {
+        "summary": "RDV — {{appointment_type}} — {{caller_name}}",
+        "description": "Client: {{caller_name}}\nTél: {{caller_phone}}\nCourriel: {{caller_email}}\nNotes: {{notes}}\n\nAppel Vapi ID: {{vapi_call_id}}",
+        "start_datetime": "{{preferred_date}}T{{preferred_time}}:00",
+        "timezone": "America/Toronto",
+        "duration_minutes": 60,
+        "send_invite_to": "{{caller_email}}"
+      },
+      "confirmation_email": {
+        "subject": "Confirmation de votre rendez-vous — {{CLIENT_NAME}}",
+        "body": "Bonjour {{caller_name}},\n\nVotre rendez-vous a été confirmé :\n\nDate : {{preferred_date}}\nHeure : {{preferred_time}} (heure de l'Est)\nType : {{appointment_type}}\n\nSi vous devez annuler ou reporter, appelez-nous au {{CLIENT_PHONE}}.\n\nÀ bientôt,\n{{CLIENT_NAME}}"
+      }
+    }
+  },
+
+  "variables_to_configure": {
+    "MAKE_WEBHOOK_URL": "L'URL du webhook Make.com pour sendCallSummary (copier depuis Make.com → Webhooks)",
+    "MAKE_WEBHOOK_URL_BOOKING": "L'URL du webhook Make.com pour bookAppointment",
+    "CLIENT_ID": "Un identifiant unique pour chaque client Novalis (ex: 'garage-tremblay-qc')",
+    "CLIENT_PHONE": "Le numéro de téléphone visible du client (pour les emails de confirmation)",
+    "CLIENT_NAME": "Le nom de l'entreprise du client"
+  },
+
+  "airtable_base_structure": {
+    "table_name": "Appels IA",
+    "fields": [
+      { "name": "Nom", "type": "Single line text" },
+      { "name": "Téléphone", "type": "Phone number" },
+      { "name": "Intention", "type": "Single select", "options": ["information", "rendez-vous", "plainte", "vente", "urgence", "autre"] },
+      { "name": "Résolution", "type": "Single select", "options": ["résolu", "transfert_humain", "rendez-vous_fixé", "rappel_requis", "non_résolu"] },
+      { "name": "Résumé", "type": "Long text" },
+      { "name": "Suivi requis", "type": "Checkbox" },
+      { "name": "Note suivi", "type": "Long text" },
+      { "name": "ID Appel Vapi", "type": "Single line text" },
+      { "name": "Enregistrement", "type": "URL" },
+      { "name": "Date", "type": "Date" },
+      { "name": "Client ID", "type": "Single line text" },
+      { "name": "Statut", "type": "Single select", "options": ["Nouveau", "En cours", "Terminé"], "default": "Nouveau" }
+    ]
+  }
+}
