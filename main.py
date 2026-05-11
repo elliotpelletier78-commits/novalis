@@ -5236,10 +5236,15 @@ async function verify() {
 
   try {
     const res = await fetch('/api/monument-verify', { method: 'POST', body: form });
+    if (!res.ok) {
+      const err = await res.text();
+      alert('Erreur serveur: ' + err);
+      return;
+    }
     const data = await res.json();
     renderResults(data);
   } catch(e) {
-    alert('Erreur lors de l\'analyse. Réessayez.');
+    alert('Erreur: ' + e.message);
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Analyser les erreurs';
@@ -5281,8 +5286,7 @@ function renderResults(data) {
 
 
 @app.post("/api/monument-verify")
-@limiter.limit("10/minute")
-async def monument_verify(request: Request, model: UploadFile = File(...), photo: UploadFile = File(...)):
+async def monument_verify(model: UploadFile = File(...), photo: UploadFile = File(...)):
     """Compare un modèle de monument approuvé avec une photo du monument gravé via Claude Vision."""
     if not claude_client:
         raise HTTPException(status_code=503, detail="Claude non configuré")
