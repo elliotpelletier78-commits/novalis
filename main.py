@@ -5230,31 +5230,42 @@ function drawAnnotations(errors) {
     canvas.width = img.width;
     canvas.height = img.height;
     ctx.drawImage(img, 0, 0);
-    var critiques = errors.filter(function(e){return e.severity==='critique' || e.severity==='avertissement';});
-    critiques.forEach(function(e, i) {
-      if (e.x == null || e.y == null) return;
+    var lw = Math.max(2, img.width / 300);
+    var num = 0;
+    errors.forEach(function(e) {
+      if (e.severity === 'ok' || e.x == null || e.y == null) return;
+      num++;
       var cx = (e.x / 100) * img.width;
       var cy = (e.y / 100) * img.height;
-      var rw = ((e.w || 15) / 100) * img.width / 2;
-      var rh = ((e.h || 8) / 100) * img.height / 2;
+      var rw = Math.max(img.width * 0.03, (e.w || 10) / 100 * img.width / 2);
+      var rh = Math.max(img.height * 0.025, (e.h || 7) / 100 * img.height / 2);
       var color = e.severity === 'critique' ? '#ef4444' : '#eab308';
+      // Ombre pour lisibilité
+      ctx.shadowColor = 'rgba(0,0,0,0.6)';
+      ctx.shadowBlur = lw * 3;
       // Ellipse
       ctx.beginPath();
       ctx.ellipse(cx, cy, rw, rh, 0, 0, 2 * Math.PI);
       ctx.strokeStyle = color;
-      ctx.lineWidth = Math.max(3, img.width / 200);
+      ctx.lineWidth = lw * 2;
       ctx.stroke();
-      // Numero
-      var r = Math.max(14, img.width / 60);
+      ctx.shadowBlur = 0;
+      // Badge numéroté
+      var r = Math.max(img.width * 0.018, 16);
+      var bx = cx + rw * 0.7;
+      var by = cy - rh * 0.7;
       ctx.beginPath();
-      ctx.arc(cx + rw - r/2, cy - rh + r/2, r, 0, 2*Math.PI);
+      ctx.arc(bx, by, r, 0, 2*Math.PI);
       ctx.fillStyle = color;
       ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = lw;
+      ctx.stroke();
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold ' + Math.max(12, img.width/80) + 'px Arial';
+      ctx.font = 'bold ' + Math.round(r * 1.1) + 'px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(i+1, cx + rw - r/2, cy - rh + r/2);
+      ctx.fillText(num, bx, by);
     });
   };
   img.src = photoDataUrl;
@@ -5376,30 +5387,36 @@ Vérifie dans cet ordre :
 4. Mise en page — position des éléments, hiérarchie visuelle
 5. Éléments manquants ou ajoutés
 
-Pour chaque élément, estime sa position sur la PHOTO DU MONUMENT (deuxième image) en pourcentage (0-100) depuis le coin supérieur gauche.
+Pour chaque erreur critique ou avertissement, localise PRÉCISÉMENT l'élément sur la PHOTO DU MONUMENT (deuxième image).
+
+Imagine la photo divisée en une grille. Donne les coordonnées du centre de l'erreur:
+- x: position horizontale en % depuis la gauche (0=bord gauche, 100=bord droit)
+- y: position verticale en % depuis le haut (0=bord haut, 100=bord bas)
+- w: largeur de la zone d'erreur en % (pour un seul caractère: 5-8, pour un mot: 15-25)
+- h: hauteur de la zone d'erreur en %
+
+Pour les erreurs générales sans position précise (ex: "nombre de caractères"), mets x=null.
 
 Réponds UNIQUEMENT en JSON valide:
 {
   "errors": [
     {
       "severity": "critique" | "avertissement" | "ok",
-      "message": "Description claire de l'erreur ou de la conformité",
-      "detail": "Explication supplémentaire avec le texte exact attendu vs trouvé (optionnel)",
-      "x": 50,
-      "y": 30,
-      "w": 20,
-      "h": 8
+      "message": "Description claire de l'erreur",
+      "detail": "Texte exact attendu vs trouvé (optionnel)",
+      "x": 35,
+      "y": 22,
+      "w": 8,
+      "h": 6
     }
   ]
 }
 
-- x, y = position du centre de l'élément en % (0-100) sur la photo
-- w, h = largeur et hauteur approximatives en % (0-100)
 - "critique" = erreur à corriger avant livraison
 - "avertissement" = différence mineure à valider
-- "ok" = élément conforme
+- "ok" = élément conforme (pas besoin de coordonnées pour les ok)
 
-Si tu ne peux pas lire clairement une partie, indique-le comme avertissement."""}
+Sois très précis sur les coordonnées — pointe exactement sur le caractère ou symbole problématique."""}
                 ]
             }]
         )
