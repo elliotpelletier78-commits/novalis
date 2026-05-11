@@ -5411,8 +5411,33 @@ async def monument_verify(model: UploadFile = File(...), photo: UploadFile = Fil
     photo_bytes = await photo.read()
     model_bytes, model_mt = to_jpeg(model_bytes, model.filename or "")
     photo_bytes, photo_mt = to_jpeg(photo_bytes, photo.filename or "")
-    model_b64 = base64.standard_b64encode(model_bytes).decode()
-    photo_b64 = base64.standard_b64encode(photo_bytes).decode()
+
+    # Draw percentage grid on photo so Claude can read coordinates directly
+    def add_grid(img_bytes: bytes) -> tuple[bytes, str]:
+        from PIL import Image as _Img, ImageDraw as _Draw
+        img = _Img.open(io.BytesIO(img_bytes)).convert("RGB")
+        draw = _Draw.Draw(img)
+        w, h = img.size
+        step = 10
+        line_col = (220, 40, 40)
+        txt_col  = (220, 40, 40)
+        for i in range(step, 100, step):
+            px = int(w * i / 100)
+            py = int(h * i / 100)
+            draw.line([(px, 0), (px, h)], fill=line_col, width=max(1, w // 600))
+            draw.line([(0, py), (w, py)], fill=line_col, width=max(1, h // 600))
+            # x-axis labels at top
+            draw.text((px + 2, 2), str(i), fill=txt_col)
+            # y-axis labels at left
+            draw.text((2, py + 2), str(i), fill=txt_col)
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=85)
+        return buf.getvalue(), "image/jpeg"
+
+    photo_grid_bytes, photo_grid_mt = add_grid(photo_bytes)
+    model_b64      = base64.standard_b64encode(model_bytes).decode()
+    photo_b64      = base64.standard_b64encode(photo_bytes).decode()
+    photo_grid_b64 = base64.standard_b64encode(photo_grid_bytes).decode()
 
     try:
         resp = claude_client.messages.create(
@@ -5423,8 +5448,8 @@ async def monument_verify(model: UploadFile = File(...), photo: UploadFile = Fil
                 "content": [
                     {"type": "text", "text": "Voici le MODÈLE APPROUVÉ du monument (ce qui devrait être gravé) :"},
                     {"type": "image", "source": {"type": "base64", "media_type": model_mt, "data": model_b64}},
-                    {"type": "text", "text": "Voici la PHOTO DU MONUMENT GRAVÉ (ce qui a été réellement gravé) :"},
-                    {"type": "image", "source": {"type": "base64", "media_type": photo_mt, "data": photo_b64}},
+                    {"type": "text", "text": "Voici la PHOTO DU MONUMENT GRAVÉ avec une grille de coordonnées (les chiffres sur le bord supérieur = x%, les chiffres sur le bord gauche = y%) :"},
+                    {"type": "image", "source": {"type": "base64", "media_type": photo_grid_mt, "data": photo_grid_b64}},
                     {"type": "text", "text": """Compare minutieusement ces deux images. Tu es un expert en vérification de monuments funéraires avec une connaissance approfondie de l'hébreu.
 
 Vérifie dans cet ordre :
@@ -5434,15 +5459,15 @@ Vérifie dans cet ordre :
 4. Mise en page — position des éléments, hiérarchie visuelle
 5. Éléments manquants ou ajoutés
 
-Pour chaque erreur critique ou avertissement, localise PRÉCISÉMENT l'élément sur la PHOTO DU MONUMENT (deuxième image).
+La deuxième image (photo du monument) a une grille rouge visible. Les chiffres en haut indiquent x% (0=gauche, 100=droite). Les chiffres à gauche indiquent y% (0=haut, 100=bas).
 
-Imagine la photo divisée en une grille. Donne les coordonnées du centre de l'erreur:
-- x: position horizontale en % depuis la gauche (0=bord gauche, 100=bord droit)
-- y: position verticale en % depuis le haut (0=bord haut, 100=bord bas)
-- w: largeur de la zone d'erreur en % (pour un seul caractère: 5-8, pour un mot: 15-25)
-- h: hauteur de la zone d'erreur en %
+Pour chaque erreur, LIS directement les chiffres de la grille sur la photo pour donner les coordonnées exactes du centre de l'élément problématique :
+- x: valeur de la ligne verticale la plus proche (ex: 30, 40, 50...)
+- y: valeur de la ligne horizontale la plus proche (ex: 20, 30, 40...)
+- w: largeur estimée en % (caractère seul: 5-8, mot court: 10-20, ligne de texte: 30-60)
+- h: hauteur estimée en % (caractère seul: 3-6, ligne de texte: 8-15)
 
-Pour les erreurs générales sans position précise (ex: "nombre de caractères"), mets x=null.
+Pour les erreurs générales sans position précise, mets x=null.
 
 Réponds UNIQUEMENT en JSON valide:
 {
@@ -5463,7 +5488,7 @@ Réponds UNIQUEMENT en JSON valide:
 - "avertissement" = différence mineure à valider
 - "ok" = élément conforme (pas besoin de coordonnées pour les ok)
 
-Sois très précis sur les coordonnées — pointe exactement sur le caractère ou symbole problématique."""}
+LIS les chiffres sur la grille rouge — ne devine pas les coordonnées."""}
                 ]
             }]
         )
