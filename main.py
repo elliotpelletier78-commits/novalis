@@ -5353,7 +5353,7 @@ Si tu ne peux pas lire clairement une partie, indique-le comme avertissement."""
         return result
     except Exception as e:
         logger.error(f"Erreur monument-verify: {e}")
-        raise HTTPException(status_code=500, detail="Erreur lors de l'analyse")
+        raise HTTPException(status_code=500, detail=f"Erreur: {type(e).__name__}: {e}")
 
 
 @app.post("/api/marker-orders")
