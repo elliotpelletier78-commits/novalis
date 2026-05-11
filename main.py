@@ -5228,39 +5228,30 @@ function drawAnnotations(errors, photoImg) {
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;
     ctx.drawImage(img, 0, 0);
-    var lw = Math.max(2, img.naturalWidth / 300);
+    var dotR = Math.max(10, img.naturalWidth * 0.014);
     var num = 0;
     errors.forEach(function(e) {
       if (e.severity === 'ok' || e.x == null || e.y == null) return;
       num++;
       var cx = (e.x / 100) * img.naturalWidth;
       var cy = (e.y / 100) * img.naturalHeight;
-      var rw = Math.max(img.naturalWidth * 0.03, (e.w || 10) / 100 * img.naturalWidth / 2);
-      var rh = Math.max(img.naturalHeight * 0.025, (e.h || 7) / 100 * img.naturalHeight / 2);
       var color = e.severity === 'critique' ? '#ef4444' : '#eab308';
-      ctx.shadowColor = 'rgba(0,0,0,0.6)';
-      ctx.shadowBlur = lw * 3;
+      // White halo for contrast
       ctx.beginPath();
-      ctx.ellipse(cx, cy, rw, rh, 0, 0, 2 * Math.PI);
-      ctx.strokeStyle = color;
-      ctx.lineWidth = lw * 2;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-      var r = Math.max(img.naturalWidth * 0.018, 16);
-      var bx = cx + rw * 0.7;
-      var by = cy - rh * 0.7;
+      ctx.arc(cx, cy, dotR + 3, 0, 2 * Math.PI);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fill();
+      // Colored dot
       ctx.beginPath();
-      ctx.arc(bx, by, r, 0, 2*Math.PI);
+      ctx.arc(cx, cy, dotR, 0, 2 * Math.PI);
       ctx.fillStyle = color;
       ctx.fill();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = lw;
-      ctx.stroke();
+      // Number inside dot
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold ' + Math.round(r * 1.1) + 'px Arial';
+      ctx.font = 'bold ' + Math.round(dotR * 1.2) + 'px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(num, bx, by);
+      ctx.fillText(num, cx, cy);
     });
   }
   if (img.complete && img.naturalWidth) {
@@ -5327,18 +5318,18 @@ function render(data) {
     (ok ? '<span class="chip c-grn">&#10003; '+ok+' conforme'+(ok>1?'s':'')+'</span>' : '') +
     (!errors.length ? '<span class="chip c-grn">&#10003; Aucune erreur</span>' : '');
 
-  // Snap zone names to coordinates if x/y are missing or clearly wrong
-  var ZONE_COORDS = {
-    'ZONE-A':[17,17],'ZONE-B':[50,17],'ZONE-C':[83,17],
-    'ZONE-D':[17,50],'ZONE-E':[50,50],'ZONE-F':[83,50],
-    'ZONE-G':[17,83],'ZONE-H':[50,83],'ZONE-I':[83,83]
+  // Clamp x,y to their zone bounds — guarantees dots land in the right zone
+  var ZONE_BOUNDS = {
+    'ZONE-A':[0,33,0,33],  'ZONE-B':[33,67,0,33],  'ZONE-C':[67,100,0,33],
+    'ZONE-D':[0,33,33,67], 'ZONE-E':[33,67,33,67], 'ZONE-F':[67,100,33,67],
+    'ZONE-G':[0,33,67,100],'ZONE-H':[33,67,67,100],'ZONE-I':[67,100,67,100]
   };
   errors.forEach(function(e) {
-    if (e.zone && ZONE_COORDS[e.zone]) {
-      var zc = ZONE_COORDS[e.zone];
-      if (e.x == null) e.x = zc[0];
-      if (e.y == null) e.y = zc[1];
-    }
+    var b = e.zone && ZONE_BOUNDS[e.zone];
+    if (!b) return;
+    var cx = (b[0]+b[1])/2, cy = (b[2]+b[3])/2;
+    e.x = (e.x == null || e.x < b[0] || e.x > b[1]) ? cx : e.x;
+    e.y = (e.y == null || e.y < b[2] || e.y > b[3]) ? cy : e.y;
   });
 
   var num = 0;
