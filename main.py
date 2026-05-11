@@ -5194,13 +5194,11 @@ h1{font-size:1.5rem;font-weight:400;margin-bottom:4px}
   <div class="results" id="results">
     <h2>Resultats</h2>
     <div class="chips" id="chips"></div>
-    <div style="display:none;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px" id="annotated-wrap">
-      <div>
-        <p style="font-size:0.72rem;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.1em">Photo annotee</p>
-        <canvas id="annotated-canvas" style="max-width:100%;border-radius:6px;border:1px solid rgba(168,104,68,0.2)"></canvas>
-      </div>
-      <div id="list" style="max-height:420px;overflow-y:auto"></div>
+    <div style="margin-bottom:12px;display:none" id="annotated-wrap">
+      <p style="font-size:0.72rem;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.1em">Vue d'ensemble — erreurs localisees</p>
+      <canvas id="annotated-canvas" style="max-width:100%;border-radius:6px;border:1px solid rgba(168,104,68,0.2)"></canvas>
     </div>
+    <div id="list"></div>
   </div>
 </div>
 <script>
@@ -5222,36 +5220,33 @@ function onFile(inp, zoneId, prevId, fnameId) {
   reader.readAsDataURL(f);
 }
 
-function drawAnnotations(errors) {
+function drawAnnotations(errors, photoImg) {
   var canvas = document.getElementById('annotated-canvas');
   var ctx = canvas.getContext('2d');
-  var img = new Image();
-  img.onload = function() {
-    canvas.width = img.width;
-    canvas.height = img.height;
+  var img = photoImg || new Image();
+  function paint() {
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
     ctx.drawImage(img, 0, 0);
-    var lw = Math.max(2, img.width / 300);
+    var lw = Math.max(2, img.naturalWidth / 300);
     var num = 0;
     errors.forEach(function(e) {
       if (e.severity === 'ok' || e.x == null || e.y == null) return;
       num++;
-      var cx = (e.x / 100) * img.width;
-      var cy = (e.y / 100) * img.height;
-      var rw = Math.max(img.width * 0.03, (e.w || 10) / 100 * img.width / 2);
-      var rh = Math.max(img.height * 0.025, (e.h || 7) / 100 * img.height / 2);
+      var cx = (e.x / 100) * img.naturalWidth;
+      var cy = (e.y / 100) * img.naturalHeight;
+      var rw = Math.max(img.naturalWidth * 0.03, (e.w || 10) / 100 * img.naturalWidth / 2);
+      var rh = Math.max(img.naturalHeight * 0.025, (e.h || 7) / 100 * img.naturalHeight / 2);
       var color = e.severity === 'critique' ? '#ef4444' : '#eab308';
-      // Ombre pour lisibilité
       ctx.shadowColor = 'rgba(0,0,0,0.6)';
       ctx.shadowBlur = lw * 3;
-      // Ellipse
       ctx.beginPath();
       ctx.ellipse(cx, cy, rw, rh, 0, 0, 2 * Math.PI);
       ctx.strokeStyle = color;
       ctx.lineWidth = lw * 2;
       ctx.stroke();
       ctx.shadowBlur = 0;
-      // Badge numéroté
-      var r = Math.max(img.width * 0.018, 16);
+      var r = Math.max(img.naturalWidth * 0.018, 16);
       var bx = cx + rw * 0.7;
       var by = cy - rh * 0.7;
       ctx.beginPath();
@@ -5267,8 +5262,13 @@ function drawAnnotations(errors) {
       ctx.textBaseline = 'middle';
       ctx.fillText(num, bx, by);
     });
-  };
-  img.src = photoDataUrl;
+  }
+  if (img.complete && img.naturalWidth) {
+    paint();
+  } else {
+    img.onload = paint;
+    if (!photoImg) img.src = photoDataUrl;
+  }
 }
 
 async function verify() {
@@ -5295,6 +5295,27 @@ async function verify() {
   }
 }
 
+function cropZoom(x, y, w, h, imgEl, zoomFactor) {
+  // Retourne une data URL d'un crop zoomé
+  var iw = imgEl.naturalWidth, ih = imgEl.naturalHeight;
+  var pad = 1.8; // padding autour de la zone
+  var cw = Math.min(iw, (w / 100) * iw * pad);
+  var ch = Math.min(ih, (h / 100) * ih * pad);
+  var cx = Math.max(0, (x / 100) * iw - cw/2);
+  var cy = Math.max(0, (y / 100) * ih - ch/2);
+  cx = Math.min(cx, iw - cw);
+  cy = Math.min(cy, ih - ch);
+  var outW = Math.round(cw * (zoomFactor || 3));
+  var outH = Math.round(ch * (zoomFactor || 3));
+  var c = document.createElement('canvas');
+  c.width = outW; c.height = outH;
+  var ctx = c.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(imgEl, cx, cy, cw, ch, 0, 0, outW, outH);
+  // Bordure colorée
+  return c.toDataURL('image/jpeg', 0.92);
+}
+
 function render(data) {
   var errors = data.errors || [];
   var cr = errors.filter(function(e){return e.severity==='critique';}).length;
@@ -5305,17 +5326,43 @@ function render(data) {
     (wa ? '<span class="chip c-yel">&#9888; '+wa+' attention</span>' : '') +
     (ok ? '<span class="chip c-grn">&#10003; '+ok+' conforme'+(ok>1?'s':'')+'</span>' : '') +
     (!errors.length ? '<span class="chip c-grn">&#10003; Aucune erreur</span>' : '');
-  var annotated = errors.filter(function(e){return e.severity!=='ok';});
+
   var num = 0;
-  document.getElementById('list').innerHTML = errors.map(function(e) {
-    var cls = e.severity==='critique'?'cr':e.severity==='avertissement'?'wa':'ok';
-    var lbl = e.severity==='critique'?'Critique':e.severity==='avertissement'?'Attention':'OK';
-    var prefix = (e.severity!=='ok' && e.x!=null) ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:'+(e.severity==='critique'?'#ef4444':'#eab308')+';color:#fff;font-size:0.7rem;font-weight:700;margin-right:6px;flex-shrink:0">'+(++num)+'</span>' : '';
-    return '<div class="item '+cls+'"><span class="badge">'+lbl+'</span><div style="display:flex;align-items:flex-start;gap:4px"><div>'+prefix+'</div><div><div class="msg">'+e.message+'</div>'+(e.detail?'<div class="det">'+e.detail+'</div>':'')+'</div></div></div>';
-  }).join('') || '<div class="item ok"><span class="badge">OK</span><div class="msg">Monument conforme au modele.</div></div>';
-  document.getElementById('annotated-wrap').style.display = errors.length ? 'grid' : 'none';
+  var photoImg = null;
+  if (photoDataUrl) { photoImg = new Image(); photoImg.src = photoDataUrl; }
+
+  // Construire la liste avec crops zoomés
+  function buildList() {
+    num = 0;
+    document.getElementById('list').innerHTML = errors.map(function(e) {
+      var cls = e.severity==='critique'?'cr':e.severity==='avertissement'?'wa':'ok';
+      var lbl = e.severity==='critique'?'Critique':e.severity==='avertissement'?'Attention':'OK';
+      var color = e.severity==='critique'?'#ef4444':e.severity==='avertissement'?'#eab308':'#22c55e';
+      var zoomHtml = '';
+      if (e.severity!=='ok' && e.x!=null && photoImg && photoImg.naturalWidth) {
+        num++;
+        var zurl = cropZoom(e.x, e.y, e.w||10, e.h||7, photoImg, 4);
+        zoomHtml = '<div style="margin:8px 0 4px;"><img src="'+zurl+'" style="max-width:100%;max-height:140px;border-radius:4px;border:2px solid '+color+';display:block"></div><p style="font-size:0.65rem;color:#6b7280;margin-bottom:4px">Zone x'+num+' — agrandissement 4x</p>';
+      } else if (e.severity!=='ok') { num++; }
+      var badge_num = e.severity!=='ok' ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;min-width:20px;border-radius:50%;background:'+color+';color:#fff;font-size:0.7rem;font-weight:700;margin-right:6px">'+num+'</span>' : '';
+      return '<div class="item '+cls+'"><span class="badge">'+lbl+'</span><div style="width:100%"><div style="display:flex;align-items:center">'+badge_num+'<span class="msg">'+e.message+'</span></div>'+(e.detail?'<div class="det" style="margin-top:4px">'+e.detail+'</div>':'')+zoomHtml+'</div></div>';
+    }).join('') || '<div class="item ok"><span class="badge">OK</span><div class="msg">Monument conforme au modele.</div></div>';
+  }
+
+  var hasAnnotated = errors.some(function(e){return e.severity!=='ok' && e.x!=null;});
+  document.getElementById('annotated-wrap').style.display = hasAnnotated ? 'block' : 'none';
   document.getElementById('results').style.display = 'block';
-  if (photoDataUrl && annotated.length) drawAnnotations(errors);
+
+  if (photoImg && hasAnnotated) {
+    if (photoImg.complete && photoImg.naturalWidth) {
+      buildList();
+      drawAnnotations(errors, photoImg);
+    } else {
+      photoImg.onload = function() { buildList(); drawAnnotations(errors, photoImg); };
+    }
+  } else {
+    buildList();
+  }
 }
 </script>
 </body>
