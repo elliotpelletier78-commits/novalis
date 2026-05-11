@@ -5401,8 +5401,10 @@ async def monument_verify(model: UploadFile = File(...), photo: UploadFile = Fil
             except ImportError:
                 raise HTTPException(status_code=415, detail="Format HEIC non supporte — convertissez en JPG ou PNG.")
         try:
-            from PIL import Image
+            from PIL import Image, ImageOps
             img = Image.open(io.BytesIO(raw))
+            # Corriger la rotation EXIF (photos iPhone souvent stockées à 90°)
+            img = ImageOps.exif_transpose(img)
             if img.mode not in ("RGB", "L"):
                 img = img.convert("RGB")
             # Redimensionner si trop grand (max 2400px côté long pour rester sous 4MB)
