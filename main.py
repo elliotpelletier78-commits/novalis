@@ -5120,165 +5120,139 @@ async def granitecom_verify():
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Vérificateur de monuments — Granit Com</title>
+<title>Verificateur de monuments — Granit Com</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#0f0f0f;color:#e8e4dd;min-height:100vh;padding:32px 16px}
-.container{max-width:900px;margin:0 auto}
-h1{font-size:1.6rem;font-weight:400;color:#e8e4dd;margin-bottom:4px}
-.sub{color:#6b7280;font-size:0.9rem;margin-bottom:32px}
-.logo{font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;margin-bottom:16px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
-@media(max-width:600px){.grid{grid-template-columns:1fr}}
-.upload-box{border:1.5px dashed rgba(168,104,68,0.4);border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:border-color .2s;background:rgba(168,104,68,0.03)}
-.upload-box:hover{border-color:#A86844}
-.upload-box label{cursor:pointer;display:block}
-.upload-box input{display:none}
-.upload-box .icon{font-size:2rem;margin-bottom:8px}
-.upload-box h3{font-size:0.85rem;color:#e8e4dd;margin-bottom:4px}
-.upload-box p{font-size:0.75rem;color:#6b7280}
-.preview{max-width:100%;max-height:200px;margin-top:12px;border-radius:4px;border:1px solid rgba(168,104,68,0.2)}
-.btn{width:100%;padding:14px;background:#A86844;color:#fff;border:none;border-radius:6px;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background .2s}
+.wrap{max-width:860px;margin:0 auto}
+.logo{font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;margin-bottom:12px}
+h1{font-size:1.5rem;font-weight:400;margin-bottom:4px}
+.sub{color:#6b7280;font-size:0.88rem;margin-bottom:28px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+@media(max-width:580px){.grid{grid-template-columns:1fr}}
+.zone{border:2px dashed rgba(168,104,68,0.35);border-radius:8px;padding:28px 16px;text-align:center;background:rgba(168,104,68,0.03);transition:border-color .2s}
+.zone.has-file{border-color:#A86844;border-style:solid}
+.zone .ico{font-size:2.2rem;display:block;margin-bottom:8px}
+.zone h3{font-size:0.85rem;margin-bottom:4px}
+.zone small{color:#6b7280;font-size:0.75rem}
+.zone input[type=file]{margin-top:14px;font-size:0.8rem;color:#A86844;width:100%}
+.zone img{max-width:100%;max-height:180px;margin-top:12px;border-radius:4px;border:1px solid rgba(168,104,68,0.2);display:none}
+.fname{margin-top:8px;font-size:0.75rem;color:#A86844;display:none}
+.btn{width:100%;padding:13px;background:#A86844;color:#fff;border:none;border-radius:6px;font-size:0.82rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer}
 .btn:hover{background:#C4895A}
-.btn:disabled{background:#3a3a3a;color:#6b7280;cursor:not-allowed}
-.results{margin-top:28px;display:none}
-.results h2{font-size:1rem;color:#e8e4dd;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid rgba(168,104,68,0.2)}
-.error-item{display:flex;gap:12px;padding:14px;border-radius:6px;margin-bottom:10px;border-left:3px solid}
-.error-item.critical{background:rgba(239,68,68,0.08);border-color:#ef4444}
-.error-item.warning{background:rgba(234,179,8,0.08);border-color:#eab308}
-.error-item.ok{background:rgba(34,197,94,0.08);border-color:#22c55e}
-.error-badge{font-size:0.65rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:2px 8px;border-radius:99px;white-space:nowrap;height:fit-content}
-.critical .error-badge{background:rgba(239,68,68,0.2);color:#ef4444}
-.warning .error-badge{background:rgba(234,179,8,0.2);color:#eab308}
-.ok .error-badge{background:rgba(34,197,94,0.2);color:#22c55e}
-.error-text{font-size:0.85rem;color:#e8e4dd;line-height:1.5}
-.error-detail{font-size:0.75rem;color:#6b7280;margin-top:4px}
-.summary-bar{display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap}
-.summary-chip{padding:6px 14px;border-radius:99px;font-size:0.78rem;font-weight:500}
-.chip-red{background:rgba(239,68,68,0.15);color:#ef4444}
-.chip-yellow{background:rgba(234,179,8,0.15);color:#eab308}
-.chip-green{background:rgba(34,197,94,0.15);color:#22c55e}
-.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px}
-@keyframes spin{to{transform:rotate(360deg)}}
-.loading-msg{text-align:center;padding:40px;color:#6b7280;font-size:0.9rem;display:none}
+.btn:disabled{background:#2a2a2a;color:#555;cursor:not-allowed}
+.loading{text-align:center;padding:32px;color:#6b7280;display:none}
+.sp{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.2);border-top-color:#A86844;border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.results{margin-top:24px;display:none}
+.results h2{font-size:0.95rem;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid rgba(168,104,68,0.2)}
+.chips{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.chip{padding:5px 12px;border-radius:99px;font-size:0.75rem;font-weight:600}
+.c-red{background:rgba(239,68,68,0.15);color:#ef4444}
+.c-yel{background:rgba(234,179,8,0.15);color:#eab308}
+.c-grn{background:rgba(34,197,94,0.15);color:#22c55e}
+.item{display:flex;gap:10px;padding:12px;border-radius:6px;margin-bottom:8px;border-left:3px solid;align-items:flex-start}
+.item.cr{background:rgba(239,68,68,0.07);border-color:#ef4444}
+.item.wa{background:rgba(234,179,8,0.07);border-color:#eab308}
+.item.ok{background:rgba(34,197,94,0.07);border-color:#22c55e}
+.badge{font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:2px 7px;border-radius:99px;white-space:nowrap;margin-top:2px}
+.cr .badge{background:rgba(239,68,68,0.2);color:#ef4444}
+.wa .badge{background:rgba(234,179,8,0.2);color:#eab308}
+.ok .badge{background:rgba(34,197,94,0.2);color:#22c55e}
+.msg{font-size:0.84rem;line-height:1.5}
+.det{font-size:0.73rem;color:#6b7280;margin-top:3px}
 </style>
 </head>
 <body>
-<div class="container">
-  <p class="logo">Granit Com × Novalis IA</p>
-  <h1>Vérificateur de monuments</h1>
-  <p class="sub">Uploadez le modèle approuvé et la photo du monument gravé — l'IA détecte automatiquement les erreurs.</p>
+<div class="wrap">
+  <p class="logo">Granit Com x Novalis IA</p>
+  <h1>Verificateur de monuments</h1>
+  <p class="sub">Selectionnez le modele approuve et la photo du monument grave — l'IA detecte les erreurs automatiquement.</p>
 
   <div class="grid">
-    <div class="upload-box" onclick="document.getElementById('model-input').click()">
-      <label>
-        <input type="file" id="model-input" accept="image/*,.pdf" onchange="preview(this,'model-preview')">
-        <div class="icon">📋</div>
-        <h3>Modèle approuvé</h3>
-        <p>Le design original (PDF ou image)</p>
-      </label>
-      <img id="model-preview" class="preview" style="display:none">
+    <div class="zone" id="zone-model">
+      <span class="ico">📋</span>
+      <h3>Modele approuve</h3>
+      <small>Le design original (JPG, PNG)</small>
+      <input type="file" id="inp-model" accept="image/*" onchange="onFile(this,'zone-model','prev-model','fname-model')">
+      <img id="prev-model">
+      <div class="fname" id="fname-model"></div>
     </div>
-    <div class="upload-box" onclick="document.getElementById('photo-input').click()">
-      <label>
-        <input type="file" id="photo-input" accept="image/*" onchange="preview(this,'photo-preview')">
-        <div class="icon">📷</div>
-        <h3>Photo du monument</h3>
-        <p>La photo du monument gravé</p>
-      </label>
-      <img id="photo-preview" class="preview" style="display:none">
+    <div class="zone" id="zone-photo">
+      <span class="ico">📷</span>
+      <h3>Photo du monument</h3>
+      <small>La photo du monument grave</small>
+      <input type="file" id="inp-photo" accept="image/*" onchange="onFile(this,'zone-photo','prev-photo','fname-photo')">
+      <img id="prev-photo">
+      <div class="fname" id="fname-photo"></div>
     </div>
   </div>
 
-  <button class="btn" id="verify-btn" onclick="verify()">Analyser les erreurs</button>
-
-  <div class="loading-msg" id="loading">
-    <div class="spinner"></div>
-    Analyse en cours — comparaison du texte hébreu et anglais…
-  </div>
+  <button class="btn" id="btn" onclick="verify()">Analyser les erreurs</button>
+  <div class="loading" id="loading"><span class="sp"></span>Analyse en cours — comparaison lettre par lettre...</div>
 
   <div class="results" id="results">
-    <h2>Résultats de la vérification</h2>
-    <div class="summary-bar" id="summary-bar"></div>
-    <div id="errors-list"></div>
+    <h2>Resultats</h2>
+    <div class="chips" id="chips"></div>
+    <div id="list"></div>
   </div>
 </div>
-
 <script>
-function preview(input, previewId) {
-  const file = input.files[0];
-  if (!file || !file.type.startsWith('image/')) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = document.getElementById(previewId);
+function onFile(inp, zoneId, prevId, fnameId) {
+  var f = inp.files[0];
+  if (!f) return;
+  document.getElementById(zoneId).classList.add('has-file');
+  document.getElementById(fnameId).textContent = f.name;
+  document.getElementById(fnameId).style.display = 'block';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = document.getElementById(prevId);
     img.src = e.target.result;
     img.style.display = 'block';
   };
-  reader.readAsDataURL(file);
+  reader.readAsDataURL(f);
 }
 
 async function verify() {
-  const modelFile = document.getElementById('model-input').files[0];
-  const photoFile = document.getElementById('photo-input').files[0];
-  if (!modelFile || !photoFile) {
-    alert('Veuillez uploader les deux images.');
-    return;
-  }
-  const btn = document.getElementById('verify-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Analyse en cours…';
+  var mf = document.getElementById('inp-model').files[0];
+  var pf = document.getElementById('inp-photo').files[0];
+  if (!mf || !pf) { alert('Selectionnez les deux images.'); return; }
+  var btn = document.getElementById('btn');
+  btn.disabled = true; btn.textContent = 'Analyse en cours...';
   document.getElementById('loading').style.display = 'block';
   document.getElementById('results').style.display = 'none';
-
-  const form = new FormData();
-  form.append('model', modelFile);
-  form.append('photo', photoFile);
-
+  var fd = new FormData();
+  fd.append('model', mf);
+  fd.append('photo', pf);
   try {
-    const res = await fetch('/api/monument-verify', { method: 'POST', body: form });
-    if (!res.ok) {
-      const err = await res.text();
-      alert('Erreur serveur: ' + err);
-      return;
-    }
-    const data = await res.json();
-    renderResults(data);
+    var r = await fetch('/api/monument-verify', {method:'POST', body:fd});
+    var txt = await r.text();
+    if (!r.ok) { alert('Erreur: ' + txt); return; }
+    render(JSON.parse(txt));
   } catch(e) {
-    alert('Erreur: ' + e.message);
+    alert('Erreur reseau: ' + e.message);
   } finally {
-    btn.disabled = false;
-    btn.innerHTML = 'Analyser les erreurs';
+    btn.disabled = false; btn.textContent = 'Analyser les erreurs';
     document.getElementById('loading').style.display = 'none';
   }
 }
 
-function renderResults(data) {
-  const results = document.getElementById('results');
-  const list = document.getElementById('errors-list');
-  const summary = document.getElementById('summary-bar');
-  results.style.display = 'block';
-
-  const errors = data.errors || [];
-  const critiques = errors.filter(e => e.severity === 'critique').length;
-  const avertissements = errors.filter(e => e.severity === 'avertissement').length;
-  const ok = errors.filter(e => e.severity === 'ok').length;
-
-  summary.innerHTML = `
-    ${critiques > 0 ? `<span class="summary-chip chip-red">⛔ ${critiques} erreur${critiques>1?'s':''} critique${critiques>1?'s':''}</span>` : ''}
-    ${avertissements > 0 ? `<span class="summary-chip chip-yellow">⚠️ ${avertissements} avertissement${avertissements>1?'s':''}</span>` : ''}
-    ${ok > 0 ? `<span class="summary-chip chip-green">✅ ${ok} élément${ok>1?'s':''} conforme${ok>1?'s':''}</span>` : ''}
-    ${errors.length === 0 ? '<span class="summary-chip chip-green">✅ Aucune erreur détectée</span>' : ''}
-  `;
-
-  list.innerHTML = errors.map(e => `
-    <div class="error-item ${e.severity === 'critique' ? 'critical' : e.severity === 'avertissement' ? 'warning' : 'ok'}">
-      <span class="error-badge">${e.severity === 'critique' ? 'Critique' : e.severity === 'avertissement' ? 'Attention' : 'OK'}</span>
-      <div>
-        <div class="error-text">${e.message}</div>
-        ${e.detail ? `<div class="error-detail">${e.detail}</div>` : ''}
-      </div>
-    </div>
-  `).join('') || '<div class="error-item ok"><span class="error-badge">OK</span><div class="error-text">Monument conforme au modèle approuvé.</div></div>';
+function render(data) {
+  var errors = data.errors || [];
+  var cr = errors.filter(function(e){return e.severity==='critique';}).length;
+  var wa = errors.filter(function(e){return e.severity==='avertissement';}).length;
+  var ok = errors.filter(function(e){return e.severity==='ok';}).length;
+  document.getElementById('chips').innerHTML =
+    (cr ? '<span class="chip c-red">&#9940; '+cr+' critique'+(cr>1?'s':'')+'</span>' : '') +
+    (wa ? '<span class="chip c-yel">&#9888; '+wa+' attention</span>' : '') +
+    (ok ? '<span class="chip c-grn">&#10003; '+ok+' conforme'+(ok>1?'s':'')+'</span>' : '') +
+    (!errors.length ? '<span class="chip c-grn">&#10003; Aucune erreur</span>' : '');
+  document.getElementById('list').innerHTML = errors.map(function(e) {
+    var cls = e.severity==='critique'?'cr':e.severity==='avertissement'?'wa':'ok';
+    var lbl = e.severity==='critique'?'Critique':e.severity==='avertissement'?'Attention':'OK';
+    return '<div class="item '+cls+'"><span class="badge">'+lbl+'</span><div><div class="msg">'+e.message+'</div>'+(e.detail?'<div class="det">'+e.detail+'</div>':'')+'</div></div>';
+  }).join('') || '<div class="item ok"><span class="badge">OK</span><div class="msg">Monument conforme au modele.</div></div>';
+  document.getElementById('results').style.display = 'block';
 }
 </script>
 </body>
