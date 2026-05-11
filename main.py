@@ -5174,15 +5174,15 @@ h1{font-size:1.5rem;font-weight:400;margin-bottom:4px}
       <span class="ico">📋</span>
       <h3>Modele approuve</h3>
       <small>Le design original (JPG, PNG)</small>
-      <input type="file" id="inp-model" accept="image/*" onchange="onFile(this,'zone-model','prev-model','fname-model')">
+      <input type="file" id="inp-model" accept="image/*,.heic,.heif" onchange="onFile(this,'zone-model','prev-model','fname-model')">
       <img id="prev-model">
       <div class="fname" id="fname-model"></div>
     </div>
     <div class="zone" id="zone-photo">
       <span class="ico">📷</span>
       <h3>Photo du monument</h3>
-      <small>La photo du monument grave</small>
-      <input type="file" id="inp-photo" accept="image/*" onchange="onFile(this,'zone-photo','prev-photo','fname-photo')">
+      <small>La photo du monument grave (HEIC, JPG, PNG)</small>
+      <input type="file" id="inp-photo" accept="image/*,.heic,.heif" onchange="onFile(this,'zone-photo','prev-photo','fname-photo')">
       <img id="prev-photo">
       <div class="fname" id="fname-photo"></div>
     </div>
@@ -5265,17 +5265,34 @@ async def monument_verify(model: UploadFile = File(...), photo: UploadFile = Fil
     if not claude_client:
         raise HTTPException(status_code=503, detail="Claude non configuré")
 
-    import base64
+    import base64, io
+
+    def to_jpeg(raw: bytes, filename: str = "") -> tuple[bytes, str]:
+        """Convertit n'importe quel format image (incl. HEIC) en JPEG."""
+        fname = (filename or "").lower()
+        if fname.endswith(".heic") or fname.endswith(".heif"):
+            try:
+                import pillow_heif
+                pillow_heif.register_heif_opener()
+            except ImportError:
+                raise HTTPException(status_code=415, detail="Format HEIC non supporté — convertissez en JPG ou PNG avant d'uploader.")
+        try:
+            from PIL import Image
+            img = Image.open(io.BytesIO(raw))
+            if img.mode not in ("RGB", "L"):
+                img = img.convert("RGB")
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=92)
+            return buf.getvalue(), "image/jpeg"
+        except Exception as e:
+            raise HTTPException(status_code=415, detail=f"Impossible de lire l'image: {e}")
 
     model_bytes = await model.read()
     photo_bytes = await photo.read()
+    model_bytes, model_mt = to_jpeg(model_bytes, model.filename or "")
+    photo_bytes, photo_mt = to_jpeg(photo_bytes, photo.filename or "")
     model_b64 = base64.standard_b64encode(model_bytes).decode()
     photo_b64 = base64.standard_b64encode(photo_bytes).decode()
-
-    model_mt = model.content_type or "image/jpeg"
-    photo_mt = photo.content_type or "image/jpeg"
-    if model_mt not in ["image/jpeg","image/png","image/gif","image/webp"]:
-        model_mt = "image/jpeg"
 
     try:
         resp = claude_client.messages.create(
