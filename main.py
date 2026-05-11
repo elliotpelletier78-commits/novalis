@@ -5123,250 +5123,311 @@ async def granitecom_verify():
 <title>Verificateur de monuments — Granit Com</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Arial,sans-serif;background:#0f0f0f;color:#e8e4dd;min-height:100vh;padding:32px 16px}
-.wrap{max-width:860px;margin:0 auto}
-.logo{font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;margin-bottom:12px}
-h1{font-size:1.5rem;font-weight:400;margin-bottom:4px}
-.sub{color:#6b7280;font-size:0.88rem;margin-bottom:28px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
-@media(max-width:580px){.grid{grid-template-columns:1fr}}
-.zone{border:2px dashed rgba(168,104,68,0.35);border-radius:8px;padding:28px 16px;text-align:center;background:rgba(168,104,68,0.03);transition:border-color .2s}
-.zone.has-file{border-color:#A86844;border-style:solid}
-.zone .ico{font-size:2.2rem;display:block;margin-bottom:8px}
-.zone h3{font-size:0.85rem;margin-bottom:4px}
-.zone small{color:#6b7280;font-size:0.75rem}
-.zone input[type=file]{margin-top:14px;font-size:0.8rem;color:#A86844;width:100%}
-.zone img{max-width:100%;max-height:180px;margin-top:12px;border-radius:4px;border:1px solid rgba(168,104,68,0.2);display:none}
-.fname{margin-top:8px;font-size:0.75rem;color:#A86844;display:none}
-.btn{width:100%;padding:13px;background:#A86844;color:#fff;border:none;border-radius:6px;font-size:0.82rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer}
-.btn:hover{background:#C4895A}
-.btn:disabled{background:#2a2a2a;color:#555;cursor:not-allowed}
-.loading{text-align:center;padding:32px;color:#6b7280;display:none}
-.sp{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.2);border-top-color:#A86844;border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:6px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#0a0a0a;color:#e8e4dd;min-height:100vh;padding:28px 16px 60px}
+.wrap{max-width:920px;margin:0 auto}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;padding-bottom:16px;border-bottom:1px solid #1e1e1e}
+.logo-txt{font-size:0.68rem;letter-spacing:0.22em;text-transform:uppercase;color:#A86844}
+.powered{font-size:0.65rem;color:#3a3a3a}
+h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
+.sub{color:#555;font-size:0.83rem;margin-bottom:24px;line-height:1.5}
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+@media(max-width:560px){.upload-grid{grid-template-columns:1fr}}
+.uzone{border:1.5px dashed rgba(168,104,68,0.3);border-radius:10px;padding:20px 14px 16px;text-align:center;background:rgba(168,104,68,0.025);cursor:pointer;transition:border-color .2s,background .2s;position:relative}
+.uzone:hover{border-color:rgba(168,104,68,0.6);background:rgba(168,104,68,0.05)}
+.uzone.has-file{border-color:#A86844;border-style:solid;background:rgba(168,104,68,0.06)}
+.uzone .ico{font-size:1.9rem;display:block;margin-bottom:8px}
+.uzone h3{font-size:0.82rem;font-weight:600;margin-bottom:3px}
+.uzone small{color:#555;font-size:0.72rem}
+.uzone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.uzone .prev-img{max-width:100%;max-height:160px;margin-top:10px;border-radius:6px;border:1px solid rgba(168,104,68,0.2);display:none;object-fit:contain}
+.uzone .fname{margin-top:6px;font-size:0.72rem;color:#A86844;display:none;word-break:break-all}
+.btn-analyze{width:100%;padding:14px;background:#A86844;color:#fff;border:none;border-radius:8px;font-size:0.84rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;transition:background .2s;margin-bottom:8px}
+.btn-analyze:hover{background:#c07840}
+.btn-analyze:disabled{background:#1e1e1e;color:#3a3a3a;cursor:not-allowed}
+.loading{display:none;padding:36px 0;text-align:center}
+.loading-inner{display:inline-flex;flex-direction:column;align-items:center;gap:14px}
+.sp{width:36px;height:36px;border:3px solid rgba(168,104,68,0.2);border-top-color:#A86844;border-radius:50%;animation:sp .8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
-.results{margin-top:24px;display:none}
-.results h2{font-size:0.95rem;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid rgba(168,104,68,0.2)}
-.chips{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
-.chip{padding:5px 12px;border-radius:99px;font-size:0.75rem;font-weight:600}
-.c-red{background:rgba(239,68,68,0.15);color:#ef4444}
-.c-yel{background:rgba(234,179,8,0.15);color:#eab308}
-.c-grn{background:rgba(34,197,94,0.15);color:#22c55e}
-.item{display:flex;gap:10px;padding:12px;border-radius:6px;margin-bottom:8px;border-left:3px solid;align-items:flex-start}
-.item.cr{background:rgba(239,68,68,0.07);border-color:#ef4444}
-.item.wa{background:rgba(234,179,8,0.07);border-color:#eab308}
-.item.ok{background:rgba(34,197,94,0.07);border-color:#22c55e}
-.badge{font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:2px 7px;border-radius:99px;white-space:nowrap;margin-top:2px}
-.cr .badge{background:rgba(239,68,68,0.2);color:#ef4444}
-.wa .badge{background:rgba(234,179,8,0.2);color:#eab308}
-.ok .badge{background:rgba(34,197,94,0.2);color:#22c55e}
-.msg{font-size:0.84rem;line-height:1.5}
-.det{font-size:0.73rem;color:#6b7280;margin-top:3px}
+.loading-msg{font-size:0.82rem;color:#555;max-width:260px;line-height:1.5;text-align:center}
+.results{margin-top:28px;display:none}
+.result-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.result-header h2{font-size:0.88rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#888}
+.btn-print{padding:6px 14px;background:transparent;border:1px solid #2a2a2a;border-radius:6px;color:#888;font-size:0.75rem;cursor:pointer;transition:all .2s}
+.btn-print:hover{border-color:#A86844;color:#A86844}
+.chips{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.chip{padding:5px 13px;border-radius:99px;font-size:0.74rem;font-weight:600;letter-spacing:0.03em}
+.c-red{background:rgba(239,68,68,0.12);color:#ef4444;border:1px solid rgba(239,68,68,0.2)}
+.c-yel{background:rgba(234,179,8,0.12);color:#d4a017;border:1px solid rgba(234,179,8,0.2)}
+.c-grn{background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.2)}
+.overview-wrap{margin-bottom:20px;display:none}
+.section-label{font-size:0.68rem;letter-spacing:0.14em;text-transform:uppercase;color:#444;margin-bottom:8px}
+.overview-wrap canvas{max-width:100%;border-radius:8px;border:1px solid #1e1e1e;display:block}
+.error-list{display:flex;flex-direction:column;gap:10px}
+.ecard{border-radius:10px;overflow:hidden;border:1px solid}
+.ecard.cr{border-color:rgba(239,68,68,0.25);background:rgba(239,68,68,0.04)}
+.ecard.wa{border-color:rgba(234,179,8,0.25);background:rgba(234,179,8,0.04)}
+.ecard.ok{border-color:rgba(34,197,94,0.2);background:rgba(34,197,94,0.03)}
+.ecard-head{padding:12px 14px 10px;display:flex;align-items:flex-start;gap:10px}
+.enum{display:flex;align-items:center;justify-content:center;width:22px;height:22px;min-width:22px;border-radius:50%;font-size:0.72rem;font-weight:700;margin-top:1px}
+.cr .enum{background:rgba(239,68,68,0.2);color:#ef4444}
+.wa .enum{background:rgba(234,179,8,0.2);color:#d4a017}
+.badge{font-size:0.6rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:2px 8px;border-radius:99px;white-space:nowrap;margin-top:3px;flex-shrink:0}
+.cr .badge{background:rgba(239,68,68,0.15);color:#ef4444}
+.wa .badge{background:rgba(234,179,8,0.15);color:#d4a017}
+.ok .badge{background:rgba(34,197,94,0.12);color:#22c55e}
+.emsg{font-size:0.85rem;line-height:1.5;font-weight:500;flex:1}
+.edet{font-size:0.75rem;color:#666;margin:2px 0 0 32px;padding:0 14px 10px;font-family:monospace;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.crops{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#1e1e1e;margin-top:2px}
+.crop-col{background:#0a0a0a;padding:10px 12px}
+.crop-lbl{font-size:0.62rem;letter-spacing:0.12em;text-transform:uppercase;color:#444;margin-bottom:6px}
+.crop-col img{width:100%;border-radius:5px;display:block;image-rendering:auto}
+.cr .crop-col img{border:1.5px solid rgba(239,68,68,0.3)}
+.wa .crop-col img{border:1.5px solid rgba(234,179,8,0.3)}
+@media print{
+  .btn-analyze,.btn-print,.upload-grid{display:none}
+  body{background:#fff;color:#000;padding:10px}
+  .ecard{border:1px solid #ccc;background:#fff!important;break-inside:avoid}
+  .c-red,.c-yel,.c-grn{border:1px solid #999;background:#f5f5f5!important;color:#333!important}
+  .emsg,.edet{color:#000!important}
+  .crop-lbl{color:#666!important}
+  .crops{background:#eee}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <p class="logo">Granit Com x Novalis IA</p>
+  <header>
+    <span class="logo-txt">Granit Com &times; Novalis IA</span>
+    <span class="powered">Propulse par Claude Opus</span>
+  </header>
   <h1>Verificateur de monuments</h1>
-  <p class="sub">Selectionnez le modele approuve et la photo du monument grave — l'IA detecte les erreurs automatiquement.</p>
+  <p class="sub">Telechargez le modele approuve et la photo du monument grave. L'IA compare chaque lettre, signe diacritique et symbole et affiche un rapport detaille.</p>
 
-  <div class="grid">
-    <div class="zone" id="zone-model">
+  <div class="upload-grid">
+    <div class="uzone" id="zone-model">
       <span class="ico">📋</span>
       <h3>Modele approuve</h3>
-      <small>Le design original (JPG, PNG)</small>
-      <input type="file" id="inp-model" accept="image/*,.heic,.heif" onchange="onFile(this,'zone-model','prev-model','fname-model')">
-      <img id="prev-model">
+      <small>Design original — JPG, PNG, HEIC</small>
+      <input type="file" id="inp-model" accept="image/*,.heic,.heif" onchange="onFile(this,'zone-model','prev-model','fname-model','model')">
+      <img class="prev-img" id="prev-model">
       <div class="fname" id="fname-model"></div>
     </div>
-    <div class="zone" id="zone-photo">
+    <div class="uzone" id="zone-photo">
       <span class="ico">📷</span>
       <h3>Photo du monument</h3>
-      <small>La photo du monument grave (HEIC, JPG, PNG)</small>
-      <input type="file" id="inp-photo" accept="image/*,.heic,.heif" onchange="onFile(this,'zone-photo','prev-photo','fname-photo')">
-      <img id="prev-photo">
+      <small>Photo apres gravure — HEIC, JPG, PNG</small>
+      <input type="file" id="inp-photo" accept="image/*,.heic,.heif" onchange="onFile(this,'zone-photo','prev-photo','fname-photo','photo')">
+      <img class="prev-img" id="prev-photo">
       <div class="fname" id="fname-photo"></div>
     </div>
   </div>
 
-  <button class="btn" id="btn" onclick="verify()">Analyser les erreurs</button>
-  <div class="loading" id="loading"><span class="sp"></span>Analyse en cours — comparaison lettre par lettre...</div>
+  <button class="btn-analyze" id="btn" onclick="verify()">Analyser les erreurs</button>
+
+  <div class="loading" id="loading">
+    <div class="loading-inner">
+      <div class="sp"></div>
+      <div class="loading-msg" id="loading-msg">Preparation des images...</div>
+    </div>
+  </div>
 
   <div class="results" id="results">
-    <h2>Resultats</h2>
-    <div class="chips" id="chips"></div>
-    <div style="margin-bottom:12px;display:none" id="annotated-wrap">
-      <p style="font-size:0.72rem;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.1em">Vue d'ensemble — erreurs localisees</p>
-      <canvas id="annotated-canvas" style="max-width:100%;border-radius:6px;border:1px solid rgba(168,104,68,0.2)"></canvas>
+    <div class="result-header">
+      <h2>Rapport de verification</h2>
+      <button class="btn-print" onclick="window.print()">Imprimer le rapport</button>
     </div>
-    <div id="list"></div>
+    <div class="chips" id="chips"></div>
+    <div class="overview-wrap" id="overview-wrap">
+      <div class="section-label">Vue d'ensemble — position des erreurs</div>
+      <canvas id="overview-canvas"></canvas>
+    </div>
+    <div class="error-list" id="error-list"></div>
   </div>
 </div>
+
 <script>
 var photoDataUrl = null;
+var modelDataUrl = null;
+var photoImgEl = new Image();
+var modelImgEl = new Image();
 
-function onFile(inp, zoneId, prevId, fnameId) {
-  var f = inp.files[0];
-  if (!f) return;
+var ZONE_BOUNDS = {
+  'ZONE-A':[0,33,0,33],  'ZONE-B':[33,67,0,33],  'ZONE-C':[67,100,0,33],
+  'ZONE-D':[0,33,33,67], 'ZONE-E':[33,67,33,67], 'ZONE-F':[67,100,33,67],
+  'ZONE-G':[0,33,67,100],'ZONE-H':[33,67,67,100],'ZONE-I':[67,100,67,100]
+};
+
+function onFile(inp, zoneId, prevId, fnameId, which) {
+  var f = inp.files[0]; if (!f) return;
   document.getElementById(zoneId).classList.add('has-file');
-  document.getElementById(fnameId).textContent = f.name;
-  document.getElementById(fnameId).style.display = 'block';
+  var el = document.getElementById(fnameId);
+  el.textContent = f.name; el.style.display = 'block';
   var reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = function(ev) {
+    var url = ev.target.result;
     var img = document.getElementById(prevId);
-    img.src = e.target.result;
-    img.style.display = 'block';
-    if (zoneId === 'zone-photo') photoDataUrl = e.target.result;
+    img.src = url; img.style.display = 'block';
+    if (which === 'photo') { photoDataUrl = url; photoImgEl.src = url; }
+    else                   { modelDataUrl = url; modelImgEl.src = url; }
   };
   reader.readAsDataURL(f);
 }
 
-function drawAnnotations(errors, photoImg) {
-  var canvas = document.getElementById('annotated-canvas');
+function cropZone(zone, imgEl) {
+  if (!imgEl || !imgEl.naturalWidth) return null;
+  var b = ZONE_BOUNDS[zone]; if (!b) return null;
+  var iw = imgEl.naturalWidth, ih = imgEl.naturalHeight;
+  var x1=b[0]/100*iw, x2=b[1]/100*iw, y1=b[2]/100*ih, y2=b[3]/100*ih;
+  var cw=x2-x1, ch=y2-y1;
+  var scale = Math.min(4, 380/Math.max(cw,1));
+  var c = document.createElement('canvas');
+  c.width = Math.round(cw*scale); c.height = Math.round(ch*scale);
+  var ctx = c.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(imgEl, x1, y1, cw, ch, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.93);
+}
+
+function clampToZone(e) {
+  var b = e.zone && ZONE_BOUNDS[e.zone]; if (!b) return;
+  var cx=(b[0]+b[1])/2, cy=(b[2]+b[3])/2;
+  e.x = (e.x==null||e.x<b[0]||e.x>b[1]) ? cx : e.x;
+  e.y = (e.y==null||e.y<b[2]||e.y>b[3]) ? cy : e.y;
+}
+
+function drawOverview(errors, imgEl) {
+  var canvas = document.getElementById('overview-canvas');
   var ctx = canvas.getContext('2d');
-  var img = photoImg || new Image();
-  function paint() {
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    ctx.drawImage(img, 0, 0);
-    var dotR = Math.max(10, img.naturalWidth * 0.014);
-    var num = 0;
-    errors.forEach(function(e) {
-      if (e.severity === 'ok' || e.x == null || e.y == null) return;
-      num++;
-      var cx = (e.x / 100) * img.naturalWidth;
-      var cy = (e.y / 100) * img.naturalHeight;
-      var color = e.severity === 'critique' ? '#ef4444' : '#eab308';
-      // White halo for contrast
-      ctx.beginPath();
-      ctx.arc(cx, cy, dotR + 3, 0, 2 * Math.PI);
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.fill();
-      // Colored dot
-      ctx.beginPath();
-      ctx.arc(cx, cy, dotR, 0, 2 * Math.PI);
-      ctx.fillStyle = color;
-      ctx.fill();
-      // Number inside dot
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold ' + Math.round(dotR * 1.2) + 'px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(num, cx, cy);
-    });
+  canvas.width = imgEl.naturalWidth; canvas.height = imgEl.naturalHeight;
+  ctx.drawImage(imgEl, 0, 0);
+  var r = Math.max(12, imgEl.naturalWidth * 0.015);
+  var num = 0;
+  errors.forEach(function(e) {
+    if (e.severity === 'ok' || e.x == null) return;
+    num++;
+    var cx = e.x/100*imgEl.naturalWidth, cy = e.y/100*imgEl.naturalHeight;
+    var color = e.severity==='critique' ? '#ef4444' : '#d4a017';
+    ctx.beginPath(); ctx.arc(cx,cy,r+3,0,2*Math.PI);
+    ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,2*Math.PI);
+    ctx.fillStyle=color; ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.font='bold '+Math.round(r*1.15)+'px Arial';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(num,cx,cy);
+  });
+}
+
+function buildErrorList(errors) {
+  var num = 0;
+  var html = errors.map(function(e) {
+    var cls = e.severity==='critique'?'cr':e.severity==='avertissement'?'wa':'ok';
+    var lbl = e.severity==='critique'?'Critique':e.severity==='avertissement'?'Attention':'OK';
+    if (e.severity === 'ok') {
+      return '<div class="ecard ok"><div class="ecard-head"><span class="badge">'+lbl+'</span><span class="emsg" style="color:#555">'+e.message+'</span></div></div>';
+    }
+    num++;
+    var crops = '';
+    if (e.zone) {
+      var mc = cropZone(e.zone, modelImgEl);
+      var pc = cropZone(e.zone, photoImgEl);
+      if (mc && pc) {
+        crops = '<div class="crops"><div class="crop-col"><div class="crop-lbl">Modele (attendu)</div><img src="'+mc+'"></div>'
+               +'<div class="crop-col"><div class="crop-lbl">Photo (grave)</div><img src="'+pc+'"></div></div>';
+      }
+    }
+    return '<div class="ecard '+cls+'">'
+      +'<div class="ecard-head">'
+      +'<span class="enum">'+num+'</span>'
+      +'<span class="badge">'+lbl+'</span>'
+      +'<span class="emsg">'+e.message+'</span>'
+      +'</div>'
+      +(e.detail ? '<div class="edet">'+e.detail+'</div>' : '')
+      +crops
+      +'</div>';
+  }).join('');
+  document.getElementById('error-list').innerHTML = html ||
+    '<div class="ecard ok"><div class="ecard-head"><span class="badge">OK</span><span class="emsg" style="color:#555">Monument conforme au modele — aucune erreur detectee.</span></div></div>';
+}
+
+function render(data) {
+  var errors = data.errors || [];
+  errors.forEach(clampToZone);
+
+  var cr = errors.filter(function(e){return e.severity==='critique';}).length;
+  var wa = errors.filter(function(e){return e.severity==='avertissement';}).length;
+  var ok = errors.filter(function(e){return e.severity==='ok';}).length;
+  var hasIssues = cr+wa > 0;
+
+  document.getElementById('chips').innerHTML =
+    (cr ? '<span class="chip c-red">&#9940; '+cr+' erreur'+(cr>1?'s':'')+' critique'+(cr>1?'s':'')+'</span>' : '') +
+    (wa ? '<span class="chip c-yel">&#9888; '+wa+' attention'+(wa>1?'s':'')+'</span>' : '') +
+    (!hasIssues ? '<span class="chip c-grn">&#10003; Monument conforme</span>' : '');
+
+  document.getElementById('results').style.display = 'block';
+
+  var hasAnnotated = errors.some(function(e){return e.severity!=='ok' && e.x!=null;});
+  document.getElementById('overview-wrap').style.display = hasAnnotated ? 'block' : 'none';
+
+  function doRender() {
+    if (hasAnnotated) drawOverview(errors, photoImgEl);
+    buildErrorList(errors);
+    document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
   }
-  if (img.complete && img.naturalWidth) {
-    paint();
+
+  if (photoImgEl.complete && photoImgEl.naturalWidth && modelImgEl.complete && modelImgEl.naturalWidth) {
+    doRender();
   } else {
-    img.onload = paint;
-    if (!photoImg) img.src = photoDataUrl;
+    var loaded = 0;
+    function onLoaded() { if (++loaded >= 2) doRender(); }
+    if (!photoImgEl.complete || !photoImgEl.naturalWidth) photoImgEl.addEventListener('load', onLoaded, {once:true});
+    else onLoaded();
+    if (!modelImgEl.complete || !modelImgEl.naturalWidth) modelImgEl.addEventListener('load', onLoaded, {once:true});
+    else onLoaded();
   }
 }
+
+var loadingMsgs = [
+  'Preparation des images...',
+  'Analyse du texte hebreu lettre par lettre...',
+  'Verification des signes diacritiques (niqqud)...',
+  'Comparaison des symboles et mise en page...',
+  'Generation du rapport...'
+];
+var loadingTimer = null;
 
 async function verify() {
   var mf = document.getElementById('inp-model').files[0];
   var pf = document.getElementById('inp-photo').files[0];
-  if (!mf || !pf) { alert('Selectionnez les deux images.'); return; }
+  if (!mf || !pf) { alert('Selectionnez les deux images avant de lancer l\'analyse.'); return; }
   var btn = document.getElementById('btn');
-  btn.disabled = true; btn.textContent = 'Analyse en cours...';
+  btn.disabled = true;
   document.getElementById('loading').style.display = 'block';
   document.getElementById('results').style.display = 'none';
+  var msgIdx = 0;
+  var msgEl = document.getElementById('loading-msg');
+  msgEl.textContent = loadingMsgs[0];
+  loadingTimer = setInterval(function() {
+    msgIdx = Math.min(msgIdx+1, loadingMsgs.length-1);
+    msgEl.textContent = loadingMsgs[msgIdx];
+  }, 6000);
   var fd = new FormData();
   fd.append('model', mf);
   fd.append('photo', pf);
   try {
     var r = await fetch('/api/monument-verify', {method:'POST', body:fd});
     var txt = await r.text();
-    if (!r.ok) { alert('Erreur: ' + txt); return; }
-    render(JSON.parse(txt));
-  } catch(e) {
-    alert('Erreur reseau: ' + e.message);
-  } finally {
-    btn.disabled = false; btn.textContent = 'Analyser les erreurs';
-    document.getElementById('loading').style.display = 'none';
-  }
-}
-
-function cropZoom(x, y, w, h, imgEl, zoomFactor) {
-  // Retourne une data URL d'un crop zoomé
-  var iw = imgEl.naturalWidth, ih = imgEl.naturalHeight;
-  var pad = 1.8; // padding autour de la zone
-  var cw = Math.min(iw, (w / 100) * iw * pad);
-  var ch = Math.min(ih, (h / 100) * ih * pad);
-  var cx = Math.max(0, (x / 100) * iw - cw/2);
-  var cy = Math.max(0, (y / 100) * ih - ch/2);
-  cx = Math.min(cx, iw - cw);
-  cy = Math.min(cy, ih - ch);
-  var outW = Math.round(cw * (zoomFactor || 3));
-  var outH = Math.round(ch * (zoomFactor || 3));
-  var c = document.createElement('canvas');
-  c.width = outW; c.height = outH;
-  var ctx = c.getContext('2d');
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(imgEl, cx, cy, cw, ch, 0, 0, outW, outH);
-  // Bordure colorée
-  return c.toDataURL('image/jpeg', 0.92);
-}
-
-function render(data) {
-  var errors = data.errors || [];
-  var cr = errors.filter(function(e){return e.severity==='critique';}).length;
-  var wa = errors.filter(function(e){return e.severity==='avertissement';}).length;
-  var ok = errors.filter(function(e){return e.severity==='ok';}).length;
-  document.getElementById('chips').innerHTML =
-    (cr ? '<span class="chip c-red">&#9940; '+cr+' critique'+(cr>1?'s':'')+'</span>' : '') +
-    (wa ? '<span class="chip c-yel">&#9888; '+wa+' attention</span>' : '') +
-    (ok ? '<span class="chip c-grn">&#10003; '+ok+' conforme'+(ok>1?'s':'')+'</span>' : '') +
-    (!errors.length ? '<span class="chip c-grn">&#10003; Aucune erreur</span>' : '');
-
-  // Clamp x,y to their zone bounds — guarantees dots land in the right zone
-  var ZONE_BOUNDS = {
-    'ZONE-A':[0,33,0,33],  'ZONE-B':[33,67,0,33],  'ZONE-C':[67,100,0,33],
-    'ZONE-D':[0,33,33,67], 'ZONE-E':[33,67,33,67], 'ZONE-F':[67,100,33,67],
-    'ZONE-G':[0,33,67,100],'ZONE-H':[33,67,67,100],'ZONE-I':[67,100,67,100]
-  };
-  errors.forEach(function(e) {
-    var b = e.zone && ZONE_BOUNDS[e.zone];
-    if (!b) return;
-    var cx = (b[0]+b[1])/2, cy = (b[2]+b[3])/2;
-    e.x = (e.x == null || e.x < b[0] || e.x > b[1]) ? cx : e.x;
-    e.y = (e.y == null || e.y < b[2] || e.y > b[3]) ? cy : e.y;
-  });
-
-  var num = 0;
-  var photoImg = null;
-  if (photoDataUrl) { photoImg = new Image(); photoImg.src = photoDataUrl; }
-
-  // Construire la liste avec crops zoomés
-  function buildList() {
-    num = 0;
-    document.getElementById('list').innerHTML = errors.map(function(e) {
-      var cls = e.severity==='critique'?'cr':e.severity==='avertissement'?'wa':'ok';
-      var lbl = e.severity==='critique'?'Critique':e.severity==='avertissement'?'Attention':'OK';
-      var color = e.severity==='critique'?'#ef4444':e.severity==='avertissement'?'#eab308':'#22c55e';
-      var zoomHtml = '';
-      if (e.severity!=='ok' && e.x!=null && photoImg && photoImg.naturalWidth) {
-        num++;
-        var zurl = cropZoom(e.x, e.y, e.w||10, e.h||7, photoImg, 4);
-        zoomHtml = '<div style="margin:8px 0 4px;"><img src="'+zurl+'" style="max-width:100%;max-height:140px;border-radius:4px;border:2px solid '+color+';display:block"></div><p style="font-size:0.65rem;color:#6b7280;margin-bottom:4px">Zone x'+num+' — agrandissement 4x</p>';
-      } else if (e.severity!=='ok') { num++; }
-      var badge_num = e.severity!=='ok' ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;min-width:20px;border-radius:50%;background:'+color+';color:#fff;font-size:0.7rem;font-weight:700;margin-right:6px">'+num+'</span>' : '';
-      return '<div class="item '+cls+'"><span class="badge">'+lbl+'</span><div style="width:100%"><div style="display:flex;align-items:center">'+badge_num+'<span class="msg">'+e.message+'</span></div>'+(e.detail?'<div class="det" style="margin-top:4px">'+e.detail+'</div>':'')+zoomHtml+'</div></div>';
-    }).join('') || '<div class="item ok"><span class="badge">OK</span><div class="msg">Monument conforme au modele.</div></div>';
-  }
-
-  var hasAnnotated = errors.some(function(e){return e.severity!=='ok' && e.x!=null;});
-  document.getElementById('annotated-wrap').style.display = hasAnnotated ? 'block' : 'none';
-  document.getElementById('results').style.display = 'block';
-
-  if (photoImg && hasAnnotated) {
-    if (photoImg.complete && photoImg.naturalWidth) {
-      buildList();
-      drawAnnotations(errors, photoImg);
-    } else {
-      photoImg.onload = function() { buildList(); drawAnnotations(errors, photoImg); };
+    if (!r.ok) {
+      alert('Erreur lors de l\'analyse. Veuillez reessayer.');
+      return;
     }
-  } else {
-    buildList();
+    render(JSON.parse(txt));
+  } catch(err) {
+    alert('Erreur reseau. Verifiez votre connexion et reessayez.');
+  } finally {
+    clearInterval(loadingTimer);
+    btn.disabled = false;
+    document.getElementById('loading').style.display = 'none';
   }
 }
 </script>
@@ -5540,7 +5601,7 @@ Sois exhaustif. Il vaut mieux signaler trop que pas assez."""}
         return result
     except Exception as e:
         logger.error(f"Erreur monument-verify: {e}")
-        raise HTTPException(status_code=500, detail=f"Erreur: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de l'analyse. Veuillez reessayer.")
 
 
 @app.post("/api/marker-orders")
