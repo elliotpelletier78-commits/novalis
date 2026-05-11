@@ -5194,10 +5194,18 @@ h1{font-size:1.5rem;font-weight:400;margin-bottom:4px}
   <div class="results" id="results">
     <h2>Resultats</h2>
     <div class="chips" id="chips"></div>
-    <div id="list"></div>
+    <div style="display:none;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px" id="annotated-wrap">
+      <div>
+        <p style="font-size:0.72rem;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.1em">Photo annotee</p>
+        <canvas id="annotated-canvas" style="max-width:100%;border-radius:6px;border:1px solid rgba(168,104,68,0.2)"></canvas>
+      </div>
+      <div id="list" style="max-height:420px;overflow-y:auto"></div>
+    </div>
   </div>
 </div>
 <script>
+var photoDataUrl = null;
+
 function onFile(inp, zoneId, prevId, fnameId) {
   var f = inp.files[0];
   if (!f) return;
@@ -5209,8 +5217,47 @@ function onFile(inp, zoneId, prevId, fnameId) {
     var img = document.getElementById(prevId);
     img.src = e.target.result;
     img.style.display = 'block';
+    if (zoneId === 'zone-photo') photoDataUrl = e.target.result;
   };
   reader.readAsDataURL(f);
+}
+
+function drawAnnotations(errors) {
+  var canvas = document.getElementById('annotated-canvas');
+  var ctx = canvas.getContext('2d');
+  var img = new Image();
+  img.onload = function() {
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+    var critiques = errors.filter(function(e){return e.severity==='critique' || e.severity==='avertissement';});
+    critiques.forEach(function(e, i) {
+      if (e.x == null || e.y == null) return;
+      var cx = (e.x / 100) * img.width;
+      var cy = (e.y / 100) * img.height;
+      var rw = ((e.w || 15) / 100) * img.width / 2;
+      var rh = ((e.h || 8) / 100) * img.height / 2;
+      var color = e.severity === 'critique' ? '#ef4444' : '#eab308';
+      // Ellipse
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rw, rh, 0, 0, 2 * Math.PI);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = Math.max(3, img.width / 200);
+      ctx.stroke();
+      // Numero
+      var r = Math.max(14, img.width / 60);
+      ctx.beginPath();
+      ctx.arc(cx + rw - r/2, cy - rh + r/2, r, 0, 2*Math.PI);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold ' + Math.max(12, img.width/80) + 'px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(i+1, cx + rw - r/2, cy - rh + r/2);
+    });
+  };
+  img.src = photoDataUrl;
 }
 
 async function verify() {
@@ -5247,12 +5294,17 @@ function render(data) {
     (wa ? '<span class="chip c-yel">&#9888; '+wa+' attention</span>' : '') +
     (ok ? '<span class="chip c-grn">&#10003; '+ok+' conforme'+(ok>1?'s':'')+'</span>' : '') +
     (!errors.length ? '<span class="chip c-grn">&#10003; Aucune erreur</span>' : '');
+  var annotated = errors.filter(function(e){return e.severity!=='ok';});
+  var num = 0;
   document.getElementById('list').innerHTML = errors.map(function(e) {
     var cls = e.severity==='critique'?'cr':e.severity==='avertissement'?'wa':'ok';
     var lbl = e.severity==='critique'?'Critique':e.severity==='avertissement'?'Attention':'OK';
-    return '<div class="item '+cls+'"><span class="badge">'+lbl+'</span><div><div class="msg">'+e.message+'</div>'+(e.detail?'<div class="det">'+e.detail+'</div>':'')+'</div></div>';
+    var prefix = (e.severity!=='ok' && e.x!=null) ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:'+(e.severity==='critique'?'#ef4444':'#eab308')+';color:#fff;font-size:0.7rem;font-weight:700;margin-right:6px;flex-shrink:0">'+(++num)+'</span>' : '';
+    return '<div class="item '+cls+'"><span class="badge">'+lbl+'</span><div style="display:flex;align-items:flex-start;gap:4px"><div>'+prefix+'</div><div><div class="msg">'+e.message+'</div>'+(e.detail?'<div class="det">'+e.detail+'</div>':'')+'</div></div></div>';
   }).join('') || '<div class="item ok"><span class="badge">OK</span><div class="msg">Monument conforme au modele.</div></div>';
+  document.getElementById('annotated-wrap').style.display = errors.length ? 'grid' : 'none';
   document.getElementById('results').style.display = 'block';
+  if (photoDataUrl && annotated.length) drawAnnotations(errors);
 }
 </script>
 </body>
@@ -5324,20 +5376,28 @@ Vérifie dans cet ordre :
 4. Mise en page — position des éléments, hiérarchie visuelle
 5. Éléments manquants ou ajoutés
 
+Pour chaque élément, estime sa position sur la PHOTO DU MONUMENT (deuxième image) en pourcentage (0-100) depuis le coin supérieur gauche.
+
 Réponds UNIQUEMENT en JSON valide:
 {
   "errors": [
     {
       "severity": "critique" | "avertissement" | "ok",
       "message": "Description claire de l'erreur ou de la conformité",
-      "detail": "Explication supplémentaire avec le texte exact attendu vs trouvé (optionnel)"
+      "detail": "Explication supplémentaire avec le texte exact attendu vs trouvé (optionnel)",
+      "x": 50,
+      "y": 30,
+      "w": 20,
+      "h": 8
     }
   ]
 }
 
-- "critique" = erreur qui doit être corrigée avant livraison (mauvaise lettre, mot manquant, date incorrecte)
-- "avertissement" = différence mineure à valider (espacement, légère variation de police)
-- "ok" = élément vérifié et conforme
+- x, y = position du centre de l'élément en % (0-100) sur la photo
+- w, h = largeur et hauteur approximatives en % (0-100)
+- "critique" = erreur à corriger avant livraison
+- "avertissement" = différence mineure à valider
+- "ok" = élément conforme
 
 Si tu ne peux pas lire clairement une partie, indique-le comme avertissement."""}
                 ]
