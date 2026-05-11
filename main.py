@@ -5462,8 +5462,8 @@ async def monument_verify(model: UploadFile = File(...), photo: UploadFile = Fil
 
     try:
         resp = claude_client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=2000,
+            model="claude-opus-4-7",
+            max_tokens=4000,
             messages=[{
                 "role": "user",
                 "content": [
@@ -5471,14 +5471,33 @@ async def monument_verify(model: UploadFile = File(...), photo: UploadFile = Fil
                     {"type": "image", "source": {"type": "base64", "media_type": model_mt, "data": model_b64}},
                     {"type": "text", "text": "Voici la PHOTO DU MONUMENT GRAVÉ. Elle est divisée en 9 zones nommées (ZONE-A à ZONE-I) visibles sur l'image :"},
                     {"type": "image", "source": {"type": "base64", "media_type": photo_zone_mt, "data": photo_zone_b64}},
-                    {"type": "text", "text": f"""Compare minutieusement ces deux images. Tu es un expert en vérification de monuments funéraires avec une connaissance approfondie de l'hébreu.
+                    {"type": "text", "text": f"""Tu es un expert en vérification de monuments funéraires juifs. Ta mission : trouver TOUTES les différences entre le modèle et la photo gravée. Ne manquer aucune erreur est critique — une erreur non détectée sur un monument livré est inacceptable.
 
-Vérifie dans cet ordre :
-1. Texte hébreu — chaque lettre, chaque mot, l'ordre (droite à gauche), les signes diacritiques (niqqud, points), les guillemets hébraïques (״ ׳)
-2. Texte anglais — nom complet, dates, epithètes, ponctuation
-3. Symboles — étoile de David, mains, croix, autres symboles
-4. Mise en page — position des éléments, hiérarchie visuelle
-5. Éléments manquants ou ajoutés
+MÉTHODE — analyse dans cet ordre, élément par élément :
+
+1. TEXTE HÉBREU (priorité absolue)
+   - Parcours chaque mot de droite à gauche
+   - Compare chaque lettre individuellement (aleph, bet, gimel...)
+   - Vérifie chaque signe diacritique : niqqud (points voyelles), dagesh (point dans lettre), shva, kamatz, patach, etc.
+   - Vérifie les guillemets hébraïques ״ et ׳ (géreshayim, geresh)
+   - Vérifie l'espacement entre mots et lettres
+   - Vérifie la taille relative des caractères
+
+2. TEXTE ANGLAIS / FRANÇAIS
+   - Chaque lettre du nom, prénom, titre
+   - Dates (jour, mois, année) — chiffre par chiffre
+   - Ponctuation, tirets, virgules
+
+3. SYMBOLES ET DÉCORATIONS
+   - Étoile de David, mains de cohen, lévite, etc.
+   - Présence/absence de bordures, ornements
+
+4. MISE EN PAGE
+   - Centrage de chaque ligne
+   - Espacement vertical entre sections
+   - Éléments manquants ou ajoutés
+
+RÈGLE IMPORTANTE : Chaque différence = un item séparé dans le JSON. Ne regroupe pas plusieurs erreurs en une. Si tu vois 3 lettres incorrectes, crée 3 items distincts.
 
 La photo est divisée en 9 zones visibles :
   ZONE-A (haut-gauche)   ZONE-B (haut-centre)   ZONE-C (haut-droite)
@@ -5488,29 +5507,26 @@ La photo est divisée en 9 zones visibles :
 Correspondance zones → coordonnées :
 {zone_map_text}
 
-Pour chaque erreur, identifie la zone où se trouve l'erreur sur la PHOTO, puis donne les coordonnées du centre exact dans cette zone.
-
-Réponds UNIQUEMENT en JSON valide:
+Réponds UNIQUEMENT en JSON valide (sans markdown) :
 {{
   "errors": [
     {{
       "severity": "critique" | "avertissement" | "ok",
-      "message": "Description claire de l'erreur",
-      "detail": "Texte exact attendu vs trouvé (optionnel)",
+      "message": "Description de l'erreur (ex: Lettre incorrecte — ב gravé au lieu de כ)",
+      "detail": "Attendu : [texte exact du modèle] — Trouvé : [texte exact sur la photo]",
       "zone": "ZONE-B",
       "x": 50,
-      "y": 17,
-      "w": 20,
-      "h": 10
+      "y": 17
     }}
   ]
 }}
 
-- "critique" = erreur à corriger avant livraison
-- "avertissement" = différence mineure à valider
-- "ok" = élément conforme (zone et coordonnées non nécessaires pour les ok)
+Severités :
+- "critique" = erreur visible qui doit être corrigée avant livraison
+- "avertissement" = différence mineure à confirmer avec le client
+- "ok" = un seul item "ok" si tout est conforme (sans zone ni coordonnées)
 
-Indique la zone (ZONE-A à ZONE-I) pour chaque erreur. Les coordonnées x,y doivent correspondre au centre précis dans cette zone."""}
+Sois exhaustif. Il vaut mieux signaler trop que pas assez."""}
                 ]
             }]
         )
