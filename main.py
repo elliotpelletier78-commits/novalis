@@ -5113,6 +5113,244 @@ async def pet_marker_config():
     raise HTTPException(status_code=404)
 
 
+@app.get("/granitecom-verify", response_class=HTMLResponse)
+async def granitecom_verify():
+    return HTMLResponse(content="""<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Vérificateur de monuments — Granit Com</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0f0f0f;color:#e8e4dd;min-height:100vh;padding:32px 16px}
+.container{max-width:900px;margin:0 auto}
+h1{font-size:1.6rem;font-weight:400;color:#e8e4dd;margin-bottom:4px}
+.sub{color:#6b7280;font-size:0.9rem;margin-bottom:32px}
+.logo{font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+@media(max-width:600px){.grid{grid-template-columns:1fr}}
+.upload-box{border:1.5px dashed rgba(168,104,68,0.4);border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:border-color .2s;background:rgba(168,104,68,0.03)}
+.upload-box:hover{border-color:#A86844}
+.upload-box label{cursor:pointer;display:block}
+.upload-box input{display:none}
+.upload-box .icon{font-size:2rem;margin-bottom:8px}
+.upload-box h3{font-size:0.85rem;color:#e8e4dd;margin-bottom:4px}
+.upload-box p{font-size:0.75rem;color:#6b7280}
+.preview{max-width:100%;max-height:200px;margin-top:12px;border-radius:4px;border:1px solid rgba(168,104,68,0.2)}
+.btn{width:100%;padding:14px;background:#A86844;color:#fff;border:none;border-radius:6px;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background .2s}
+.btn:hover{background:#C4895A}
+.btn:disabled{background:#3a3a3a;color:#6b7280;cursor:not-allowed}
+.results{margin-top:28px;display:none}
+.results h2{font-size:1rem;color:#e8e4dd;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid rgba(168,104,68,0.2)}
+.error-item{display:flex;gap:12px;padding:14px;border-radius:6px;margin-bottom:10px;border-left:3px solid}
+.error-item.critical{background:rgba(239,68,68,0.08);border-color:#ef4444}
+.error-item.warning{background:rgba(234,179,8,0.08);border-color:#eab308}
+.error-item.ok{background:rgba(34,197,94,0.08);border-color:#22c55e}
+.error-badge{font-size:0.65rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:2px 8px;border-radius:99px;white-space:nowrap;height:fit-content}
+.critical .error-badge{background:rgba(239,68,68,0.2);color:#ef4444}
+.warning .error-badge{background:rgba(234,179,8,0.2);color:#eab308}
+.ok .error-badge{background:rgba(34,197,94,0.2);color:#22c55e}
+.error-text{font-size:0.85rem;color:#e8e4dd;line-height:1.5}
+.error-detail{font-size:0.75rem;color:#6b7280;margin-top:4px}
+.summary-bar{display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.summary-chip{padding:6px 14px;border-radius:99px;font-size:0.78rem;font-weight:500}
+.chip-red{background:rgba(239,68,68,0.15);color:#ef4444}
+.chip-yellow{background:rgba(234,179,8,0.15);color:#eab308}
+.chip-green{background:rgba(34,197,94,0.15);color:#22c55e}
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-msg{text-align:center;padding:40px;color:#6b7280;font-size:0.9rem;display:none}
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="logo">Granit Com × Novalis IA</p>
+  <h1>Vérificateur de monuments</h1>
+  <p class="sub">Uploadez le modèle approuvé et la photo du monument gravé — l'IA détecte automatiquement les erreurs.</p>
+
+  <div class="grid">
+    <div class="upload-box" onclick="document.getElementById('model-input').click()">
+      <label>
+        <input type="file" id="model-input" accept="image/*,.pdf" onchange="preview(this,'model-preview')">
+        <div class="icon">📋</div>
+        <h3>Modèle approuvé</h3>
+        <p>Le design original (PDF ou image)</p>
+      </label>
+      <img id="model-preview" class="preview" style="display:none">
+    </div>
+    <div class="upload-box" onclick="document.getElementById('photo-input').click()">
+      <label>
+        <input type="file" id="photo-input" accept="image/*" onchange="preview(this,'photo-preview')">
+        <div class="icon">📷</div>
+        <h3>Photo du monument</h3>
+        <p>La photo du monument gravé</p>
+      </label>
+      <img id="photo-preview" class="preview" style="display:none">
+    </div>
+  </div>
+
+  <button class="btn" id="verify-btn" onclick="verify()">Analyser les erreurs</button>
+
+  <div class="loading-msg" id="loading">
+    <div class="spinner"></div>
+    Analyse en cours — comparaison du texte hébreu et anglais…
+  </div>
+
+  <div class="results" id="results">
+    <h2>Résultats de la vérification</h2>
+    <div class="summary-bar" id="summary-bar"></div>
+    <div id="errors-list"></div>
+  </div>
+</div>
+
+<script>
+function preview(input, previewId) {
+  const file = input.files[0];
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById(previewId);
+    img.src = e.target.result;
+    img.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function verify() {
+  const modelFile = document.getElementById('model-input').files[0];
+  const photoFile = document.getElementById('photo-input').files[0];
+  if (!modelFile || !photoFile) {
+    alert('Veuillez uploader les deux images.');
+    return;
+  }
+  const btn = document.getElementById('verify-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Analyse en cours…';
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+
+  const form = new FormData();
+  form.append('model', modelFile);
+  form.append('photo', photoFile);
+
+  try {
+    const res = await fetch('/api/monument-verify', { method: 'POST', body: form });
+    const data = await res.json();
+    renderResults(data);
+  } catch(e) {
+    alert('Erreur lors de l\'analyse. Réessayez.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Analyser les erreurs';
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
+function renderResults(data) {
+  const results = document.getElementById('results');
+  const list = document.getElementById('errors-list');
+  const summary = document.getElementById('summary-bar');
+  results.style.display = 'block';
+
+  const errors = data.errors || [];
+  const critiques = errors.filter(e => e.severity === 'critique').length;
+  const avertissements = errors.filter(e => e.severity === 'avertissement').length;
+  const ok = errors.filter(e => e.severity === 'ok').length;
+
+  summary.innerHTML = `
+    ${critiques > 0 ? `<span class="summary-chip chip-red">⛔ ${critiques} erreur${critiques>1?'s':''} critique${critiques>1?'s':''}</span>` : ''}
+    ${avertissements > 0 ? `<span class="summary-chip chip-yellow">⚠️ ${avertissements} avertissement${avertissements>1?'s':''}</span>` : ''}
+    ${ok > 0 ? `<span class="summary-chip chip-green">✅ ${ok} élément${ok>1?'s':''} conforme${ok>1?'s':''}</span>` : ''}
+    ${errors.length === 0 ? '<span class="summary-chip chip-green">✅ Aucune erreur détectée</span>' : ''}
+  `;
+
+  list.innerHTML = errors.map(e => `
+    <div class="error-item ${e.severity === 'critique' ? 'critical' : e.severity === 'avertissement' ? 'warning' : 'ok'}">
+      <span class="error-badge">${e.severity === 'critique' ? 'Critique' : e.severity === 'avertissement' ? 'Attention' : 'OK'}</span>
+      <div>
+        <div class="error-text">${e.message}</div>
+        ${e.detail ? `<div class="error-detail">${e.detail}</div>` : ''}
+      </div>
+    </div>
+  `).join('') || '<div class="error-item ok"><span class="error-badge">OK</span><div class="error-text">Monument conforme au modèle approuvé.</div></div>';
+}
+</script>
+</body>
+</html>""")
+
+
+@app.post("/api/monument-verify")
+@limiter.limit("10/minute")
+async def monument_verify(request: Request, model: UploadFile = File(...), photo: UploadFile = File(...)):
+    """Compare un modèle de monument approuvé avec une photo du monument gravé via Claude Vision."""
+    if not claude_client:
+        raise HTTPException(status_code=503, detail="Claude non configuré")
+
+    import base64
+
+    model_bytes = await model.read()
+    photo_bytes = await photo.read()
+    model_b64 = base64.standard_b64encode(model_bytes).decode()
+    photo_b64 = base64.standard_b64encode(photo_bytes).decode()
+
+    model_mt = model.content_type or "image/jpeg"
+    photo_mt = photo.content_type or "image/jpeg"
+    if model_mt not in ["image/jpeg","image/png","image/gif","image/webp"]:
+        model_mt = "image/jpeg"
+
+    try:
+        resp = claude_client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=2000,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Voici le MODÈLE APPROUVÉ du monument (ce qui devrait être gravé) :"},
+                    {"type": "image", "source": {"type": "base64", "media_type": model_mt, "data": model_b64}},
+                    {"type": "text", "text": "Voici la PHOTO DU MONUMENT GRAVÉ (ce qui a été réellement gravé) :"},
+                    {"type": "image", "source": {"type": "base64", "media_type": photo_mt, "data": photo_b64}},
+                    {"type": "text", "text": """Compare minutieusement ces deux images. Tu es un expert en vérification de monuments funéraires avec une connaissance approfondie de l'hébreu.
+
+Vérifie dans cet ordre :
+1. Texte hébreu — chaque lettre, chaque mot, l'ordre (droite à gauche), les signes diacritiques, les guillemets hébraïques (״ ׳)
+2. Texte anglais — nom complet, dates, epithètes, ponctuation
+3. Symboles — étoile de David, mains, croix, autres symboles
+4. Mise en page — position des éléments, hiérarchie visuelle
+5. Éléments manquants ou ajoutés
+
+Réponds UNIQUEMENT en JSON valide:
+{
+  "errors": [
+    {
+      "severity": "critique" | "avertissement" | "ok",
+      "message": "Description claire de l'erreur ou de la conformité",
+      "detail": "Explication supplémentaire avec le texte exact attendu vs trouvé (optionnel)"
+    }
+  ]
+}
+
+- "critique" = erreur qui doit être corrigée avant livraison (mauvaise lettre, mot manquant, date incorrecte)
+- "avertissement" = différence mineure à valider (espacement, légère variation de police)
+- "ok" = élément vérifié et conforme
+
+Si tu ne peux pas lire clairement une partie, indique-le comme avertissement."""}
+                ]
+            }]
+        )
+        import json as _json
+        text = resp.content[0].text.strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        result = _json.loads(text.strip())
+        return result
+    except Exception as e:
+        logger.error(f"Erreur monument-verify: {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de l'analyse")
+
+
 @app.post("/api/marker-orders")
 async def create_marker_order(request: Request):
     data = await request.json()
