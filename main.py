@@ -5268,22 +5268,32 @@ async def monument_verify(model: UploadFile = File(...), photo: UploadFile = Fil
     import base64, io
 
     def to_jpeg(raw: bytes, filename: str = "") -> tuple[bytes, str]:
-        """Convertit n'importe quel format image (incl. HEIC) en JPEG."""
+        """Convertit n'importe quel format image (incl. HEIC) en JPEG <4MB."""
         fname = (filename or "").lower()
         if fname.endswith(".heic") or fname.endswith(".heif"):
             try:
                 import pillow_heif
                 pillow_heif.register_heif_opener()
             except ImportError:
-                raise HTTPException(status_code=415, detail="Format HEIC non supporté — convertissez en JPG ou PNG avant d'uploader.")
+                raise HTTPException(status_code=415, detail="Format HEIC non supporte — convertissez en JPG ou PNG.")
         try:
             from PIL import Image
             img = Image.open(io.BytesIO(raw))
             if img.mode not in ("RGB", "L"):
                 img = img.convert("RGB")
-            buf = io.BytesIO()
-            img.save(buf, format="JPEG", quality=92)
+            # Redimensionner si trop grand (max 2400px côté long pour rester sous 4MB)
+            max_side = 2400
+            if max(img.width, img.height) > max_side:
+                img.thumbnail((max_side, max_side), Image.LANCZOS)
+            # Compresser jusqu'à < 4MB
+            for quality in (88, 75, 60):
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG", quality=quality)
+                if buf.tell() < 4 * 1024 * 1024:
+                    break
             return buf.getvalue(), "image/jpeg"
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=415, detail=f"Impossible de lire l'image: {e}")
 
