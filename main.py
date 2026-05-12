@@ -5210,6 +5210,7 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
       <h3>Modele approuve</h3>
       <small>Design original — JPG, PNG, HEIC</small>
       <input class="file-input" type="file" id="inp-model" accept="image/*">
+      <div class="fname" id="fname-model"></div>
       <img class="prev-img" id="prev-model">
     </div>
     <div class="uzone" id="zone-photo">
@@ -5217,6 +5218,7 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
       <h3>Photo du monument</h3>
       <small>Photo apres gravure — HEIC, JPG, PNG</small>
       <input class="file-input" type="file" id="inp-photo" accept="image/*">
+      <div class="fname" id="fname-photo"></div>
       <img class="prev-img" id="prev-photo">
     </div>
   </div>
@@ -5245,188 +5247,197 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
 </div>
 
 <script>
-var photoImgEl = new Image();
-var modelImgEl = new Image();
-
+// ── constants ──────────────────────────────────────────────────────────────
 var ZONE_BOUNDS = {
   'ZONE-A':[0,33,0,33],  'ZONE-B':[33,67,0,33],  'ZONE-C':[67,100,0,33],
   'ZONE-D':[0,33,33,67], 'ZONE-E':[33,67,33,67], 'ZONE-F':[67,100,33,67],
   'ZONE-G':[0,33,67,100],'ZONE-H':[33,67,67,100],'ZONE-I':[67,100,67,100]
 };
 
-function attachInput(inputId, zoneId, prevId, imgEl) {
-  document.getElementById(inputId).addEventListener('change', function() {
-    var f = this.files[0];
-    if (!f) return;
-    document.getElementById(zoneId).classList.add('has-file');
-    var url = URL.createObjectURL(f);
-    var prev = document.getElementById(prevId);
-    prev.src = url;
-    prev.style.display = 'block';
-    imgEl.src = url;
+// ── file input wiring (script is at bottom of body, DOM is ready) ──────────
+document.getElementById('inp-model').onchange = function() {
+  if (!this.files[0]) return;
+  document.getElementById('zone-model').classList.add('has-file');
+  document.getElementById('fname-model').textContent = this.files[0].name;
+  document.getElementById('fname-model').style.display = 'block';
+  var prev = document.getElementById('prev-model');
+  var url = URL.createObjectURL(this.files[0]);
+  prev.src = url; prev.style.display = 'block';
+};
+document.getElementById('inp-photo').onchange = function() {
+  if (!this.files[0]) return;
+  document.getElementById('zone-photo').classList.add('has-file');
+  document.getElementById('fname-photo').textContent = this.files[0].name;
+  document.getElementById('fname-photo').style.display = 'block';
+  var prev = document.getElementById('prev-photo');
+  var url = URL.createObjectURL(this.files[0]);
+  prev.src = url; prev.style.display = 'block';
+};
+
+// ── helpers ────────────────────────────────────────────────────────────────
+function readFileAsDataUrl(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload  = function(e) { resolve(e.target.result); };
+    reader.onerror = function()  { reject(new Error('Lecture fichier echouee')); };
+    reader.readAsDataURL(file);
   });
 }
 
-// Script is at bottom of <body> — DOM already ready, no DOMContentLoaded needed
-attachInput('inp-model', 'zone-model', 'prev-model', modelImgEl);
-attachInput('inp-photo', 'zone-photo', 'prev-photo', photoImgEl);
+function loadImage(src) {
+  return new Promise(function(resolve, reject) {
+    var img = new Image();
+    img.onload  = function() { resolve(img); };
+    img.onerror = function() { reject(new Error('Chargement image echoue')); };
+    img.src = src;
+  });
+}
+
+function clampToZone(e) {
+  var b = e.zone && ZONE_BOUNDS[e.zone]; if (!b) return;
+  var cx = (b[0]+b[1])/2, cy = (b[2]+b[3])/2;
+  e.x = (e.x == null || e.x < b[0] || e.x > b[1]) ? cx : e.x;
+  e.y = (e.y == null || e.y < b[2] || e.y > b[3]) ? cy : e.y;
+}
 
 function cropZone(zone, imgEl) {
-  if (!imgEl || !imgEl.naturalWidth) return null;
   var b = ZONE_BOUNDS[zone]; if (!b) return null;
   var iw = imgEl.naturalWidth, ih = imgEl.naturalHeight;
   var x1=b[0]/100*iw, x2=b[1]/100*iw, y1=b[2]/100*ih, y2=b[3]/100*ih;
-  var cw=x2-x1, ch=y2-y1;
-  var scale = Math.min(4, 380/Math.max(cw,1));
+  var cw = x2-x1, ch = y2-y1;
+  var scale = Math.min(4, 380/Math.max(cw, 1));
   var c = document.createElement('canvas');
   c.width = Math.round(cw*scale); c.height = Math.round(ch*scale);
   var ctx = c.getContext('2d');
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(imgEl, x1, y1, cw, ch, 0, 0, c.width, c.height);
-  return c.toDataURL('image/jpeg', 0.93);
-}
-
-function clampToZone(e) {
-  var b = e.zone && ZONE_BOUNDS[e.zone]; if (!b) return;
-  var cx=(b[0]+b[1])/2, cy=(b[2]+b[3])/2;
-  e.x = (e.x==null||e.x<b[0]||e.x>b[1]) ? cx : e.x;
-  e.y = (e.y==null||e.y<b[2]||e.y>b[3]) ? cy : e.y;
+  return c.toDataURL('image/jpeg', 0.92);
 }
 
 function drawOverview(errors, imgEl) {
   var canvas = document.getElementById('overview-canvas');
-  var ctx = canvas.getContext('2d');
+  var ctx    = canvas.getContext('2d');
   canvas.width = imgEl.naturalWidth; canvas.height = imgEl.naturalHeight;
   ctx.drawImage(imgEl, 0, 0);
-  var r = Math.max(12, imgEl.naturalWidth * 0.015);
+  var r = Math.max(14, imgEl.naturalWidth * 0.015);
   var num = 0;
   errors.forEach(function(e) {
     if (e.severity === 'ok' || e.x == null) return;
     num++;
     var cx = e.x/100*imgEl.naturalWidth, cy = e.y/100*imgEl.naturalHeight;
-    var color = e.severity==='critique' ? '#ef4444' : '#d4a017';
-    ctx.beginPath(); ctx.arc(cx,cy,r+3,0,2*Math.PI);
-    ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.fill();
-    ctx.beginPath(); ctx.arc(cx,cy,r,0,2*Math.PI);
-    ctx.fillStyle=color; ctx.fill();
-    ctx.fillStyle='#fff';
-    ctx.font='bold '+Math.round(r*1.15)+'px Arial';
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(num,cx,cy);
+    var color = e.severity === 'critique' ? '#ef4444' : '#d4a017';
+    ctx.beginPath(); ctx.arc(cx, cy, r+4, 0, 2*Math.PI);
+    ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2*Math.PI);
+    ctx.fillStyle = color; ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold ' + Math.round(r*1.2) + 'px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(num, cx, cy);
   });
 }
 
-function buildErrorList(errors) {
+function buildErrorList(errors, modelImg, photoImg) {
   var num = 0;
   var html = errors.map(function(e) {
     var cls = e.severity==='critique'?'cr':e.severity==='avertissement'?'wa':'ok';
     var lbl = e.severity==='critique'?'Critique':e.severity==='avertissement'?'Attention':'OK';
     if (e.severity === 'ok') {
-      return '<div class="ecard ok"><div class="ecard-head"><span class="badge">'+lbl+'</span><span class="emsg" style="color:#555">'+e.message+'</span></div></div>';
+      return '<div class="ecard ok"><div class="ecard-head"><span class="badge">'+lbl+'</span>'
+           + '<span class="emsg" style="color:#555">'+e.message+'</span></div></div>';
     }
     num++;
     var crops = '';
-    if (e.zone) {
-      var mc = cropZone(e.zone, modelImgEl);
-      var pc = cropZone(e.zone, photoImgEl);
+    if (e.zone && modelImg && photoImg) {
+      var mc = cropZone(e.zone, modelImg);
+      var pc = cropZone(e.zone, photoImg);
       if (mc && pc) {
-        crops = '<div class="crops"><div class="crop-col"><div class="crop-lbl">Modele (attendu)</div><img src="'+mc+'"></div>'
-               +'<div class="crop-col"><div class="crop-lbl">Photo (grave)</div><img src="'+pc+'"></div></div>';
+        crops = '<div class="crops">'
+          + '<div class="crop-col"><div class="crop-lbl">Modele attendu</div><img src="'+mc+'"></div>'
+          + '<div class="crop-col"><div class="crop-lbl">Photo gravee</div><img src="'+pc+'"></div>'
+          + '</div>';
       }
     }
     return '<div class="ecard '+cls+'">'
-      +'<div class="ecard-head">'
-      +'<span class="enum">'+num+'</span>'
-      +'<span class="badge">'+lbl+'</span>'
-      +'<span class="emsg">'+e.message+'</span>'
-      +'</div>'
-      +(e.detail ? '<div class="edet">'+e.detail+'</div>' : '')
-      +crops
-      +'</div>';
+      + '<div class="ecard-head">'
+      + '<span class="enum">'+num+'</span>'
+      + '<span class="badge">'+lbl+'</span>'
+      + '<span class="emsg">'+e.message+'</span>'
+      + '</div>'
+      + (e.detail ? '<div class="edet">'+e.detail+'</div>' : '')
+      + crops
+      + '</div>';
   }).join('');
   document.getElementById('error-list').innerHTML = html ||
-    '<div class="ecard ok"><div class="ecard-head"><span class="badge">OK</span><span class="emsg" style="color:#555">Monument conforme au modele — aucune erreur detectee.</span></div></div>';
+    '<div class="ecard ok"><div class="ecard-head"><span class="badge">OK</span>'
+    + '<span class="emsg" style="color:#555">Monument conforme au modele — aucune erreur detectee.</span></div></div>';
 }
 
-function render(data) {
+// ── main verify flow ───────────────────────────────────────────────────────
+var loadingTimer = null;
+var loadingMsgs = [
+  'Envoi des images...','Analyse lettre par lettre...','Verification des signes diacritiques...','Generation du rapport...'
+];
+
+async function verify() {
+  var mf = document.getElementById('inp-model').files[0];
+  var pf = document.getElementById('inp-photo').files[0];
+  if (!mf || !pf) { alert('Selectionnez les deux images.'); return; }
+
+  var btn    = document.getElementById('btn');
+  var loadEl = document.getElementById('loading');
+  var msgEl  = document.getElementById('loading-msg');
+  btn.disabled = true;
+  loadEl.style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+  var mi = 0; msgEl.textContent = loadingMsgs[0];
+  loadingTimer = setInterval(function() {
+    mi = Math.min(mi+1, loadingMsgs.length-1);
+    msgEl.textContent = loadingMsgs[mi];
+  }, 7000);
+
+  try {
+    var fd = new FormData();
+    fd.append('model', mf);
+    fd.append('photo', pf);
+    var resp = await fetch('/api/monument-verify', { method:'POST', body:fd });
+    if (!resp.ok) { alert('Erreur serveur — reessayez.'); return; }
+    var data = await resp.json();
+    await render(data, mf, pf);
+  } catch(err) {
+    alert('Erreur: ' + err.message);
+  } finally {
+    clearInterval(loadingTimer);
+    btn.disabled = false;
+    loadEl.style.display = 'none';
+  }
+}
+
+async function render(data, modelFile, photoFile) {
   var errors = data.errors || [];
   errors.forEach(clampToZone);
 
   var cr = errors.filter(function(e){return e.severity==='critique';}).length;
   var wa = errors.filter(function(e){return e.severity==='avertissement';}).length;
-  var ok = errors.filter(function(e){return e.severity==='ok';}).length;
-  var hasIssues = cr+wa > 0;
-
   document.getElementById('chips').innerHTML =
-    (cr ? '<span class="chip c-red">&#9940; '+cr+' erreur'+(cr>1?'s':'')+' critique'+(cr>1?'s':'')+'</span>' : '') +
+    (cr ? '<span class="chip c-red">&#9940; '+cr+' critique'+(cr>1?'s':'')+'</span>' : '') +
     (wa ? '<span class="chip c-yel">&#9888; '+wa+' attention'+(wa>1?'s':'')+'</span>' : '') +
-    (!hasIssues ? '<span class="chip c-grn">&#10003; Monument conforme</span>' : '');
+    (!cr && !wa ? '<span class="chip c-grn">&#10003; Monument conforme</span>' : '');
 
   document.getElementById('results').style.display = 'block';
 
-  var hasAnnotated = errors.some(function(e){return e.severity!=='ok' && e.x!=null;});
+  // Load both images fresh from files (avoids all blob/cross-origin issues)
+  var modelUrl = await readFileAsDataUrl(modelFile);
+  var photoUrl = await readFileAsDataUrl(photoFile);
+  var modelImg = await loadImage(modelUrl);
+  var photoImg = await loadImage(photoUrl);
+
+  var hasAnnotated = errors.some(function(e){ return e.severity !== 'ok' && e.x != null; });
   document.getElementById('overview-wrap').style.display = hasAnnotated ? 'block' : 'none';
+  if (hasAnnotated) drawOverview(errors, photoImg);
 
-  function doRender() {
-    if (hasAnnotated) drawOverview(errors, photoImgEl);
-    buildErrorList(errors);
-    document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
-  }
-
-  if (photoImgEl.complete && photoImgEl.naturalWidth && modelImgEl.complete && modelImgEl.naturalWidth) {
-    doRender();
-  } else {
-    var loaded = 0;
-    function onLoaded() { if (++loaded >= 2) doRender(); }
-    if (!photoImgEl.complete || !photoImgEl.naturalWidth) photoImgEl.addEventListener('load', onLoaded, {once:true});
-    else onLoaded();
-    if (!modelImgEl.complete || !modelImgEl.naturalWidth) modelImgEl.addEventListener('load', onLoaded, {once:true});
-    else onLoaded();
-  }
-}
-
-var loadingMsgs = [
-  'Preparation des images...',
-  'Analyse du texte hebreu lettre par lettre...',
-  'Verification des signes diacritiques (niqqud)...',
-  'Comparaison des symboles et mise en page...',
-  'Generation du rapport...'
-];
-var loadingTimer = null;
-
-async function verify() {
-  var mf = document.getElementById('inp-model').files[0];
-  var pf = document.getElementById('inp-photo').files[0];
-  if (!mf || !pf) { alert('Selectionnez les deux images avant de lancer l\'analyse.'); return; }
-  var btn = document.getElementById('btn');
-  btn.disabled = true;
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('results').style.display = 'none';
-  var msgIdx = 0;
-  var msgEl = document.getElementById('loading-msg');
-  msgEl.textContent = loadingMsgs[0];
-  loadingTimer = setInterval(function() {
-    msgIdx = Math.min(msgIdx+1, loadingMsgs.length-1);
-    msgEl.textContent = loadingMsgs[msgIdx];
-  }, 6000);
-  var fd = new FormData();
-  fd.append('model', mf);
-  fd.append('photo', pf);
-  try {
-    var r = await fetch('/api/monument-verify', {method:'POST', body:fd});
-    var txt = await r.text();
-    if (!r.ok) {
-      alert('Erreur lors de l\'analyse. Veuillez reessayer.');
-      return;
-    }
-    render(JSON.parse(txt));
-  } catch(err) {
-    alert('Erreur reseau. Verifiez votre connexion et reessayez.');
-  } finally {
-    clearInterval(loadingTimer);
-    btn.disabled = false;
-    document.getElementById('loading').style.display = 'none';
-  }
+  buildErrorList(errors, modelImg, photoImg);
+  document.getElementById('results').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 </script>
 </body>
