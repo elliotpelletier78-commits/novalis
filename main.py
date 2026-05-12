@@ -5209,14 +5209,14 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
       <span class="ico">📋</span>
       <h3>Modele approuve</h3>
       <small>Design original — JPG, PNG, HEIC</small>
-      <input class="file-input" type="file" id="inp-model" accept="image/*" onchange="onFile(this,'zone-model','prev-model','model')">
+      <input class="file-input" type="file" id="inp-model" accept="image/*">
       <img class="prev-img" id="prev-model">
     </div>
     <div class="uzone" id="zone-photo">
       <span class="ico">📷</span>
       <h3>Photo du monument</h3>
       <small>Photo apres gravure — HEIC, JPG, PNG</small>
-      <input class="file-input" type="file" id="inp-photo" accept="image/*" onchange="onFile(this,'zone-photo','prev-photo','photo')">
+      <input class="file-input" type="file" id="inp-photo" accept="image/*">
       <img class="prev-img" id="prev-photo">
     </div>
   </div>
@@ -5245,8 +5245,6 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
 </div>
 
 <script>
-var photoDataUrl = null;
-var modelDataUrl = null;
 var photoImgEl = new Image();
 var modelImgEl = new Image();
 
@@ -5256,20 +5254,25 @@ var ZONE_BOUNDS = {
   'ZONE-G':[0,33,67,100],'ZONE-H':[33,67,67,100],'ZONE-I':[67,100,67,100]
 };
 
-function onFile(inp, zoneId, prevId, which) {
-  var f = inp.files[0]; if (!f) return;
-  document.getElementById(zoneId).classList.add('has-file');
-  var reader = new FileReader();
-  reader.onload = function(ev) {
-    var url = ev.target.result;
-    var img = document.getElementById(prevId);
-    img.src = url; img.style.display = 'block';
-    if (which === 'photo') { photoDataUrl = url; photoImgEl.src = url; }
-    else                   { modelDataUrl = url; modelImgEl.src = url; }
-  };
-  reader.onerror = function() { alert('Erreur de lecture — reessayez.'); };
-  reader.readAsDataURL(f);
+function attachInput(inputId, zoneId, prevId, imgEl) {
+  var inp = document.getElementById(inputId);
+  inp.addEventListener('change', function() {
+    var f = inp.files[0]; if (!f) return;
+    document.getElementById(zoneId).classList.add('has-file');
+    // createObjectURL: synchronous, no FileReader, works on all iOS versions
+    var url = URL.createObjectURL(f);
+    imgEl.onload = function() {
+      var prev = document.getElementById(prevId);
+      prev.src = url; prev.style.display = 'block';
+    };
+    imgEl.src = url;
+  });
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+  attachInput('inp-model', 'zone-model', 'prev-model', modelImgEl);
+  attachInput('inp-photo', 'zone-photo', 'prev-photo', photoImgEl);
+});
 
 function cropZone(zone, imgEl) {
   if (!imgEl || !imgEl.naturalWidth) return null;
