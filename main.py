@@ -5113,6 +5113,311 @@ async def pet_marker_config():
     raise HTTPException(status_code=404)
 
 
+@app.get("/api/granitecom.js")
+async def granitecom_js():
+    js = r"""
+var ZONE_BOUNDS = {
+  'ZONE-A':[0,33,0,33],  'ZONE-B':[33,67,0,33],  'ZONE-C':[67,100,0,33],
+  'ZONE-D':[0,33,33,67], 'ZONE-E':[33,67,33,67], 'ZONE-F':[67,100,33,67],
+  'ZONE-G':[0,33,67,100],'ZONE-H':[33,67,67,100],'ZONE-I':[67,100,67,100]
+};
+var MAX_FILE_SIZE = 30 * 1024 * 1024;
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatBytes(n) {
+  if (n < 1024) return n + ' o';
+  if (n < 1024*1024) return (n/1024).toFixed(0) + ' Ko';
+  return (n/1024/1024).toFixed(1) + ' Mo';
+}
+
+window.onerror = function(msg, src, line, col, err) {
+  var b = document.getElementById('js-error-banner');
+  if (b) { b.style.display = 'block'; b.textContent = 'Erreur JS : ' + msg + ' (ligne ' + line + ')'; }
+  return false;
+};
+
+function handleFilePick(inputEl, zoneId, fnameId, prevId) {
+  var f = inputEl.files && inputEl.files[0];
+  if (!f) return;
+  if (f.size > MAX_FILE_SIZE) {
+    alert('Fichier trop volumineux (' + formatBytes(f.size) + '). Maximum : 30 Mo.');
+    inputEl.value = '';
+    return;
+  }
+  var zone = document.getElementById(zoneId);
+  if (zone) zone.classList.add('has-file');
+  var fnameEl = document.getElementById(fnameId);
+  if (fnameEl) { fnameEl.textContent = f.name + ' (' + formatBytes(f.size) + ')'; fnameEl.style.display = 'block'; }
+  var prev = document.getElementById(prevId);
+  if (prev) {
+    if (prev._objectUrl) { try { URL.revokeObjectURL(prev._objectUrl); } catch(_) {} }
+    try {
+      prev._objectUrl = URL.createObjectURL(f);
+      prev.src = prev._objectUrl;
+      prev.style.display = 'block';
+    } catch(err) {
+      var reader = new FileReader();
+      reader.onload = function(e) { prev.src = e.target.result; prev.style.display = 'block'; };
+      reader.readAsDataURL(f);
+    }
+  }
+}
+
+function wireInput(inputId, zoneId, fnameId, prevId) {
+  var inp = document.getElementById(inputId);
+  if (!inp) return;
+  var handler = function() { handleFilePick(inp, zoneId, fnameId, prevId); };
+  inp.addEventListener('change', handler, false);
+  inp.onchange = handler;
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload  = function(e) { resolve(e.target.result); };
+    reader.onerror = function()  { reject(new Error('Lecture fichier echouee')); };
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImage(src) {
+  return new Promise(function(resolve, reject) {
+    var img = new Image();
+    img.onload  = function() { resolve(img); };
+    img.onerror = function() { reject(new Error('Chargement image echoue')); };
+    img.src = src;
+  });
+}
+
+function clampToZone(e) {
+  var b = e.zone && ZONE_BOUNDS[e.zone]; if (!b) return;
+  var cx = (b[0]+b[1])/2, cy = (b[2]+b[3])/2;
+  e.x = (e.x == null || e.x < b[0] || e.x > b[1]) ? cx : e.x;
+  e.y = (e.y == null || e.y < b[2] || e.y > b[3]) ? cy : e.y;
+}
+
+function cropZone(zone, imgEl) {
+  var b = ZONE_BOUNDS[zone]; if (!b) return null;
+  var iw = imgEl.naturalWidth, ih = imgEl.naturalHeight;
+  var x1=b[0]/100*iw, x2=b[1]/100*iw, y1=b[2]/100*ih, y2=b[3]/100*ih;
+  var cw = x2-x1, ch = y2-y1;
+  var scale = Math.min(4, 380/Math.max(cw, 1));
+  var c = document.createElement('canvas');
+  c.width = Math.round(cw*scale); c.height = Math.round(ch*scale);
+  var ctx = c.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(imgEl, x1, y1, cw, ch, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.92);
+}
+
+function drawOverview(errors, imgEl) {
+  var canvas = document.getElementById('overview-canvas');
+  var ctx    = canvas.getContext('2d');
+  canvas.width = imgEl.naturalWidth; canvas.height = imgEl.naturalHeight;
+  ctx.drawImage(imgEl, 0, 0);
+  var r = Math.max(14, imgEl.naturalWidth * 0.015);
+  var num = 0;
+  errors.forEach(function(e) {
+    if (e.severity === 'ok' || e.x == null) return;
+    num++;
+    var cx = e.x/100*imgEl.naturalWidth, cy = e.y/100*imgEl.naturalHeight;
+    var color = e.severity === 'critique' ? '#ef4444' : '#d4a017';
+    ctx.beginPath(); ctx.arc(cx, cy, r+4, 0, 2*Math.PI);
+    ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2*Math.PI);
+    ctx.fillStyle = color; ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold ' + Math.round(r*1.2) + 'px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(num, cx, cy);
+  });
+}
+
+function buildErrorList(errors, modelImg, photoImg) {
+  var num = 0;
+  var html = errors.map(function(e) {
+    var cls = e.severity==='critique'?'cr':e.severity==='avertissement'?'wa':'ok';
+    var lbl = e.severity==='critique'?'Critique':e.severity==='avertissement'?'Attention':'OK';
+    var msg = escapeHtml(e.message || '');
+    if (e.severity === 'ok') {
+      return '<div class="ecard ok"><div class="ecard-head"><span class="badge">'+lbl+'</span>'
+           + '<span class="emsg" style="color:#555">'+msg+'</span></div></div>';
+    }
+    num++;
+    var crops = '';
+    if (e.zone && modelImg && photoImg) {
+      try {
+        var mc = cropZone(e.zone, modelImg);
+        var pc = cropZone(e.zone, photoImg);
+        if (mc && pc) {
+          crops = '<div class="crops">'
+            + '<div class="crop-col"><div class="crop-lbl">Modele attendu</div><img src="'+mc+'" alt="Modele zone '+escapeHtml(e.zone)+'"></div>'
+            + '<div class="crop-col"><div class="crop-lbl">Photo gravee</div><img src="'+pc+'" alt="Photo zone '+escapeHtml(e.zone)+'"></div>'
+            + '</div>';
+        }
+      } catch(err) {}
+    }
+    return '<div class="ecard '+cls+'">'
+      + '<div class="ecard-head">'
+      + '<span class="enum">'+num+'</span>'
+      + '<span class="badge">'+lbl+'</span>'
+      + '<span class="emsg">'+msg+'</span>'
+      + '</div>'
+      + (e.detail ? '<div class="edet">'+escapeHtml(e.detail)+'</div>' : '')
+      + crops
+      + '</div>';
+  }).join('');
+  document.getElementById('error-list').innerHTML = html ||
+    '<div class="ecard ok"><div class="ecard-head"><span class="badge">OK</span>'
+    + '<span class="emsg" style="color:#555">Monument conforme au modele — aucune erreur detectee.</span></div></div>';
+}
+
+var loadingTimer = null;
+var loadingMsgs = [
+  'Envoi des images au serveur...',
+  'Preparation des images (compression, rotation EXIF)...',
+  'Analyse du texte hebreu lettre par lettre...',
+  'Verification des signes diacritiques et niqqud...',
+  'Comparaison des symboles et decorations...',
+  'Verification de la mise en page...',
+  'Generation du rapport detaille...'
+];
+
+function setMessage(text) {
+  var el = document.getElementById('loading-msg');
+  if (el) el.textContent = text;
+}
+
+async function verify() {
+  var mf = document.getElementById('inp-model').files[0];
+  var pf = document.getElementById('inp-photo').files[0];
+  if (!mf || !pf) { alert('Selectionnez les deux images (modele + photo).'); return; }
+  if (mf.size > MAX_FILE_SIZE || pf.size > MAX_FILE_SIZE) {
+    alert('Une des images depasse 30 Mo. Compressez-la ou utilisez une plus petite.'); return;
+  }
+  var btn    = document.getElementById('btn');
+  var loadEl = document.getElementById('loading');
+  btn.disabled = true;
+  loadEl.style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+  var mi = 0;
+  setMessage(loadingMsgs[0]);
+  loadingTimer = setInterval(function() {
+    mi = Math.min(mi+1, loadingMsgs.length-1);
+    setMessage(loadingMsgs[mi]);
+  }, 6000);
+  var controller = new AbortController();
+  var abortTimer = setTimeout(function(){ controller.abort(); }, 120000);
+  try {
+    var fd = new FormData();
+    fd.append('model', mf);
+    fd.append('photo', pf);
+    var resp = await fetch('/api/monument-verify', { method: 'POST', body: fd, signal: controller.signal, cache: 'no-store' });
+    if (!resp.ok) {
+      var errData = {};
+      try { errData = await resp.json(); } catch(e) {}
+      var msg;
+      switch(resp.status) {
+        case 400: msg = errData.detail || 'Requete invalide.'; break;
+        case 413: msg = errData.detail || 'Fichier trop volumineux. Maximum 30 Mo.'; break;
+        case 415: msg = errData.detail || 'Format d\'image non supporte. Utilisez JPG, PNG ou HEIC.'; break;
+        case 429: msg = 'Trop de demandes. Patientez une minute puis reessayez.'; break;
+        case 502: msg = errData.detail || 'Service IA indisponible. Reessayez dans quelques instants.'; break;
+        case 503: msg = errData.detail || 'Service IA temporairement indisponible.'; break;
+        case 504: msg = errData.detail || 'L\'analyse a depasse le delai. Reessayez avec des images plus petites.'; break;
+        default:  msg = errData.detail || ('Erreur serveur (' + resp.status + '). Reessayez.');
+      }
+      alert(msg);
+      return;
+    }
+    var data = await resp.json();
+    setMessage('Affichage du rapport...');
+    await render(data, mf, pf);
+    if (window.navigator && window.navigator.vibrate) { try { window.navigator.vibrate(30); } catch(_) {} }
+  } catch(err) {
+    if (err.name === 'AbortError') {
+      alert('L\'analyse prend trop de temps. Reessayez avec des images plus petites ou plus claires.');
+    } else if (err.name === 'TypeError') {
+      alert('Connexion impossible. Verifiez votre connexion internet et reessayez.');
+    } else {
+      alert('Erreur inattendue : ' + (err.message || err));
+    }
+  } finally {
+    clearTimeout(abortTimer);
+    clearInterval(loadingTimer);
+    btn.disabled = false;
+    loadEl.style.display = 'none';
+  }
+}
+
+async function render(data, modelFile, photoFile) {
+  var errors = (data && Array.isArray(data.errors)) ? data.errors : [];
+  errors.forEach(clampToZone);
+  var cr = errors.filter(function(e){return e.severity==='critique';}).length;
+  var wa = errors.filter(function(e){return e.severity==='avertissement';}).length;
+  document.getElementById('chips').innerHTML =
+    (cr ? '<span class="chip c-red">&#9940; '+cr+' critique'+(cr>1?'s':'')+'</span>' : '') +
+    (wa ? '<span class="chip c-yel">&#9888; '+wa+' attention'+(wa>1?'s':'')+'</span>' : '') +
+    (!cr && !wa ? '<span class="chip c-grn">&#10003; Monument conforme</span>' : '');
+  document.getElementById('results').style.display = 'block';
+  var modelImg = null, photoImg = null;
+  try {
+    var modelUrl = await readFileAsDataUrl(modelFile);
+    var photoUrl = await readFileAsDataUrl(photoFile);
+    modelImg = await loadImage(modelUrl);
+    photoImg = await loadImage(photoUrl);
+  } catch(err) { console.warn('Image local reload echec:', err); }
+  var hasAnnotated = errors.some(function(e){ return e.severity !== 'ok' && e.x != null; });
+  var overviewWrap = document.getElementById('overview-wrap');
+  if (hasAnnotated && photoImg) {
+    overviewWrap.style.display = 'block';
+    try { drawOverview(errors, photoImg); }
+    catch(err) { overviewWrap.style.display = 'none'; }
+  } else {
+    overviewWrap.style.display = 'none';
+  }
+  buildErrorList(errors, modelImg, photoImg);
+  setTimeout(function(){
+    try { document.getElementById('results').scrollIntoView({ behavior:'smooth', block:'start' }); }
+    catch(_) {}
+  }, 60);
+}
+
+// Init
+try {
+  wireInput('inp-model', 'zone-model', 'fname-model', 'prev-model');
+  wireInput('inp-photo', 'zone-photo', 'fname-photo', 'prev-photo');
+  var _btn = document.getElementById('btn');
+  if (_btn) { _btn.addEventListener('click', function(ev) { ev.preventDefault(); verify(); }, false); }
+  var _bt = document.getElementById('build-tag');
+  if (_bt) _bt.textContent = 'Propulse par Claude Opus \xB7 build-11 \xB7 JS-OK';
+  document.title = 'build-11 JS-OK \xB7 Granit Com';
+} catch(e) {
+  var _eb = document.getElementById('js-error-banner');
+  if (_eb) { _eb.style.display='block'; _eb.textContent='Init echouee : ' + e.message; }
+}
+"""
+    from fastapi.responses import Response
+    return Response(
+        content=js,
+        media_type="application/javascript",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "CDN-Cache-Control": "no-store",
+            "Cloudflare-CDN-Cache-Control": "no-store",
+        }
+    )
+
+
 @app.get("/granitecom-verify", response_class=HTMLResponse)
 async def granitecom_verify():
     html = """<!DOCTYPE html>
@@ -5204,7 +5509,7 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
 <div class="wrap">
   <header>
     <span class="logo-txt">Granit Com &times; Novalis IA</span>
-    <span class="powered" id="build-tag">Propulse par Claude Opus &middot; build-10</span>
+    <span class="powered" id="build-tag">Propulse par Claude Opus &middot; build-11</span>
   </header>
   <h1>Verificateur de monuments</h1>
   <div id="js-error-banner" style="display:none;background:#7a1010;color:#fff;padding:10px 14px;border-radius:6px;margin-bottom:14px;font-size:0.78rem;line-height:1.5"></div>
@@ -5252,340 +5557,7 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
   </div>
 </div>
 
-<script data-cfasync="false">
-// ── JS diagnostic marker (changes header text if JS runs) ─────────────────
-// data-cfasync="false" empêche Cloudflare Rocket Loader de casser le script sur iOS
-try {
-  var _bt = document.getElementById('build-tag');
-  if (_bt) _bt.textContent = 'Propulse par Claude Opus · build-10 · JS-OK';
-  document.title = 'build-10 JS-OK · Granit Com';
-} catch(_) {}
-
-// ── constants ──────────────────────────────────────────────────────────────
-var ZONE_BOUNDS = {
-  'ZONE-A':[0,33,0,33],  'ZONE-B':[33,67,0,33],  'ZONE-C':[67,100,0,33],
-  'ZONE-D':[0,33,33,67], 'ZONE-E':[33,67,33,67], 'ZONE-F':[67,100,33,67],
-  'ZONE-G':[0,33,67,100],'ZONE-H':[33,67,67,100],'ZONE-I':[67,100,67,100]
-};
-
-var MAX_FILE_SIZE = 30 * 1024 * 1024; // 30 MB
-
-function escapeHtml(s) {
-  if (s == null) return '';
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function formatBytes(n) {
-  if (n < 1024) return n + ' o';
-  if (n < 1024*1024) return (n/1024).toFixed(0) + ' Ko';
-  return (n/1024/1024).toFixed(1) + ' Mo';
-}
-
-window.onerror = function(msg, src, line, col, err) {
-  var b = document.getElementById('js-error-banner');
-  if (b) {
-    b.style.display = 'block';
-    b.textContent = 'Erreur JS : ' + msg + ' (ligne ' + line + ')';
-  }
-  return false;
-};
-
-function handleFilePick(inputEl, zoneId, fnameId, prevId) {
-  var f = inputEl.files && inputEl.files[0];
-  if (!f) return;
-  if (f.size > MAX_FILE_SIZE) {
-    alert('Fichier trop volumineux (' + formatBytes(f.size) + '). Maximum : 30 Mo.');
-    inputEl.value = '';
-    return;
-  }
-  var zone = document.getElementById(zoneId);
-  if (zone) zone.classList.add('has-file');
-  var fnameEl = document.getElementById(fnameId);
-  if (fnameEl) {
-    fnameEl.textContent = f.name + ' (' + formatBytes(f.size) + ')';
-    fnameEl.style.display = 'block';
-  }
-  var prev = document.getElementById(prevId);
-  if (prev) {
-    if (prev._objectUrl) {
-      try { URL.revokeObjectURL(prev._objectUrl); } catch(_) {}
-    }
-    try {
-      prev._objectUrl = URL.createObjectURL(f);
-      prev.src = prev._objectUrl;
-      prev.style.display = 'block';
-    } catch(err) {
-      // iOS iCloud sometimes blocks blob URL — fallback to FileReader
-      var reader = new FileReader();
-      reader.onload = function(e) { prev.src = e.target.result; prev.style.display = 'block'; };
-      reader.readAsDataURL(f);
-    }
-  }
-}
-
-function wireInput(inputId, zoneId, fnameId, prevId) {
-  var inp = document.getElementById(inputId);
-  if (!inp) return;
-  var handler = function() { handleFilePick(inp, zoneId, fnameId, prevId); };
-  inp.addEventListener('change', handler, false);
-  inp.onchange = handler; // double-binding pour iOS Safari
-}
-
-try {
-  wireInput('inp-model', 'zone-model', 'fname-model', 'prev-model');
-  wireInput('inp-photo', 'zone-photo', 'fname-photo', 'prev-photo');
-  var btn = document.getElementById('btn');
-  if (btn) {
-    btn.addEventListener('click', function(ev) {
-      ev.preventDefault();
-      verify();
-    }, false);
-  }
-} catch(e) {
-  var b = document.getElementById('js-error-banner');
-  if (b) { b.style.display='block'; b.textContent='Init echouee : ' + e.message; }
-}
-
-function readFileAsDataUrl(file) {
-  return new Promise(function(resolve, reject) {
-    var reader = new FileReader();
-    reader.onload  = function(e) { resolve(e.target.result); };
-    reader.onerror = function()  { reject(new Error('Lecture fichier echouee')); };
-    reader.readAsDataURL(file);
-  });
-}
-
-function loadImage(src) {
-  return new Promise(function(resolve, reject) {
-    var img = new Image();
-    img.onload  = function() { resolve(img); };
-    img.onerror = function() { reject(new Error('Chargement image echoue')); };
-    img.src = src;
-  });
-}
-
-function clampToZone(e) {
-  var b = e.zone && ZONE_BOUNDS[e.zone]; if (!b) return;
-  var cx = (b[0]+b[1])/2, cy = (b[2]+b[3])/2;
-  e.x = (e.x == null || e.x < b[0] || e.x > b[1]) ? cx : e.x;
-  e.y = (e.y == null || e.y < b[2] || e.y > b[3]) ? cy : e.y;
-}
-
-function cropZone(zone, imgEl) {
-  var b = ZONE_BOUNDS[zone]; if (!b) return null;
-  var iw = imgEl.naturalWidth, ih = imgEl.naturalHeight;
-  var x1=b[0]/100*iw, x2=b[1]/100*iw, y1=b[2]/100*ih, y2=b[3]/100*ih;
-  var cw = x2-x1, ch = y2-y1;
-  var scale = Math.min(4, 380/Math.max(cw, 1));
-  var c = document.createElement('canvas');
-  c.width = Math.round(cw*scale); c.height = Math.round(ch*scale);
-  var ctx = c.getContext('2d');
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(imgEl, x1, y1, cw, ch, 0, 0, c.width, c.height);
-  return c.toDataURL('image/jpeg', 0.92);
-}
-
-function drawOverview(errors, imgEl) {
-  var canvas = document.getElementById('overview-canvas');
-  var ctx    = canvas.getContext('2d');
-  canvas.width = imgEl.naturalWidth; canvas.height = imgEl.naturalHeight;
-  ctx.drawImage(imgEl, 0, 0);
-  var r = Math.max(14, imgEl.naturalWidth * 0.015);
-  var num = 0;
-  errors.forEach(function(e) {
-    if (e.severity === 'ok' || e.x == null) return;
-    num++;
-    var cx = e.x/100*imgEl.naturalWidth, cy = e.y/100*imgEl.naturalHeight;
-    var color = e.severity === 'critique' ? '#ef4444' : '#d4a017';
-    ctx.beginPath(); ctx.arc(cx, cy, r+4, 0, 2*Math.PI);
-    ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fill();
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2*Math.PI);
-    ctx.fillStyle = color; ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold ' + Math.round(r*1.2) + 'px Arial';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(num, cx, cy);
-  });
-}
-
-function buildErrorList(errors, modelImg, photoImg) {
-  var num = 0;
-  var html = errors.map(function(e) {
-    var cls = e.severity==='critique'?'cr':e.severity==='avertissement'?'wa':'ok';
-    var lbl = e.severity==='critique'?'Critique':e.severity==='avertissement'?'Attention':'OK';
-    var msg = escapeHtml(e.message || '');
-    if (e.severity === 'ok') {
-      return '<div class="ecard ok"><div class="ecard-head"><span class="badge">'+lbl+'</span>'
-           + '<span class="emsg" style="color:#555">'+msg+'</span></div></div>';
-    }
-    num++;
-    var crops = '';
-    if (e.zone && modelImg && photoImg) {
-      try {
-        var mc = cropZone(e.zone, modelImg);
-        var pc = cropZone(e.zone, photoImg);
-        if (mc && pc) {
-          crops = '<div class="crops">'
-            + '<div class="crop-col"><div class="crop-lbl">Modele attendu</div><img src="'+mc+'" alt="Modele zone '+escapeHtml(e.zone)+'"></div>'
-            + '<div class="crop-col"><div class="crop-lbl">Photo gravee</div><img src="'+pc+'" alt="Photo zone '+escapeHtml(e.zone)+'"></div>'
-            + '</div>';
-        }
-      } catch(err) { /* canvas/cors safe failure */ }
-    }
-    return '<div class="ecard '+cls+'">'
-      + '<div class="ecard-head">'
-      + '<span class="enum">'+num+'</span>'
-      + '<span class="badge">'+lbl+'</span>'
-      + '<span class="emsg">'+msg+'</span>'
-      + '</div>'
-      + (e.detail ? '<div class="edet">'+escapeHtml(e.detail)+'</div>' : '')
-      + crops
-      + '</div>';
-  }).join('');
-  document.getElementById('error-list').innerHTML = html ||
-    '<div class="ecard ok"><div class="ecard-head"><span class="badge">OK</span>'
-    + '<span class="emsg" style="color:#555">Monument conforme au modele — aucune erreur detectee.</span></div></div>';
-}
-
-// ── main verify flow ───────────────────────────────────────────────────────
-var loadingTimer = null;
-var loadingMsgs = [
-  'Envoi des images au serveur...',
-  'Preparation des images (compression, rotation EXIF)...',
-  'Analyse du texte hebreu lettre par lettre...',
-  'Verification des signes diacritiques et niqqud...',
-  'Comparaison des symboles et decorations...',
-  'Verification de la mise en page...',
-  'Generation du rapport detaille...'
-];
-
-function setMessage(text) {
-  var el = document.getElementById('loading-msg');
-  if (el) el.textContent = text;
-}
-
-async function verify() {
-  var mf = document.getElementById('inp-model').files[0];
-  var pf = document.getElementById('inp-photo').files[0];
-  if (!mf || !pf) { alert('Selectionnez les deux images (modele + photo).'); return; }
-  if (mf.size > MAX_FILE_SIZE || pf.size > MAX_FILE_SIZE) {
-    alert('Une des images depasse 30 Mo. Compressez-la ou utilisez une plus petite.'); return;
-  }
-
-  var btn    = document.getElementById('btn');
-  var loadEl = document.getElementById('loading');
-  btn.disabled = true;
-  loadEl.style.display = 'block';
-  document.getElementById('results').style.display = 'none';
-  var mi = 0;
-  setMessage(loadingMsgs[0]);
-  loadingTimer = setInterval(function() {
-    mi = Math.min(mi+1, loadingMsgs.length-1);
-    setMessage(loadingMsgs[mi]);
-  }, 6000);
-
-  // Timeout cote client : 120s max
-  var controller = new AbortController();
-  var abortTimer = setTimeout(function(){ controller.abort(); }, 120000);
-
-  try {
-    var fd = new FormData();
-    fd.append('model', mf);
-    fd.append('photo', pf);
-    var resp = await fetch('/api/monument-verify', {
-      method: 'POST',
-      body: fd,
-      signal: controller.signal,
-      cache: 'no-store'
-    });
-
-    if (!resp.ok) {
-      var errData = {};
-      try { errData = await resp.json(); } catch(e) {}
-      var msg;
-      switch(resp.status) {
-        case 400: msg = errData.detail || 'Requete invalide.'; break;
-        case 413: msg = errData.detail || 'Fichier trop volumineux. Maximum 30 Mo.'; break;
-        case 415: msg = errData.detail || 'Format d\'image non supporte. Utilisez JPG, PNG ou HEIC.'; break;
-        case 429: msg = 'Trop de demandes. Patientez une minute puis reessayez.'; break;
-        case 502: msg = errData.detail || 'Service IA indisponible. Reessayez dans quelques instants.'; break;
-        case 503: msg = errData.detail || 'Service IA temporairement indisponible.'; break;
-        case 504: msg = errData.detail || 'L\'analyse a depasse le delai. Reessayez avec des images plus petites.'; break;
-        default:  msg = errData.detail || ('Erreur serveur (' + resp.status + '). Reessayez.');
-      }
-      alert(msg);
-      return;
-    }
-
-    var data = await resp.json();
-    setMessage('Affichage du rapport...');
-    await render(data, mf, pf);
-
-    // Feedback haptique sur iOS si disponible
-    if (window.navigator && window.navigator.vibrate) {
-      try { window.navigator.vibrate(30); } catch(_) {}
-    }
-  } catch(err) {
-    if (err.name === 'AbortError') {
-      alert('L\'analyse prend trop de temps. Reessayez avec des images plus petites ou plus claires.');
-    } else if (err.name === 'TypeError') {
-      alert('Connexion impossible. Verifiez votre connexion internet et reessayez.');
-    } else {
-      alert('Erreur inattendue : ' + (err.message || err));
-    }
-  } finally {
-    clearTimeout(abortTimer);
-    clearInterval(loadingTimer);
-    btn.disabled = false;
-    loadEl.style.display = 'none';
-  }
-}
-
-async function render(data, modelFile, photoFile) {
-  var errors = (data && Array.isArray(data.errors)) ? data.errors : [];
-  errors.forEach(clampToZone);
-
-  var cr = errors.filter(function(e){return e.severity==='critique';}).length;
-  var wa = errors.filter(function(e){return e.severity==='avertissement';}).length;
-  document.getElementById('chips').innerHTML =
-    (cr ? '<span class="chip c-red">&#9940; '+cr+' critique'+(cr>1?'s':'')+'</span>' : '') +
-    (wa ? '<span class="chip c-yel">&#9888; '+wa+' attention'+(wa>1?'s':'')+'</span>' : '') +
-    (!cr && !wa ? '<span class="chip c-grn">&#10003; Monument conforme</span>' : '');
-
-  document.getElementById('results').style.display = 'block';
-
-  var modelImg = null, photoImg = null;
-  try {
-    var modelUrl = await readFileAsDataUrl(modelFile);
-    var photoUrl = await readFileAsDataUrl(photoFile);
-    modelImg = await loadImage(modelUrl);
-    photoImg = await loadImage(photoUrl);
-  } catch(err) {
-    console.warn('Image local reload echec, crops desactives:', err);
-  }
-
-  var hasAnnotated = errors.some(function(e){ return e.severity !== 'ok' && e.x != null; });
-  var overviewWrap = document.getElementById('overview-wrap');
-  if (hasAnnotated && photoImg) {
-    overviewWrap.style.display = 'block';
-    try { drawOverview(errors, photoImg); }
-    catch(err) { overviewWrap.style.display = 'none'; console.warn('drawOverview echec:', err); }
-  } else {
-    overviewWrap.style.display = 'none';
-  }
-
-  buildErrorList(errors, modelImg, photoImg);
-  setTimeout(function(){
-    try { document.getElementById('results').scrollIntoView({ behavior:'smooth', block:'start' }); }
-    catch(_) {}
-  }, 60);
-}
-</script>
+<script src="/api/granitecom.js"></script>
 </body>
 </html>"""
     return HTMLResponse(
