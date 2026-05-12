@@ -5204,7 +5204,7 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
 <div class="wrap">
   <header>
     <span class="logo-txt">Granit Com &times; Novalis IA</span>
-    <span class="powered" id="build-tag">Propulse par Claude Opus &middot; build-9</span>
+    <span class="powered" id="build-tag">Propulse par Claude Opus &middot; build-10</span>
   </header>
   <h1>Verificateur de monuments</h1>
   <div id="js-error-banner" style="display:none;background:#7a1010;color:#fff;padding:10px 14px;border-radius:6px;margin-bottom:14px;font-size:0.78rem;line-height:1.5"></div>
@@ -5252,11 +5252,13 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
   </div>
 </div>
 
-<script>
+<script data-cfasync="false">
 // ── JS diagnostic marker (changes header text if JS runs) ─────────────────
+// data-cfasync="false" empêche Cloudflare Rocket Loader de casser le script sur iOS
 try {
   var _bt = document.getElementById('build-tag');
-  if (_bt) _bt.textContent = 'Propulse par Claude Opus · build-9 · JS-OK';
+  if (_bt) _bt.textContent = 'Propulse par Claude Opus · build-10 · JS-OK';
+  document.title = 'build-10 JS-OK · Granit Com';
 } catch(_) {}
 
 // ── constants ──────────────────────────────────────────────────────────────
