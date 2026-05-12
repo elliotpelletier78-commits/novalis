@@ -5204,7 +5204,7 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
 <div class="wrap">
   <header>
     <span class="logo-txt">Granit Com &times; Novalis IA</span>
-    <span class="powered">Propulse par Claude Opus &middot; build-7</span>
+    <span class="powered" id="build-tag">Propulse par Claude Opus &middot; build-8</span>
   </header>
   <h1>Verificateur de monuments</h1>
   <div id="js-error-banner" style="display:none;background:#7a1010;color:#fff;padding:10px 14px;border-radius:6px;margin-bottom:14px;font-size:0.78rem;line-height:1.5"></div>
@@ -5253,6 +5253,12 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
 </div>
 
 <script>
+// ── JS diagnostic marker (changes header text if JS runs) ─────────────────
+try {
+  var _bt = document.getElementById('build-tag');
+  if (_bt) _bt.textContent = 'Propulse par Claude Opus · build-8 · JS-OK';
+} catch(_) {}
+
 // ── constants ──────────────────────────────────────────────────────────────
 var ZONE_BOUNDS = {
   'ZONE-A':[0,33,0,33],  'ZONE-B':[33,67,0,33],  'ZONE-C':[67,100,0,33],
