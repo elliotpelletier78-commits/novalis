@@ -5134,14 +5134,14 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
 @media(max-width:560px){.upload-grid{grid-template-columns:1fr}}
 .uzone{border:1.5px dashed rgba(168,104,68,0.3);border-radius:10px;padding:20px 14px 16px;text-align:center;background:rgba(168,104,68,0.025);transition:border-color .2s,background .2s}
 .uzone.has-file{border-color:#A86844;border-style:solid;background:rgba(168,104,68,0.06)}
-.uzone .ico{font-size:1.9rem;display:block;margin-bottom:8px;pointer-events:none}
-.uzone h3{font-size:0.82rem;font-weight:600;margin-bottom:3px;pointer-events:none}
-.uzone small{color:#555;font-size:0.72rem;pointer-events:none}
-.file-label{display:inline-block;margin-top:12px;padding:8px 20px;background:rgba(168,104,68,0.12);border:1px solid rgba(168,104,68,0.4);border-radius:6px;color:#A86844;font-size:0.78rem;font-weight:500;cursor:pointer;transition:background .2s;position:relative;overflow:hidden}
-.file-label:hover,.file-label:active{background:rgba(168,104,68,0.25)}
-.file-label input[type=file]{position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:100px}
-.uzone .prev-img{max-width:100%;max-height:160px;margin-top:10px;border-radius:6px;border:1px solid rgba(168,104,68,0.2);display:none;object-fit:contain;pointer-events:none}
-.uzone .fname{margin-top:6px;font-size:0.72rem;color:#A86844;display:none;word-break:break-all;pointer-events:none}
+.uzone .ico{font-size:1.9rem;display:block;margin-bottom:8px}
+.uzone h3{font-size:0.82rem;font-weight:600;margin-bottom:3px}
+.uzone small{color:#555;font-size:0.72rem}
+.file-input{display:block;margin:14px auto 0;color:#A86844;font-size:0.78rem;max-width:100%}
+.file-input::file-selector-button{padding:8px 18px;background:rgba(168,104,68,0.12);border:1px solid rgba(168,104,68,0.4);border-radius:6px;color:#A86844;font-size:0.78rem;font-weight:500;cursor:pointer;margin-right:8px;transition:background .2s}
+.file-input:active::file-selector-button,.file-input:hover::file-selector-button{background:rgba(168,104,68,0.25)}
+.uzone .prev-img{max-width:100%;max-height:160px;margin-top:10px;border-radius:6px;border:1px solid rgba(168,104,68,0.2);display:none;object-fit:contain}
+.uzone .fname{display:none}
 .btn-analyze{width:100%;padding:14px;background:#A86844;color:#fff;border:none;border-radius:8px;font-size:0.84rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;transition:background .2s;margin-bottom:8px}
 .btn-analyze:hover{background:#c07840}
 .btn-analyze:disabled{background:#1e1e1e;color:#3a3a3a;cursor:not-allowed}
@@ -5209,23 +5209,15 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
       <span class="ico">📋</span>
       <h3>Modele approuve</h3>
       <small>Design original — JPG, PNG, HEIC</small>
-      <label class="file-label">
-        Choisir le fichier
-        <input type="file" id="inp-model" accept="image/*" onchange="onFile(this,'zone-model','prev-model','fname-model','model')">
-      </label>
+      <input class="file-input" type="file" id="inp-model" accept="image/*" onchange="onFile(this,'zone-model','prev-model','model')">
       <img class="prev-img" id="prev-model">
-      <div class="fname" id="fname-model"></div>
     </div>
     <div class="uzone" id="zone-photo">
       <span class="ico">📷</span>
       <h3>Photo du monument</h3>
       <small>Photo apres gravure — HEIC, JPG, PNG</small>
-      <label class="file-label">
-        Choisir le fichier
-        <input type="file" id="inp-photo" accept="image/*" onchange="onFile(this,'zone-photo','prev-photo','fname-photo','photo')">
-      </label>
+      <input class="file-input" type="file" id="inp-photo" accept="image/*" onchange="onFile(this,'zone-photo','prev-photo','photo')">
       <img class="prev-img" id="prev-photo">
-      <div class="fname" id="fname-photo"></div>
     </div>
   </div>
 
@@ -5264,11 +5256,9 @@ var ZONE_BOUNDS = {
   'ZONE-G':[0,33,67,100],'ZONE-H':[33,67,67,100],'ZONE-I':[67,100,67,100]
 };
 
-function onFile(inp, zoneId, prevId, fnameId, which) {
+function onFile(inp, zoneId, prevId, which) {
   var f = inp.files[0]; if (!f) return;
   document.getElementById(zoneId).classList.add('has-file');
-  var el = document.getElementById(fnameId);
-  el.textContent = f.name; el.style.display = 'block';
   var reader = new FileReader();
   reader.onload = function(ev) {
     var url = ev.target.result;
@@ -5277,6 +5267,7 @@ function onFile(inp, zoneId, prevId, fnameId, which) {
     if (which === 'photo') { photoDataUrl = url; photoImgEl.src = url; }
     else                   { modelDataUrl = url; modelImgEl.src = url; }
   };
+  reader.onerror = function() { alert('Erreur de lecture — reessayez.'); };
   reader.readAsDataURL(f);
 }
 
