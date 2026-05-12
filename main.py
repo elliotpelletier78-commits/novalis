@@ -5255,24 +5255,21 @@ var ZONE_BOUNDS = {
 };
 
 function attachInput(inputId, zoneId, prevId, imgEl) {
-  var inp = document.getElementById(inputId);
-  inp.addEventListener('change', function() {
-    var f = inp.files[0]; if (!f) return;
+  document.getElementById(inputId).addEventListener('change', function() {
+    var f = this.files[0];
+    if (!f) return;
     document.getElementById(zoneId).classList.add('has-file');
-    // createObjectURL: synchronous, no FileReader, works on all iOS versions
     var url = URL.createObjectURL(f);
-    imgEl.onload = function() {
-      var prev = document.getElementById(prevId);
-      prev.src = url; prev.style.display = 'block';
-    };
+    var prev = document.getElementById(prevId);
+    prev.src = url;
+    prev.style.display = 'block';
     imgEl.src = url;
   });
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-  attachInput('inp-model', 'zone-model', 'prev-model', modelImgEl);
-  attachInput('inp-photo', 'zone-photo', 'prev-photo', photoImgEl);
-});
+// Script is at bottom of <body> — DOM already ready, no DOMContentLoaded needed
+attachInput('inp-model', 'zone-model', 'prev-model', modelImgEl);
+attachInput('inp-photo', 'zone-photo', 'prev-photo', photoImgEl);
 
 function cropZone(zone, imgEl) {
   if (!imgEl || !imgEl.naturalWidth) return null;
