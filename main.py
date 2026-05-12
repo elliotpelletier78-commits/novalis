@@ -5204,9 +5204,10 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
 <div class="wrap">
   <header>
     <span class="logo-txt">Granit Com &times; Novalis IA</span>
-    <span class="powered">Propulse par Claude Opus</span>
+    <span class="powered">Propulse par Claude Opus &middot; build-7</span>
   </header>
   <h1>Verificateur de monuments</h1>
+  <div id="js-error-banner" style="display:none;background:#7a1010;color:#fff;padding:10px 14px;border-radius:6px;margin-bottom:14px;font-size:0.78rem;line-height:1.5"></div>
   <p class="sub">Telechargez le modele approuve et la photo du monument grave. L'IA compare chaque lettre, signe diacritique et symbole et affiche un rapport detaille.</p>
 
   <div class="upload-grid">
@@ -5228,7 +5229,7 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
     </div>
   </div>
 
-  <button class="btn-analyze" id="btn" onclick="verify()">Analyser les erreurs</button>
+  <button class="btn-analyze" id="btn" type="button">Analyser les erreurs</button>
 
   <div class="loading" id="loading">
     <div class="loading-inner">
@@ -5277,30 +5278,70 @@ function formatBytes(n) {
   return (n/1024/1024).toFixed(1) + ' Mo';
 }
 
-function wireInput(inputId, zoneId, fnameId, prevId) {
-  var inp = document.getElementById(inputId);
-  inp.onchange = function() {
-    var f = this.files && this.files[0];
-    if (!f) return;
-    if (f.size > MAX_FILE_SIZE) {
-      alert('Fichier trop volumineux (' + formatBytes(f.size) + '). Maximum : 30 Mo.');
-      this.value = '';
-      return;
-    }
-    document.getElementById(zoneId).classList.add('has-file');
-    var fnameEl = document.getElementById(fnameId);
+window.onerror = function(msg, src, line, col, err) {
+  var b = document.getElementById('js-error-banner');
+  if (b) {
+    b.style.display = 'block';
+    b.textContent = 'Erreur JS : ' + msg + ' (ligne ' + line + ')';
+  }
+  return false;
+};
+
+function handleFilePick(inputEl, zoneId, fnameId, prevId) {
+  var f = inputEl.files && inputEl.files[0];
+  if (!f) return;
+  if (f.size > MAX_FILE_SIZE) {
+    alert('Fichier trop volumineux (' + formatBytes(f.size) + '). Maximum : 30 Mo.');
+    inputEl.value = '';
+    return;
+  }
+  var zone = document.getElementById(zoneId);
+  if (zone) zone.classList.add('has-file');
+  var fnameEl = document.getElementById(fnameId);
+  if (fnameEl) {
     fnameEl.textContent = f.name + ' (' + formatBytes(f.size) + ')';
     fnameEl.style.display = 'block';
-    var prev = document.getElementById(prevId);
-    if (prev._objectUrl) URL.revokeObjectURL(prev._objectUrl);
-    prev._objectUrl = URL.createObjectURL(f);
-    prev.src = prev._objectUrl;
-    prev.style.display = 'block';
-  };
+  }
+  var prev = document.getElementById(prevId);
+  if (prev) {
+    if (prev._objectUrl) {
+      try { URL.revokeObjectURL(prev._objectUrl); } catch(_) {}
+    }
+    try {
+      prev._objectUrl = URL.createObjectURL(f);
+      prev.src = prev._objectUrl;
+      prev.style.display = 'block';
+    } catch(err) {
+      // iOS iCloud sometimes blocks blob URL — fallback to FileReader
+      var reader = new FileReader();
+      reader.onload = function(e) { prev.src = e.target.result; prev.style.display = 'block'; };
+      reader.readAsDataURL(f);
+    }
+  }
 }
 
-wireInput('inp-model', 'zone-model', 'fname-model', 'prev-model');
-wireInput('inp-photo', 'zone-photo', 'fname-photo', 'prev-photo');
+function wireInput(inputId, zoneId, fnameId, prevId) {
+  var inp = document.getElementById(inputId);
+  if (!inp) return;
+  var handler = function() { handleFilePick(inp, zoneId, fnameId, prevId); };
+  inp.addEventListener('change', handler, false);
+  inp.onchange = handler; // double-binding pour iOS Safari
+}
+
+try {
+  wireInput('inp-model', 'zone-model', 'fname-model', 'prev-model');
+  wireInput('inp-photo', 'zone-photo', 'fname-photo', 'prev-photo');
+  var btn = document.getElementById('btn');
+  if (btn) {
+    btn.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      verify();
+    }, false);
+  }
+} catch(e) {
+  var b = document.getElementById('js-error-banner');
+  if (b) { b.style.display='block'; b.textContent='Init echouee : ' + e.message; }
+}
 
 function readFileAsDataUrl(file) {
   return new Promise(function(resolve, reject) {
