@@ -5141,7 +5141,7 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
 .file-input::file-selector-button{padding:8px 18px;background:rgba(168,104,68,0.12);border:1px solid rgba(168,104,68,0.4);border-radius:6px;color:#A86844;font-size:0.78rem;font-weight:500;cursor:pointer;margin-right:8px;transition:background .2s}
 .file-input:active::file-selector-button,.file-input:hover::file-selector-button{background:rgba(168,104,68,0.25)}
 .uzone .prev-img{max-width:100%;max-height:160px;margin-top:10px;border-radius:6px;border:1px solid rgba(168,104,68,0.2);display:none;object-fit:contain}
-.uzone .fname{display:none}
+.uzone .fname{display:none;font-size:0.72rem;color:#A86844;margin-top:6px;word-break:break-all;text-align:center;opacity:0.85}
 .btn-analyze{width:100%;padding:14px;background:#A86844;color:#fff;border:none;border-radius:8px;font-size:0.84rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;transition:background .2s;margin-bottom:8px}
 .btn-analyze:hover{background:#c07840}
 .btn-analyze:disabled{background:#1e1e1e;color:#3a3a3a;cursor:not-allowed}
@@ -5209,7 +5209,7 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
       <span class="ico">📋</span>
       <h3>Modele approuve</h3>
       <small>Design original — JPG, PNG, HEIC</small>
-      <input class="file-input" type="file" id="inp-model" accept="image/*">
+      <input class="file-input" type="file" id="inp-model" accept="image/*,.heic,.heif">
       <div class="fname" id="fname-model"></div>
       <img class="prev-img" id="prev-model">
     </div>
@@ -5217,7 +5217,7 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
       <span class="ico">📷</span>
       <h3>Photo du monument</h3>
       <small>Photo apres gravure — HEIC, JPG, PNG</small>
-      <input class="file-input" type="file" id="inp-photo" accept="image/*">
+      <input class="file-input" type="file" id="inp-photo" accept="image/*,.heic,.heif">
       <div class="fname" id="fname-photo"></div>
       <img class="prev-img" id="prev-photo">
     </div>
@@ -5401,11 +5401,25 @@ async function verify() {
     fd.append('model', mf);
     fd.append('photo', pf);
     var resp = await fetch('/api/monument-verify', { method:'POST', body:fd });
-    if (!resp.ok) { alert('Erreur serveur — reessayez.'); return; }
+    if (!resp.ok) {
+      var errData = {};
+      try { errData = await resp.json(); } catch(e) {}
+      var msg = resp.status === 503
+        ? 'Service IA temporairement indisponible. Reessayez dans quelques instants.'
+        : resp.status === 415
+        ? 'Format d\'image non supporte. Utilisez JPG, PNG ou HEIC.'
+        : (errData.detail || 'Erreur serveur — reessayez.');
+      alert(msg);
+      return;
+    }
     var data = await resp.json();
     await render(data, mf, pf);
   } catch(err) {
-    alert('Erreur: ' + err.message);
+    if (err.name === 'TypeError') {
+      alert('Connexion impossible. Verifiez votre connexion internet.');
+    } else {
+      alert('Erreur inattendue: ' + err.message);
+    }
   } finally {
     clearInterval(loadingTimer);
     btn.disabled = false;
