@@ -5115,11 +5115,16 @@ async def pet_marker_config():
 
 @app.get("/granitecom-verify", response_class=HTMLResponse)
 async def granitecom_verify():
-    return HTMLResponse(content="""<!DOCTYPE html>
+    html = """<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5,viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#0a0a0a">
 <title>Verificateur de monuments — Granit Com</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -5254,27 +5259,49 @@ var ZONE_BOUNDS = {
   'ZONE-G':[0,33,67,100],'ZONE-H':[33,67,67,100],'ZONE-I':[67,100,67,100]
 };
 
-// ── file input wiring (script is at bottom of body, DOM is ready) ──────────
-document.getElementById('inp-model').onchange = function() {
-  if (!this.files[0]) return;
-  document.getElementById('zone-model').classList.add('has-file');
-  document.getElementById('fname-model').textContent = this.files[0].name;
-  document.getElementById('fname-model').style.display = 'block';
-  var prev = document.getElementById('prev-model');
-  var url = URL.createObjectURL(this.files[0]);
-  prev.src = url; prev.style.display = 'block';
-};
-document.getElementById('inp-photo').onchange = function() {
-  if (!this.files[0]) return;
-  document.getElementById('zone-photo').classList.add('has-file');
-  document.getElementById('fname-photo').textContent = this.files[0].name;
-  document.getElementById('fname-photo').style.display = 'block';
-  var prev = document.getElementById('prev-photo');
-  var url = URL.createObjectURL(this.files[0]);
-  prev.src = url; prev.style.display = 'block';
-};
+var MAX_FILE_SIZE = 30 * 1024 * 1024; // 30 MB
 
-// ── helpers ────────────────────────────────────────────────────────────────
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatBytes(n) {
+  if (n < 1024) return n + ' o';
+  if (n < 1024*1024) return (n/1024).toFixed(0) + ' Ko';
+  return (n/1024/1024).toFixed(1) + ' Mo';
+}
+
+function wireInput(inputId, zoneId, fnameId, prevId) {
+  var inp = document.getElementById(inputId);
+  inp.onchange = function() {
+    var f = this.files && this.files[0];
+    if (!f) return;
+    if (f.size > MAX_FILE_SIZE) {
+      alert('Fichier trop volumineux (' + formatBytes(f.size) + '). Maximum : 30 Mo.');
+      this.value = '';
+      return;
+    }
+    document.getElementById(zoneId).classList.add('has-file');
+    var fnameEl = document.getElementById(fnameId);
+    fnameEl.textContent = f.name + ' (' + formatBytes(f.size) + ')';
+    fnameEl.style.display = 'block';
+    var prev = document.getElementById(prevId);
+    if (prev._objectUrl) URL.revokeObjectURL(prev._objectUrl);
+    prev._objectUrl = URL.createObjectURL(f);
+    prev.src = prev._objectUrl;
+    prev.style.display = 'block';
+  };
+}
+
+wireInput('inp-model', 'zone-model', 'fname-model', 'prev-model');
+wireInput('inp-photo', 'zone-photo', 'fname-photo', 'prev-photo');
+
 function readFileAsDataUrl(file) {
   return new Promise(function(resolve, reject) {
     var reader = new FileReader();
@@ -5342,29 +5369,32 @@ function buildErrorList(errors, modelImg, photoImg) {
   var html = errors.map(function(e) {
     var cls = e.severity==='critique'?'cr':e.severity==='avertissement'?'wa':'ok';
     var lbl = e.severity==='critique'?'Critique':e.severity==='avertissement'?'Attention':'OK';
+    var msg = escapeHtml(e.message || '');
     if (e.severity === 'ok') {
       return '<div class="ecard ok"><div class="ecard-head"><span class="badge">'+lbl+'</span>'
-           + '<span class="emsg" style="color:#555">'+e.message+'</span></div></div>';
+           + '<span class="emsg" style="color:#555">'+msg+'</span></div></div>';
     }
     num++;
     var crops = '';
     if (e.zone && modelImg && photoImg) {
-      var mc = cropZone(e.zone, modelImg);
-      var pc = cropZone(e.zone, photoImg);
-      if (mc && pc) {
-        crops = '<div class="crops">'
-          + '<div class="crop-col"><div class="crop-lbl">Modele attendu</div><img src="'+mc+'"></div>'
-          + '<div class="crop-col"><div class="crop-lbl">Photo gravee</div><img src="'+pc+'"></div>'
-          + '</div>';
-      }
+      try {
+        var mc = cropZone(e.zone, modelImg);
+        var pc = cropZone(e.zone, photoImg);
+        if (mc && pc) {
+          crops = '<div class="crops">'
+            + '<div class="crop-col"><div class="crop-lbl">Modele attendu</div><img src="'+mc+'" alt="Modele zone '+escapeHtml(e.zone)+'"></div>'
+            + '<div class="crop-col"><div class="crop-lbl">Photo gravee</div><img src="'+pc+'" alt="Photo zone '+escapeHtml(e.zone)+'"></div>'
+            + '</div>';
+        }
+      } catch(err) { /* canvas/cors safe failure */ }
     }
     return '<div class="ecard '+cls+'">'
       + '<div class="ecard-head">'
       + '<span class="enum">'+num+'</span>'
       + '<span class="badge">'+lbl+'</span>'
-      + '<span class="emsg">'+e.message+'</span>'
+      + '<span class="emsg">'+msg+'</span>'
       + '</div>'
-      + (e.detail ? '<div class="edet">'+e.detail+'</div>' : '')
+      + (e.detail ? '<div class="edet">'+escapeHtml(e.detail)+'</div>' : '')
       + crops
       + '</div>';
   }).join('');
@@ -5376,51 +5406,91 @@ function buildErrorList(errors, modelImg, photoImg) {
 // ── main verify flow ───────────────────────────────────────────────────────
 var loadingTimer = null;
 var loadingMsgs = [
-  'Envoi des images...','Analyse lettre par lettre...','Verification des signes diacritiques...','Generation du rapport...'
+  'Envoi des images au serveur...',
+  'Preparation des images (compression, rotation EXIF)...',
+  'Analyse du texte hebreu lettre par lettre...',
+  'Verification des signes diacritiques et niqqud...',
+  'Comparaison des symboles et decorations...',
+  'Verification de la mise en page...',
+  'Generation du rapport detaille...'
 ];
+
+function setMessage(text) {
+  var el = document.getElementById('loading-msg');
+  if (el) el.textContent = text;
+}
 
 async function verify() {
   var mf = document.getElementById('inp-model').files[0];
   var pf = document.getElementById('inp-photo').files[0];
-  if (!mf || !pf) { alert('Selectionnez les deux images.'); return; }
+  if (!mf || !pf) { alert('Selectionnez les deux images (modele + photo).'); return; }
+  if (mf.size > MAX_FILE_SIZE || pf.size > MAX_FILE_SIZE) {
+    alert('Une des images depasse 30 Mo. Compressez-la ou utilisez une plus petite.'); return;
+  }
 
   var btn    = document.getElementById('btn');
   var loadEl = document.getElementById('loading');
-  var msgEl  = document.getElementById('loading-msg');
   btn.disabled = true;
   loadEl.style.display = 'block';
   document.getElementById('results').style.display = 'none';
-  var mi = 0; msgEl.textContent = loadingMsgs[0];
+  var mi = 0;
+  setMessage(loadingMsgs[0]);
   loadingTimer = setInterval(function() {
     mi = Math.min(mi+1, loadingMsgs.length-1);
-    msgEl.textContent = loadingMsgs[mi];
-  }, 7000);
+    setMessage(loadingMsgs[mi]);
+  }, 6000);
+
+  // Timeout cote client : 120s max
+  var controller = new AbortController();
+  var abortTimer = setTimeout(function(){ controller.abort(); }, 120000);
 
   try {
     var fd = new FormData();
     fd.append('model', mf);
     fd.append('photo', pf);
-    var resp = await fetch('/api/monument-verify', { method:'POST', body:fd });
+    var resp = await fetch('/api/monument-verify', {
+      method: 'POST',
+      body: fd,
+      signal: controller.signal,
+      cache: 'no-store'
+    });
+
     if (!resp.ok) {
       var errData = {};
       try { errData = await resp.json(); } catch(e) {}
-      var msg = resp.status === 503
-        ? 'Service IA temporairement indisponible. Reessayez dans quelques instants.'
-        : resp.status === 415
-        ? 'Format d\'image non supporte. Utilisez JPG, PNG ou HEIC.'
-        : (errData.detail || 'Erreur serveur — reessayez.');
+      var msg;
+      switch(resp.status) {
+        case 400: msg = errData.detail || 'Requete invalide.'; break;
+        case 413: msg = errData.detail || 'Fichier trop volumineux. Maximum 30 Mo.'; break;
+        case 415: msg = errData.detail || 'Format d\'image non supporte. Utilisez JPG, PNG ou HEIC.'; break;
+        case 429: msg = 'Trop de demandes. Patientez une minute puis reessayez.'; break;
+        case 502: msg = errData.detail || 'Service IA indisponible. Reessayez dans quelques instants.'; break;
+        case 503: msg = errData.detail || 'Service IA temporairement indisponible.'; break;
+        case 504: msg = errData.detail || 'L\'analyse a depasse le delai. Reessayez avec des images plus petites.'; break;
+        default:  msg = errData.detail || ('Erreur serveur (' + resp.status + '). Reessayez.');
+      }
       alert(msg);
       return;
     }
+
     var data = await resp.json();
+    setMessage('Affichage du rapport...');
     await render(data, mf, pf);
+
+    // Feedback haptique sur iOS si disponible
+    if (window.navigator && window.navigator.vibrate) {
+      try { window.navigator.vibrate(30); } catch(_) {}
+    }
   } catch(err) {
-    if (err.name === 'TypeError') {
-      alert('Connexion impossible. Verifiez votre connexion internet.');
+    if (err.name === 'AbortError') {
+      alert('L\'analyse prend trop de temps. Reessayez avec des images plus petites ou plus claires.');
+    } else if (err.name === 'TypeError') {
+      alert('Connexion impossible. Verifiez votre connexion internet et reessayez.');
     } else {
-      alert('Erreur inattendue: ' + err.message);
+      alert('Erreur inattendue : ' + (err.message || err));
     }
   } finally {
+    clearTimeout(abortTimer);
     clearInterval(loadingTimer);
     btn.disabled = false;
     loadEl.style.display = 'none';
@@ -5428,7 +5498,7 @@ async function verify() {
 }
 
 async function render(data, modelFile, photoFile) {
-  var errors = data.errors || [];
+  var errors = (data && Array.isArray(data.errors)) ? data.errors : [];
   errors.forEach(clampToZone);
 
   var cr = errors.filter(function(e){return e.severity==='critique';}).length;
@@ -5440,34 +5510,68 @@ async function render(data, modelFile, photoFile) {
 
   document.getElementById('results').style.display = 'block';
 
-  // Load both images fresh from files (avoids all blob/cross-origin issues)
-  var modelUrl = await readFileAsDataUrl(modelFile);
-  var photoUrl = await readFileAsDataUrl(photoFile);
-  var modelImg = await loadImage(modelUrl);
-  var photoImg = await loadImage(photoUrl);
+  var modelImg = null, photoImg = null;
+  try {
+    var modelUrl = await readFileAsDataUrl(modelFile);
+    var photoUrl = await readFileAsDataUrl(photoFile);
+    modelImg = await loadImage(modelUrl);
+    photoImg = await loadImage(photoUrl);
+  } catch(err) {
+    console.warn('Image local reload echec, crops desactives:', err);
+  }
 
   var hasAnnotated = errors.some(function(e){ return e.severity !== 'ok' && e.x != null; });
-  document.getElementById('overview-wrap').style.display = hasAnnotated ? 'block' : 'none';
-  if (hasAnnotated) drawOverview(errors, photoImg);
+  var overviewWrap = document.getElementById('overview-wrap');
+  if (hasAnnotated && photoImg) {
+    overviewWrap.style.display = 'block';
+    try { drawOverview(errors, photoImg); }
+    catch(err) { overviewWrap.style.display = 'none'; console.warn('drawOverview echec:', err); }
+  } else {
+    overviewWrap.style.display = 'none';
+  }
 
   buildErrorList(errors, modelImg, photoImg);
-  document.getElementById('results').scrollIntoView({ behavior:'smooth', block:'start' });
+  setTimeout(function(){
+    try { document.getElementById('results').scrollIntoView({ behavior:'smooth', block:'start' }); }
+    catch(_) {}
+  }, 60);
 }
 </script>
 </body>
-</html>""")
+</html>"""
+    return HTMLResponse(
+        content=html,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "CDN-Cache-Control": "no-store",
+            "Cloudflare-CDN-Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        }
+    )
 
+
+MONUMENT_MAX_UPLOAD_BYTES = 30 * 1024 * 1024  # 30MB par fichier (HEIC iPhone peut être gros)
 
 @app.post("/api/monument-verify")
-async def monument_verify(model: UploadFile = File(...), photo: UploadFile = File(...)):
+@limiter.limit("10/minute")
+async def monument_verify(request: Request, model: UploadFile = File(...), photo: UploadFile = File(...)):
     """Compare un modèle de monument approuvé avec une photo du monument gravé via Claude Vision."""
     if not claude_client:
-        raise HTTPException(status_code=503, detail="Claude non configuré")
+        raise HTTPException(status_code=503, detail="Service IA temporairement indisponible.")
 
     import base64, io
 
-    def to_jpeg(raw: bytes, filename: str = "") -> tuple[bytes, str]:
+    def to_jpeg(raw: bytes, filename: str = "", label: str = "image") -> tuple[bytes, str]:
         """Convertit n'importe quel format image (incl. HEIC) en JPEG <4MB."""
+        if not raw:
+            raise HTTPException(status_code=400, detail=f"Fichier {label} vide.")
+        if len(raw) > MONUMENT_MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Fichier {label} trop volumineux ({len(raw)//1024//1024} Mo). Maximum : 30 Mo."
+            )
         fname = (filename or "").lower()
         if fname.endswith(".heic") or fname.endswith(".heif"):
             try:
@@ -5478,30 +5582,33 @@ async def monument_verify(model: UploadFile = File(...), photo: UploadFile = Fil
         try:
             from PIL import Image, ImageOps
             img = Image.open(io.BytesIO(raw))
-            # Corriger la rotation EXIF (photos iPhone souvent stockées à 90°)
             img = ImageOps.exif_transpose(img)
             if img.mode not in ("RGB", "L"):
                 img = img.convert("RGB")
-            # Redimensionner si trop grand (max 2400px côté long pour rester sous 4MB)
             max_side = 2400
             if max(img.width, img.height) > max_side:
                 img.thumbnail((max_side, max_side), Image.LANCZOS)
-            # Compresser jusqu'à < 4MB
-            for quality in (88, 75, 60):
+            for quality in (88, 75, 60, 45):
                 buf = io.BytesIO()
-                img.save(buf, format="JPEG", quality=quality)
+                img.save(buf, format="JPEG", quality=quality, optimize=True)
                 if buf.tell() < 4 * 1024 * 1024:
                     break
             return buf.getvalue(), "image/jpeg"
         except HTTPException:
             raise
         except Exception as e:
-            raise HTTPException(status_code=415, detail=f"Impossible de lire l'image: {e}")
+            logger.error(f"Erreur lecture {label}: {e}")
+            raise HTTPException(status_code=415, detail=f"Impossible de lire le {label}. Verifiez le format (JPG, PNG, HEIC).")
 
-    model_bytes = await model.read()
-    photo_bytes = await photo.read()
-    model_bytes, model_mt = to_jpeg(model_bytes, model.filename or "")
-    photo_bytes, photo_mt = to_jpeg(photo_bytes, photo.filename or "")
+    try:
+        model_bytes = await model.read()
+        photo_bytes = await photo.read()
+    except Exception as e:
+        logger.error(f"Erreur lecture upload: {e}")
+        raise HTTPException(status_code=400, detail="Erreur lors de la reception des fichiers.")
+
+    model_bytes, model_mt = to_jpeg(model_bytes, model.filename or "", "modele")
+    photo_bytes, photo_mt = to_jpeg(photo_bytes, photo.filename or "", "photo")
 
     # Draw 9-zone labels on photo so Claude can reference named regions
     ZONES = {
@@ -5544,59 +5651,51 @@ async def monument_verify(model: UploadFile = File(...), photo: UploadFile = Fil
         f"  {name}: x={cx}%, y={cy}%" for name, (cx, cy) in ZONES.items()
     )
 
-    try:
-        resp = claude_client.messages.create(
-            model="claude-opus-4-7",
-            max_tokens=4000,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "Voici le MODÈLE APPROUVÉ du monument (ce qui devrait être gravé) :"},
-                    {"type": "image", "source": {"type": "base64", "media_type": model_mt, "data": model_b64}},
-                    {"type": "text", "text": "Voici la PHOTO DU MONUMENT GRAVÉ. Elle est divisée en 9 zones nommées (ZONE-A à ZONE-I) visibles sur l'image :"},
-                    {"type": "image", "source": {"type": "base64", "media_type": photo_zone_mt, "data": photo_zone_b64}},
-                    {"type": "text", "text": f"""Tu es un expert en vérification de monuments funéraires juifs. Ta mission : trouver TOUTES les différences entre le modèle et la photo gravée. Ne manquer aucune erreur est critique — une erreur non détectée sur un monument livré est inacceptable.
+    prompt_text = f"""Tu es un expert en vérification de monuments funéraires juifs. Une erreur non détectée sur un monument livré au client est inacceptable — sois exhaustif.
 
-MÉTHODE — analyse dans cet ordre, élément par élément :
+MÉTHODE — analyse séquentielle, élément par élément :
 
-1. TEXTE HÉBREU (priorité absolue)
-   - Parcours chaque mot de droite à gauche
-   - Compare chaque lettre individuellement (aleph, bet, gimel...)
-   - Vérifie chaque signe diacritique : niqqud (points voyelles), dagesh (point dans lettre), shva, kamatz, patach, etc.
-   - Vérifie les guillemets hébraïques ״ et ׳ (géreshayim, geresh)
-   - Vérifie l'espacement entre mots et lettres
-   - Vérifie la taille relative des caractères
+1. TEXTE HÉBREU (priorité absolue, lecture droite-à-gauche)
+   - Compare chaque lettre individuellement (aleph א, bet ב, gimel ג, dalet ד, hé ה, vav ו, zayin ז, ḥet ח, tet ט, yod י, kaf כ/ך, lamed ל, mem מ/ם, noun נ/ן, samekh ס, ayin ע, pé פ/ף, tsadé צ/ץ, qof ק, resh ר, shin ש, tav ת)
+   - Lettres finales (ך ם ן ף ץ) souvent confondues avec leurs formes normales
+   - Signes diacritiques : niqqud (points voyelles), dagesh (point dans la lettre), shva, kamatz, patach, segol, tsere, ḥolam, qubuts, shuruq
+   - Guillemets hébraïques : géreshayim ״ (avant dernière lettre d'un acronyme), geresh ׳
+   - Espaces entre mots et entre lettres
+   - Taille relative des caractères
 
-2. TEXTE ANGLAIS / FRANÇAIS
-   - Chaque lettre du nom, prénom, titre
-   - Dates (jour, mois, année) — chiffre par chiffre
-   - Ponctuation, tirets, virgules
+2. TEXTE LATIN (français / anglais)
+   - Chaque lettre du nom, prénom, titre — caractère par caractère
+   - Accents (é, è, ê, à, ç...) — souvent oubliés à la gravure
+   - Dates : jour, mois, année — chiffre par chiffre
+   - Ponctuation : tirets, virgules, points
 
 3. SYMBOLES ET DÉCORATIONS
-   - Étoile de David, mains de cohen, lévite, etc.
-   - Présence/absence de bordures, ornements
+   - Étoile de David, mains de cohen (כֹּהֵן), pichet du lévite (לֵוִי), menorah, etc.
+   - Bordures, ornements, lignes de séparation
+   - Photo gravée, médaillon
 
 4. MISE EN PAGE
    - Centrage de chaque ligne
    - Espacement vertical entre sections
    - Éléments manquants ou ajoutés
+   - Alignement vertical/horizontal
 
-RÈGLE IMPORTANTE : Chaque différence = un item séparé dans le JSON. Ne regroupe pas plusieurs erreurs en une. Si tu vois 3 lettres incorrectes, crée 3 items distincts.
+RÈGLE D'OR : chaque différence = UN item JSON séparé. 3 lettres incorrectes → 3 items distincts. Ne regroupe jamais.
 
-La photo est divisée en 9 zones visibles :
+La photo est divisée en 9 zones visibles avec des labels rouges :
   ZONE-A (haut-gauche)   ZONE-B (haut-centre)   ZONE-C (haut-droite)
   ZONE-D (milieu-gauche) ZONE-E (centre)         ZONE-F (milieu-droite)
   ZONE-G (bas-gauche)    ZONE-H (bas-centre)     ZONE-I (bas-droite)
 
-Correspondance zones → coordonnées :
+Pour chaque erreur, identifie la zone (ZONE-A à ZONE-I) où elle se trouve. Les coordonnées x/y sont les pourcentages du centre de la zone :
 {zone_map_text}
 
-Réponds UNIQUEMENT en JSON valide (sans markdown) :
+Réponds UNIQUEMENT en JSON valide (sans markdown, sans préambule) :
 {{
   "errors": [
     {{
-      "severity": "critique" | "avertissement" | "ok",
-      "message": "Description de l'erreur (ex: Lettre incorrecte — ב gravé au lieu de כ)",
+      "severity": "critique",
+      "message": "Description courte (ex: Lettre incorrecte — ב gravé au lieu de כ)",
       "detail": "Attendu : [texte exact du modèle] — Trouvé : [texte exact sur la photo]",
       "zone": "ZONE-B",
       "x": 50,
@@ -5605,26 +5704,98 @@ Réponds UNIQUEMENT en JSON valide (sans markdown) :
   ]
 }}
 
-Severités :
-- "critique" = erreur visible qui doit être corrigée avant livraison
-- "avertissement" = différence mineure à confirmer avec le client
-- "ok" = un seul item "ok" si tout est conforme (sans zone ni coordonnées)
+Sévérités :
+- "critique" = erreur visible qui doit être corrigée avant livraison (lettre, mot, date, symbole)
+- "avertissement" = différence mineure à confirmer avec le client (espacement, légère variation)
+- "ok" = un seul item "ok" si tout est conforme (champs zone/x/y absents)
 
-Sois exhaustif. Il vaut mieux signaler trop que pas assez."""}
-                ]
-            }]
-        )
-        import json as _json
-        text = resp.content[0].text.strip()
-        if text.startswith("```"):
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-        result = _json.loads(text.strip())
-        return result
-    except Exception as e:
-        logger.error(f"Erreur monument-verify: {e}")
-        raise HTTPException(status_code=500, detail="Erreur lors de l'analyse. Veuillez reessayer.")
+Mieux vaut signaler trop que pas assez. Sois précis dans les descriptions."""
+
+    import json as _json
+    last_error = None
+
+    # Retry avec backoff exponentiel (Claude API peut être surchargée)
+    for attempt in range(3):
+        try:
+            resp = await asyncio.wait_for(
+                asyncio.to_thread(
+                    claude_client.messages.create,
+                    model="claude-opus-4-7",
+                    max_tokens=4096,
+                    messages=[{
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": "MODÈLE APPROUVÉ (ce qui devrait être gravé) :"},
+                            {"type": "image", "source": {"type": "base64", "media_type": model_mt, "data": model_b64}},
+                            {"type": "text", "text": "PHOTO DU MONUMENT GRAVÉ (avec grille 9 zones en surimpression) :"},
+                            {"type": "image", "source": {"type": "base64", "media_type": photo_zone_mt, "data": photo_zone_b64}},
+                            {"type": "text", "text": prompt_text}
+                        ]
+                    }]
+                ),
+                timeout=90.0
+            )
+            text = resp.content[0].text.strip()
+            # Nettoyer les éventuelles balises markdown
+            if text.startswith("```"):
+                text = text.split("```", 2)[1] if "```" in text[3:] else text[3:]
+                if text.startswith("json"):
+                    text = text[4:]
+                text = text.rsplit("```", 1)[0]
+            # Si le JSON est tronqué, essayer de trouver le dernier objet valide
+            text = text.strip()
+            if not text.endswith("}"):
+                last_brace = text.rfind("}")
+                if last_brace > 0:
+                    text = text[:last_brace+1]
+                    # Fermer le tableau errors si nécessaire
+                    if text.count("[") > text.count("]"):
+                        text += "]"
+                    if text.count("{") > text.count("}"):
+                        text += "}"
+            try:
+                result = _json.loads(text)
+            except _json.JSONDecodeError as je:
+                logger.warning(f"JSON malformé tentative {attempt+1}: {je}. Texte: {text[:200]}")
+                last_error = je
+                if attempt < 2:
+                    await asyncio.sleep(1.5 * (attempt + 1))
+                    continue
+                raise HTTPException(status_code=502, detail="Reponse IA invalide. Reessayez avec des images plus claires.")
+            # Validation du format
+            if not isinstance(result, dict) or "errors" not in result:
+                logger.warning(f"Format inattendu tentative {attempt+1}: {result}")
+                result = {"errors": [{"severity": "ok", "message": "Analyse incomplete — reessayez."}]}
+            return result
+        except asyncio.TimeoutError:
+            logger.warning(f"Timeout Claude API tentative {attempt+1}")
+            last_error = "timeout"
+            if attempt < 2:
+                await asyncio.sleep(2 * (attempt + 1))
+                continue
+            raise HTTPException(status_code=504, detail="L'analyse a depasse le delai. Reessayez avec des images plus petites.")
+        except anthropic.APIError as ae:
+            status = getattr(ae, "status_code", 500)
+            logger.error(f"Anthropic API error (status={status}) tentative {attempt+1}: {ae}")
+            last_error = ae
+            # 429 (rate limit) ou 529 (overloaded) : retry avec backoff
+            if status in (429, 529, 500, 502, 503) and attempt < 2:
+                await asyncio.sleep(2 ** (attempt + 1))
+                continue
+            if status == 401:
+                raise HTTPException(status_code=503, detail="Service IA mal configure. Contactez l'administrateur.")
+            raise HTTPException(status_code=502, detail="Service IA indisponible. Reessayez dans quelques instants.")
+        except Exception as e:
+            logger.error(f"Erreur inattendue monument-verify tentative {attempt+1}: {type(e).__name__}: {e}")
+            last_error = e
+            if attempt < 2:
+                await asyncio.sleep(1.5 * (attempt + 1))
+                continue
+            raise HTTPException(status_code=500, detail="Erreur lors de l'analyse. Veuillez reessayer.")
+
+    # Si on arrive ici, toutes les tentatives ont échoué
+    logger.error(f"Toutes les tentatives ont echoue: {last_error}")
+    raise HTTPException(status_code=500, detail="Echec apres plusieurs tentatives. Reessayez plus tard.")
 
 
 @app.post("/api/marker-orders")
