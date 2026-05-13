@@ -2689,6 +2689,87 @@ async def import_prospects_csv(request: Request, username: str = Depends(verify_
         await db.commit()
     return {"added": added, "skipped": skipped}
 
+@app.post("/api/v1/prospects/send-all-email1")
+async def send_all_email1(username: str = Depends(verify_admin)):
+    """Envoie Email 1 à tous les prospects avec statut 'new'."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT * FROM prospects WHERE status = 'new'")
+        prospects = [dict(r) for r in await cursor.fetchall()]
+
+    results = []
+    for p in prospects:
+        try:
+            name = p["name"].split()[0] if p["name"] else p["name"]
+            biz = p["business_name"] or p["name"]
+            industry = (p.get("industry") or "").lower()
+
+            # Re-use _sector_copy logic inline (same as send_prospect_email)
+            import importlib
+            # Just call the endpoint logic via a fake request
+            pid = p["id"]
+            now = datetime.now().isoformat()
+
+            # Build email using same sector logic — duplicate the call
+            from fastapi import Request as FRequest
+            class _Req:
+                async def json(self): return {"email_num": 1}
+            # Actually just build and send directly here
+            name_first = p["name"].split()[0] if p["name"] else p["name"]
+            biz_name = p["business_name"] or p["name"]
+            ind = (p.get("industry") or "").lower()
+
+            def _build(n, nm, bz, industry_str):
+                if "salon" in industry_str or "spa" in industry_str:
+                    if n == 1:
+                        subj = f"Est-ce que vos clientes réservent encore par téléphone chez {bz} ?"
+                        body = f"Bonjour {nm},\n\n{subj}\n\nChaque appel manqué, c'est un rendez-vous perdu — et souvent une cliente qui appelle ailleurs. Notre agent IA décroche à votre place 24h/24, propose les créneaux disponibles et confirme le RDV automatiquement. En bonus, il envoie un rappel la veille pour réduire les no-shows de 40 %.\n\nJe propose un essai gratuit de 7 jours — aucune carte de crédit, aucun engagement. On configure tout en 48h.\n\nÇa vous intéresserait qu'on en parle 15 minutes cette semaine ?\n\nElliot Pelletier\nNovalis IA — novalisia.ca\n+1 819 342-2290\n\n---\nPour vous désabonner, répondez \"Non merci\"."
+                        return subj, body
+                elif "immob" in industry_str:
+                    if n == 1:
+                        subj = f"Combien de leads vous passent entre les doigts chaque semaine chez {bz} ?"
+                        body = f"Bonjour {nm},\n\nEn immobilier, la vitesse de réponse fait la différence. Un lead qui attend plus de 5 minutes a 10x moins de chances de convertir.\n\nNotre agent IA qualifie vos leads entrants en temps réel — acheteur ou vendeur, budget, secteur recherché — et transfère les dossiers chauds à votre équipe avec un résumé complet. Les suivis automatiques s'occupent du reste.\n\nJe propose un essai gratuit de 7 jours — aucune carte de crédit, aucun engagement.\n\nÇa vous intéresserait qu'on en parle 15 minutes cette semaine ?\n\nElliot Pelletier\nNovalis IA — novalisia.ca\n+1 819 342-2290\n\n---\nPour vous désabonner, répondez \"Non merci\"."
+                        return subj, body
+                elif "marketing" in industry_str or "design" in industry_str:
+                    if n == 1:
+                        subj = f"Vos clients PME ont besoin d'IA — et {bz} pourrait être leur point d'entrée"
+                        body = f"Bonjour {nm},\n\nJe m'appelle Elliot, fondateur de Novalis IA. On développe des agents IA pour PME québécoises (service client, prise de RDV, qualification de prospects).\n\nJe cherche des agences partenaires en Estrie pour offrir nos solutions à leurs clients PME sous forme de service géré — revenu récurrent sans coût de développement de votre côté.\n\nÇa ressemble à quelque chose qui pourrait intéresser {bz} et vos clients ?\n\nElliot Pelletier\nNovalis IA — novalisia.ca\n+1 819 342-2290\n\n---\nPour vous désabonner, répondez \"Non merci\"."
+                        return subj, body
+                elif "clinique" in industry_str or "santé" in industry_str or "sante" in industry_str:
+                    if n == 1:
+                        subj = "Gérer la prise de RDV sur plusieurs cliniques sans engager de personnel supplémentaire"
+                        body = f"Bonjour {nm},\n\nJe m'appelle Elliot, fondateur de Novalis IA. On déploie des agents IA spécialisés en prise de rendez-vous pour cliniques privées — conformes à la Loi 25, données hébergées au Canada.\n\nVotre agent répond aux appels 24h/24, propose les créneaux disponibles selon chaque clinique et praticien, confirme le RDV et envoie un rappel automatique. Aucun appel manqué, aucune liste d'attente téléphonique.\n\nJe propose un essai gratuit de 7 jours — aucune carte de crédit, aucun engagement.\n\nÇa vous intéresserait qu'on en parle 15 minutes cette semaine ?\n\nElliot Pelletier\nNovalis IA — novalisia.ca\n+1 819 342-2290\n\n---\nPour vous désabonner, répondez \"Non merci\"."
+                        return subj, body
+                # défaut comptable
+                subj = f"Vos clients vous appellent encore pour les mêmes questions chez {bz} ?"
+                body = f"Bonjour {nm},\n\nJe m'appelle Elliot, fondateur de Novalis IA. On aide les cabinets comptables à automatiser les réponses aux questions récurrentes de leurs clients — délais de production, documents requis, statut de déclarations, heures d'ouverture.\n\nVotre agent IA répond 24h/24, dans le ton de votre cabinet, sans jamais inventer d'information. Votre équipe se concentre sur les dossiers à valeur ajoutée.\n\nJe propose un essai gratuit de 7 jours — aucune carte de crédit, aucun engagement.\n\nÇa vous intéresserait qu'on en parle 15 minutes cette semaine ?\n\nElliot Pelletier\nNovalis IA — novalisia.ca\n+1 819 342-2290\n\n---\nPour vous désabonner, répondez \"Non merci\"."
+                return subj, body
+
+            subject, text_body = _build(1, name_first, biz_name, ind)
+            html_body = f"""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#090C0F;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;padding:40px 24px;">
+  <div style="border-bottom:1px solid rgba(168,104,68,0.3);padding-bottom:20px;margin-bottom:28px;">
+    <p style="margin:0;font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;">Novalis IA · Sherbrooke, Québec</p>
+  </div>
+  {''.join(f'<p style="color:#EDE8DF;font-size:0.9rem;line-height:1.7;margin:0 0 14px;">{html_module.escape(line) if line.strip() else "<br>"}</p>' for line in text_body.split(chr(10)))}
+</div></body></html>"""
+
+            await send_email(to=p["email"], subject=subject, body=html_body)
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute(
+                    "UPDATE prospects SET email1_sent_at = ?, status = 'email1_sent', updated_at = ? WHERE id = ?",
+                    (now, now, pid)
+                )
+                await db.commit()
+            results.append({"email": p["email"], "status": "sent"})
+        except Exception as e:
+            results.append({"email": p.get("email","?"), "status": "error", "detail": str(e)})
+
+    sent = sum(1 for r in results if r["status"] == "sent")
+    errors = sum(1 for r in results if r["status"] == "error")
+    return {"sent": sent, "errors": errors, "results": results}
+
 # ============================================================
 # CATALOGUE DE SERVICES (public)
 # ============================================================
@@ -3440,6 +3521,7 @@ async def dashboard(username: str = Depends(verify_admin)):
                         ⬆ Importer CSV<input type="file" accept=".csv" style="display:none;" onchange="importProspectsCsv(this)"/>
                     </label>
                     <button class="btn btn-sm" style="background:#1e3a5f;color:#38bdf8;" onclick="window.location.href='/api/v1/prospects/export'">⬇ Exporter CSV</button>
+                    <button class="btn btn-sm" style="background:rgba(201,169,110,0.15);color:#c9a96e;border:1px solid rgba(201,169,110,0.3);" onclick="sendEmail1ToAll()" id="sendAllBtn">📤 Email 1 à tous les nouveaux</button>
                     <select id="pFilterStatus" onchange="loadProspects()" style="background:#0f1f2e;border:1px solid #1e3a5f;color:#e2e8f0;padding:6px 10px;border-radius:6px;font-size:0.8rem;">
                         <option value="">Tous les statuts</option>
                         <option value="new">🆕 Nouveau</option>
@@ -3800,6 +3882,30 @@ async function importProspectsCsv(input){{
         showNotice('❌ Erreur import CSV',true);
     }}
     input.value='';
+}}
+
+async function sendEmail1ToAll(){{
+    const newProspects = allProspects.filter(p=>p.status==='new');
+    if(!newProspects.length){{showNotice('Aucun prospect avec statut "Nouveau"',true);return;}}
+    if(!confirm(`Envoyer Email 1 à ${{newProspects.length}} prospect(s) ?\n\n${{newProspects.map(p=>p.business_name||p.name).join('\n')}}`))return;
+    const btn=document.getElementById('sendAllBtn');
+    btn.disabled=true;btn.textContent='⏳ Envoi en cours…';
+    let ok=0,fail=0;
+    for(const p of newProspects){{
+        try{{
+            const r=await fetch('/api/v1/prospects/'+p.id+'/send-email',{{
+                method:'POST',
+                headers:{{'Content-Type':'application/json'}},
+                credentials:'include',
+                body:JSON.stringify({{email_num:1}})
+            }});
+            if(r.ok) ok++; else fail++;
+        }}catch(e){{fail++;}}
+        await new Promise(res=>setTimeout(res,800));
+    }}
+    btn.disabled=false;btn.textContent='📤 Email 1 à tous les nouveaux';
+    showNotice(`✅ ${{ok}} email(s) envoyé(s)${{fail?` — ❌ ${{fail}} échec(s)`:''}}`,fail>0);
+    await loadProspects();
 }}
 
 function openAddProspect(){{document.getElementById('addProspectModal').style.display='flex';}}
