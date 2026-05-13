@@ -4205,7 +4205,7 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
         f'padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">'
         f'<div><p style="margin:0 0 2px;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#A86844;">Essai gratuit</p>'
         f'<p style="margin:0;color:#EDE8DF;font-size:0.85rem;">Votre trial se termine le <strong>{trial_exp_date}</strong> — passez à un plan pour continuer.</p></div>'
-        f'<a href="#" onclick="upgradePlan(event,\'starter\')" style="background:#A86844;color:#EDE8DF;text-decoration:none;padding:8px 20px;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;border:0.5px solid #C4895A;white-space:nowrap;">Choisir un plan →</a>'
+        f'<button onclick="openPlanModal()" style="background:#A86844;color:#EDE8DF;border:0.5px solid #C4895A;padding:8px 20px;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;cursor:pointer;">Voir les plans →</button>'
         f'</div>'
     ) if c.get("plan") == "trial" else ""
 
@@ -4990,6 +4990,80 @@ function revealKey(){{
 }}
 
 loadDashboard();
+</script>
+
+<!-- PLAN PICKER MODAL -->
+<div id="planModal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(9,12,15,0.9);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:24px;">
+  <div style="background:#0f1a24;border:0.5px solid rgba(168,104,68,0.35);max-width:820px;width:100%;max-height:90vh;overflow-y:auto;position:relative;">
+    <div style="position:absolute;top:0;left:0;right:0;height:1.5px;background:linear-gradient(90deg,transparent,#A86844,transparent);"></div>
+    <div style="padding:32px 28px 8px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+        <div>
+          <p style="margin:0 0 4px;font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;">Votre essai se termine</p>
+          <h2 style="margin:0;font-size:1.6rem;font-weight:400;font-style:italic;color:#EDE8DF;">Choisissez votre plan</h2>
+        </div>
+        <button onclick="closePlanModal()" style="background:transparent;border:none;color:#4A5260;font-size:1.8rem;cursor:pointer;line-height:1;padding:0 4px;margin-top:-4px;">×</button>
+      </div>
+      <p style="margin:4px 0 24px;color:#4A5260;font-size:0.85rem;">Aucun engagement · Annulable en tout temps · Prix en CAD</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;background:rgba(168,104,68,0.1);">
+      <!-- Starter -->
+      <div style="background:#090C0F;padding:28px;display:flex;flex-direction:column;">
+        <p style="margin:0 0 4px;font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:#4A5260;">Starter</p>
+        <p style="margin:0 0 2px;font-size:2.6rem;font-style:italic;color:#EDE8DF;font-weight:400;line-height:1;">497<span style="font-size:1rem;font-style:normal;">$</span></p>
+        <p style="margin:0 0 20px;color:#4A5260;font-size:0.75rem;">/mois</p>
+        <ul style="list-style:none;flex:1;display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>1 assistant IA configuré</li>
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>500 interactions/mois</li>
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>Intégration site ou téléphone</li>
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>Tableau de bord + rapport mensuel</li>
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>Support par courriel</li>
+        </ul>
+        <button onclick="upgradePlan(event,'starter')" style="background:transparent;border:0.5px solid #A86844;color:#A86844;padding:10px;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;width:100%;">Choisir Starter →</button>
+      </div>
+      <!-- Pro -->
+      <div style="background:#0d1720;padding:28px;display:flex;flex-direction:column;position:relative;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#A86844;"></div>
+        <div style="position:absolute;top:12px;right:12px;background:#A86844;color:#EDE8DF;font-size:0.58rem;letter-spacing:0.15em;text-transform:uppercase;padding:3px 8px;">Recommandé</div>
+        <p style="margin:0 0 4px;font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;">Pro</p>
+        <p style="margin:0 0 2px;font-size:2.6rem;font-style:italic;color:#C4895A;font-weight:400;line-height:1;">1&nbsp;497<span style="font-size:1rem;font-style:normal;color:#EDE8DF;">$</span></p>
+        <p style="margin:0 0 20px;color:#4A5260;font-size:0.75rem;">/mois</p>
+        <ul style="list-style:none;flex:1;display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>3 assistants IA configurés</li>
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>Interactions illimitées</li>
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>Intégrations CRM & ERP</li>
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>Analytics avancé + API complète</li>
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>Support prioritaire 7j/7</li>
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>Optimisation continue incluse</li>
+        </ul>
+        <button onclick="upgradePlan(event,'pro')" style="background:#A86844;border:0.5px solid #C4895A;color:#EDE8DF;padding:10px;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;width:100%;">Choisir Pro →</button>
+      </div>
+      <!-- Enterprise -->
+      <div style="background:#090C0F;padding:28px;display:flex;flex-direction:column;">
+        <p style="margin:0 0 4px;font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:#4A5260;">Entreprise</p>
+        <p style="margin:0 0 2px;font-size:2rem;font-style:italic;color:#EDE8DF;font-weight:400;line-height:1.1;">Sur mesure</p>
+        <p style="margin:0 0 20px;color:#4A5260;font-size:0.75rem;">tarification personnalisée</p>
+        <ul style="list-style:none;flex:1;display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>Assistants IA illimités</li>
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>Infrastructure dédiée</li>
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>Intégrations systèmes propriétaires</li>
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>SLA garanti 99,9%</li>
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>Formation de vos équipes</li>
+          <li style="color:#EDE8DF;font-size:0.82rem;"><span style="color:#A86844;margin-right:8px;">✓</span>Conformité Loi 25 / RGPD</li>
+        </ul>
+        <button onclick="upgradePlan(event,'enterprise')" style="background:transparent;border:0.5px solid rgba(237,232,223,0.2);color:#EDE8DF;padding:10px;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;width:100%;">Nous contacter →</button>
+      </div>
+    </div>
+    <p style="text-align:center;color:#4A5260;font-size:0.7rem;padding:16px;">
+      Questions ? <a href="https://wa.me/18193422290" target="_blank" style="color:#A86844;">WhatsApp</a> — réponse en moins de 2h
+    </p>
+  </div>
+</div>
+
+<script>
+function openPlanModal(){{var m=document.getElementById('planModal');m.style.display='flex';document.body.style.overflow='hidden';}}
+function closePlanModal(){{var m=document.getElementById('planModal');m.style.display='none';document.body.style.overflow='';}}
+document.getElementById('planModal').addEventListener('click',function(e){{if(e.target===this)closePlanModal();}});
 </script>
 </body>
 </html>"""
