@@ -2789,6 +2789,13 @@ async def platform_stats(username: str = Depends(verify_admin)):
         prices = {"starter": 497, "pro": 1497, "agence": 1497, "enterprise": 2500}
         mrr = sum(prices.get(p[0], 0) * p[1] for p in plans)
 
+        # New leads in last 7 days (trial plan, not yet converted)
+        since = (datetime.now() - timedelta(days=7)).isoformat()
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM clients WHERE plan = 'trial' AND created_at >= ?", (since,)
+        )
+        new_leads = (await cursor.fetchone())[0]
+
     return {
         "active_clients": active_clients,
         "total_conversations": total_convs,
@@ -2796,8 +2803,28 @@ async def platform_stats(username: str = Depends(verify_admin)):
         "total_appointments": total_appts,
         "today_interactions": today_interactions,
         "mrr": f"{mrr}$",
+        "new_leads": new_leads,
         "version": VERSION
     }
+
+@app.get("/api/v1/leads")
+async def list_leads(username: str = Depends(verify_admin)):
+    """Leads récents — clients trial des 7 derniers jours avec leur demande initiale."""
+    since = (datetime.now() - timedelta(days=7)).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            """SELECT c.id, c.business_name, c.owner_name, c.owner_email, c.owner_phone,
+                      c.plan, c.status, c.created_at, c.trial_expires_at,
+                      p.service_type, p.description as message
+               FROM clients c
+               LEFT JOIN projects p ON p.client_id = c.id AND p.status = 'inquiry'
+               WHERE c.plan = 'trial' AND c.created_at >= ?
+               ORDER BY c.created_at DESC""",
+            (since,)
+        )
+        rows = await cursor.fetchall()
+    return [dict(r) for r in rows]
 
 # ============================================================
 # DASHBOARD ADMIN (HTML)
@@ -2841,6 +2868,19 @@ async def dashboard(username: str = Depends(verify_admin)):
         .badge.starter{{background:rgba(56,189,248,0.15);color:#38bdf8;}}
         .badge.pro{{background:rgba(168,85,247,0.15);color:#a855f7;}}
         .badge.enterprise{{background:rgba(251,191,36,0.15);color:#fbbf24;}}
+        .badge.trial{{background:rgba(251,146,60,0.15);color:#fb923c;}}
+        .lead-card{{background:#0f1f2e;border:1px solid #fb923c33;border-radius:12px;padding:14px;margin-bottom:10px;border-left:3px solid #fb923c;}}
+        .lead-name{{color:#fb923c;font-weight:600;font-size:1rem;}}
+        .lead-meta{{color:#94a3b8;font-size:0.8rem;margin-top:4px;}}
+        .lead-msg{{color:#cbd5e1;font-size:0.8rem;margin-top:6px;background:#0a0e17;padding:8px;border-radius:6px;line-height:1.4;}}
+        .lead-actions{{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}}
+        .action-btn{{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;text-decoration:none;border:none;}}
+        .btn-email{{background:rgba(56,189,248,0.15);color:#38bdf8;}}
+        .btn-wa{{background:rgba(37,211,102,0.15);color:#25D366;}}
+        .btn-call{{background:rgba(168,85,247,0.15);color:#a855f7;}}
+        .btn-portal{{background:rgba(251,146,60,0.15);color:#fb923c;}}
+        .no-leads{{text-align:center;padding:28px;color:#475569;}}
+        #pLeads.has-leads{{-webkit-text-fill-color:#fb923c !important;}}
         .btn{{background:#38bdf8;color:#0a0e17;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.85rem;}}
         .btn:hover{{background:#34d399;}}
         .btn-sm{{padding:5px 12px;font-size:0.75rem;}}
@@ -2871,12 +2911,25 @@ async def dashboard(username: str = Depends(verify_admin)):
             <!-- DASHBOARD -->
             <div class="view active" id="dashboard">
                 <div class="stats-grid">
+                    <div class="stat-card" style="border-color:#fb923c44;cursor:pointer;" onclick="document.getElementById('leadsPanel').scrollIntoView({{behavior:'smooth'}})">
+                        <div class="stat-label" style="color:#fb923c;">🔥 Nouveaux leads</div>
+                        <div class="stat-value" id="pLeads">0</div>
+                        <div style="color:#fb923c66;font-size:0.7rem;margin-top:4px;">7 derniers jours</div>
+                    </div>
                     <div class="stat-card"><div class="stat-label">Clients actifs</div><div class="stat-value" id="pClients">0</div></div>
                     <div class="stat-card"><div class="stat-label">Conversations</div><div class="stat-value" id="pConvs">0</div></div>
                     <div class="stat-card"><div class="stat-label">Messages</div><div class="stat-value" id="pMsgs">0</div></div>
                     <div class="stat-card"><div class="stat-label">RDV</div><div class="stat-value" id="pAppts">0</div></div>
                     <div class="stat-card"><div class="stat-label">Aujourd'hui</div><div class="stat-value" id="pToday">0</div></div>
                     <div class="stat-card"><div class="stat-label">MRR</div><div class="stat-value" id="pMrr">0$</div></div>
+                </div>
+                <!-- LEADS PANEL -->
+                <div id="leadsPanel" class="panel" style="border-color:#fb923c33;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                        <h3 style="color:#fb923c;margin:0;">🔥 Nouveaux leads — 7 derniers jours</h3>
+                        <button class="btn btn-sm" style="background:rgba(251,146,60,0.15);color:#fb923c;" onclick="loadLeads()">↻ Rafraîchir</button>
+                    </div>
+                    <div id="leadsList"><div class="no-leads">Chargement...</div></div>
                 </div>
             </div>
             <!-- CLIENTS -->
@@ -2969,7 +3022,57 @@ async function loadPlatformStats(){{
     document.getElementById('pAppts').textContent=d.total_appointments;
     document.getElementById('pToday').textContent=d.today_interactions;
     document.getElementById('pMrr').textContent=d.mrr;
+    const nl=d.new_leads||0;
+    const el=document.getElementById('pLeads');
+    el.textContent=nl;
+    if(nl>0){{el.classList.add('has-leads');}}else{{el.classList.remove('has-leads');}}
     }}catch(e){{}}
+}}
+
+function timeAgo(iso){{
+    const diff=Date.now()-new Date(iso).getTime();
+    const m=Math.floor(diff/60000);
+    if(m<60)return m+'min';
+    const h=Math.floor(m/60);
+    if(h<24)return h+'h';
+    return Math.floor(h/24)+'j';
+}}
+
+async function loadLeads(){{
+    try{{
+        const r=await fetch('/api/v1/leads');
+        const d=await r.json();
+        const l=document.getElementById('leadsList');
+        if(!d.length){{
+            l.innerHTML='<div class="no-leads">✅ Aucun nouveau lead — tout a été traité</div>';
+            return;
+        }}
+        l.innerHTML=d.map(c=>{{
+            const phone=c.owner_phone||'';
+            const waNum=phone.replace(/[^0-9]/g,'');
+            const waMsg=encodeURIComponent('Bonjour '+c.owner_name+', je suis Elliot de Novalis IA. Vous avez rempli notre formulaire sur novalisia.ca. Êtes-vous disponible pour un appel de 15 minutes ?');
+            const svc=c.service_type||'non précisé';
+            const msg=(c.message||'').slice(0,180);
+            const ago=timeAgo(c.created_at);
+            return `<div class="lead-card">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                    <div>
+                        <div class="lead-name">${{c.business_name}}</div>
+                        <div class="lead-meta">${{c.owner_name}} · ${{c.owner_email}}${{phone?' · '+phone:''}}</div>
+                        <div style="margin-top:4px;"><span class="badge" style="background:rgba(251,146,60,0.12);color:#fb923c;border:0.5px solid rgba(251,146,60,0.3);font-size:0.68rem;">${{svc}}</span></div>
+                    </div>
+                    <div style="color:#475569;font-size:0.72rem;white-space:nowrap;">⏱ ${{ago}}</div>
+                </div>
+                ${{msg?'<div class="lead-msg">'+msg+'</div>':''}}
+                <div class="lead-actions">
+                    <a class="action-btn btn-email" href="mailto:${{c.owner_email}}?subject=Suite à votre demande — Novalis IA&body=Bonjour ${{c.owner_name}},%0D%0A%0D%0AMerci de votre intérêt pour Novalis IA...">✉ Email</a>
+                    ${{phone&&waNum?'<a class="action-btn btn-wa" href="https://wa.me/'+waNum+'?text='+waMsg+'" target="_blank">💬 WhatsApp</a>':''}}
+                    ${{phone?'<a class="action-btn btn-call" href="tel:'+phone+'">📞 Appeler</a>':''}}
+                    <button class="action-btn btn-portal" onclick="getPortalLink('${{c.id}}')">🔗 Portail</button>
+                </div>
+            </div>`;
+        }}).join('');
+    }}catch(e){{console.error(e);}}
 }}
 
 async function loadClients(){{
@@ -3121,7 +3224,7 @@ async function loadRdLog(){{
 function exportRd(){{window.location.href='/api/v1/rd/export?format=csv';}}
 
 function tick(){{document.getElementById('clock').textContent=new Date().toLocaleTimeString('fr-CA',{{hour:'2-digit',minute:'2-digit'}});}}
-loadPlatformStats();tick();setInterval(loadPlatformStats,10000);setInterval(tick,1000);
+loadPlatformStats();loadLeads();tick();setInterval(loadPlatformStats,30000);setInterval(tick,1000);
 </script>
 
 <!-- MODAL MODIFIER CLIENT -->
