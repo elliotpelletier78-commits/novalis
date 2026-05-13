@@ -2840,6 +2840,7 @@ async def dashboard(username: str = Depends(verify_admin)):
     </style>
 </head>
 <body>
+<div id="admin-notice" style="display:none;position:fixed;top:12px;right:16px;z-index:9999;background:#1a2a1a;border:1px solid #34d399;color:#34d399;padding:10px 18px;font-size:0.82rem;border-radius:4px;max-width:500px;word-break:break-all;"></div>
 <div class="container">
     <div class="sidebar">
         <div class="nav-logo">N</div>
@@ -2985,8 +2986,9 @@ async function getPortalLink(id){{
         const c=await fetch('/api/v1/clients/'+id).then(r=>r.json());
         const url=window.location.origin+'/portal?t='+c.portal_token;
         await navigator.clipboard.writeText(url).catch(()=>{{}});
-        alert('✅ Lien copié dans le presse-papier :\n'+url);
-    }}catch(e){{alert('Erreur: '+e);}}
+        const n=document.getElementById('admin-notice');
+        if(n){{n.textContent='✓ Lien copié : '+url;n.style.display='block';setTimeout(()=>n.style.display='none',5000);}}
+    }}catch(e){{console.error('getPortalLink:',e);}}
 }}
 
 async function openEditModal(id){{
@@ -3010,7 +3012,7 @@ async function openEditModal(id){{
         document.getElementById('em_apikey').textContent=c.api_key||'';
         document.getElementById('em_result').textContent='';
         document.getElementById('editModalOverlay').style.display='flex';
-    }}catch(e){{alert('Erreur: '+e);}}
+    }}catch(e){{console.error('openEditModal:',e);}}
 }}
 
 function closeEditModal(){{document.getElementById('editModalOverlay').style.display='none';}}
@@ -4463,6 +4465,10 @@ async function upgradePlan(e, plan) {{
     else showToast('Demande envoyée — contactez novalisproia@gmail.com pour finaliser.', false);
   }}
 }}
+function esc(s){{
+  if(s==null)return'';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}}
 var _tt=null;
 function showToast(msg,isErr){{
   var t=document.getElementById('toast');
@@ -4683,10 +4689,10 @@ async function loadKnowledgeBase() {{
   document.getElementById('kbList').innerHTML = entries.length ? entries.map(e=>`
     <div style="padding:12px 0;border-bottom:0.5px solid rgba(237,232,223,0.06);">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <div><span style="font-size:0.85rem;font-weight:500;">${{e.title}}</span> <span class="badge bc" style="margin-left:6px;">${{tl[e.kb_type]||e.kb_type}}</span></div>
-        <button class="btn btn-danger btn-sm" onclick="deleteKbEntry('${{e.id}}')">×</button>
+        <div><span style="font-size:0.85rem;font-weight:500;">${{esc(e.title)}}</span> <span class="badge bc" style="margin-left:6px;">${{esc(tl[e.kb_type]||e.kb_type)}}</span></div>
+        <button class="btn btn-danger btn-sm" onclick="deleteKbEntry('${{esc(e.id)}}')">×</button>
       </div>
-      <div style="color:var(--dim);font-size:0.78rem;margin-top:6px;">${{e.content.slice(0,120)}}${{e.content.length>120?'…':''}}</div>
+      <div style="color:var(--dim);font-size:0.78rem;margin-top:6px;">${{esc(e.content.slice(0,120))}}${{e.content.length>120?'…':''}}</div>
     </div>`).join('') : '<div class="empty">Aucune entrée — ajoutez votre FAQ pour que l\'IA soit précise.</div>';
 }}
 async function addKbEntry() {{
@@ -4729,7 +4735,7 @@ async function loadCampaigns() {{
   document.getElementById('campList').innerHTML=camps.length?camps.map(c=>`
     <div style="padding:12px 0;border-bottom:0.5px solid rgba(237,232,223,0.06);">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <div><span style="font-weight:500;font-size:0.85rem;">${{c.name}}</span> <span class="badge bd" style="margin-left:6px;">${{c.channel}}</span> <span class="badge ${{sb[c.status]}}" style="margin-left:4px;">${{sl[c.status]||c.status}}</span></div>
+        <div><span style="font-weight:500;font-size:0.85rem;">${{esc(c.name)}}</span> <span class="badge bd" style="margin-left:6px;">${{esc(c.channel)}}</span> <span class="badge ${{sb[c.status]||'bd'}}" style="margin-left:4px;">${{esc(sl[c.status]||c.status)}}</span></div>
         ${{c.status==='draft'?`<button class="btn btn-sm" onclick="sendCampaign('${{c.id}}')">▶ Envoyer</button>`:''}}
       </div>
       <div style="color:var(--dim);font-size:0.75rem;margin-top:6px;">${{c.message.slice(0,80)}}… · ${{c.sent_count}} envoyés</div>
@@ -4756,7 +4762,7 @@ async function loadWebhooks(){{
   document.getElementById('whList').innerHTML=whs.length?whs.map(w=>`
     <div style="padding:12px 0;border-bottom:0.5px solid rgba(237,232,223,0.06);">
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-        <div style="word-break:break-all;font-size:0.8rem;color:var(--cu);">${{w.url}}</div>
+        <div style="word-break:break-all;font-size:0.8rem;color:var(--cu);">${{esc(w.url)}}</div>
         <button class="btn btn-danger btn-sm" onclick="deleteWebhook('${{w.id}}')">×</button>
       </div>
       <div style="font-size:0.72rem;color:var(--dim);margin-top:4px;">${{(w.events||[]).join(', ')}} · Dernier: ${{w.last_triggered?w.last_triggered.slice(0,16):'—'}}</div>
@@ -5230,7 +5236,7 @@ function handleFilePick(inputEl, zoneId, fnameId, prevId) {
   var f = inputEl.files && inputEl.files[0];
   if (!f) return;
   if (f.size > MAX_FILE_SIZE) {
-    alert('Fichier trop volumineux (' + formatBytes(f.size) + '). Maximum : 30 Mo.');
+    showError('Fichier trop volumineux (' + formatBytes(f.size) + '). Maximum : 30 Mo.');
     inputEl.value = '';
     return;
   }
