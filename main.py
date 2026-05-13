@@ -2598,11 +2598,22 @@ async def submit_inquiry(request: Request):
 </div>"""
     ))
 
-    # SMS de notification à l'owner
+    # SMS de notification à l'owner — nouveau lead entrant
     if twilio_client and TWILIO_PHONE and OWNER_PHONE:
         try:
-            twilio_client.messages.create(
-                body=f"🔔 Nouvelle demande Novalis!\nNom: {name}\nEmail: {email}\nService: {service_type}\nMessage: {description[:100]}",
+            biz = data.get("business_name", "").strip()
+            phone_lead = data.get("phone", "").strip()
+            sms_body = (
+                f"🔔 Nouveau lead Novalis !\n"
+                f"Nom : {name}" + (f" — {biz}" if biz else "") + "\n"
+                f"Courriel : {email}\n"
+                + (f"Tél : {phone_lead}\n" if phone_lead else "")
+                + f"Service : {service_type}\n"
+                f"Message : {str(description)[:120]}"
+            )
+            await asyncio.to_thread(
+                twilio_client.messages.create,
+                body=sms_body,
                 from_=TWILIO_PHONE,
                 to=OWNER_PHONE
             )
