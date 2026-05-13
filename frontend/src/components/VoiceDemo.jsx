@@ -8,6 +8,7 @@ export default function VoiceDemo() {
   const [status, setStatus] = useState('idle') // idle | connecting | active | ended
   const [transcript, setTranscript] = useState([])
   const [isMuted, setIsMuted] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
   const vapiRef = useRef(null)
   const transcriptRef = useRef(null)
 
@@ -36,9 +37,10 @@ export default function VoiceDemo() {
 
   const start = async () => {
     if (!VAPI_ASSISTANT_ID) {
-      alert('Agent vocal en cours de configuration — revenez dans 24h !')
+      setErrorMsg('Agent vocal en cours de configuration — revenez dans 24h !')
       return
     }
+    setErrorMsg('')
     setStatus('connecting')
     setTranscript([])
     try {
@@ -125,6 +127,10 @@ export default function VoiceDemo() {
                 </div>
               ))}
             </div>
+          )}
+
+          {errorMsg && (
+            <p className="text-xs text-amber-400 bg-amber-400/10 px-3 py-2 mb-4 text-center">{errorMsg}</p>
           )}
 
           {/* Controls */}
