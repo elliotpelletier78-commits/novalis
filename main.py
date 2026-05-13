@@ -4157,12 +4157,23 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
         .sent-pos{{color:#4ac36f;}} .sent-neg{{color:#f87171;}} .sent-neu{{color:var(--dim);}}
         .spinner{{display:inline-block;width:12px;height:12px;border:1.5px solid rgba(237,232,223,0.2);border-top-color:var(--pearl);border-radius:50%;animation:sp 0.6s linear infinite;}}
         @keyframes sp{{to{{transform:rotate(360deg)}}}}
-        @media(max-width:900px){{.sidebar{{width:100%;height:auto;position:static;}}.main{{margin-left:0;padding:16px;max-width:100%;}}.row2{{grid-template-columns:1fr;}}}}
+        .hamburger{{display:none;position:fixed;top:12px;left:12px;z-index:2000;background:rgba(29,39,51,0.97);border:0.5px solid var(--b);color:var(--pearl);width:40px;height:40px;font-size:1.2rem;cursor:pointer;align-items:center;justify-content:center;padding:0;}}
+        .sb-overlay{{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1500;}}
+        @media(max-width:900px){{
+          .hamburger{{display:flex;}}
+          .sidebar{{transform:translateX(-100%);position:fixed;height:100vh;width:260px;z-index:1600;transition:transform 0.25s ease;}}
+          .sidebar.open{{transform:translateX(0);}}
+          .sb-overlay.open{{display:block;}}
+          .main{{margin-left:0;padding:52px 16px 16px;max-width:100%;}}
+          .row2{{grid-template-columns:1fr;}}
+        }}
     </style>
 </head>
 <body>
+<button class="hamburger" id="hbg" aria-label="Menu" onclick="toggleSidebar()">☰</button>
+<div class="sb-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
 <div class="layout">
-  <div class="sidebar">
+  <div class="sidebar" id="sidebar">
     <div class="sb-logo">
       <div class="sb-brand">Novalis IA</div>
       <div class="sb-biz">{html_module.escape(c['business_name'])}</div>
@@ -4438,6 +4449,15 @@ async function upgradePlan(e, plan) {{
     else alert('Demande envoyée — contactez novalisproia@gmail.com pour finaliser votre plan.');
   }}
 }}
+function toggleSidebar(){{
+  var s=document.getElementById('sidebar');
+  var o=document.getElementById('sb-overlay');
+  s.classList.toggle('open');o.classList.toggle('open');
+}}
+function closeSidebar(){{
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sb-overlay').classList.remove('open');
+}}
 function nav(btn, name) {{
   document.querySelectorAll('.nl').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -4448,6 +4468,7 @@ function nav(btn, name) {{
     knowledge:loadKnowledgeBase,campaigns:loadCampaigns,webhooks:loadWebhooks,
     reports:loadReports,roi:loadRoi}};
   if(loaders[name]) loaders[name]();
+  if(window.innerWidth<=900) closeSidebar();
 }}
 
 function mkChart(id, cfg) {{
@@ -4824,7 +4845,7 @@ async def client_event_stream(request: Request, client: dict = Depends(verify_ap
                 yield f"data: {payload}\n\n"
             except Exception as e:
                 yield f"data: {json.dumps({'type':'error','msg':str(e)})}\n\n"
-            await asyncio.sleep(15)
+            await asyncio.sleep(30)
 
     return StreamingResponse(
         generator(),
