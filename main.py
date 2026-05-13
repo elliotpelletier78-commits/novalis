@@ -550,6 +550,7 @@ async def init_db():
             "ALTER TABLE messages ADD COLUMN language TEXT DEFAULT 'fr'",
             "ALTER TABLE clients ADD COLUMN trial_expires_at TEXT DEFAULT ''",
             "ALTER TABLE clients ADD COLUMN trial_warning_sent INTEGER DEFAULT 0",
+            "ALTER TABLE clients ADD COLUMN trial_day3_sent INTEGER DEFAULT 0",
         ]
         for migration in migrations:
             try:
@@ -858,28 +859,97 @@ async def check_and_notify_trial_expiry():
         days_left = (exp_dt - datetime.now()).days
         portal_url = f"{APP_URL}/portal?key={c['api_key']}" if APP_URL else f"/portal?key={c['api_key']}"
         pricing_url = f"{APP_URL}/#pricing" if APP_URL else "/#pricing"
-        if days_left <= 2 and not c.get("trial_warning_sent"):
+        h_name = html_module.escape(c['owner_name'])
+        # Day 3 mid-trial tips email (fires when 3-4 days remain = day 3-4 of trial)
+        if 3 <= days_left <= 4 and not c.get("trial_day3_sent"):
             asyncio.create_task(send_email(
                 to=c["owner_email"],
-                subject="⏳ Votre essai Novalis IA se termine dans 2 jours",
-                body=f"""<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+                subject=f"3 façons de tirer le maximum de votre essai Novalis IA",
+                body=f"""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#090C0F;font-family:'Segoe UI',Arial,sans-serif;">
 <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
   <div style="border-bottom:1px solid rgba(168,104,68,0.3);padding-bottom:24px;margin-bottom:32px;">
     <p style="margin:0;font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;">Novalis IA</p>
   </div>
-  <h1 style="color:#EDE8DF;font-size:1.6rem;font-weight:400;margin:0 0 8px;font-style:italic;">Votre essai se termine bientôt</h1>
-  <p style="color:#4A5260;font-size:1rem;line-height:1.6;margin:0 0 24px;">
-    Bonjour {html_module.escape(c['owner_name'])}, il vous reste <strong style="color:#EDE8DF;">2 jours</strong> sur votre essai gratuit Novalis IA.
-    Pour continuer à recevoir et répondre automatiquement à vos clients, choisissez un plan.
+  <h1 style="color:#EDE8DF;font-size:1.7rem;font-weight:400;margin:0 0 8px;font-style:italic;">Bonjour {h_name},</h1>
+  <p style="color:#4A5260;font-size:0.95rem;line-height:1.7;margin:0 0 28px;">
+    Vous êtes à mi-chemin de votre essai gratuit. Voici les 3 choses qui font la différence entre un assistant IA qui génère des résultats et un qui reste sous-utilisé.
   </p>
+  <div style="display:flex;flex-direction:column;gap:16px;margin-bottom:32px;">
+    <div style="border:0.5px solid rgba(168,104,68,0.25);padding:20px;">
+      <p style="margin:0 0 6px;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#A86844;">01 — Base de connaissances</p>
+      <p style="margin:0;color:#EDE8DF;font-size:0.9rem;line-height:1.6;">Ajoutez vos services, vos prix et votre FAQ dans le portail. Plus votre assistant en sait sur vous, plus ses réponses sont précises.</p>
+    </div>
+    <div style="border:0.5px solid rgba(168,104,68,0.25);padding:20px;">
+      <p style="margin:0 0 6px;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#A86844;">02 — Intégration site ou téléphone</p>
+      <p style="margin:0;color:#EDE8DF;font-size:0.9rem;line-height:1.6;">L'assistant est plus efficace là où vos clients vous contactent déjà. Partagez votre numéro Novalis avec quelques clients et observez les premières interactions.</p>
+    </div>
+    <div style="border:0.5px solid rgba(168,104,68,0.25);padding:20px;">
+      <p style="margin:0 0 6px;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#A86844;">03 — Rapport de conversations</p>
+      <p style="margin:0;color:#EDE8DF;font-size:0.9rem;line-height:1.6;">Dans le portail, l'onglet <em>Conversations</em> vous montre exactement ce que vos clients demandent. Ces données valent souvent autant que l'assistant lui-même.</p>
+    </div>
+  </div>
   <div style="text-align:center;margin:32px 0;">
-    <a href="{pricing_url}" style="display:inline-block;background:#A86844;color:#EDE8DF;text-decoration:none;padding:14px 36px;font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;border:1px solid #C4895A;">
-      Voir les plans →
+    <a href="{portal_url}"
+       style="display:inline-block;background:#A86844;color:#EDE8DF;text-decoration:none;
+              padding:14px 36px;font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;
+              border:1px solid #C4895A;">
+      Accéder à mon portail →
     </a>
   </div>
-  <p style="color:#4A5260;font-size:0.78rem;">Questions ? <a href="mailto:{ADMIN_EMAIL}" style="color:#A86844;">{ADMIN_EMAIL}</a></p>
-</div></body></html>"""
+  <p style="color:#4A5260;font-size:0.82rem;line-height:1.6;">
+    Il vous reste encore <strong style="color:#EDE8DF;">{days_left} jours</strong> d'essai gratuit.
+    Si vous avez des questions, répondez directement à cet email — Elliot de l'équipe Novalis vous répond personnellement.
+  </p>
+  <div style="border-top:0.5px solid rgba(237,232,223,0.08);margin-top:40px;padding-top:20px;">
+    <p style="color:#4A5260;font-size:0.72rem;margin:0;">Novalis IA · Québec · <a href="{portal_url}" style="color:#A86844;">Accès portail</a></p>
+  </div>
+</div>
+</body></html>"""
+            ))
+            async with aiosqlite.connect(DB_PATH) as db2:
+                await db2.execute("UPDATE clients SET trial_day3_sent = 1 WHERE id = ?", (c["id"],))
+                await db2.commit()
+        if days_left <= 2 and not c.get("trial_warning_sent"):
+            asyncio.create_task(send_email(
+                to=c["owner_email"],
+                subject=f"Il reste 48h — continuez sans interruption",
+                body=f"""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#090C0F;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+  <div style="border-bottom:1px solid rgba(168,104,68,0.3);padding-bottom:24px;margin-bottom:32px;">
+    <p style="margin:0;font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;">Novalis IA</p>
+  </div>
+  <h1 style="color:#EDE8DF;font-size:1.7rem;font-weight:400;margin:0 0 8px;font-style:italic;">Bonjour {h_name},</h1>
+  <p style="color:#4A5260;font-size:0.95rem;line-height:1.7;margin:0 0 24px;">
+    Votre essai gratuit se termine dans <strong style="color:#EDE8DF;">48 heures</strong>.
+    Après ça, votre assistant IA sera mis en pause et vos clients ne recevront plus de réponse automatique.
+  </p>
+  <div style="background:rgba(168,104,68,0.06);border:0.5px solid rgba(168,104,68,0.3);padding:24px;margin-bottom:28px;">
+    <p style="margin:0 0 12px;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#A86844;">Plan Starter — 497$/mois</p>
+    <p style="margin:0 0 6px;color:#EDE8DF;font-size:0.9rem;">✓ 1 assistant IA configuré pour votre business</p>
+    <p style="margin:0 0 6px;color:#EDE8DF;font-size:0.9rem;">✓ Jusqu'à 500 interactions/mois</p>
+    <p style="margin:0 0 6px;color:#EDE8DF;font-size:0.9rem;">✓ Intégration site ou téléphone</p>
+    <p style="margin:0;color:#EDE8DF;font-size:0.9rem;">✓ Tableau de bord + rapport mensuel</p>
+  </div>
+  <div style="text-align:center;margin:28px 0;">
+    <a href="{pricing_url}"
+       style="display:inline-block;background:#A86844;color:#EDE8DF;text-decoration:none;
+              padding:14px 40px;font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;
+              border:1px solid #C4895A;">
+      Choisir mon plan →
+    </a>
+    <p style="margin:12px 0 0;color:#4A5260;font-size:0.75rem;">Aucun engagement · Annulable en tout temps</p>
+  </div>
+  <p style="color:#4A5260;font-size:0.82rem;line-height:1.6;">
+    Une question avant de décider ? Répondez à cet email ou écrivez-nous sur
+    <a href="https://wa.me/18193422290" style="color:#A86844;">WhatsApp</a> — Elliot vous répond en moins de 2h.
+  </p>
+  <div style="border-top:0.5px solid rgba(237,232,223,0.08);margin-top:40px;padding-top:20px;">
+    <p style="color:#4A5260;font-size:0.72rem;margin:0;">Novalis IA · Québec · <a href="{portal_url}" style="color:#A86844;">Accès portail</a></p>
+  </div>
+</div>
+</body></html>"""
             ))
             async with aiosqlite.connect(DB_PATH) as db:
                 await db.execute("UPDATE clients SET trial_warning_sent = 1 WHERE id = ?", (c["id"],))
