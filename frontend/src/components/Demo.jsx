@@ -221,7 +221,7 @@ export default function Demo() {
               >
                 <p className="text-[0.65rem] tracking-widest uppercase text-dim mb-3">Modèle actif</p>
                 <p className="text-sm text-pearl/60 leading-relaxed">
-                  Vous chattez avec Claude Haiku en temps réel. Votre assistant sera entraîné sur vos données,
+                  Vous chattez avec Claude IA d'Anthropic en temps réel. Votre assistant sera entraîné sur vos données,
                   votre catalogue et vos processus spécifiques.
                 </p>
               </div>

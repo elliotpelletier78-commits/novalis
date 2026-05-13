@@ -58,12 +58,12 @@ export default function Contact() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name:     form.name,
-          email:    form.email,
-          phone:    form.phone,
-          business: form.business,
-          service:  form.service,
-          message:  form.desc,
+          name:          form.name,
+          email:         form.email,
+          phone:         form.phone,
+          business_name: form.business,
+          service_type:  form.service,
+          message:       form.desc,
         }),
       })
       if (!res.ok) throw new Error()
