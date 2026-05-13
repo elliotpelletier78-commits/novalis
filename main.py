@@ -4232,6 +4232,40 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
         <div><div class="pg-title">Tableau de bord</div><div class="pg-sub">30 derniers jours</div></div>
       </div>
       {trial_banner}
+
+      <!-- Bienvenue — visible seulement quand pas encore de données -->
+      <div id="welcomeBanner" style="display:none;margin-bottom:20px;">
+        <div class="card" style="border-left:3px solid var(--copper);background:rgba(168,104,68,0.04);">
+          <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:220px;">
+              <div style="font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--copper);margin-bottom:8px;">Bienvenue sur Novalis IA</div>
+              <div class="card-title" style="margin-bottom:6px;">Votre assistant IA est prêt — 3 étapes pour démarrer</div>
+              <p style="font-size:0.82rem;color:var(--dim);line-height:1.6;margin:0;">Dès que votre premier client interagit avec votre agent, vos statistiques apparaîtront ici en temps réel.</p>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:18px;">
+            <div style="padding:14px;background:rgba(29,39,51,0.6);border:0.5px solid rgba(237,232,223,0.08);">
+              <div style="font-size:0.65rem;color:var(--copper);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">01 — Configurer</div>
+              <div style="font-size:0.82rem;color:var(--pearl);margin-bottom:4px;">Complétez votre profil</div>
+              <div style="font-size:0.75rem;color:var(--dim);">Horaires, services, FAQ — l'IA apprend votre business.</div>
+              <button class="btn btn-sm" style="margin-top:10px;" onclick="nav(document.querySelector('[onclick*=settings]'),'settings')">Mon compte →</button>
+            </div>
+            <div style="padding:14px;background:rgba(29,39,51,0.6);border:0.5px solid rgba(237,232,223,0.08);">
+              <div style="font-size:0.65rem;color:var(--copper);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">02 — Enrichir</div>
+              <div style="font-size:0.82rem;color:var(--pearl);margin-bottom:4px;">Base de connaissances</div>
+              <div style="font-size:0.75rem;color:var(--dim);">Ajoutez vos documents, catalogue et politiques.</div>
+              <button class="btn btn-sm" style="margin-top:10px;" onclick="nav(document.querySelector('[onclick*=knowledge]'),'knowledge')">Ajouter →</button>
+            </div>
+            <div style="padding:14px;background:rgba(29,39,51,0.6);border:0.5px solid rgba(237,232,223,0.08);">
+              <div style="font-size:0.65rem;color:var(--copper);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">03 — Lancer</div>
+              <div style="font-size:0.82rem;color:var(--pearl);margin-bottom:4px;">Première interaction</div>
+              <div style="font-size:0.75rem;color:var(--dim);">Envoyez un SMS à votre numéro Novalis pour tester votre agent.</div>
+              <button class="btn btn-sm" style="margin-top:10px;" onclick="nav(document.querySelector('[onclick*=conversations]'),'conversations')">Conversations →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="stats-row" id="statsRow"><div class="sc" style="grid-column:1/-1;color:var(--dim);">Chargement…</div></div>
       <div class="row2">
         <div class="card"><div class="card-title">Activité quotidienne</div><div class="chart-wrap"><canvas id="chartAct"></canvas></div></div>
@@ -4530,6 +4564,12 @@ async function loadDashboard() {{
     fetch('/api/v1/me/stats?days=30',{{headers:H}}).then(r=>r.json())
   ]);
   const s = stats.summary;
+
+  // Écran de bienvenue pour les nouveaux clients sans données
+  const isNew = !s.total_interactions || s.total_interactions === 0;
+  const welcomeBanner = document.getElementById('welcomeBanner');
+  if (welcomeBanner) welcomeBanner.style.display = isNew ? 'block' : 'none';
+
   document.getElementById('statsRow').innerHTML = `
     <div class="sc"><div class="sc-lbl">Interactions</div><div class="sc-val">${{s.total_interactions}}</div><div class="sc-sub">30 jours</div></div>
     <div class="sc"><div class="sc-lbl">RDV gérés</div><div class="sc-val">${{s.rdv_requests}}</div><div class="sc-sub">automatiquement</div></div>
