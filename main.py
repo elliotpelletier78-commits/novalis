@@ -5290,15 +5290,24 @@ function buildErrorList(errors, modelImg, photoImg) {
     + '<span class="emsg" style="color:#555">Monument conforme au modele — aucune erreur detectee.</span></div></div>';
 }
 
+function showError(msg) {
+  var n = document.getElementById('err-notice');
+  if (n) { n.style.display = 'block'; n.textContent = msg; n.scrollIntoView({behavior:'smooth',block:'center'}); }
+}
+function hideError() {
+  var n = document.getElementById('err-notice');
+  if (n) n.style.display = 'none';
+}
+
 var loadingTimer = null;
 var loadingMsgs = [
   'Envoi des images au serveur...',
-  'Preparation des images (compression, rotation EXIF)...',
-  'Analyse du texte hebreu lettre par lettre...',
+  'Preparation des images (compression, orientation EXIF)...',
+  'Analyse du texte hebreu — lettre par lettre...',
   'Verification des signes diacritiques et niqqud...',
-  'Comparaison des symboles et decorations...',
-  'Verification de la mise en page...',
-  'Generation du rapport detaille...'
+  'Comparaison des symboles, bordures et decorations...',
+  'Verification de la mise en page et des espacements...',
+  'Generation du rapport de verification...'
 ];
 
 function setMessage(text) {
@@ -5307,11 +5316,12 @@ function setMessage(text) {
 }
 
 async function verify() {
+  hideError();
   var mf = document.getElementById('inp-model').files[0];
   var pf = document.getElementById('inp-photo').files[0];
-  if (!mf || !pf) { alert('Selectionnez les deux images (modele + photo).'); return; }
+  if (!mf || !pf) { showError('Selectionnez les deux images (modele approuve + photo du monument grave).'); return; }
   if (mf.size > MAX_FILE_SIZE || pf.size > MAX_FILE_SIZE) {
-    alert('Une des images depasse 30 Mo. Compressez-la ou utilisez une plus petite.'); return;
+    showError('Une des images depasse 30 Mo. Compressez-la ou utilisez une resolution plus basse.'); return;
   }
   var btn    = document.getElementById('btn');
   var loadEl = document.getElementById('loading');
@@ -5323,7 +5333,7 @@ async function verify() {
   loadingTimer = setInterval(function() {
     mi = Math.min(mi+1, loadingMsgs.length-1);
     setMessage(loadingMsgs[mi]);
-  }, 6000);
+  }, 7000);
   var controller = new AbortController();
   var abortTimer = setTimeout(function(){ controller.abort(); }, 120000);
   try {
@@ -5336,29 +5346,29 @@ async function verify() {
       try { errData = await resp.json(); } catch(e) {}
       var msg;
       switch(resp.status) {
-        case 400: msg = errData.detail || 'Requete invalide.'; break;
-        case 413: msg = errData.detail || 'Fichier trop volumineux. Maximum 30 Mo.'; break;
-        case 415: msg = errData.detail || 'Format d\'image non supporte. Utilisez JPG, PNG ou HEIC.'; break;
-        case 429: msg = 'Trop de demandes. Patientez une minute puis reessayez.'; break;
+        case 400: msg = errData.detail || 'Requete invalide. Verifiez les images.'; break;
+        case 413: msg = errData.detail || 'Fichier trop volumineux (max 30 Mo par image).'; break;
+        case 415: msg = errData.detail || 'Format non supporte — utilisez JPG, PNG ou HEIC.'; break;
+        case 429: msg = 'Limite atteinte. Patientez une minute puis reessayez.'; break;
         case 502: msg = errData.detail || 'Service IA indisponible. Reessayez dans quelques instants.'; break;
-        case 503: msg = errData.detail || 'Service IA temporairement indisponible.'; break;
-        case 504: msg = errData.detail || 'L\'analyse a depasse le delai. Reessayez avec des images plus petites.'; break;
-        default:  msg = errData.detail || ('Erreur serveur (' + resp.status + '). Reessayez.');
+        case 503: msg = errData.detail || 'Service IA temporairement surcharge. Reessayez.'; break;
+        case 504: msg = errData.detail || "L'analyse a depasse le delai. Reessayez avec des images moins grandes."; break;
+        default:  msg = errData.detail || ('Erreur ' + resp.status + '. Reessayez.');
       }
-      alert(msg);
+      showError(msg);
       return;
     }
     var data = await resp.json();
-    setMessage('Affichage du rapport...');
+    setMessage('Generation du rapport...');
     await render(data, mf, pf);
     if (window.navigator && window.navigator.vibrate) { try { window.navigator.vibrate(30); } catch(_) {} }
   } catch(err) {
     if (err.name === 'AbortError') {
-      alert('L\'analyse prend trop de temps. Reessayez avec des images plus petites ou plus claires.');
+      showError("L'analyse prend trop de temps (>2 min). Reessayez avec des images plus legeres.");
     } else if (err.name === 'TypeError') {
-      alert('Connexion impossible. Verifiez votre connexion internet et reessayez.');
+      showError('Connexion impossible. Verifiez votre connexion internet.');
     } else {
-      alert('Erreur inattendue : ' + (err.message || err));
+      showError('Erreur inattendue : ' + (err.message || err));
     }
   } finally {
     clearTimeout(abortTimer);
@@ -5373,10 +5383,45 @@ async function render(data, modelFile, photoFile) {
   errors.forEach(clampToZone);
   var cr = errors.filter(function(e){return e.severity==='critique';}).length;
   var wa = errors.filter(function(e){return e.severity==='avertissement';}).length;
+  var ok = cr === 0 && wa === 0;
+
+  // Verdict banner
+  var vEl = document.getElementById('verdict');
+  var vIcon = document.getElementById('verdict-icon');
+  var vTitle = document.getElementById('verdict-title');
+  var vSub = document.getElementById('verdict-sub');
+  if (vEl && vIcon && vTitle && vSub) {
+    vEl.className = 'verdict ' + (ok ? 'verdict-ok' : cr > 0 ? 'verdict-crit' : 'verdict-warn');
+    vEl.style.display = 'flex';
+    if (ok) {
+      vIcon.textContent = '✅';
+      vTitle.textContent = 'Monument conforme — approuve pour livraison';
+      vSub.textContent = 'Aucune erreur detectee. Le monument correspond exactement au modele approuve.';
+    } else if (cr > 0) {
+      vIcon.textContent = '⛔';
+      vTitle.textContent = cr + ' erreur'+(cr>1?'s':'')+' critique'+(cr>1?'s':'')+' — correction requise avant livraison';
+      vSub.textContent = (wa > 0 ? wa + ' point'+(wa>1?'s':'')+' d\'attention supplementaire'+(wa>1?'s':'')+'. ' : '') + 'Ne pas livrer sans correction.';
+    } else {
+      vIcon.textContent = '⚠️';
+      vTitle.textContent = wa + ' point'+(wa>1?'s':'')+' d\'attention — a confirmer avec le client';
+      vSub.textContent = 'Aucune erreur critique. Validez les differences mineures avec le client avant livraison.';
+    }
+  }
+
+  // Report timestamp
+  var meta = document.getElementById('report-meta');
+  if (meta) {
+    var now = new Date();
+    var opts = {year:'numeric',month:'long',day:'numeric'};
+    var dateStr = now.toLocaleDateString('fr-CA', opts);
+    var timeStr = now.toLocaleTimeString('fr-CA', {hour:'2-digit',minute:'2-digit'});
+    meta.innerHTML = '<span>Granit Com \xD7 Novalis IA</span><span>Rapport généré le ' + dateStr + ' à ' + timeStr + '</span>';
+  }
+
   document.getElementById('chips').innerHTML =
     (cr ? '<span class="chip c-red">&#9940; '+cr+' critique'+(cr>1?'s':'')+'</span>' : '') +
     (wa ? '<span class="chip c-yel">&#9888; '+wa+' attention'+(wa>1?'s':'')+'</span>' : '') +
-    (!cr && !wa ? '<span class="chip c-grn">&#10003; Monument conforme</span>' : '');
+    (ok ? '<span class="chip c-grn">&#10003; Monument conforme</span>' : '');
   document.getElementById('results').style.display = 'block';
   var modelImg = null, photoImg = null;
   try {
@@ -5408,8 +5453,8 @@ try {
   var _btn = document.getElementById('btn');
   if (_btn) { _btn.addEventListener('click', function(ev) { ev.preventDefault(); verify(); }, false); }
   var _bt = document.getElementById('build-tag');
-  if (_bt) _bt.textContent = 'Propulse par Claude Opus \xB7 build-11 \xB7 JS-OK';
-  document.title = 'build-11 JS-OK \xB7 Granit Com';
+  if (_bt) _bt.textContent = 'Propulse par Claude Opus \xB7 build-12 \xB7 JS-OK';
+  document.title = 'build-12 JS-OK \xB7 Granit Com';
 } catch(e) {
   var _eb = document.getElementById('js-error-banner');
   if (_eb) { _eb.style.display='block'; _eb.textContent='Init echouee : ' + e.message; }
@@ -5503,14 +5548,45 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
 .crop-col img{width:100%;border-radius:5px;display:block;image-rendering:auto}
 .cr .crop-col img{border:1.5px solid rgba(239,68,68,0.3)}
 .wa .crop-col img{border:1.5px solid rgba(234,179,8,0.3)}
+.err-notice{display:none;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:0.82rem;color:#ef4444;line-height:1.5}
+.verdict{border-radius:12px;padding:18px 20px;margin-bottom:20px;display:none;align-items:flex-start;gap:14px}
+.verdict-ok{background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.25)}
+.verdict-warn{background:rgba(234,179,8,0.07);border:1px solid rgba(234,179,8,0.25)}
+.verdict-crit{background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.25)}
+.verdict-icon{font-size:1.8rem;line-height:1;flex-shrink:0;margin-top:2px}
+.verdict-text{flex:1}
+.verdict-title{font-size:0.96rem;font-weight:700;margin-bottom:4px}
+.verdict-ok .verdict-title{color:#22c55e}
+.verdict-warn .verdict-title{color:#d4a017}
+.verdict-crit .verdict-title{color:#ef4444}
+.verdict-sub{font-size:0.78rem;color:#666;line-height:1.5}
+.report-meta{font-size:0.65rem;color:#2e2e2e;margin-bottom:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px}
+.zone-badge{font-size:0.58rem;letter-spacing:0.08em;text-transform:uppercase;padding:2px 7px;border-radius:4px;background:#181818;color:#555;flex-shrink:0;align-self:flex-start;margin-top:3px}
 @media print{
-  .btn-analyze,.btn-print,.upload-grid{display:none}
-  body{background:#fff;color:#000;padding:10px}
-  .ecard{border:1px solid #ccc;background:#fff!important;break-inside:avoid}
-  .c-red,.c-yel,.c-grn{border:1px solid #999;background:#f5f5f5!important;color:#333!important}
-  .emsg,.edet{color:#000!important}
-  .crop-lbl{color:#666!important}
-  .crops{background:#eee}
+  .btn-analyze,.upload-grid,.loading,.err-notice,.powered{display:none!important}
+  .btn-print{display:none!important}
+  body{background:#fff;color:#000;padding:20px;font-family:Georgia,serif}
+  .wrap{max-width:100%}
+  header{border-bottom:2pt solid #000;padding-bottom:12px;margin-bottom:16px}
+  .logo-txt{font-size:13pt;letter-spacing:0.05em;color:#000;font-weight:700}
+  h1{font-size:16pt;margin-bottom:6pt}
+  .sub{display:none}
+  .verdict{border:1.5pt solid #999!important;background:#fafafa!important;page-break-inside:avoid;display:flex!important}
+  .verdict-title{color:#000!important;font-size:11pt}
+  .verdict-sub{color:#444!important}
+  .results{display:block!important}
+  .result-header{display:none}
+  .chips{gap:6pt;margin-bottom:10pt}
+  .chip{border:1pt solid #999;background:#f0f0f0!important;color:#333!important}
+  .overview-wrap canvas{max-width:100%;max-height:280px;border:1pt solid #ccc}
+  .ecard{border:1pt solid #ccc!important;background:#fff!important;break-inside:avoid;margin-bottom:6pt;page-break-inside:avoid}
+  .ecard.cr{border-left:3.5pt solid #c00!important}
+  .ecard.wa{border-left:3.5pt solid #b80!important}
+  .emsg{color:#000!important;font-size:10pt}
+  .edet{color:#333!important;font-size:9pt}
+  .crop-lbl{color:#555!important}
+  .crops{background:#eee!important;break-inside:avoid}
+  .report-meta{color:#666;font-size:8pt;border-top:0.5pt solid #ccc;padding-top:8pt;margin-top:8pt}
 }
 </style>
 </head>
@@ -5518,10 +5594,11 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
 <div class="wrap">
   <header>
     <span class="logo-txt">Granit Com &times; Novalis IA</span>
-    <span class="powered" id="build-tag">Propulse par Claude Opus &middot; build-11</span>
+    <span class="powered" id="build-tag">Propulse par Claude Opus &middot; build-12</span>
   </header>
   <h1>Verificateur de monuments</h1>
   <div id="js-error-banner" style="display:none;background:#7a1010;color:#fff;padding:10px 14px;border-radius:6px;margin-bottom:14px;font-size:0.78rem;line-height:1.5"></div>
+  <div class="err-notice" id="err-notice"></div>
   <p class="sub">Telechargez le modele approuve et la photo du monument grave. L'IA compare chaque lettre, signe diacritique et symbole et affiche un rapport detaille.</p>
 
   <div class="upload-grid">
@@ -5555,8 +5632,16 @@ h1{font-size:1.45rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.01em}
   <div class="results" id="results">
     <div class="result-header">
       <h2>Rapport de verification</h2>
-      <button class="btn-print" onclick="window.print()">Imprimer le rapport</button>
+      <button class="btn-print" type="button" onclick="window.print()">Imprimer le rapport</button>
     </div>
+    <div class="verdict" id="verdict">
+      <div class="verdict-icon" id="verdict-icon"></div>
+      <div class="verdict-text">
+        <div class="verdict-title" id="verdict-title"></div>
+        <div class="verdict-sub" id="verdict-sub"></div>
+      </div>
+    </div>
+    <div class="report-meta" id="report-meta"></div>
     <div class="chips" id="chips"></div>
     <div class="overview-wrap" id="overview-wrap">
       <div class="section-label">Vue d'ensemble — position des erreurs</div>
