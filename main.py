@@ -2426,7 +2426,8 @@ async def submit_inquiry(request: Request):
     name = data.get("name", "").strip()
     email = data.get("email", "").strip()
     description = data.get("description") or data.get("message", "")
-    service_type = data.get("service_type") or data.get("service_interest", "custom")
+    service_type = data.get("service_type") or data.get("service") or data.get("service_interest", "custom")
+    business_name = data.get("business_name") or data.get("business", "")
 
     if not name or not email or not description:
         raise HTTPException(status_code=400, detail="Champs requis: name, email, et description (ou message)")
@@ -2453,7 +2454,7 @@ async def submit_inquiry(request: Request):
                    twilio_phone, fb_page_token, fb_page_id, custom_prompt, language, max_messages_month, messages_used_month,
                    trial_expires_at, trial_warning_sent)
                    VALUES (?, ?, ?, ?, ?, ?, 'trial', 'active', ?, ?, '', '', '', '', '', '', '', '', '', 'fr-CA', 200, 0, ?, 0)""",
-                (client_id, data.get("business_name", name), name, email,
+                (client_id, business_name or name, name, email,
                  data.get("phone", ""), api_key, now, now, trial_expires)
             )
             await db.commit()
@@ -2601,7 +2602,7 @@ async def submit_inquiry(request: Request):
     # SMS de notification à l'owner — nouveau lead entrant
     if twilio_client and TWILIO_PHONE and OWNER_PHONE:
         try:
-            biz = data.get("business_name", "").strip()
+            biz = business_name.strip()
             phone_lead = data.get("phone", "").strip()
             sms_body = (
                 f"🔔 Nouveau lead Novalis !\n"
