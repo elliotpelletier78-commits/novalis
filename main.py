@@ -2384,27 +2384,20 @@ async def send_prospect_email(pid: str, request: Request, username: str = Depend
 
     name = p["name"].split()[0] if p["name"] else p["name"]
     biz = p["business_name"] or p["name"]
-    h_name = html_module.escape(name)
-    h_biz = html_module.escape(biz)
+    industry = (p.get("industry") or "").lower()
 
-    subjects = {
-        1: f"Automatisation IA pour {biz} — essai gratuit 7 jours",
-        2: f"Re: Automatisation IA pour {biz}",
-        3: "Dernier message — Novalis IA",
-    }
-    subject = subjects.get(email_num, subjects[1])
+    def _sector_copy(n: int) -> tuple[str, str]:
+        """Returns (subject, body) based on industry and email number."""
+        if "salon" in industry or "spa" in industry:
+            if n == 1:
+                hook = f"Est-ce que vos clientes réservent encore par téléphone chez {biz} ?"
+                body = f"""Bonjour {name},
 
-    if not custom_body:
-        if email_num == 1:
-            custom_body = f"""Bonjour {name},
+{hook}
 
-Je m'appelle Elliot, fondateur de Novalis IA — une agence québécoise qui aide les PME à automatiser leur service client et leur prise de rendez-vous avec l'intelligence artificielle.
+Chaque appel manqué, c'est un rendez-vous perdu — et souvent une cliente qui appelle ailleurs. Notre agent IA décroche à votre place 24h/24, propose les créneaux disponibles et confirme le RDV automatiquement. En bonus, il envoie un rappel la veille pour réduire les no-shows de 40 %.
 
-En regardant {biz}, je me demandais : combien de temps votre équipe passe-t-elle chaque semaine à répondre aux mêmes questions, à gérer des appels répétitifs ou à faire des suivis manuels ?
-
-Nos clients réduisent typiquement ce temps de 40 à 80 % dans les 30 premiers jours.
-
-Je propose un essai gratuit de 7 jours — aucune carte de crédit, aucun engagement. On configure un assistant IA sur vos données en 48h.
+Je propose un essai gratuit de 7 jours — aucune carte de crédit, aucun engagement. On configure tout en 48h.
 
 Ça vous intéresserait qu'on en parle 15 minutes cette semaine ?
 
@@ -2413,17 +2406,17 @@ Novalis IA — novalisia.ca
 +1 819 342-2290
 
 ---
-Pour vous désabonner, répondez "Non merci" à cet email."""
-        elif email_num == 2:
-            custom_body = f"""Bonjour {name},
+Pour vous désabonner, répondez "Non merci"."""
+                return hook, body
+            elif n == 2:
+                hook = f"Suite à mon dernier message — une question rapide pour {biz}"
+                body = f"""Bonjour {name},
 
-Je me permets de revenir vers vous suite à mon courriel de la semaine dernière.
+Combien d'appels manquez-vous par semaine quand vous êtes avec une cliente ? Même 2 ou 3 appels manqués par jour, c'est 400 à 600 $/semaine en rendez-vous perdus.
 
-Une chose concrète que nos clients trouvent utile : l'assistant IA répond aux questions fréquentes de vos clients à toute heure — même le soir et les fins de semaine — sans intervention humaine.
+Notre agent vocal IA règle exactement ce problème — il décroche chaque appel, prend le RDV et envoie un rappel automatique. Aucune ligne supplémentaire, aucun changement de numéro.
 
-Pour {biz}, ça représenterait probablement 5 à 10 heures récupérées par semaine.
-
-Si vous avez 15 minutes cette semaine, je peux vous montrer comment ça fonctionnerait concrètement pour votre secteur.
+Si vous avez 15 minutes cette semaine, je peux vous faire une démo en direct.
 
 Elliot Pelletier
 Novalis IA — novalisia.ca
@@ -2431,21 +2424,210 @@ Novalis IA — novalisia.ca
 
 ---
 Pour vous désabonner, répondez "Non merci"."""
-        else:
-            custom_body = f"""Bonjour {name},
+                return hook, body
+            else:
+                return "Dernier message — Novalis IA", f"""Bonjour {name},
 
-C'est mon dernier message — je ne veux pas être intrusif.
+Je ne veux pas être intrusif — c'est mon dernier message.
 
-Si l'automatisation IA n'est pas une priorité pour {biz} en ce moment, je comprends tout à fait.
+Si les appels manqués et la gestion des RDV ne sont pas un enjeu prioritaire pour {biz} en ce moment, je comprends tout à fait.
 
-Si jamais ça devient pertinent, l'essai gratuit de 7 jours reste ouvert sur novalisia.ca.
+Si jamais la situation change, l'essai gratuit de 7 jours reste ouvert sur novalisia.ca.
 
 Bonne continuation,
 Elliot
-Novalis IA
+Novalis IA"""
+
+        elif "immob" in industry:
+            if n == 1:
+                hook = f"Combien de leads vous passent entre les doigts chaque semaine chez {biz} ?"
+                body = f"""Bonjour {name},
+
+En immobilier, la vitesse de réponse fait la différence. Un lead qui attend plus de 5 minutes a 10x moins de chances de convertir.
+
+Notre agent IA qualifie vos leads entrants en temps réel — acheteur ou vendeur, budget, secteur recherché — et transfère les dossiers chauds à votre équipe avec un résumé complet. Les suivis automatiques s'occupent du reste.
+
+Je propose un essai gratuit de 7 jours — aucune carte de crédit, aucun engagement. On configure tout en 48h.
+
+Ça vous intéresserait qu'on en parle 15 minutes cette semaine ?
+
+Elliot Pelletier
+Novalis IA — novalisia.ca
++1 819 342-2290
 
 ---
 Pour vous désabonner, répondez "Non merci"."""
+                return hook, body
+            elif n == 2:
+                hook = f"Re: Leads entrants — une donnée pour {biz}"
+                body = f"""Bonjour {name},
+
+74 % des acheteurs immobiliers choisissent le premier courtier qui leur répond. Avec notre agent IA, votre équipe est "disponible" même à 22h un dimanche.
+
+Je peux vous montrer exactement comment ça fonctionnerait pour votre marché en Estrie — 15 minutes suffisent.
+
+Elliot Pelletier
+Novalis IA — novalisia.ca
++1 819 342-2290
+
+---
+Pour vous désabonner, répondez "Non merci"."""
+                return hook, body
+            else:
+                return "Dernier message — Novalis IA", f"""Bonjour {name},
+
+C'est mon dernier message. Si l'automatisation des leads n'est pas une priorité pour {biz} en ce moment, je comprends tout à fait.
+
+L'essai gratuit de 7 jours reste ouvert sur novalisia.ca si jamais l'intérêt revient.
+
+Bonne continuation,
+Elliot
+Novalis IA"""
+
+        elif "marketing" in industry or "design" in industry:
+            if n == 1:
+                hook = f"Vos clients PME ont besoin d'IA — et {biz} pourrait être leur point d'entrée"
+                body = f"""Bonjour {name},
+
+Je m'appelle Elliot, fondateur de Novalis IA. On développe des agents IA pour PME québécoises (service client, prise de RDV, qualification de prospects).
+
+Je cherche des agences partenaires en Estrie pour offrir nos solutions à leurs clients PME sous forme de service géré — revenu récurrent sans coût de développement de votre côté.
+
+Ça ressemble à quelque chose qui pourrait intéresser {biz} et vos clients ?
+
+Elliot Pelletier
+Novalis IA — novalisia.ca
++1 819 342-2290
+
+---
+Pour vous désabonner, répondez "Non merci"."""
+                return hook, body
+            elif n == 2:
+                hook = f"Re: Partenariat revendeur — Novalis IA × {biz}"
+                body = f"""Bonjour {name},
+
+Suite à mon dernier message — pour être concret :
+
+Le modèle est simple : vous vendez nos agents IA à vos clients PME à votre propre tarif, on s'occupe de la configuration et du support. Vous gardez la marge, vos clients ont un service IA clé en main.
+
+Plusieurs agences québécoises nous ont rejoints pour ajouter cette corde à leur arc. Ça vous intéresse d'en parler 15 minutes ?
+
+Elliot Pelletier
+Novalis IA — novalisia.ca
++1 819 342-2290
+
+---
+Pour vous désabonner, répondez "Non merci"."""
+                return hook, body
+            else:
+                return "Dernier message — Novalis IA", f"""Bonjour {name},
+
+Je ne veux pas insister. Si un partenariat revendeur IA ne cadre pas avec la direction de {biz} en ce moment, c'est parfaitement correct.
+
+Si la situation évolue, on est sur novalisia.ca — bonne continuation !
+
+Elliot
+Novalis IA"""
+
+        elif "clinique" in industry or "santé" in industry or "sante" in industry:
+            if n == 1:
+                hook = f"Gérer la prise de RDV sur plusieurs cliniques sans engager de personnel supplémentaire"
+                body = f"""Bonjour {name},
+
+Je m'appelle Elliot, fondateur de Novalis IA. On déploie des agents IA spécialisés en prise de rendez-vous pour cliniques privées — conformes à la Loi 25, données hébergées au Canada.
+
+Votre agent répond aux appels 24h/24, propose les créneaux disponibles selon chaque clinique et praticien, confirme le RDV et envoie un rappel automatique. Aucun appel manqué, aucune liste d'attente téléphonique.
+
+Je propose un essai gratuit de 7 jours — aucune carte de crédit, aucun engagement.
+
+Ça vous intéresserait qu'on en parle 15 minutes cette semaine ?
+
+Elliot Pelletier
+Novalis IA — novalisia.ca
++1 819 342-2290
+
+---
+Pour vous désabonner, répondez "Non merci"."""
+                return hook, body
+            elif n == 2:
+                hook = f"Re: Prise de RDV automatisée — {biz}"
+                body = f"""Bonjour {name},
+
+Suite à mon dernier message — une précision importante pour votre contexte multi-sites :
+
+Notre agent peut gérer plusieurs cliniques avec des calendriers distincts depuis un seul système. Vos patients n'ont pas à savoir qu'ils parlent à une IA — la voix est naturelle, en français québécois.
+
+15 minutes pour voir une démo de ce que ça donnerait concrètement pour votre réseau ?
+
+Elliot Pelletier
+Novalis IA — novalisia.ca
++1 819 342-2290
+
+---
+Pour vous désabonner, répondez "Non merci"."""
+                return hook, body
+            else:
+                return "Dernier message — Novalis IA", f"""Bonjour {name},
+
+C'est mon dernier message. Si l'automatisation de la prise de RDV n'est pas une priorité pour {biz} en ce moment, je comprends.
+
+L'essai gratuit 7 jours reste disponible sur novalisia.ca si jamais. Bonne continuation.
+
+Elliot
+Novalis IA"""
+
+        else:  # Cabinet comptable / juridique / défaut
+            if n == 1:
+                hook = f"Vos clients vous appellent encore pour les mêmes questions chez {biz} ?"
+                body = f"""Bonjour {name},
+
+Je m'appelle Elliot, fondateur de Novalis IA. On aide les cabinets comptables à automatiser les réponses aux questions récurrentes de leurs clients — délais de production, documents requis, statut de déclarations, heures d'ouverture.
+
+Votre agent IA répond 24h/24, dans le ton de votre cabinet, sans jamais inventer d'information. Votre équipe se concentre sur les dossiers à valeur ajoutée.
+
+Je propose un essai gratuit de 7 jours — aucune carte de crédit, aucun engagement. On configure tout en 48h.
+
+Ça vous intéresserait qu'on en parle 15 minutes cette semaine ?
+
+Elliot Pelletier
+Novalis IA — novalisia.ca
++1 819 342-2290
+
+---
+Pour vous désabonner, répondez "Non merci"."""
+                return hook, body
+            elif n == 2:
+                hook = f"Re: Automatisation des réponses clients — {biz}"
+                body = f"""Bonjour {name},
+
+Suite à mon dernier message — une donnée concrète :
+
+Nos clients en cabinet reçoivent en moyenne 40 % de moins d'appels routiniers dans les 30 premiers jours. C'est 3 à 6 heures/semaine récupérées par employé.
+
+Je peux vous montrer comment ça fonctionnerait pour {biz} en 15 minutes. Disponible cette semaine ?
+
+Elliot Pelletier
+Novalis IA — novalisia.ca
++1 819 342-2290
+
+---
+Pour vous désabonner, répondez "Non merci"."""
+                return hook, body
+            else:
+                return "Dernier message — Novalis IA", f"""Bonjour {name},
+
+Je ne veux pas être intrusif — c'est mon dernier message.
+
+Si l'automatisation des réponses clients n'est pas une priorité pour {biz} en ce moment, je comprends tout à fait.
+
+L'essai gratuit reste ouvert sur novalisia.ca. Bonne continuation.
+
+Elliot
+Novalis IA"""
+
+    subject, custom_body_generated = _sector_copy(email_num)
+    if not custom_body:
+        custom_body = custom_body_generated
 
     # Convertit texte brut → HTML simple
     html_body = f"""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
@@ -3421,12 +3603,67 @@ const PROSPECT_STATUS_LABELS = {{
     new:'🆕 Nouveau', email1_sent:'📧 Email 1', email2_sent:'📧 Email 2', email3_sent:'📧 Email 3',
     replied:'💬 Répondu', meeting:'📅 Réunion', converted:'✅ Converti', not_interested:'❌ Pas intéressé'
 }};
+function _sectorBlocks(p) {{
+    const ind = (p.industry||'').toLowerCase();
+    const biz = p.business_name||p.name;
+    const nom = p.name.split(' ')[0];
+    if(ind.includes('salon')||ind.includes('spa')) return {{
+        hook1: `Est-ce que vos clientes réservent encore par téléphone chez ${{biz}} ?`,
+        body1: `Chaque appel manqué, c'est un rendez-vous perdu — et souvent une cliente qui appelle ailleurs. Notre agent IA décroche à votre place 24h/24, propose les créneaux disponibles et confirme le RDV automatiquement. En bonus, il envoie un rappel la veille pour réduire les no-shows de 40 %.`,
+        hook2: `Suite à mon dernier message — une question rapide pour ${{biz}} :`,
+        body2: `Combien d'appels manquez-vous par semaine quand vous êtes avec une cliente ? Même 2 ou 3 appels manqués par jour, c'est 400 à 600 $/semaine en rendez-vous perdus.\n\nNotre agent vocal IA règle exactement ce problème — il décroche chaque appel, prend le RDV et envoie un rappel automatique. Aucune ligne supplémentaire, aucun changement de numéro.`,
+        hook3: `Dernier message de ma part — Novalis IA`,
+        body3: `Je ne veux pas être intrusif. Si les appels manqués et la gestion des RDV ne sont pas un enjeu prioritaire pour ${{biz}} en ce moment, je comprends.\n\nSi jamais la situation change, l'essai gratuit de 7 jours reste ouvert sur novalisia.ca — on peut configurer votre agent en 48h.`
+    }};
+    if(ind.includes('immob')) return {{
+        hook1: `Combien de leads vous passent entre les doigts chaque semaine chez ${{biz}} ?`,
+        body1: `En immobilier, la vitesse de réponse fait la différence. Un lead qui attend plus de 5 minutes a 10x moins de chances de convertir.\n\nNotre agent IA qualifie vos leads entrants en temps réel — acheteur ou vendeur, budget, secteur recherché — et transfère les dossiers chauds à votre équipe avec un résumé complet. Les suivis automatiques s'occupent du reste.`,
+        hook2: `Re: Leads entrants — une donnée pour ${{biz}}`,
+        body2: `74 % des acheteurs immobiliers choisissent le premier courtier qui leur répond. Avec notre agent IA, votre équipe est "disponible" même à 22h un dimanche.\n\nJe peux vous montrer exactement comment ça fonctionnerait pour votre marché en Estrie — 15 minutes suffisent.`,
+        hook3: `Dernier message — Novalis IA`,
+        body3: `C'est mon dernier message. Si l'automatisation des leads n'est pas une priorité pour ${{biz}} en ce moment, je comprends tout à fait.\n\nL'essai gratuit de 7 jours reste ouvert sur novalisia.ca si jamais l'intérêt revient.`
+    }};
+    if(ind.includes('marketing')||ind.includes('design')) return {{
+        hook1: `Vos clients PME ont besoin d'IA — et ${{biz}} pourrait être leur point d'entrée`,
+        body1: `Je m'appelle Elliot, fondateur de Novalis IA. On développe des agents IA pour PME québécoises (service client, prise de RDV, qualification de prospects).\n\nJe cherche des agences partenaires en Estrie pour offrir nos solutions à leurs clients PME sous forme de service géré — revenu récurrent sans coût de développement de votre côté.\n\nÇa ressemble à quelque chose qui pourrait intéresser ${{biz}} et vos clients ?`,
+        hook2: `Re: Partenariat revendeur — Novalis IA × ${{biz}}`,
+        body2: `Suite à mon dernier message — pour être concret :\n\nLe modèle est simple : vous vendez nos agents IA à vos clients PME à votre propre tarif, on s'occupe de la configuration et du support. Vous gardez la marge, vos clients ont un service IA clé en main.\n\nPlusieurs agences québécoises nous ont rejoints pour ajouter cette corde à leur arc. Ça vous intéresse d'en parler 15 minutes ?`,
+        hook3: `Dernier message — Novalis IA`,
+        body3: `Je ne veux pas insister. Si un partenariat revendeur IA ne cadre pas avec la direction de ${{biz}} en ce moment, c'est parfaitement correct.\n\nSi la situation évolue, on est sur novalisia.ca — bonne continuation !`
+    }};
+    if(ind.includes('clinique')||ind.includes('santé')||ind.includes('sante')) return {{
+        hook1: `Gérer la prise de RDV sur plusieurs cliniques sans engager de personnel supplémentaire`,
+        body1: `Je m'appelle Elliot, fondateur de Novalis IA. On déploie des agents IA spécialisés en prise de rendez-vous pour cliniques privées — conformes à la Loi 25, données hébergées au Canada.\n\nVotre agent répond aux appels 24h/24, propose les créneaux disponibles selon chaque clinique et praticien, confirme le RDV et envoie un rappel automatique. Aucun appel manqué, aucune liste d'attente téléphonique.`,
+        hook2: `Re: Prise de RDV automatisée — ${{biz}}`,
+        body2: `Suite à mon dernier message — une précision importante pour votre contexte multi-sites :\n\nNotre agent peut gérer plusieurs cliniques avec des calendriers distincts depuis un seul système. Vos patients n'ont pas à savoir qu'ils parlent à une IA — la voix est naturelle, en français québécois.\n\n15 minutes pour voir une démo de ce que ça donnerait concrètement pour votre réseau ?`,
+        hook3: `Dernier message — Novalis IA`,
+        body3: `C'est mon dernier message. Si l'automatisation de la prise de RDV n'est pas une priorité pour ${{biz}} en ce moment, je comprends.\n\nL'essai gratuit 7 jours reste disponible sur novalisia.ca si jamais. Bonne continuation.`
+    }};
+    // Comptable / Juridique — défaut
+    return {{
+        hook1: `Vos clients vous appellent encore pour les mêmes questions chez ${{biz}} ?`,
+        body1: `Je m'appelle Elliot, fondateur de Novalis IA. On aide les cabinets comptables à automatiser les réponses aux questions récurrentes de leurs clients — délais de production, documents requis, statut de déclarations, heures d'ouverture.\n\nVotre agent IA répond 24h/24, dans le ton de votre cabinet, sans jamais inventer d'information. Votre équipe se concentre sur les dossiers à valeur ajoutée.`,
+        hook2: `Re: Automatisation des réponses clients — ${{biz}}`,
+        body2: `Suite à mon dernier message — une donnée concrète :\n\nNos clients en cabinet reçoivent en moyenne 40 % de moins d'appels routiniers dans les 30 premiers jours. C'est 3 à 6 heures/semaine récupérées par employé.\n\nJe peux vous montrer comment ça fonctionnerait pour ${{biz}} en 15 minutes. Disponible cette semaine ?`,
+        hook3: `Dernier message — Novalis IA`,
+        body3: `Je ne veux pas être intrusif — c'est mon dernier message.\n\nSi l'automatisation des réponses clients n'est pas une priorité pour ${{biz}} en ce moment, je comprends tout à fait. L'essai gratuit reste ouvert sur novalisia.ca.\n\nBonne continuation.`
+    }};
+}}
+
 const EMAIL_TEMPLATES = {{
-    email1: (p) => `Objet : Automatisation IA pour ${{p.business_name||'votre entreprise'}} — essai gratuit 7 jours\n\nBonjour ${{p.name}},\n\nJe m'appelle Elliot, je suis fondateur de Novalis IA — une agence québécoise qui aide les PME à automatiser leur service client et leur prise de rendez-vous avec l'IA.\n\nEn regardant ${{p.business_name ? p.business_name + ', je' : 'des entreprises comme la vôtre, je'}} me demandais : combien de temps votre équipe passe-t-elle chaque semaine à répondre aux mêmes questions, à prendre des rendez-vous manuellement ou à faire des suivis ?\n\nNos clients réduisent typiquement ce temps de 40 à 80% dans les 30 premiers jours.\n\nJe propose un essai gratuit de 7 jours — aucune carte de crédit, aucun engagement. On configure un assistant IA sur vos données en 48h.\n\nÇa vous intéresserait qu'on en parle 15 minutes cette semaine ?\n\nElliot\nNovalis IA — novalisia.ca\n+1 819 342-2290`,
-
-    email2: (p) => `Objet : Re: Automatisation IA pour ${{p.business_name||'votre entreprise'}}\n\nBonjour ${{p.name}},\n\nJe me permets de revenir vers vous suite à mon courriel de la semaine dernière.\n\nUne chose concrète que nos clients trouvent utile : l'assistant IA répond aux questions fréquentes de vos clients à toute heure — même le soir et les fins de semaine — sans que vous ayez à faire quoi que ce soit.\n\nPour une PME comme ${{p.business_name||'la vôtre'}}, ça représente souvent 5 à 10 heures récupérées par semaine.\n\nSi vous avez 15 minutes cette semaine, je peux vous montrer comment ça fonctionnerait concrètement pour votre secteur.\n\nElliot\nNovalis IA — novalisia.ca`,
-
-    email3: (p) => `Objet : Dernier message — Novalis IA\n\nBonjour ${{p.name}},\n\nJe ne veux pas être intrusif — c'est mon dernier courriel.\n\nSi l'automatisation IA n'est pas une priorité pour ${{p.business_name||'vous'}} en ce moment, je comprends tout à fait.\n\nSi jamais ça devient pertinent plus tard, l'offre d'essai gratuit de 7 jours reste ouverte sur novalisia.ca.\n\nBonne continuation,\nElliot\nNovalis IA`
+    email1: (p) => {{
+        const s = _sectorBlocks(p);
+        const biz = p.business_name||p.name;
+        return `Objet : ${{s.hook1}}\n\nBonjour ${{p.name.split(' ')[0]}},\n\n${{s.hook1}}\n\n${{s.body1}}\n\nJe propose un essai gratuit de 7 jours — aucune carte de crédit, aucun engagement. On configure tout en 48h.\n\nÇa vous intéresserait qu'on en parle 15 minutes cette semaine ?\n\nElliot Pelletier\nNovalis IA — novalisia.ca\n+1 819 342-2290\n\n---\nPour vous désabonner, répondez "Non merci".`;
+    }},
+    email2: (p) => {{
+        const s = _sectorBlocks(p);
+        return `Objet : ${{s.hook2}}\n\nBonjour ${{p.name.split(' ')[0]}},\n\n${{s.body2}}\n\nElliot Pelletier\nNovalis IA — novalisia.ca\n+1 819 342-2290\n\n---\nPour vous désabonner, répondez "Non merci".`;
+    }},
+    email3: (p) => {{
+        const s = _sectorBlocks(p);
+        return `Objet : ${{s.hook3}}\n\nBonjour ${{p.name.split(' ')[0]}},\n\n${{s.body3}}\n\nElliot\nNovalis IA`;
+    }}
 }};
 
 let allProspects = [];
