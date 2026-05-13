@@ -438,6 +438,28 @@ async def init_db():
             )
         """)
 
+        # === PROSPECTION COMMERCIALE ===
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS prospects (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                business_name TEXT DEFAULT '',
+                email TEXT NOT NULL,
+                phone TEXT DEFAULT '',
+                coworking TEXT DEFAULT '',
+                industry TEXT DEFAULT '',
+                status TEXT DEFAULT 'new',
+                notes TEXT DEFAULT '',
+                email1_sent_at TEXT DEFAULT '',
+                email2_sent_at TEXT DEFAULT '',
+                email3_sent_at TEXT DEFAULT '',
+                replied_at TEXT DEFAULT '',
+                converted_at TEXT DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+
         # === RAG — CHUNKS DE CONNAISSANCES ===
         await db.execute("""
             CREATE TABLE IF NOT EXISTS knowledge_chunks (
@@ -2269,6 +2291,83 @@ async def export_rd_log(format: str = Query("csv"), username: str = Depends(veri
         return [dict(r) for r in rows]
 
 # ============================================================
+# PROSPECTION COMMERCIALE
+# ============================================================
+PROSPECT_STATUSES = ["new", "email1_sent", "email2_sent", "email3_sent", "replied", "meeting", "converted", "not_interested"]
+
+@app.get("/api/v1/prospects")
+async def list_prospects(username: str = Depends(verify_admin)):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT * FROM prospects ORDER BY created_at DESC")
+        return [dict(r) for r in await cursor.fetchall()]
+
+@app.post("/api/v1/prospects")
+async def create_prospect(request: Request, username: str = Depends(verify_admin)):
+    data = await request.json()
+    if not data.get("email") or not data.get("name"):
+        raise HTTPException(status_code=400, detail="name et email requis")
+    now = datetime.now().isoformat()
+    pid = generate_id("prospect")
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO prospects (id, name, business_name, email, phone, coworking, industry,
+               status, notes, email1_sent_at, email2_sent_at, email3_sent_at,
+               replied_at, converted_at, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?, '', '', '', '', ?, ?)""",
+            (pid, data["name"], data.get("business_name",""), data["email"],
+             data.get("phone",""), data.get("coworking",""), data.get("industry",""),
+             data.get("notes",""), now, now)
+        )
+        await db.commit()
+    return {"id": pid, "status": "created"}
+
+@app.put("/api/v1/prospects/{pid}")
+async def update_prospect(pid: str, request: Request, username: str = Depends(verify_admin)):
+    data = await request.json()
+    allowed = ["name","business_name","email","phone","coworking","industry","status","notes",
+               "email1_sent_at","email2_sent_at","email3_sent_at","replied_at","converted_at"]
+    updates, values = [], []
+    for f in allowed:
+        if f in data:
+            updates.append(f"{f} = ?")
+            values.append(data[f])
+    if not updates:
+        raise HTTPException(status_code=400, detail="Aucun champ valide")
+    values += [datetime.now().isoformat(), pid]
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(f"UPDATE prospects SET {', '.join(updates)}, updated_at = ? WHERE id = ?", values)
+        await db.commit()
+    return {"status": "updated"}
+
+@app.delete("/api/v1/prospects/{pid}")
+async def delete_prospect(pid: str, username: str = Depends(verify_admin)):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM prospects WHERE id = ?", (pid,))
+        await db.commit()
+    return {"status": "deleted"}
+
+@app.get("/api/v1/prospects/export")
+async def export_prospects(username: str = Depends(verify_admin)):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT * FROM prospects ORDER BY created_at DESC")
+        rows = [dict(r) for r in await cursor.fetchall()]
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Nom","Entreprise","Courriel","Téléphone","Co-working","Secteur","Statut","Notes","Email1","Email2","Email3","Répondu","Converti","Créé"])
+    for r in rows:
+        writer.writerow([r["name"],r["business_name"],r["email"],r["phone"],r["coworking"],
+                         r["industry"],r["status"],r["notes"],r["email1_sent_at"][:10] if r["email1_sent_at"] else "",
+                         r["email2_sent_at"][:10] if r["email2_sent_at"] else "",
+                         r["email3_sent_at"][:10] if r["email3_sent_at"] else "",
+                         r["replied_at"][:10] if r["replied_at"] else "",
+                         r["converted_at"][:10] if r["converted_at"] else "",
+                         r["created_at"][:10]])
+    return Response(content=output.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": "attachment; filename=prospects_novalis.csv"})
+
+# ============================================================
 # CATALOGUE DE SERVICES (public)
 # ============================================================
 @app.get("/api/v1/services")
@@ -2939,6 +3038,12 @@ async def dashboard(username: str = Depends(verify_admin)):
         .badge.pro{{background:rgba(168,85,247,0.15);color:#a855f7;}}
         .badge.enterprise{{background:rgba(251,191,36,0.15);color:#fbbf24;}}
         .badge.trial{{background:rgba(251,146,60,0.15);color:#fb923c;}}
+        .badge.new{{background:rgba(148,163,184,0.15);color:#94a3b8;}}
+        .badge.email1_sent,.badge.email2_sent,.badge.email3_sent{{background:rgba(56,189,248,0.15);color:#38bdf8;}}
+        .badge.replied{{background:rgba(168,85,247,0.15);color:#a855f7;}}
+        .badge.meeting{{background:rgba(251,191,36,0.15);color:#fbbf24;}}
+        .badge.converted{{background:rgba(52,211,153,0.2);color:#34d399;}}
+        .badge.not_interested{{background:rgba(239,68,68,0.1);color:#ef4444;}}
         .lead-card{{background:#0f1f2e;border:1px solid #fb923c33;border-radius:12px;padding:14px;margin-bottom:10px;border-left:3px solid #fb923c;}}
         .lead-name{{color:#fb923c;font-weight:600;font-size:1rem;}}
         .lead-meta{{color:#94a3b8;font-size:0.8rem;margin-top:4px;}}
@@ -2967,6 +3072,7 @@ async def dashboard(username: str = Depends(verify_admin)):
     <div class="sidebar">
         <div class="nav-logo">N</div>
         <div class="nav-item active" data-view="dashboard" title="Dashboard">📊</div>
+        <div class="nav-item" data-view="prospects" title="Prospection">🎯</div>
         <div class="nav-item" data-view="clients" title="Clients">🏢</div>
         <div class="nav-item" data-view="newclient" title="Nouveau client">➕</div>
         <div class="nav-item" data-view="rdlog" title="Journal R&D">🔬</div>
@@ -3002,6 +3108,28 @@ async def dashboard(username: str = Depends(verify_admin)):
                     <div id="leadsList"><div class="no-leads">Chargement...</div></div>
                 </div>
             </div>
+            <!-- PROSPECTS -->
+            <div class="view" id="prospects">
+                <h2 style="color:#38bdf8;margin-bottom:4px;">🎯 Prospection — Co-working & PME</h2>
+                <p style="color:#64748b;font-size:0.8rem;margin-bottom:16px;">Contacts trouvés dans les espaces co-working de la région · Track des envois d'emails</p>
+                <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+                    <button class="btn" onclick="openAddProspect()">➕ Ajouter un prospect</button>
+                    <button class="btn btn-sm" style="background:#1e3a5f;color:#38bdf8;" onclick="window.location.href='/api/v1/prospects/export'">⬇ Exporter CSV</button>
+                    <select id="pFilterStatus" onchange="loadProspects()" style="background:#0f1f2e;border:1px solid #1e3a5f;color:#e2e8f0;padding:6px 10px;border-radius:6px;font-size:0.8rem;">
+                        <option value="">Tous les statuts</option>
+                        <option value="new">🆕 Nouveau</option>
+                        <option value="email1_sent">📧 Email 1 envoyé</option>
+                        <option value="email2_sent">📧 Email 2 envoyé</option>
+                        <option value="email3_sent">📧 Email 3 envoyé</option>
+                        <option value="replied">💬 A répondu</option>
+                        <option value="meeting">📅 Réunion planifiée</option>
+                        <option value="converted">✅ Converti</option>
+                        <option value="not_interested">❌ Pas intéressé</option>
+                    </select>
+                </div>
+                <div id="prospectList"><div style="color:#94a3b8;text-align:center;padding:20px;">Chargement...</div></div>
+            </div>
+
             <!-- CLIENTS -->
             <div class="view" id="clients">
                 <h2 style="color:#38bdf8;margin-bottom:16px;">Clients</h2>
@@ -3082,6 +3210,7 @@ document.querySelectorAll('.nav-item[data-view]').forEach(n=>{{n.addEventListene
     n.classList.add('active');document.getElementById(n.dataset.view).classList.add('active');
     if(n.dataset.view==='clients')loadClients();
     if(n.dataset.view==='rdlog')loadRdLog();
+    if(n.dataset.view==='prospects')loadProspects();
 }});}});
 
 async function loadPlatformStats(){{
@@ -3143,6 +3272,136 @@ async function loadLeads(){{
             </div>`;
         }}).join('');
     }}catch(e){{console.error(e);}}
+}}
+
+const PROSPECT_STATUS_LABELS = {{
+    new:'🆕 Nouveau', email1_sent:'📧 Email 1', email2_sent:'📧 Email 2', email3_sent:'📧 Email 3',
+    replied:'💬 Répondu', meeting:'📅 Réunion', converted:'✅ Converti', not_interested:'❌ Pas intéressé'
+}};
+const EMAIL_TEMPLATES = {{
+    email1: (p) => `Objet : Automatisation IA pour ${{p.business_name||'votre entreprise'}} — essai gratuit 7 jours\n\nBonjour ${{p.name}},\n\nJe m'appelle Elliot, je suis fondateur de Novalis IA — une agence québécoise qui aide les PME à automatiser leur service client et leur prise de rendez-vous avec l'IA.\n\nEn regardant ${{p.business_name ? p.business_name + ', je' : 'des entreprises comme la vôtre, je'}} me demandais : combien de temps votre équipe passe-t-elle chaque semaine à répondre aux mêmes questions, à prendre des rendez-vous manuellement ou à faire des suivis ?\n\nNos clients réduisent typiquement ce temps de 40 à 80% dans les 30 premiers jours.\n\nJe propose un essai gratuit de 7 jours — aucune carte de crédit, aucun engagement. On configure un assistant IA sur vos données en 48h.\n\nÇa vous intéresserait qu'on en parle 15 minutes cette semaine ?\n\nElliot\nNovalis IA — novalisia.ca\n+1 819 342-2290`,
+
+    email2: (p) => `Objet : Re: Automatisation IA pour ${{p.business_name||'votre entreprise'}}\n\nBonjour ${{p.name}},\n\nJe me permets de revenir vers vous suite à mon courriel de la semaine dernière.\n\nUne chose concrète que nos clients trouvent utile : l'assistant IA répond aux questions fréquentes de vos clients à toute heure — même le soir et les fins de semaine — sans que vous ayez à faire quoi que ce soit.\n\nPour une PME comme ${{p.business_name||'la vôtre'}}, ça représente souvent 5 à 10 heures récupérées par semaine.\n\nSi vous avez 15 minutes cette semaine, je peux vous montrer comment ça fonctionnerait concrètement pour votre secteur.\n\nElliot\nNovalis IA — novalisia.ca`,
+
+    email3: (p) => `Objet : Dernier message — Novalis IA\n\nBonjour ${{p.name}},\n\nJe ne veux pas être intrusif — c'est mon dernier courriel.\n\nSi l'automatisation IA n'est pas une priorité pour ${{p.business_name||'vous'}} en ce moment, je comprends tout à fait.\n\nSi jamais ça devient pertinent plus tard, l'offre d'essai gratuit de 7 jours reste ouverte sur novalisia.ca.\n\nBonne continuation,\nElliot\nNovalis IA`
+}};
+
+let allProspects = [];
+
+async function loadProspects(){{
+    try{{
+        const r = await fetch('/api/v1/prospects');
+        allProspects = await r.json();
+        renderProspects();
+    }}catch(e){{console.error(e);}}
+}}
+
+function renderProspects(){{
+    const filter = document.getElementById('pFilterStatus')?.value||'';
+    const list = filter ? allProspects.filter(p=>p.status===filter) : allProspects;
+    const l = document.getElementById('prospectList');
+    if(!list.length){{l.innerHTML='<div style="color:#94a3b8;text-align:center;padding:20px;">Aucun prospect'+(filter?' avec ce statut':'')+' — cliquez ➕ pour en ajouter</div>';return;}}
+    // Stats strip
+    const stats={{new:0,email1_sent:0,email2_sent:0,email3_sent:0,replied:0,meeting:0,converted:0,not_interested:0}};
+    allProspects.forEach(p=>{{if(stats[p.status]!==undefined)stats[p.status]++;}});
+    const strip=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+      ${{Object.entries(stats).filter(([,v])=>v>0).map(([k,v])=>`<span class="badge ${{k}}">${{PROSPECT_STATUS_LABELS[k]||k}} ${{v}}</span>`).join('')}}
+    </div>`;
+    l.innerHTML = strip + list.map(p=>`<div class="client-card" style="border-left:3px solid ${{p.status==='converted'?'#34d399':p.status==='replied'||p.status==='meeting'?'#a855f7':'#1e3a5f'}};">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">
+          <div>
+            <div class="client-name">${{p.business_name||p.name}}</div>
+            <div class="client-meta">${{p.name}} · ${{p.email}}${{p.phone?' · '+p.phone:''}}${{p.coworking?' · 🏢 '+p.coworking:''}}${{p.industry?' · '+p.industry:''}}</div>
+            ${{p.notes?'<div style="font-size:0.75rem;color:#64748b;margin-top:4px;font-style:italic;">'+p.notes+'</div>':''}}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+            <span class="badge ${{p.status}}">${{PROSPECT_STATUS_LABELS[p.status]||p.status}}</span>
+            <div style="font-size:0.65rem;color:#475569;">${{p.email1_sent_at?'E1:'+p.email1_sent_at.slice(0,10):''}} ${{p.email2_sent_at?'E2:'+p.email2_sent_at.slice(0,10):''}} ${{p.email3_sent_at?'E3:'+p.email3_sent_at.slice(0,10):''}}</div>
+          </div>
+        </div>
+        <div class="lead-actions" style="margin-top:10px;">
+          ${{p.status==='new'?`<button class="action-btn btn-email" onclick="showEmailTemplate('${{p.id}}',1)">📧 Email 1</button>`:''}}\
+          ${{p.status==='email1_sent'?`<button class="action-btn btn-email" onclick="showEmailTemplate('${{p.id}}',2)">📧 Email 2</button>`:''}}\
+          ${{p.status==='email2_sent'?`<button class="action-btn btn-email" onclick="showEmailTemplate('${{p.id}}',3)">📧 Email 3</button>`:''}}\
+          <select onchange="updateProspectStatus('${{p.id}}',this.value);this.value=''" style="background:#1e3a5f;border:none;color:#94a3b8;padding:4px 8px;border-radius:4px;font-size:0.72rem;cursor:pointer;">
+            <option value="">Changer statut…</option>
+            ${{Object.entries(PROSPECT_STATUS_LABELS).map(([k,v])=>`<option value="${{k}}">${{v}}</option>`).join('')}}
+          </select>
+          <button class="action-btn" style="background:rgba(239,68,68,0.1);color:#ef4444;" onclick="deleteProspect('${{p.id}}')">✕</button>
+        </div>
+    </div>`).join('');
+}}
+
+async function updateProspectStatus(id, status){{
+    if(!status)return;
+    const now = new Date().toISOString();
+    const patch = {{status}};
+    if(status==='email1_sent')patch.email1_sent_at=now;
+    if(status==='email2_sent')patch.email2_sent_at=now;
+    if(status==='email3_sent')patch.email3_sent_at=now;
+    if(status==='replied')patch.replied_at=now;
+    if(status==='converted')patch.converted_at=now;
+    await fetch('/api/v1/prospects/'+id,{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(patch)}});
+    await loadProspects();
+}}
+
+async function deleteProspect(id){{
+    if(!confirm('Supprimer ce prospect ?'))return;
+    await fetch('/api/v1/prospects/'+id,{{method:'DELETE'}});
+    await loadProspects();
+}}
+
+function showEmailTemplate(id, num){{
+    const p = allProspects.find(x=>x.id===id);
+    if(!p)return;
+    const tpl = EMAIL_TEMPLATES['email'+num](p);
+    document.getElementById('emailTplContent').value = tpl;
+    document.getElementById('emailTplModal').style.display='flex';
+    document.getElementById('emailTplTitle').textContent = 'Modèle Email '+num+' — '+( p.business_name||p.name);
+    document.getElementById('emailTplId').value = id;
+    document.getElementById('emailTplNum').value = num;
+}}
+
+function copyEmailTpl(){{
+    const ta = document.getElementById('emailTplContent');
+    ta.select();navigator.clipboard.writeText(ta.value).then(()=>{{
+        const btn=document.getElementById('copyTplBtn');btn.textContent='✅ Copié !';
+        setTimeout(()=>{{btn.textContent='📋 Copier';}},2000);
+    }});
+}}
+
+async function markEmailSent(){{
+    const id=document.getElementById('emailTplId').value;
+    const num=parseInt(document.getElementById('emailTplNum').value);
+    const statusMap={{1:'email1_sent',2:'email2_sent',3:'email3_sent'}};
+    await updateProspectStatus(id, statusMap[num]);
+    document.getElementById('emailTplModal').style.display='none';
+}}
+
+function openAddProspect(){{document.getElementById('addProspectModal').style.display='flex';}}
+function closeAddProspect(){{document.getElementById('addProspectModal').style.display='none';}}
+
+async function saveProspect(){{
+    const data={{
+        name: document.getElementById('ap_name').value.trim(),
+        business_name: document.getElementById('ap_biz').value.trim(),
+        email: document.getElementById('ap_email').value.trim(),
+        phone: document.getElementById('ap_phone').value.trim(),
+        coworking: document.getElementById('ap_cw').value.trim(),
+        industry: document.getElementById('ap_industry').value,
+        notes: document.getElementById('ap_notes').value.trim(),
+    }};
+    if(!data.name||!data.email){{showNotice('Nom et courriel requis',true);return;}}
+    const r=await fetch('/api/v1/prospects',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
+    if(r.ok){{closeAddProspect();['ap_name','ap_biz','ap_email','ap_phone','ap_cw','ap_notes'].forEach(id=>{{document.getElementById(id).value='';}});await loadProspects();}}
+    else showNotice('Erreur — vérifiez les champs',true);
+}}
+
+function showNotice(msg,isErr){{
+    const d=document.getElementById('admin-notice');
+    d.textContent=msg;d.style.display='block';
+    d.style.borderColor=isErr?'#ef4444':'#34d399';d.style.color=isErr?'#ef4444':'#34d399';
+    setTimeout(()=>{{d.style.display='none';}},4000);
 }}
 
 async function loadClients(){{
@@ -3295,6 +3554,54 @@ function exportRd(){{window.location.href='/api/v1/rd/export?format=csv';}}
 
 function tick(){{document.getElementById('clock').textContent=new Date().toLocaleTimeString('fr-CA',{{hour:'2-digit',minute:'2-digit'}});}}
 loadPlatformStats();loadLeads();tick();setInterval(loadPlatformStats,30000);setInterval(tick,1000);
+</script>
+
+<!-- ADD PROSPECT MODAL -->
+<div id="addProspectModal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;padding:24px;overflow-y:auto;">
+  <div style="background:#1a2332;border:1px solid #1e3a5f;border-radius:16px;padding:28px;max-width:560px;width:100%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h3 style="color:#38bdf8;margin:0;">🎯 Ajouter un prospect</h3>
+      <button onclick="closeAddProspect()" style="background:transparent;border:none;color:#94a3b8;font-size:2rem;cursor:pointer;line-height:1;">×</button>
+    </div>
+    <div class="form-grid">
+      <div><label>Prénom / Nom *</label><input id="ap_name" placeholder="Marie Tremblay"/></div>
+      <div><label>Entreprise</label><input id="ap_biz" placeholder="Salon Éclat"/></div>
+      <div><label>Courriel *</label><input id="ap_email" type="email" placeholder="marie@salon.ca"/></div>
+      <div><label>Téléphone</label><input id="ap_phone" placeholder="+1 819 555-0000"/></div>
+      <div><label>Espace co-working</label><input id="ap_cw" placeholder="ex: Bureau Nomade Sherbrooke"/></div>
+      <div><label>Secteur</label>
+        <select id="ap_industry" style="background:#0f1f2e;border:1px solid #1e3a5f;border-radius:8px;padding:10px;color:#e2e8f0;width:100%;font-size:0.9rem;margin-bottom:10px;">
+          <option value="">— Choisir —</option>
+          <option>Clinique / Santé</option><option>Salon / Spa</option><option>Resto / Café</option>
+          <option>Immobilier</option><option>Cabinet comptable / Juridique</option>
+          <option>Commerce de détail</option><option>Construction / Rénovation</option>
+          <option>Marketing / Design</option><option>Formation / Coaching</option><option>Autre</option>
+        </select>
+      </div>
+    </div>
+    <label>Notes</label><textarea id="ap_notes" rows="2" placeholder="Ex: rencontré au Bureau Nomade, cherche à automatiser sa prise de RDV"></textarea>
+    <button class="btn" onclick="saveProspect()">Enregistrer le prospect</button>
+  </div>
+</div>
+
+<!-- EMAIL TEMPLATE MODAL -->
+<div id="emailTplModal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.80);align-items:center;justify-content:center;padding:24px;overflow-y:auto;">
+  <div style="background:#1a2332;border:1px solid #1e3a5f;border-radius:16px;padding:28px;max-width:680px;width:100%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 id="emailTplTitle" style="color:#38bdf8;margin:0;font-size:1rem;"></h3>
+      <button onclick="document.getElementById('emailTplModal').style.display='none'" style="background:transparent;border:none;color:#94a3b8;font-size:2rem;cursor:pointer;line-height:1;">×</button>
+    </div>
+    <input type="hidden" id="emailTplId"/><input type="hidden" id="emailTplNum"/>
+    <p style="color:#64748b;font-size:0.78rem;margin-bottom:10px;">Modifiez si nécessaire, puis copiez et envoyez depuis novalisproia@gmail.com</p>
+    <textarea id="emailTplContent" rows="18" style="background:#0f1f2e;border:1px solid #1e3a5f;border-radius:8px;padding:12px;color:#e2e8f0;width:100%;font-size:0.82rem;font-family:monospace;line-height:1.6;margin-bottom:12px;resize:vertical;"></textarea>
+    <div style="display:flex;gap:8px;">
+      <button id="copyTplBtn" class="btn" onclick="copyEmailTpl()">📋 Copier</button>
+      <button class="btn" style="background:#34d399;color:#0a0e17;" onclick="markEmailSent()">✅ Marquer comme envoyé</button>
+    </div>
+    <p style="color:#475569;font-size:0.72rem;margin-top:10px;">💡 Cliquez "Marquer comme envoyé" après avoir envoyé l'email — le statut se met à jour automatiquement.</p>
+  </div>
+</div>
+<script>
 </script>
 
 <!-- MODAL MODIFIER CLIENT -->
