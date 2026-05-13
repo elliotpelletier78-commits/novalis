@@ -3897,7 +3897,8 @@ async function importProspectsCsv(input){{
 async function sendEmail1ToAll(){{
     const newProspects = allProspects.filter(p=>p.status==='new');
     if(!newProspects.length){{showNotice('Aucun prospect avec statut "Nouveau"',true);return;}}
-    if(!confirm(`Envoyer Email 1 à ${{newProspects.length}} prospect(s) ?\n\n${{newProspects.map(p=>p.business_name||p.name).join('\n')}}`))return;
+    const names=newProspects.map(p=>p.business_name||p.name).join(', ');
+    if(!confirm('Envoyer Email 1 a '+newProspects.length+' prospect(s) : '+names))return;
     const btn=document.getElementById('sendAllBtn');
     btn.disabled=true;btn.textContent='⏳ Envoi en cours…';
     let ok=0,fail=0;
