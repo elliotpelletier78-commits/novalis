@@ -18,6 +18,7 @@ import FAQ from './components/FAQ'
 import Contact from './components/Contact'
 import Footer from './components/Footer'
 import WhatsAppButton from './components/WhatsAppButton'
+import ExitIntent from './components/ExitIntent'
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
       <Cursor />
       <Navbar />
       <WhatsAppButton />
+      <ExitIntent />
       <main>
         <Hero />
         <Stats />
