@@ -2685,7 +2685,7 @@ async def import_prospects_csv(request: Request, username: str = Depends(verify_
                 """INSERT INTO prospects (id, name, business_name, email, phone, coworking, industry,
                    status, notes, email1_sent_at, email2_sent_at, email3_sent_at,
                    replied_at, converted_at, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?, '', '', '', '', ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?, '', '', '', '', '', ?, ?)""",
                 (pid, name, row.get("Entreprise","").strip(), email,
                  row.get("Téléphone","").strip(), row.get("Co-working","").strip(),
                  row.get("Secteur","").strip(), row.get("Notes","").strip(), now, now)
@@ -2720,7 +2720,7 @@ async def seed_prospects(username: str = Depends(verify_admin)):
                 """INSERT INTO prospects (id, name, business_name, email, phone, coworking, industry,
                    status, notes, email1_sent_at, email2_sent_at, email3_sent_at,
                    replied_at, converted_at, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?, '', '', '', '', ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?, '', '', '', '', '', ?, ?)""",
                 (pid, name, biz, email, phone, cw, industry, notes, now, now)
             )
             added += 1
