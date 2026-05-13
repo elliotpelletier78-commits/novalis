@@ -928,7 +928,7 @@
         <p>On utilise les meilleures technologies pour garantir performance, sécurité et fiabilité</p>
     </div>
     <div class="tech-grid">
-        <div class="tech-item"><span class="ti">🤖</span>Claude Sonnet (Anthropic)</div>
+        <div class="tech-item"><span class="ti">🤖</span>Claude Opus (Anthropic)</div>
         <div class="tech-item"><span class="ti">📱</span>Twilio SMS/Voix</div>
         <div class="tech-item"><span class="ti">💬</span>Meta Messenger</div>
         <div class="tech-item"><span class="ti">🐍</span>Python FastAPI</div>
@@ -1070,6 +1070,7 @@
         </select>
         <label for="inqDesc">Décrivez votre besoin</label>
         <textarea id="inqDesc" placeholder="Ex: Je veux automatiser la prise de rendez-vous et le suivi de mes clients par SMS..."></textarea>
+        <div id="inqError" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:12px 16px;font-size:0.87rem;color:#f87171;margin-bottom:8px;"></div>
         <button class="btn-primary" style="width:100%" onclick="submitInquiry()">Envoyer ma demande</button>
     </div>
     <div class="form-success" id="formSuccess">
@@ -1268,13 +1269,22 @@ function calcRoi() {
 calcRoi();
 
 // Formulaire contact
+function showInqError(msg) {
+    const el = document.getElementById('inqError');
+    if (el) { el.style.display = 'block'; el.textContent = msg; el.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+}
+function hideInqError() {
+    const el = document.getElementById('inqError');
+    if (el) el.style.display = 'none';
+}
 async function submitInquiry() {
+    hideInqError();
     const name = document.getElementById('inqName').value.trim();
     const email = document.getElementById('inqEmail').value.trim();
     const description = document.getElementById('inqDesc').value.trim();
 
     if (!name || !email || !description) {
-        alert('Veuillez remplir au minimum votre nom, courriel et description du besoin.');
+        showInqError('Veuillez remplir au minimum votre nom, courriel et description du besoin.');
         return;
     }
 
@@ -1302,12 +1312,12 @@ async function submitInquiry() {
             document.getElementById('formSuccess').style.display = 'block';
         } else {
             const err = await resp.json().catch(() => ({}));
-            alert(err.detail || 'Erreur — veuillez réessayer ou nous contacter directement.');
+            showInqError(err.detail || 'Erreur — veuillez réessayer ou nous contacter directement.');
             btn.disabled = false;
             btn.textContent = 'Envoyer ma demande';
         }
     } catch(e) {
-        alert('Erreur de connexion — veuillez réessayer.');
+        showInqError('Erreur de connexion — veuillez réessayer.');
         btn.disabled = false;
         btn.textContent = 'Envoyer ma demande';
     }

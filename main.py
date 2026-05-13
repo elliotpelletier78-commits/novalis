@@ -5496,8 +5496,8 @@ try {
   var _btn = document.getElementById('btn');
   if (_btn) { _btn.addEventListener('click', function(ev) { ev.preventDefault(); verify(); }, false); }
   var _bt = document.getElementById('build-tag');
-  if (_bt) _bt.textContent = 'Propulse par Claude Opus \xB7 build-12 \xB7 JS-OK';
-  document.title = 'build-12 JS-OK \xB7 Granit Com';
+  if (_bt) _bt.textContent = 'Propulse par Claude Opus \xB7 build-14 \xB7 JS-OK';
+  document.title = 'build-14 JS-OK \xB7 Granit Com';
 } catch(e) {
   var _eb = document.getElementById('js-error-banner');
   if (_eb) { _eb.style.display='block'; _eb.textContent='Init echouee : ' + e.message; }
