@@ -76,7 +76,10 @@ ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "EXAVITQu4vr4xnSDxMaL")  
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
 _GENERATED_ADMIN_PASS = secrets.token_urlsafe(14)
 ADMIN_PASS = os.getenv("ADMIN_PASS", _GENERATED_ADMIN_PASS)
-PLATFORM_SECRET = os.getenv("PLATFORM_SECRET", secrets.token_hex(32))
+PLATFORM_SECRET = os.getenv("PLATFORM_SECRET") or secrets.token_hex(32)
+if not os.getenv("PLATFORM_SECRET"):
+    import sys
+    print("⚠️  AVERTISSEMENT: PLATFORM_SECRET non défini — les sessions expireront à chaque redémarrage. Définissez PLATFORM_SECRET en variable d'environnement.", file=sys.stderr)
 
 # CORS
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
@@ -1103,7 +1106,8 @@ async def analyze_sentiment(text: str) -> float:
     if pos >= 1 and neg == 0: return 0.7
     if not claude_client: return 0.0
     try:
-        resp = claude_client.messages.create(
+        resp = await asyncio.to_thread(
+            claude_client.messages.create,
             model="claude-haiku-4-5-20251001",
             max_tokens=5,
             messages=[{"role": "user", "content":
@@ -1136,7 +1140,8 @@ async def summarize_conversation(conv_id: str) -> str:
     if not claude_client:
         return transcript[:400]
     try:
-        resp = claude_client.messages.create(
+        resp = await asyncio.to_thread(
+            claude_client.messages.create,
             model="claude-haiku-4-5-20251001",
             max_tokens=180,
             messages=[{"role": "user", "content":
@@ -1331,7 +1336,8 @@ async def generate_response(client: Dict, conv_id: str, message: str,
     start_time = datetime.now()
     for attempt in range(max_retries):
         try:
-            response = claude_client.messages.create(
+            response = await asyncio.to_thread(
+                claude_client.messages.create,
                 model=model,
                 max_tokens=400,
                 system=system_payload,
@@ -1514,7 +1520,7 @@ async def handle_incoming_whatsapp(request: Request):
         twiml.message("Merci pour votre message. Ce service n'est pas encore configuré.")
         return Response(content=str(twiml), media_type="text/xml")
 
-    if client["messages_used_month"] >= client["max_messages_month"]:
+    if client["max_messages_month"] > 0 and client["messages_used_month"] >= client["max_messages_month"]:
         twiml = MessagingResponse()
         twiml.message("Merci pour votre message ! Veuillez contacter directement le commerce.")
         return Response(content=str(twiml), media_type="text/xml")
@@ -1642,7 +1648,7 @@ async def handle_messenger(request: Request):
     raw_body = await request.body()
     if FB_APP_SECRET:
         sig_header = request.headers.get("X-Hub-Signature", "")
-        expected = "sha1=" + hmac.new(FB_APP_SECRET.encode(), raw_body, "sha1").hexdigest()
+        expected = "sha1=" + hmac.new(FB_APP_SECRET.encode(), raw_body, hashlib.sha1).hexdigest()
         if not hmac.compare_digest(sig_header, expected):
             raise HTTPException(status_code=403, detail="Signature Facebook invalide")
     data = json.loads(raw_body)
@@ -2592,7 +2598,8 @@ async def analyze_inquiry_with_ai(name: str, description: str, service_type: str
     if not claude_client:
         return {}
     try:
-        resp = claude_client.messages.create(
+        resp = await asyncio.to_thread(
+            claude_client.messages.create,
             model="claude-haiku-4-5-20251001",
             max_tokens=1200,
             messages=[{"role": "user", "content": f"""Analyse cette demande d'un client québécois pour un agent IA.
@@ -3363,7 +3370,8 @@ MESSAGES ÉCHANTILLON : {'; '.join(m[:80] for m in sample_messages[:8])}
 FORMAT : 1) Résumé (2-3 phrases) 2) Points forts (3 bullets) 3) Recommandation concrète.
 Ton professionnel et positif. En français québécois."""
     try:
-        response = claude_client.messages.create(
+        response = await asyncio.to_thread(
+            claude_client.messages.create,
             model="claude-sonnet-4-6", max_tokens=500,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -3661,7 +3669,8 @@ async def demo_chat(request: Request):
         )
 
     try:
-        resp = claude_client.messages.create(
+        resp = await asyncio.to_thread(
+            claude_client.messages.create,
             model="claude-haiku-4-5-20251001",
             max_tokens=200,
             system=system_text,
@@ -4056,7 +4065,7 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portail — {c['business_name']} | Novalis</title>
+    <title>Portail — {html_module.escape(c['business_name'])} | Novalis</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,400&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
@@ -4134,7 +4143,7 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
   <div class="sidebar">
     <div class="sb-logo">
       <div class="sb-brand">Novalis IA</div>
-      <div class="sb-biz">{c['business_name']}</div>
+      <div class="sb-biz">{html_module.escape(c['business_name'])}</div>
       <div class="sb-plan">{c['plan']}</div>
     </div>
     <nav>
@@ -4351,7 +4360,7 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
           <div class="card">
             <div class="card-title">Profil de l'entreprise</div>
             <label class="lbl">Nom de l'entreprise</label>
-            <input id="s_bname" class="fi" value="{c['business_name']}" />
+            <input id="s_bname" class="fi" value="{html_module.escape(c['business_name'])}" />
             <label class="lbl">Secteur</label>
             <input id="s_btype" class="fi" value="{c.get('business_type','')}" placeholder="Distribution, Retail…" />
             <label class="lbl">Heures d'ouverture</label>
@@ -5900,7 +5909,7 @@ async def vapi_webhook(request: Request):
     if VAPI_WEBHOOK_SECRET:
         sig = request.headers.get("x-vapi-signature", "")
         body = await request.body()
-        expected = hmac.new(VAPI_WEBHOOK_SECRET.encode(), body, digestmod="sha256").hexdigest()
+        expected = hmac.new(VAPI_WEBHOOK_SECRET.encode(), body, digestmod=hashlib.sha256).hexdigest()
         if not hmac.compare_digest(sig, expected):
             raise HTTPException(status_code=401, detail="Invalid signature")
         data = json.loads(body)
