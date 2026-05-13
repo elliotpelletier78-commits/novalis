@@ -133,7 +133,14 @@ export default function Pricing() {
 
               <div className="p-8 flex-1 flex flex-col">
                 <div className="mb-6">
-                  <h3 className="font-display italic text-2xl text-pearl mb-2">{plan.name}</h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-display italic text-2xl text-pearl">{plan.name}</h3>
+                    {plan.price && (
+                      <span className="text-[0.58rem] tracking-widest uppercase px-2 py-0.5" style={{ background: 'rgba(74,195,111,0.12)', color: '#4ac36f', border: '0.5px solid rgba(74,195,111,0.3)' }}>
+                        7 jours gratuit
+                      </span>
+                    )}
+                  </div>
                   <p className="text-dim text-sm">{plan.desc}</p>
                 </div>
 
