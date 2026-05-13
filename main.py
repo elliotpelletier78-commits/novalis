@@ -555,8 +555,9 @@ async def init_db():
             try:
                 await db.execute(migration)
                 await db.commit()
-            except Exception:
-                pass  # Colonne déjà présente
+            except Exception as _me:
+                if "already exists" not in str(_me).lower() and "duplicate column" not in str(_me).lower():
+                    logger.warning(f"Migration: {_me}")
 
         # Index pour les nouvelles tables
         await db.execute("CREATE INDEX IF NOT EXISTS idx_kb_client ON knowledge_base(client_id, is_active)")
@@ -1705,10 +1706,14 @@ async def handle_messenger(request: Request):
 
             if client.get("fb_page_token"):
                 try:
-                    http_requests.post(
+                    _fb_token = client["fb_page_token"]
+                    _fb_payload = {"recipient": {"id": sender_id}, "message": {"text": ai_response}}
+                    await asyncio.to_thread(
+                        http_requests.post,
                         "https://graph.facebook.com/v18.0/me/messages",
-                        params={"access_token": client["fb_page_token"]},
-                        json={"recipient": {"id": sender_id}, "message": {"text": ai_response}}
+                        params={"access_token": _fb_token},
+                        json=_fb_payload,
+                        timeout=8
                     )
                 except Exception as e:
                     logger.error(f"Erreur Messenger: {e}")
@@ -3321,8 +3326,11 @@ async def trigger_outgoing_webhooks(client_id: str, event: str, payload: dict):
                 continue
             body = json.dumps({"event": event, "timestamp": datetime.now().isoformat(), "data": payload})
             sig = hashlib.sha256(f"{wh.get('secret','')}{body}".encode()).hexdigest()
-            http_requests.post(wh["url"], data=body,
-                headers={"Content-Type": "application/json", "X-Novalis-Signature": sig}, timeout=5)
+            _wh_url = wh["url"]
+            _wh_headers = {"Content-Type": "application/json", "X-Novalis-Signature": sig}
+            await asyncio.to_thread(
+                http_requests.post, _wh_url, data=body, headers=_wh_headers, timeout=5
+            )
             async with aiosqlite.connect(DB_PATH) as db:
                 await db.execute("UPDATE client_webhooks SET last_triggered = ? WHERE id = ?",
                                 (datetime.now().isoformat(), wh["id"]))
@@ -3618,6 +3626,7 @@ async def delete_escalation_rule(rule_id: str, client: dict = Depends(verify_api
 # ELEVENLABS TTS
 # ============================================================
 @app.post("/api/v1/tts")
+@limiter.limit("10/minute")
 async def text_to_speech_endpoint(request: Request, client: dict = Depends(verify_api_key)):
     """Synthèse vocale ElevenLabs (requiert ELEVENLABS_API_KEY)."""
     data = await request.json()
@@ -3738,8 +3747,9 @@ async def onboarding_wizard(key: str = Query(None), t: str = Query(None)):
                              (tok, expires_at, c["id"]))
             await db.commit()
 
-    bname  = c["business_name"].replace("'", "\\'")
-    bphone = (c.get("owner_phone") or "").replace("'", "\\'")
+    import json as _json_mod
+    bname  = _json_mod.dumps(c["business_name"])
+    bphone = _json_mod.dumps(c.get("owner_phone") or "")
     api_k  = c["api_key"]
 
     html = f"""<!DOCTYPE html>
@@ -3895,8 +3905,8 @@ const TOKEN = '{tok}';
 const API_KEY = '{api_k}';
 let kbUploaded = false;
 
-document.getElementById('business_name').value = '{bname}';
-document.getElementById('owner_phone').value = '{bphone}';
+document.getElementById('business_name').value = {bname};
+document.getElementById('owner_phone').value = {bphone};
 document.getElementById('key-display').textContent = API_KEY;
 document.getElementById('portal-btn').href = '/portal?t=' + TOKEN;
 
@@ -4157,6 +4167,9 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
         .sent-pos{{color:#4ac36f;}} .sent-neg{{color:#f87171;}} .sent-neu{{color:var(--dim);}}
         .spinner{{display:inline-block;width:12px;height:12px;border:1.5px solid rgba(237,232,223,0.2);border-top-color:var(--pearl);border-radius:50%;animation:sp 0.6s linear infinite;}}
         @keyframes sp{{to{{transform:rotate(360deg)}}}}
+        .toast{{position:fixed;bottom:24px;right:24px;z-index:9999;background:#1d2733;border:0.5px solid var(--b);padding:13px 18px;font-size:0.82rem;color:var(--pearl);border-radius:4px;opacity:0;transform:translateY(10px);transition:opacity 0.22s,transform 0.22s;max-width:360px;line-height:1.5;pointer-events:none;}}
+        .toast.show{{opacity:1;transform:translateY(0);}}
+        .toast.tok{{border-left:3px solid #4ac36f;}}.toast.terr{{border-left:3px solid #f87171;}}
         .hamburger{{display:none;position:fixed;top:12px;left:12px;z-index:2000;background:rgba(29,39,51,0.97);border:0.5px solid var(--b);color:var(--pearl);width:40px;height:40px;font-size:1.2rem;cursor:pointer;align-items:center;justify-content:center;padding:0;}}
         .sb-overlay{{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1500;}}
         @media(max-width:900px){{
@@ -4170,6 +4183,7 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
     </style>
 </head>
 <body>
+<div class="toast" id="toast"></div>
 <button class="hamburger" id="hbg" aria-label="Menu" onclick="toggleSidebar()">☰</button>
 <div class="sb-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
 <div class="layout">
@@ -4445,9 +4459,19 @@ async function upgradePlan(e, plan) {{
   if(r.ok){{const d=await r.json();window.location.href=d.checkout_url;}}
   else {{
     const r2 = await fetch('/api/v1/plan-request', {{method:'POST',headers:{{'X-API-Key':API_KEY,'Content-Type':'application/json'}},body:JSON.stringify({{plan}})}});
-    if(r2.ok) alert('✅ Demande reçue ! L\'équipe Novalis vous contacte dans les 24h pour finaliser votre abonnement ' + plan + '.');
-    else alert('Demande envoyée — contactez novalisproia@gmail.com pour finaliser votre plan.');
+    if(r2.ok) showToast('✅ Demande reçue — l\'équipe Novalis vous contacte dans les 24h pour finaliser votre plan '+plan+'.', false);
+    else showToast('Demande envoyée — contactez novalisproia@gmail.com pour finaliser.', false);
   }}
+}}
+var _tt=null;
+function showToast(msg,isErr){{
+  var t=document.getElementById('toast');
+  if(!t)return;
+  clearTimeout(_tt);
+  t.textContent=msg;
+  t.className='toast '+(isErr?'terr':'tok');
+  requestAnimationFrame(function(){{t.classList.add('show');}});
+  _tt=setTimeout(function(){{t.classList.remove('show');}},4200);
 }}
 function toggleSidebar(){{
   var s=document.getElementById('sidebar');
@@ -4472,7 +4496,8 @@ function nav(btn, name) {{
 }}
 
 function mkChart(id, cfg) {{
-  if(charts[id]) charts[id].destroy();
+  if(charts[id] && typeof charts[id].destroy === 'function') {{ try{{charts[id].destroy();}}catch(_){{}} }}
+  charts[id] = null;
   const ctx = document.getElementById(id);
   if(!ctx) return;
   charts[id] = new Chart(ctx, cfg);
@@ -4666,10 +4691,10 @@ async function loadKnowledgeBase() {{
 }}
 async function addKbEntry() {{
   const data={{title:document.getElementById('kb_title').value,content:document.getElementById('kb_content').value,kb_type:document.getElementById('kb_type').value}};
-  if(!data.title||!data.content){{alert('Titre et contenu requis');return;}}
+  if(!data.title||!data.content){{showToast('Titre et contenu requis',true);return;}}
   const r=await fetch('/api/v1/me/knowledge-base',{{method:'POST',headers:{{...H,'Content-Type':'application/json'}},body:JSON.stringify(data)}});
-  if(r.ok){{document.getElementById('kb_title').value='';document.getElementById('kb_content').value='';loadKnowledgeBase();}}
-  else{{alert((await r.json()).detail||'Erreur');}}
+  if(r.ok){{document.getElementById('kb_title').value='';document.getElementById('kb_content').value='';showToast('✓ Entrée ajoutée.',false);loadKnowledgeBase();}}
+  else{{showToast((await r.json()).detail||'Erreur',true);}}
 }}
 async function uploadKbFile() {{
   const title=document.getElementById('kb_file_title').value.trim();
@@ -4713,16 +4738,17 @@ async function loadCampaigns() {{
 async function createCampaign(){{
   const contacts=document.getElementById('camp_contacts').value.split('\\n').map(s=>s.trim()).filter(Boolean);
   const data={{name:document.getElementById('camp_name').value,message:document.getElementById('camp_message').value,channel:document.getElementById('camp_channel').value,contacts}};
-  if(!data.name||!data.message){{alert('Nom et message requis');return;}}
+  if(!data.name||!data.message){{showToast('Nom et message requis',true);return;}}
   const r=await fetch('/api/v1/me/campaigns',{{method:'POST',headers:{{...H,'Content-Type':'application/json'}},body:JSON.stringify(data)}});
   const d=await r.json();
-  if(r.ok){{alert('Campagne créée pour '+d.contacts_count+' contacts.');loadCampaigns();}}
-  else{{alert(d.detail||'Erreur');}}
+  if(r.ok){{showToast('✓ Campagne créée pour '+d.contacts_count+' contacts.',false);loadCampaigns();}}
+  else{{showToast(d.detail||'Erreur',true);}}
 }}
 async function sendCampaign(id){{
   if(!confirm('Envoyer maintenant ?'))return;
   const r=await fetch('/api/v1/me/campaigns/'+id+'/send',{{method:'POST',headers:H}});
-  alert((await r.json()).message||'Envoi lancé');loadCampaigns();
+  const d=await r.json();
+  showToast(d.message||'Envoi lancé',!r.ok);loadCampaigns();
 }}
 
 async function loadWebhooks(){{
@@ -4744,7 +4770,7 @@ async function createWebhook(){{
   const r=await fetch('/api/v1/me/webhooks',{{method:'POST',headers:{{...H,'Content-Type':'application/json'}},body:JSON.stringify({{url:document.getElementById('wh_url').value,events}})}});
   const d=await r.json();
   if(r.ok){{document.getElementById('wh_result').innerHTML=`<div style="border-left:2px solid var(--cu);padding:8px 12px;font-size:0.8rem;margin-top:10px;"><strong style="color:#4ac36f;">✓ Webhook créé</strong><br><span style="color:var(--dim);">Secret :</span> <code style="color:var(--cu);word-break:break-all;">${{d.secret}}</code></div>`;document.getElementById('wh_url').value='';loadWebhooks();}}
-  else{{alert(d.detail||'Erreur');}}
+  else{{showToast(d.detail||'Erreur',true);}}
 }}
 async function deleteWebhook(id){{if(!confirm('Supprimer ?'))return;await fetch('/api/v1/me/webhooks/'+id,{{method:'DELETE',headers:H}});loadWebhooks();}}
 
@@ -5035,6 +5061,9 @@ async def handle_stripe_webhook(request: Request):
     """Webhook Stripe — met à jour le plan client après paiement ou annulation."""
     if not stripe:
         return {"status": "disabled"}
+    if not STRIPE_WEBHOOK_SECRET:
+        logger.error("STRIPE_WEBHOOK_SECRET non configuré — webhook refusé")
+        raise HTTPException(status_code=503, detail="Stripe webhook non configuré")
 
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
@@ -6032,11 +6061,16 @@ async def vapi_webhook(request: Request):
 
     if msg_type == "tool-calls":
         results = []
+        _VAPI_ALLOWED = {"sendCallSummary", "bookAppointment"}
         for tool_call in msg.get("toolCallList", []):
             fn = tool_call.get("function", {})
             name = fn.get("name", "")
             args = fn.get("arguments", {})
             call_id = tool_call.get("id", "")
+
+            if name not in _VAPI_ALLOWED:
+                logger.warning(f"Vapi: fonction inconnue ignorée: {name!r}")
+                continue
 
             if name == "sendCallSummary":
                 call_record_id = str(uuid.uuid4())
