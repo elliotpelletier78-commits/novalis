@@ -2367,6 +2367,146 @@ async def export_prospects(username: str = Depends(verify_admin)):
     return Response(content=output.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition": "attachment; filename=prospects_novalis.csv"})
 
+@app.post("/api/v1/prospects/{pid}/send-email")
+async def send_prospect_email(pid: str, request: Request, username: str = Depends(verify_admin)):
+    """Envoie un email de prospection via SMTP Novalis."""
+    data = await request.json()
+    email_num = int(data.get("email_num", 1))
+    custom_body = data.get("body", "").strip()
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT * FROM prospects WHERE id = ?", (pid,))
+        p = await cursor.fetchone()
+    if not p:
+        raise HTTPException(status_code=404, detail="Prospect introuvable")
+    p = dict(p)
+
+    name = p["name"].split()[0] if p["name"] else p["name"]
+    biz = p["business_name"] or p["name"]
+    h_name = html_module.escape(name)
+    h_biz = html_module.escape(biz)
+
+    subjects = {
+        1: f"Automatisation IA pour {biz} — essai gratuit 7 jours",
+        2: f"Re: Automatisation IA pour {biz}",
+        3: "Dernier message — Novalis IA",
+    }
+    subject = subjects.get(email_num, subjects[1])
+
+    if not custom_body:
+        if email_num == 1:
+            custom_body = f"""Bonjour {name},
+
+Je m'appelle Elliot, fondateur de Novalis IA — une agence québécoise qui aide les PME à automatiser leur service client et leur prise de rendez-vous avec l'intelligence artificielle.
+
+En regardant {biz}, je me demandais : combien de temps votre équipe passe-t-elle chaque semaine à répondre aux mêmes questions, à gérer des appels répétitifs ou à faire des suivis manuels ?
+
+Nos clients réduisent typiquement ce temps de 40 à 80 % dans les 30 premiers jours.
+
+Je propose un essai gratuit de 7 jours — aucune carte de crédit, aucun engagement. On configure un assistant IA sur vos données en 48h.
+
+Ça vous intéresserait qu'on en parle 15 minutes cette semaine ?
+
+Elliot Pelletier
+Novalis IA — novalisia.ca
++1 819 342-2290
+
+---
+Pour vous désabonner, répondez "Non merci" à cet email."""
+        elif email_num == 2:
+            custom_body = f"""Bonjour {name},
+
+Je me permets de revenir vers vous suite à mon courriel de la semaine dernière.
+
+Une chose concrète que nos clients trouvent utile : l'assistant IA répond aux questions fréquentes de vos clients à toute heure — même le soir et les fins de semaine — sans intervention humaine.
+
+Pour {biz}, ça représenterait probablement 5 à 10 heures récupérées par semaine.
+
+Si vous avez 15 minutes cette semaine, je peux vous montrer comment ça fonctionnerait concrètement pour votre secteur.
+
+Elliot Pelletier
+Novalis IA — novalisia.ca
++1 819 342-2290
+
+---
+Pour vous désabonner, répondez "Non merci"."""
+        else:
+            custom_body = f"""Bonjour {name},
+
+C'est mon dernier message — je ne veux pas être intrusif.
+
+Si l'automatisation IA n'est pas une priorité pour {biz} en ce moment, je comprends tout à fait.
+
+Si jamais ça devient pertinent, l'essai gratuit de 7 jours reste ouvert sur novalisia.ca.
+
+Bonne continuation,
+Elliot
+Novalis IA
+
+---
+Pour vous désabonner, répondez "Non merci"."""
+
+    # Convertit texte brut → HTML simple
+    html_body = f"""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#090C0F;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;padding:40px 24px;">
+  <div style="border-bottom:1px solid rgba(168,104,68,0.3);padding-bottom:20px;margin-bottom:28px;">
+    <p style="margin:0;font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;">Novalis IA · Sherbrooke, Québec</p>
+  </div>
+  {''.join(f'<p style="color:#EDE8DF;font-size:0.9rem;line-height:1.7;margin:0 0 14px;">{html_module.escape(line) if line.strip() else "<br>"}</p>' for line in custom_body.split('\n'))}
+</div></body></html>"""
+
+    try:
+        await send_email(to=p["email"], subject=subject, body=html_body)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur SMTP: {e}")
+
+    now = datetime.now().isoformat()
+    field_map = {1: "email1_sent_at", 2: "email2_sent_at", 3: "email3_sent_at"}
+    status_map = {1: "email1_sent", 2: "email2_sent", 3: "email3_sent"}
+    field = field_map[email_num]
+    new_status = status_map[email_num]
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(f"UPDATE prospects SET {field} = ?, status = ?, updated_at = ? WHERE id = ?",
+                         (now, new_status, now, pid))
+        await db.commit()
+    return {"status": "sent", "to": p["email"], "subject": subject}
+
+@app.post("/api/v1/prospects/import")
+async def import_prospects_csv(request: Request, username: str = Depends(verify_admin)):
+    """Import CSV de prospects. Colonnes: Nom,Entreprise,Courriel,Téléphone,Co-working,Secteur,Notes"""
+    body = await request.body()
+    content = body.decode("utf-8-sig").strip()
+    reader = csv.DictReader(io.StringIO(content))
+    added, skipped = 0, 0
+    now = datetime.now().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        for row in reader:
+            email = (row.get("Courriel") or row.get("email") or "").strip()
+            name = (row.get("Nom") or row.get("name") or "").strip()
+            if not email or not name:
+                skipped += 1
+                continue
+            # Skip duplicates
+            cur = await db.execute("SELECT id FROM prospects WHERE email = ?", (email,))
+            if await cur.fetchone():
+                skipped += 1
+                continue
+            pid = generate_id("prospect")
+            await db.execute(
+                """INSERT INTO prospects (id, name, business_name, email, phone, coworking, industry,
+                   status, notes, email1_sent_at, email2_sent_at, email3_sent_at,
+                   replied_at, converted_at, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?, '', '', '', '', ?, ?)""",
+                (pid, name, row.get("Entreprise","").strip(), email,
+                 row.get("Téléphone","").strip(), row.get("Co-working","").strip(),
+                 row.get("Secteur","").strip(), row.get("Notes","").strip(), now, now)
+            )
+            added += 1
+        await db.commit()
+    return {"added": added, "skipped": skipped}
+
 # ============================================================
 # CATALOGUE DE SERVICES (public)
 # ============================================================
@@ -3113,7 +3253,10 @@ async def dashboard(username: str = Depends(verify_admin)):
                 <h2 style="color:#38bdf8;margin-bottom:4px;">🎯 Prospection — Co-working & PME</h2>
                 <p style="color:#64748b;font-size:0.8rem;margin-bottom:16px;">Contacts trouvés dans les espaces co-working de la région · Track des envois d'emails</p>
                 <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-                    <button class="btn" onclick="openAddProspect()">➕ Ajouter un prospect</button>
+                    <button class="btn" onclick="openAddProspect()">➕ Ajouter</button>
+                    <label class="btn btn-sm" style="background:#1e3a5f;color:#34d399;cursor:pointer;" title="Importer CSV (Nom,Entreprise,Courriel,Téléphone,Co-working,Secteur,Notes)">
+                        ⬆ Importer CSV<input type="file" accept=".csv" style="display:none;" onchange="importProspectsCsv(this)"/>
+                    </label>
                     <button class="btn btn-sm" style="background:#1e3a5f;color:#38bdf8;" onclick="window.location.href='/api/v1/prospects/export'">⬇ Exporter CSV</button>
                     <select id="pFilterStatus" onchange="loadProspects()" style="background:#0f1f2e;border:1px solid #1e3a5f;color:#e2e8f0;padding:6px 10px;border-radius:6px;font-size:0.8rem;">
                         <option value="">Tous les statuts</option>
@@ -3376,6 +3519,50 @@ async function markEmailSent(){{
     const statusMap={{1:'email1_sent',2:'email2_sent',3:'email3_sent'}};
     await updateProspectStatus(id, statusMap[num]);
     document.getElementById('emailTplModal').style.display='none';
+}}
+
+async function sendEmailViaNovalis(){{
+    const id=document.getElementById('emailTplId').value;
+    const num=parseInt(document.getElementById('emailTplNum').value);
+    const body=document.getElementById('emailTplContent').value;
+    const btn=document.getElementById('sendNovalisBtn');
+    btn.textContent='Envoi en cours…';btn.disabled=true;
+    try{{
+        const r=await fetch('/api/v1/prospects/'+id+'/send-email',{{
+            method:'POST',
+            headers:{{'Content-Type':'application/json'}},
+            credentials:'include',
+            body:JSON.stringify({{email_num:num,body}})
+        }});
+        if(r.ok){{
+            btn.textContent='✅ Envoyé !';
+            setTimeout(()=>{{document.getElementById('emailTplModal').style.display='none';loadProspects();}},1500);
+        }}else{{
+            const d=await r.json();
+            btn.textContent='❌ Erreur';
+            showNotice(d.detail||'Erreur SMTP',true);
+            setTimeout(()=>{{btn.textContent='🚀 Envoyer via Novalis';btn.disabled=false;}},2000);
+        }}
+    }}catch(e){{btn.textContent='❌ Erreur réseau';btn.disabled=false;}}
+}}
+
+async function importProspectsCsv(input){{
+    if(!input.files.length)return;
+    const text=await input.files[0].text();
+    const r=await fetch('/api/v1/prospects/import',{{
+        method:'POST',
+        headers:{{'Content-Type':'text/csv'}},
+        credentials:'include',
+        body:text
+    }});
+    if(r.ok){{
+        const d=await r.json();
+        showNotice(`✅ Import réussi — ${{d.added}} ajouté(s), ${{d.skipped}} ignoré(s) (doublons ou manquants)`,false);
+        await loadProspects();
+    }}else{{
+        showNotice('❌ Erreur import CSV',true);
+    }}
+    input.value='';
 }}
 
 function openAddProspect(){{document.getElementById('addProspectModal').style.display='flex';}}
