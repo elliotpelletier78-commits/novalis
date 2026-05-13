@@ -2694,6 +2694,39 @@ async def import_prospects_csv(request: Request, username: str = Depends(verify_
         await db.commit()
     return {"added": added, "skipped": skipped}
 
+@app.post("/api/v1/prospects/seed")
+async def seed_prospects(username: str = Depends(verify_admin)):
+    """Insère les 8 prospects initiaux Sherbrooke/Estrie si pas déjà présents."""
+    initial = [
+        ("Camille", "Euphorik Salon", "soyez@euphorik.ca", "819-566-4949", "Sherbrooke Centre-ville", "Salon / Spa", "Propriétaire depuis 6 ans — 3025 King Ouest. Haute volume clients. Prise de RDV manuelle."),
+        ("Laurence", "Lodace Beauté", "info@lodacebeaute.ca", "819-791-1441", "Wellington Nord Sherbrooke", "Salon / Spa", "Fondatrice — 76 rue Wellington Nord. Salon premium."),
+        ("Martin Ouzilleau", "Pacifique Marketing", "info@pacifiquemarketing.com", "819-868-1711", "Magog (Estrie)", "Marketing / Design", "Président et fondateur — agence 33 ans d'histoire. Partenaire revendeur potentiel."),
+        ("Équipe Roux & Bachand", "Roux & Bachand Immobilier", "info@rouxetbachand.com", "819-640-8888", "Sherbrooke Ouest", "Immobilier", "Équipe eXp — 2194 King O. Leads entrants + suivis = use case fort."),
+        ("Lyne Desautels", "Clinique CMIE", "info@clinique-cmie.com", "", "Réseau Québec", "Clinique / Santé", "Fondatrice — réseau multi-sites Magog+. Prise de RDV = cas parfait."),
+        ("Équipe SBF", "SBF CPA Sherbrooke", "info@sbf-cpa.ca", "819-820-9530", "Sherbrooke", "Cabinet comptable / Juridique", "Cabinet CPA — 2984 rue Des Chênes. Clients PME."),
+        ("Équipe DBL", "DBL Comptabilité & Gestion", "info@dblcompta.com", "819-580-7669", "Sherbrooke", "Cabinet comptable / Juridique", "Cabinet comptable Sherbrooke et Québec."),
+        ("Équipe Otantik", "Otantik Marketing", "info@otantikmarketing.com", "", "Sherbrooke", "Marketing / Design", "Agence numérique — équipe de 9. Partenaire revendeur potentiel."),
+    ]
+    added, skipped = 0, 0
+    now = datetime.now().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        for (name, biz, email, phone, cw, industry, notes) in initial:
+            cur = await db.execute("SELECT id FROM prospects WHERE email = ?", (email,))
+            if await cur.fetchone():
+                skipped += 1
+                continue
+            pid = generate_id("prospect")
+            await db.execute(
+                """INSERT INTO prospects (id, name, business_name, email, phone, coworking, industry,
+                   status, notes, email1_sent_at, email2_sent_at, email3_sent_at,
+                   replied_at, converted_at, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?, '', '', '', '', ?, ?)""",
+                (pid, name, biz, email, phone, cw, industry, notes, now, now)
+            )
+            added += 1
+        await db.commit()
+    return {"added": added, "skipped": skipped}
+
 @app.post("/api/v1/prospects/send-all-email1")
 async def send_all_email1(username: str = Depends(verify_admin)):
     """Envoie Email 1 à tous les prospects avec statut 'new'."""
@@ -3531,6 +3564,7 @@ async def dashboard(username: str = Depends(verify_admin)):
                         ⬆ Importer CSV<input type="file" accept=".csv" style="display:none;" onchange="importProspectsCsv(this)"/>
                     </label>
                     <button class="btn btn-sm" style="background:#1e3a5f;color:#38bdf8;" onclick="window.location.href='/api/v1/prospects/export'">⬇ Exporter CSV</button>
+                    <button class="btn btn-sm" style="background:rgba(52,211,153,0.12);color:#34d399;border:1px solid rgba(52,211,153,0.3);" onclick="seedProspects()" id="seedBtn">🌱 Charger prospects initiaux</button>
                     <button class="btn btn-sm" style="background:rgba(201,169,110,0.15);color:#c9a96e;border:1px solid rgba(201,169,110,0.3);" onclick="sendEmail1ToAll()" id="sendAllBtn">📤 Email 1 à tous les nouveaux</button>
                     <select id="pFilterStatus" onchange="loadProspects()" style="background:#0f1f2e;border:1px solid #1e3a5f;color:#e2e8f0;padding:6px 10px;border-radius:6px;font-size:0.8rem;">
                         <option value="">Tous les statuts</option>
@@ -3892,6 +3926,20 @@ async function importProspectsCsv(input){{
         showNotice('❌ Erreur import CSV',true);
     }}
     input.value='';
+}}
+
+async function seedProspects(){{
+    const btn=document.getElementById('seedBtn');
+    btn.disabled=true;btn.textContent='⏳ Chargement…';
+    const r=await fetch('/api/v1/prospects/seed',{{method:'POST',credentials:'include'}});
+    if(r.ok){{
+        const d=await r.json();
+        showNotice('✅ '+d.added+' prospect(s) ajouté(s), '+d.skipped+' déjà existant(s)',false);
+        await loadProspects();
+    }}else{{
+        showNotice('❌ Erreur lors du chargement',true);
+    }}
+    btn.disabled=false;btn.textContent='🌱 Charger prospects initiaux';
 }}
 
 async function sendEmail1ToAll(){{
