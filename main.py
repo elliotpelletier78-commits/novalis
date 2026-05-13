@@ -566,6 +566,23 @@ async def init_db():
         await db.execute("CREATE INDEX IF NOT EXISTS idx_ca_client ON conversation_analytics(client_id, date)")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_escalation_client ON escalation_rules(client_id, is_active)")
 
+        # === COMMANDES MARQUEURS GRANIT COM ===
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS marker_orders (
+                id TEXT PRIMARY KEY,
+                client_id TEXT DEFAULT 'granitecom',
+                model TEXT,
+                font TEXT,
+                line1 TEXT,
+                line2 TEXT,
+                line3 TEXT,
+                line4 TEXT,
+                special_instructions TEXT,
+                status TEXT DEFAULT 'pending',
+                created_at TEXT NOT NULL
+            )
+        """)
+
         await db.commit()
         logger.info("Base de données V6.0 (agence IA premium) initialisée")
 
@@ -762,10 +779,10 @@ def validate_twilio_signature(request_url: str, params: dict, signature: str) ->
     return validator.validate(request_url, params, signature)
 
 async def send_email(to: str, subject: str, body: str):
-    """Envoie un email via SMTP si configuré."""
+    """Envoie un email via SMTP si configuré (non-bloquant via asyncio.to_thread)."""
     if not SMTP_HOST or not SMTP_USER:
         return
-    try:
+    def _send():
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = SMTP_FROM
@@ -776,6 +793,8 @@ async def send_email(to: str, subject: str, body: str):
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_FROM, [to], msg.as_string())
         logger.info(f"Email envoyé à {to}")
+    try:
+        await asyncio.to_thread(_send)
     except Exception as e:
         logger.error(f"Erreur email: {e}")
 
@@ -1234,7 +1253,7 @@ async def get_client_knowledge_base(client_id: str) -> str:
     """Récupère la base de connaissances active d'un client."""
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            "SELECT title, content, kb_type FROM knowledge_base WHERE client_id = ? AND is_active = 1 ORDER BY kb_type, created_at",
+            "SELECT title, content, kb_type FROM knowledge_base WHERE client_id = ? AND is_active = 1 ORDER BY kb_type, created_at LIMIT 8",
             (client_id,)
         )
         rows = await cursor.fetchall()
@@ -1242,7 +1261,7 @@ async def get_client_knowledge_base(client_id: str) -> str:
         return ""
     sections = []
     for title, content, kb_type in rows:
-        sections.append(f"[{title}]\n{content}")
+        sections.append(f"[{title}]\n{content[:2000]}")
     return "\n\n".join(sections)
 
 
@@ -1394,6 +1413,7 @@ async def notify_owner(client: Dict, customer_phone: str, message: str, intent: 
 # WEBHOOKS TWILIO - SMS (MULTI-TENANT)
 # ============================================================
 @app.post("/sms/incoming")
+@limiter.limit("120/minute")
 async def handle_incoming_sms(request: Request):
     """Webhook Twilio — route le SMS au bon client."""
     form = await request.form()
@@ -1500,6 +1520,7 @@ async def handle_incoming_sms(request: Request):
 # WEBHOOKS TWILIO - WHATSAPP (MULTI-TENANT)
 # ============================================================
 @app.post("/whatsapp/incoming")
+@limiter.limit("120/minute")
 async def handle_incoming_whatsapp(request: Request):
     """Webhook Twilio WhatsApp — même logique que SMS."""
     form = await request.form()
@@ -1545,6 +1566,7 @@ async def handle_incoming_whatsapp(request: Request):
 # WEBHOOKS TWILIO - VOIX (MULTI-TENANT)
 # ============================================================
 @app.post("/voice/incoming")
+@limiter.limit("120/minute")
 async def handle_incoming_call(request: Request):
     form = await request.form()
     signature = request.headers.get("X-Twilio-Signature", "")
@@ -5925,23 +5947,6 @@ async def create_marker_order(request: Request):
     now = datetime.utcnow().isoformat()
 
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS marker_orders (
-                id TEXT PRIMARY KEY,
-                client_id TEXT DEFAULT 'granitecom',
-                model TEXT,
-                font TEXT,
-                line1 TEXT,
-                line2 TEXT,
-                line3 TEXT,
-                customer_name TEXT,
-                customer_email TEXT,
-                customer_phone TEXT,
-                customer_address TEXT,
-                status TEXT DEFAULT 'new',
-                created_at TEXT
-            )
-        """)
         await db.execute(
             """INSERT INTO marker_orders
                (id,client_id,model,font,line1,line2,line3,customer_name,customer_email,customer_phone,customer_address,created_at)
