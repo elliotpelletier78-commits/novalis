@@ -3914,7 +3914,7 @@ async function sendEmail1ToAll(){{
         await new Promise(res=>setTimeout(res,800));
     }}
     btn.disabled=false;btn.textContent='📤 Email 1 à tous les nouveaux';
-    showNotice(`✅ ${{ok}} email(s) envoyé(s)${{fail?` — ❌ ${{fail}} échec(s)`:''}}`,fail>0);
+    showNotice('✅ '+ok+' email(s) envoyé(s)'+(fail?' — ❌ '+fail+' échec(s)':''),fail>0);
     await loadProspects();
 }}
 
