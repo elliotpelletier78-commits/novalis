@@ -2630,13 +2630,18 @@ Novalis IA"""
         custom_body = custom_body_generated
 
     # Convertit texte brut → HTML simple
+    body_lines = custom_body.split("\n")
+    body_html_parts = "".join(
+        f'<p style="color:#EDE8DF;font-size:0.9rem;line-height:1.7;margin:0 0 14px;">{html_module.escape(line) if line.strip() else "<br>"}</p>'
+        for line in body_lines
+    )
     html_body = f"""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#090C0F;font-family:'Segoe UI',Arial,sans-serif;">
 <div style="max-width:600px;margin:0 auto;padding:40px 24px;">
   <div style="border-bottom:1px solid rgba(168,104,68,0.3);padding-bottom:20px;margin-bottom:28px;">
     <p style="margin:0;font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;">Novalis IA · Sherbrooke, Québec</p>
   </div>
-  {''.join(f'<p style="color:#EDE8DF;font-size:0.9rem;line-height:1.7;margin:0 0 14px;">{html_module.escape(line) if line.strip() else "<br>"}</p>' for line in custom_body.split('\n'))}
+  {body_html_parts}
 </div></body></html>"""
 
     try:
@@ -2746,13 +2751,18 @@ async def send_all_email1(username: str = Depends(verify_admin)):
                 return subj, body
 
             subject, text_body = _build(1, name_first, biz_name, ind)
+            tb_lines = text_body.split("\n")
+            tb_html = "".join(
+                f'<p style="color:#EDE8DF;font-size:0.9rem;line-height:1.7;margin:0 0 14px;">{html_module.escape(ln) if ln.strip() else "<br>"}</p>'
+                for ln in tb_lines
+            )
             html_body = f"""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#090C0F;font-family:'Segoe UI',Arial,sans-serif;">
 <div style="max-width:600px;margin:0 auto;padding:40px 24px;">
   <div style="border-bottom:1px solid rgba(168,104,68,0.3);padding-bottom:20px;margin-bottom:28px;">
     <p style="margin:0;font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:#A86844;">Novalis IA · Sherbrooke, Québec</p>
   </div>
-  {''.join(f'<p style="color:#EDE8DF;font-size:0.9rem;line-height:1.7;margin:0 0 14px;">{html_module.escape(line) if line.strip() else "<br>"}</p>' for line in text_body.split(chr(10)))}
+  {tb_html}
 </div></body></html>"""
 
             await send_email(to=p["email"], subject=subject, body=html_body)
