@@ -2696,6 +2696,12 @@ async def seed_prospects(username: str = Depends(verify_admin)):
         ("Équipe SBF", "SBF CPA Sherbrooke", "info@sbf-cpa.ca", "819-820-9530", "Sherbrooke", "Cabinet comptable / Juridique", "Cabinet CPA — 2984 rue Des Chênes. Clients PME."),
         ("Équipe DBL", "DBL Comptabilité & Gestion", "info@dblcompta.com", "819-580-7669", "Sherbrooke", "Cabinet comptable / Juridique", "Cabinet comptable Sherbrooke et Québec."),
         ("Équipe Otantik", "Otantik Marketing", "info@otantikmarketing.com", "", "Sherbrooke", "Marketing / Design", "Agence numérique — équipe de 9. Partenaire revendeur potentiel."),
+        # Nouveaux prospects — analyse marché mai 2026
+        ("Équipe Coiffurium", "Le Coiffurium", "info@coiffurium.ca", "819-563-5663", "Centre Sherbrooke (540 Belvédère S)", "Salon / Spa", "~60 ans d'existence. Prix Choix Consommateur 2024. Salon mixte, ouvert 7 jours. Forte fréquentation = beaucoup d'appels manqués pendant les services."),
+        ("Équipe REPÈR CPA", "REPÈR CPA", "info@repercpa.ca", "819-822-0491", "2355 King Ouest bureau 10, Sherbrooke", "Cabinet comptable / Juridique", "Cabinet passionné d'innovation. Questions récurrentes clients en saison d'impôt = cas parfait pour agent IA FAQ. 40% moins d'appels routiniers potentiel."),
+        ("Dr. Katherine Bergeron", "Chiro Estrie", "info@chiroestrie.ca", "819-481-0273", "Sherbrooke + Bromptonville (2 sites)", "Clinique / Santé", "3 chiropraticiens, 2 cliniques. Utilise Jane App. Appels pendant traitements = appels manqués. Multi-sites = agent IA idéal pour coordonner les RDV."),
+        ("Caroline Nadeau", "Prisme Immobilier", "info@prismeimmobilier.com", "819-821-0000", "4756 Boul. Bourque #203, Rock Forest", "Immobilier", "Caroline Nadeau + Ghislain Cloutier, ~30 ans d'exp. Courtage intégré immobilier + hypothèque. Leads le soir/week-end = réponse rapide critique pour conversion."),
+        ("Équipe PMC Mécanique", "PMC Mécanique", "garage@pmcmecanique.com", "819-791-0717", "2850 King Est, Sherbrooke", "Garage / Auto", "4.8/5 Google avec 382+ avis. 15 ans en affaires. Spécialiste VÉ (Tesla, Hyundai, etc.). L-V 7h30-17h. Volume élevé d'appels routiniers (est-ce prêt, prix, disponibilité)."),
     ]
     added, skipped = 0, 0
     now = datetime.now().isoformat()
