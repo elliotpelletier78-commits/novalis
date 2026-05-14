@@ -3473,6 +3473,44 @@ def _ddg_search_sync(query: str, max_results: int = 15) -> list:
         return []
 
 
+def _score_website_quality(html: str, url: str) -> dict:
+    """Heuristic quality score 1-5 for a business website. Lower = better rebuild opportunity."""
+    score = 5
+    issues = []
+    try:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html, "html.parser")
+        hl = html.lower()
+
+        if not url.startswith("https://"):
+            score -= 1; issues.append("Pas de HTTPS")
+
+        if not soup.find("meta", attrs={"name": re.compile(r"viewport", re.I)}):
+            score -= 1; issues.append("Pas mobile-friendly")
+
+        modern = sum(1 for t in ["<nav", "<header", "<footer", "<section", "<article", "<main"] if t in hl)
+        if modern < 2:
+            score -= 1; issues.append("HTML ancien (pré-2015)")
+
+        if hl.count("<table") > 4:
+            score -= 1; issues.append("Mise en page avec tableaux")
+
+        text_len = len(soup.get_text(strip=True))
+        if text_len < 400:
+            score -= 1; issues.append("Contenu très limité")
+
+        m = re.search(r"©\s*(\d{4})", html)
+        if m and int(m.group(1)) < 2019:
+            score = min(score, 3); issues.append(f"Pas mis à jour depuis {m.group(1)}")
+
+        if any(fw in hl for fw in ["bootstrap", "tailwind", "react", "vue.js", "next.js", "elementor"]):
+            score = min(5, score + 1)
+
+    except Exception:
+        pass
+    return {"score": max(1, min(5, score)), "issues": issues[:4]}
+
+
 def _scrape_business_website(url: str) -> dict:
     if not url or not url.startswith("http"):
         return {"email": "", "email_quality": "none", "text": "", "phone": ""}
@@ -3511,9 +3549,15 @@ def _scrape_business_website(url: str) -> dict:
                 except Exception:
                     pass
         phones = re.findall(r"(?:\+?1[\s\-]?)?\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}", text)
-        return {"email": email, "email_quality": eq, "text": text[:2500], "phone": phones[0].strip() if phones else ""}
+        web_quality = _score_website_quality(html, url)
+        return {
+            "email": email, "email_quality": eq, "text": text[:2500],
+            "phone": phones[0].strip() if phones else "",
+            "web_score": web_quality["score"], "web_issues": web_quality["issues"],
+        }
     except Exception as e:
-        return {"email": "", "email_quality": "error", "text": "", "phone": "", "error": str(e)}
+        return {"email": "", "email_quality": "error", "text": "", "phone": "",
+                "web_score": 5, "web_issues": [], "error": str(e)}
 
 
 def _research_business_sync(name: str, city: str) -> dict:
@@ -3560,15 +3604,26 @@ async def _generate_prospect_emails_claude(biz: dict) -> dict:
     snippets = research.get("snippets", "")[:1200]
     rating = research.get("rating", "")
     review_count = research.get("review_count", "")
+    web_score = biz.get("web_score", 5)
+    web_issues = biz.get("web_issues", [])
     rating_line = f"Note en ligne: {rating} ({review_count})" if rating else (f"Avis trouvés: {review_count}" if review_count else "")
+    web_line = f"Qualité du site: {web_score}/5 — Problèmes détectés: {', '.join(web_issues)}" if web_issues else f"Qualité du site: {web_score}/5"
+    refonte_instruction = ""
+    refonte_json = ""
+    if web_score <= 2:
+        refonte_instruction = '\n4. Génère aussi "email_refonte": un courriel proposant une refonte complète de leur site web pour ~1000$ (site moderne, mobile, SEO, livré en 2-3 semaines). Mentionne les problèmes spécifiques de leur site actuel.'
+        refonte_json = ',\n  "email_refonte": {{"subject": "...", "body": "..."}}'
 
     prompt = f"""Tu es un expert en vente B2B et analyste business pour Novalis IA, startup québécoise.
 
-PRODUIT: Agent IA conversationnel — répond 24/7 par SMS/WhatsApp/web, prend des RDV, répond aux FAQ. Prix: 497$/mois.
+PRODUITS:
+- Agent IA conversationnel: répond 24/7 par SMS/WhatsApp/web, prend des RDV, répond aux FAQ. Prix: 497$/mois.
+- Refonte de site web: site moderne, mobile-responsive, SEO, contact form. Prix: ~1000$ (livré en 2-3 semaines).
 
 PME ANALYSÉE: {name} | {city} | {industry}
 Site: {website}
 {rating_line}
+{web_line}
 
 CONTENU DU SITE:
 {site_text or "(non disponible)"}
@@ -3578,14 +3633,15 @@ AVIS ET MENTIONS EN LIGNE:
 
 TÂCHE — réponds UNIQUEMENT avec ce JSON (aucun autre texte):
 1. Identifie 2-3 problèmes CONCRETS et SPÉCIFIQUES à CETTE entreprise (basés sur les avis et le site).
-2. Génère 3 courriels qui CITENT ces problèmes précis. Chaque email < 150 mots. Signature: Elliot Pelletier, Novalis IA, novalisia.ca
+2. Génère 3 courriels Agent IA qui CITENT ces problèmes précis. Chaque email < 150 mots. Signature: Elliot Pelletier, Novalis IA, novalisia.ca
+3. Dans "insights": analyse 1-2 phrases sur pourquoi Novalis IA est idéal pour EUX.{refonte_instruction}
 
 {{
-  "insights": "Analyse en 1-2 phrases: ce que tu as découvert et pourquoi Novalis IA est la solution idéale pour eux spécifiquement.",
+  "insights": "...",
   "pain_points": ["Problème précis 1", "Problème précis 2", "Problème précis 3"],
   "email1": {{"subject": "...", "body": "..."}},
   "email2": {{"subject": "...", "body": "..."}},
-  "email3": {{"subject": "...", "body": "..."}}
+  "email3": {{"subject": "...", "body": "..."}}{refonte_json}
 }}"""
     try:
         loop = asyncio.get_event_loop()
@@ -3593,7 +3649,7 @@ TÂCHE — réponds UNIQUEMENT avec ce JSON (aucun autre texte):
             None,
             lambda: claude_client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=1800,
+                max_tokens=2400,
                 messages=[{"role": "user", "content": prompt}]
             )
         )
@@ -3666,6 +3722,8 @@ async def discover_prospects_endpoint(request: Request, username: str = Depends(
             "phone": sc.get("phone", ""),
             "snippet": biz.get("snippet", ""),
             "site_text": sc.get("text", ""),
+            "web_score": sc.get("web_score", 5),
+            "web_issues": sc.get("web_issues", []),
             "research": res,
         })
 
@@ -3682,6 +3740,7 @@ async def discover_prospects_endpoint(request: Request, username: str = Depends(
         b["pain_points"] = emails.get("pain_points", [])
         b["rating"] = b["research"].get("rating", "")
         b["review_count"] = b["research"].get("review_count", "")
+        b["has_refonte"] = bool(emails.get("email_refonte"))
         del b["site_text"]
         del b["research"]
         prospects.append(b)
@@ -4653,11 +4712,20 @@ function renderDiscResults(list){{
         const painPills=(p.pain_points&&p.pain_points.length
             ?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">'+(p.pain_points.map(pp=>'<span style="background:rgba(124,58,237,0.12);color:#a78bfa;padding:2px 10px;border-radius:10px;font-size:0.72rem;border:1px solid rgba(124,58,237,0.2);">⚠ '+pp+'</span>').join(''))+'</div>'
             :'');
-        const insightsBlock=(p.insights||ratingBadge||painPills
+        // Web quality badge
+        const webScore=p.web_score||5;
+        const webBadge=webScore<=2
+            ?'<span style="background:rgba(239,68,68,0.12);color:#f87171;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-left:6px;border:1px solid rgba(239,68,68,0.2);">🖥️ Site à refaire</span>'
+            :(webScore<=3?'<span style="background:rgba(245,158,11,0.1);color:#f59e0b;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-left:6px;">🖥️ Site vieillissant</span>':'');
+        const webIssuePills=(p.web_issues&&p.web_issues.length&&webScore<=3
+            ?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">'+(p.web_issues.map(iss=>'<span style="background:rgba(239,68,68,0.08);color:#f87171;padding:2px 10px;border-radius:10px;font-size:0.7rem;">'+iss+'</span>').join(''))+'</div>'
+            :'');
+        const insightsBlock=(p.insights||ratingBadge||painPills||webIssuePills
             ?'<div style="margin-top:10px;background:#0a0e17;border-radius:8px;padding:10px 12px;border-left:3px solid #7c3aed;">'
                 +(ratingBadge?'<div style="margin-bottom:6px;">'+ratingBadge+'</div>':'')
                 +(p.insights?'<div style="color:#94a3b8;font-size:0.8rem;line-height:1.5;margin-bottom:4px;">💡 '+p.insights+'</div>':'')
                 +painPills
+                +webIssuePills
             +'</div>'
             :'');
         const saveBtn=p.email
@@ -4669,10 +4737,13 @@ function renderDiscResults(list){{
                 ?'<button class="btn" disabled style="padding:6px 12px;font-size:0.78rem;background:#16a34a;opacity:0.6;">✅ Envoyé</button>'
                 :'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#7c3aed;" onclick="sendDiscEmail('+i+',1)">📤 Envoyer</button>')
             :'';
+        const refonteBtn=p.email&&p.has_refonte
+            ?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#dc2626;" onclick="openDiscRefonte('+i+')">🖥️ Pitch refonte</button>'
+            :'';
         return '<div class="panel" style="margin-bottom:12px;">'
             +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">'
             +'<div style="flex:1;min-width:200px;">'
-            +'<div style="font-weight:600;color:#e2e8f0;font-size:1rem;">'+p.name+'</div>'
+            +'<div style="font-weight:600;color:#e2e8f0;font-size:1rem;">'+p.name+webBadge+'</div>'
             +'<div style="color:#64748b;font-size:0.78rem;margin-top:2px;">'+p.city+' · '+p.industry+'</div>'
             +emailRow
             +(p.phone?'<div style="color:#94a3b8;font-size:0.78rem;margin-top:2px;">📞 '+p.phone+'</div>':'')
@@ -4680,6 +4751,7 @@ function renderDiscResults(list){{
             +'</div>'
             +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;">'
             +(p.emails_generated?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#0ea5e9;" onclick="openDiscEmail('+i+')">📨 Voir emails</button>':'')
+            +refonteBtn
             +sendBtn
             +saveBtn
             +'</div>'
@@ -4691,34 +4763,48 @@ function renderDiscResults(list){{
 }}
 
 let discEmailIdx=-1,discEmailTab=1;
-function openDiscEmail(i){{
-    discEmailIdx=i;discEmailTab=1;
+function openDiscEmail(i,tab){{
+    discEmailIdx=i;discEmailTab=tab||1;
     document.getElementById('discEmailModal').style.display='flex';
     renderDiscEmailModal();
 }}
 function renderDiscEmailModal(){{
     if(discEmailIdx<0)return;
     const p=discProspects[discEmailIdx];
-    const e=(p.generated_emails||{{}})['email'+discEmailTab]||{{}};
-    document.getElementById('disc_em_name').textContent=p.name;
+    const isRefonte=discEmailTab==='refonte';
+    const e=isRefonte
+        ?(p.generated_emails&&p.generated_emails.email_refonte)||{{}}
+        :(p.generated_emails||{{}})[''+'email'+discEmailTab]||{{}};
+    document.getElementById('disc_em_name').textContent=p.name+(isRefonte?' — Refonte site':'');
     document.getElementById('disc_em_subj').value=e.subject||'';
     document.getElementById('disc_em_body').value=e.body||'';
     [1,2,3].forEach(n=>{{
         const t=document.getElementById('disc_tab_'+n);
         if(t)t.style.background=n===discEmailTab?'#0ea5e9':'#1e3a5f';
     }});
+    const tr=document.getElementById('disc_tab_refonte');
+    if(tr){{
+        tr.style.display=p.has_refonte?'inline-block':'none';
+        tr.style.background=isRefonte?'#dc2626':'#1e3a5f';
+        tr.style.color=isRefonte?'white':'#94a3b8';
+    }}
     const sb=document.getElementById('disc_send_modal_btn');
     if(sb){{
-        const sent=p.sent_emails&&p.sent_emails.includes(discEmailTab);
+        const key=isRefonte?'refonte':discEmailTab;
+        const sent=p.sent_emails&&p.sent_emails.includes(key);
         sb.disabled=sent;sb.textContent=sent?'✅ Envoyé':'📤 Envoyer';
-        sb.style.background=sent?'#16a34a':'#7c3aed';sb.style.opacity=sent?'0.65':'1';
+        sb.style.background=sent?'#16a34a':(isRefonte?'#dc2626':'#7c3aed');sb.style.opacity=sent?'0.65':'1';
     }}
 }}
 function switchDiscTab(n){{discEmailTab=n;renderDiscEmailModal();}}
+function openDiscRefonte(i){{openDiscEmail(i,'refonte');}}
 async function sendDiscEmail(i,emailNum){{
     const p=discProspects[i];
     if(!p.email){{showNotice("Ajoutez d'abord le courriel avec ✏️",true);return;}}
-    const e=(p.generated_emails||{{}})['email'+emailNum]||{{}};
+    const isRefonte=emailNum==='refonte';
+    const e=isRefonte
+        ?((p.generated_emails&&p.generated_emails.email_refonte)||{{}})
+        :((p.generated_emails||{{}})[''+'email'+emailNum]||{{}});
     if(!e.subject||!e.body){{showNotice('Email non disponible',true);return;}}
     try{{
         const r=await fetch('/api/admin/send-prospect-email',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{to:p.email,subject:e.subject,body:e.body}})}});
@@ -4854,6 +4940,7 @@ async function saveDiscProspect(i){{
             <button id="disc_tab_1" onclick="switchDiscTab(1)" style="background:#0ea5e9;border:none;color:white;padding:6px 18px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;">Email 1</button>
             <button id="disc_tab_2" onclick="switchDiscTab(2)" style="background:#1e3a5f;border:none;color:#94a3b8;padding:6px 18px;border-radius:8px;cursor:pointer;font-size:0.85rem;">Email 2</button>
             <button id="disc_tab_3" onclick="switchDiscTab(3)" style="background:#1e3a5f;border:none;color:#94a3b8;padding:6px 18px;border-radius:8px;cursor:pointer;font-size:0.85rem;">Email 3</button>
+            <button id="disc_tab_refonte" onclick="switchDiscTab('refonte')" style="display:none;background:#1e3a5f;border:none;color:#94a3b8;padding:6px 18px;border-radius:8px;cursor:pointer;font-size:0.85rem;">🖥️ Refonte</button>
         </div>
         <label>Objet</label>
         <input id="disc_em_subj" style="margin-bottom:12px;"/>
