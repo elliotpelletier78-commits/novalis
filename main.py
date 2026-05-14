@@ -608,6 +608,31 @@ async def init_db():
             )
         """)
 
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS prospect_suggestions (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                website TEXT DEFAULT '',
+                city TEXT DEFAULT '',
+                industry TEXT DEFAULT '',
+                email TEXT DEFAULT '',
+                email_quality TEXT DEFAULT 'none',
+                phone TEXT DEFAULT '',
+                web_score INTEGER DEFAULT 5,
+                web_issues TEXT DEFAULT '[]',
+                insights TEXT DEFAULT '',
+                pain_points TEXT DEFAULT '[]',
+                rating TEXT DEFAULT '',
+                review_count TEXT DEFAULT '',
+                generated_emails TEXT DEFAULT '{}',
+                has_refonte INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'new',
+                search_key TEXT DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+
         await db.commit()
         logger.info("Base de données V6.0 (agence IA premium) initialisée")
 
@@ -3671,6 +3696,212 @@ _DDG_EXCLUDE = {
     "trouve", "hotfrog", "cylex", "chambre"
 }
 
+_DISCOVERY_TARGETS = [
+    ("Montréal", "salon de coiffure"), ("Montréal", "clinique dentaire"),
+    ("Montréal", "garage automobile"), ("Montréal", "restaurant"),
+    ("Montréal", "clinique physiothérapie"), ("Montréal", "spa massothérapie"),
+    ("Laval", "salon de coiffure"), ("Laval", "clinique dentaire"),
+    ("Laval", "garage automobile"), ("Laval", "restaurant"),
+    ("Laval", "clinique physiothérapie"), ("Laval", "cabinet comptable"),
+    ("Longueuil", "salon de coiffure"), ("Longueuil", "clinique dentaire"),
+    ("Longueuil", "garage automobile"), ("Longueuil", "restaurant"),
+    ("Brossard", "salon de coiffure"), ("Brossard", "clinique dentaire"),
+    ("Brossard", "restaurant"), ("Brossard", "clinique physiothérapie"),
+    ("Québec", "salon de coiffure"), ("Québec", "clinique dentaire"),
+    ("Québec", "garage automobile"), ("Québec", "restaurant"),
+    ("Québec", "clinique physiothérapie"), ("Québec", "cabinet comptable"),
+    ("Lévis", "salon de coiffure"), ("Lévis", "clinique dentaire"),
+    ("Lévis", "garage automobile"), ("Lévis", "restaurant"),
+    ("Sherbrooke", "salon de coiffure"), ("Sherbrooke", "clinique dentaire"),
+    ("Sherbrooke", "garage automobile"), ("Sherbrooke", "restaurant"),
+    ("Sherbrooke", "clinique physiothérapie"), ("Sherbrooke", "cabinet comptable"),
+    ("Saguenay", "salon de coiffure"), ("Saguenay", "clinique dentaire"),
+    ("Saguenay", "garage automobile"), ("Saguenay", "restaurant"),
+    ("Gatineau", "salon de coiffure"), ("Gatineau", "clinique dentaire"),
+    ("Gatineau", "garage automobile"), ("Gatineau", "restaurant"),
+    ("Gatineau", "clinique physiothérapie"), ("Gatineau", "cabinet comptable"),
+    ("Trois-Rivières", "salon de coiffure"), ("Trois-Rivières", "clinique dentaire"),
+    ("Trois-Rivières", "garage automobile"), ("Trois-Rivières", "restaurant"),
+    ("Granby", "salon de coiffure"), ("Granby", "clinique dentaire"),
+    ("Granby", "garage automobile"), ("Granby", "restaurant"),
+    ("Saint-Jérôme", "salon de coiffure"), ("Saint-Jérôme", "clinique dentaire"),
+    ("Saint-Jérôme", "garage automobile"), ("Saint-Jérôme", "restaurant"),
+    ("Repentigny", "salon de coiffure"), ("Repentigny", "clinique dentaire"),
+    ("Repentigny", "restaurant"), ("Repentigny", "clinique physiothérapie"),
+    ("Blainville", "salon de coiffure"), ("Blainville", "clinique dentaire"),
+    ("Blainville", "restaurant"), ("Blainville", "clinique physiothérapie"),
+    ("Rimouski", "salon de coiffure"), ("Rimouski", "clinique dentaire"),
+    ("Rimouski", "garage automobile"), ("Rimouski", "restaurant"),
+    ("Drummondville", "salon de coiffure"), ("Drummondville", "clinique dentaire"),
+    ("Drummondville", "garage automobile"), ("Drummondville", "restaurant"),
+    ("Saint-Hyacinthe", "salon de coiffure"), ("Saint-Hyacinthe", "clinique dentaire"),
+    ("Saint-Hyacinthe", "garage automobile"), ("Saint-Hyacinthe", "restaurant"),
+    ("Joliette", "salon de coiffure"), ("Joliette", "clinique dentaire"),
+    ("Joliette", "restaurant"), ("Joliette", "clinique physiothérapie"),
+    ("Victoriaville", "salon de coiffure"), ("Victoriaville", "clinique dentaire"),
+    ("Victoriaville", "garage automobile"), ("Victoriaville", "restaurant"),
+    ("Val-d'Or", "salon de coiffure"), ("Val-d'Or", "clinique dentaire"),
+    ("Val-d'Or", "garage automobile"), ("Val-d'Or", "restaurant"),
+    ("Rouyn-Noranda", "salon de coiffure"), ("Rouyn-Noranda", "clinique dentaire"),
+    ("Rouyn-Noranda", "garage automobile"), ("Rouyn-Noranda", "restaurant"),
+    ("Sept-Îles", "salon de coiffure"), ("Sept-Îles", "clinique dentaire"),
+    ("Sept-Îles", "restaurant"), ("Sept-Îles", "garage automobile"),
+    ("Saint-Georges", "salon de coiffure"), ("Saint-Georges", "clinique dentaire"),
+    ("Saint-Georges", "garage automobile"), ("Saint-Georges", "restaurant"),
+    ("Mirabel", "salon de coiffure"), ("Mirabel", "clinique dentaire"),
+    ("Mirabel", "garage automobile"), ("Mirabel", "restaurant"),
+]
+
+
+async def _get_suggestions_from_db(limit: int = 8) -> list:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM prospect_suggestions WHERE status='new' ORDER BY web_score ASC, created_at DESC LIMIT ?",
+            (limit,)
+        )
+        rows = await cursor.fetchall()
+        results = []
+        for row in rows:
+            d = dict(row)
+            d["web_issues"] = json.loads(d.get("web_issues") or "[]")
+            d["pain_points"] = json.loads(d.get("pain_points") or "[]")
+            d["generated_emails"] = json.loads(d.get("generated_emails") or "{}")
+            d["emails_generated"] = bool(d["generated_emails"].get("email1"))
+            d["has_refonte"] = bool(d.get("has_refonte"))
+            results.append(d)
+        return results
+
+
+async def _suggestions_count_by_status() -> dict:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT status, COUNT(*) as cnt FROM prospect_suggestions GROUP BY status"
+        )
+        rows = await cursor.fetchall()
+        return {r[0]: r[1] for r in rows}
+
+
+async def _auto_discover_batch(max_new: int = 6) -> int:
+    import random as _random
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT DISTINCT search_key FROM prospect_suggestions")
+        rows = await cursor.fetchall()
+        used_keys = {r[0] for r in rows}
+    targets = [(c, i) for c, i in _DISCOVERY_TARGETS if f"{c}|{i}" not in used_keys]
+    if not targets:
+        targets = list(_DISCOVERY_TARGETS)
+    city, industry = _random.choice(targets)
+    search_key = f"{city}|{industry}"
+    query = f"{industry} {city} Quebec"
+    loop = asyncio.get_event_loop()
+    raw = await loop.run_in_executor(None, _ddg_search_sync, query, max_new * 3)
+    filtered = []
+    for r in raw:
+        url = r.get("url", "")
+        if any(d in url.lower() for d in _DDG_EXCLUDE):
+            continue
+        filtered.append(r)
+        if len(filtered) >= max_new:
+            break
+    if not filtered:
+        return 0
+    names = []
+    for biz in filtered:
+        title = biz.get("title", "")
+        names.append((re.split(r"[|\-–—]", title)[0].strip() if title else biz.get("url", ""))[:80])
+    scrape_coros = [loop.run_in_executor(None, _scrape_business_website, b.get("url", "")) for b in filtered]
+    research_coros = [loop.run_in_executor(None, _research_business_sync, names[i], city) for i in range(len(filtered))]
+    all_results = await asyncio.gather(*scrape_coros, *research_coros)
+    scraped = all_results[:len(filtered)]
+    researched = all_results[len(filtered):]
+    biz_list = []
+    for i, biz in enumerate(filtered):
+        sc = scraped[i]
+        res = researched[i]
+        biz_list.append({
+            "name": names[i],
+            "website": biz.get("url", ""),
+            "city": city,
+            "industry": industry,
+            "email": sc.get("email", ""),
+            "email_quality": sc.get("email_quality", "none"),
+            "phone": sc.get("phone", ""),
+            "site_text": sc.get("text", ""),
+            "web_score": sc.get("web_score", 5),
+            "web_issues": sc.get("web_issues", []),
+            "research": res,
+        })
+    gen_tasks = [_generate_prospect_emails_claude(b) for b in biz_list]
+    email_results = await asyncio.gather(*gen_tasks)
+    now = datetime.now().isoformat()
+    saved = 0
+    async with aiosqlite.connect(DB_PATH) as db:
+        for i, b in enumerate(biz_list):
+            emails = email_results[i]
+            try:
+                await db.execute("""
+                    INSERT OR IGNORE INTO prospect_suggestions
+                    (id, name, website, city, industry, email, email_quality, phone,
+                     web_score, web_issues, insights, pain_points, rating, review_count,
+                     generated_emails, has_refonte, status, search_key, created_at, updated_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """, (
+                    str(uuid.uuid4()),
+                    b["name"], b["website"], b["city"], b["industry"],
+                    b["email"], b["email_quality"], b["phone"],
+                    b["web_score"],
+                    json.dumps(b["web_issues"], ensure_ascii=False),
+                    emails.get("insights", ""),
+                    json.dumps(emails.get("pain_points", []), ensure_ascii=False),
+                    b["research"].get("rating", ""),
+                    b["research"].get("review_count", ""),
+                    json.dumps(emails, ensure_ascii=False),
+                    1 if bool(emails.get("email_refonte")) else 0,
+                    "new", search_key, now, now,
+                ))
+                saved += 1
+            except Exception as e:
+                logging.error(f"Save suggestion error: {e}")
+        await db.commit()
+    return saved
+
+
+@app.get("/api/admin/suggestions")
+async def get_suggestions_endpoint(request: Request, username: str = Depends(verify_admin)):
+    suggestions = await _get_suggestions_from_db(limit=8)
+    counts = await _suggestions_count_by_status()
+    if len(suggestions) < 4:
+        asyncio.create_task(_auto_discover_batch())
+    return {"suggestions": suggestions, "counts": counts}
+
+
+@app.post("/api/admin/suggestions/action")
+async def suggestions_action_endpoint(request: Request, username: str = Depends(verify_admin)):
+    data = await request.json()
+    suggestion_id = data.get("id", "").strip()
+    action = data.get("action", "").strip()
+    if action not in ("contacted", "dismissed", "saved"):
+        raise HTTPException(400, "action doit être: contacted, dismissed ou saved")
+    now = datetime.now().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        result = await db.execute(
+            "UPDATE prospect_suggestions SET status=?, updated_at=? WHERE id=?",
+            (action, now, suggestion_id)
+        )
+        if result.rowcount == 0:
+            raise HTTPException(404, "Suggestion introuvable")
+        await db.commit()
+    return {"ok": True, "id": suggestion_id, "status": action}
+
+
+@app.post("/api/admin/suggestions/refresh")
+async def refresh_suggestions_endpoint(request: Request, username: str = Depends(verify_admin)):
+    saved = await _auto_discover_batch(max_new=6)
+    suggestions = await _get_suggestions_from_db(limit=8)
+    counts = await _suggestions_count_by_status()
+    return {"saved": saved, "suggestions": suggestions, "counts": counts}
+
 
 @app.post("/api/admin/discover-prospects")
 async def discover_prospects_endpoint(request: Request, username: str = Depends(verify_admin)):
@@ -4027,17 +4258,14 @@ async def dashboard(username: str = Depends(verify_admin)):
             </div>
             <!-- DÉCOUVERTE DE PMEs -->
             <div class="view" id="decouverte">
-                <h2 style="color:#38bdf8;margin-bottom:4px;">🔍 Découverte de PMEs</h2>
-                <p style="color:#64748b;font-size:0.8rem;margin-bottom:20px;">Entrez une ville + type d'entreprise — le moteur trouve les PMEs, analyse leur site web et génère un courriel personnalisé pour chacune automatiquement.</p>
-                <div class="panel">
-                    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
-                        <div style="flex:1;min-width:160px;"><label>Ville</label><input id="disc_city" placeholder="ex: Montréal, Laval..." value="Montréal"/></div>
-                        <div style="flex:2;min-width:220px;"><label>Type d'entreprise</label><input id="disc_industry" placeholder="ex: salon de coiffure, dentiste, garage, restaurant..."/></div>
-                        <div><label style="opacity:0;">.</label><button class="btn" onclick="discoverPME()" id="disc_btn" style="white-space:nowrap;">🔍 Chercher les PMEs</button></div>
-                    </div>
-                    <div id="disc_status" style="display:none;margin-top:12px;color:#94a3b8;font-size:0.85rem;padding:12px;background:#0f1f2e;border-radius:8px;line-height:1.6;"></div>
+                <h2 style="color:#38bdf8;margin-bottom:4px;">🔍 Découverte automatique de PMEs</h2>
+                <p style="color:#64748b;font-size:0.8rem;margin-bottom:16px;">Novalis cherche automatiquement des PMEs québécoises qui ont besoin de vous — sites désuets, mauvais avis, opportunités IA. Cliquez "Contacté" ou "Ignorer" pour chaque suggestion, puis Refresh pour en obtenir de nouvelles.</p>
+                <div class="panel" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+                    <div id="sugg_stats" style="color:#94a3b8;font-size:0.85rem;">Chargement des suggestions...</div>
+                    <button class="btn" onclick="refreshSuggestions()" id="sugg_refresh_btn" style="white-space:nowrap;">🔄 Refresh — nouvelles PMEs</button>
                 </div>
-                <div id="disc_results" style="margin-top:16px;"></div>
+                <div id="sugg_loading" style="display:none;color:#94a3b8;font-size:0.85rem;padding:16px;background:#0f1f2e;border-radius:8px;margin-bottom:12px;">⏳ Recherche de nouvelles PMEs à travers le Québec... (60-120 secondes)</div>
+                <div id="sugg_results" style="margin-top:8px;"></div>
             </div>
             <!-- API DOCS -->
             <div class="view" id="api">
@@ -4075,6 +4303,7 @@ function showView(v){{
     if(v==='clients')loadClients();
     if(v==='rdlog')loadRdLog();
     if(v==='prospects')loadProspects();
+    if(v==='decouverte')loadSuggestions();
 }}
 
 async function loadPlatformStats(){{
@@ -4668,33 +4897,59 @@ async function saveGenProspect(){{
 function tick(){{document.getElementById('clock').textContent=new Date().toLocaleTimeString('fr-CA',{{hour:'2-digit',minute:'2-digit'}});}}
 loadPlatformStats();loadLeads();tick();setInterval(loadPlatformStats,30000);setInterval(tick,1000);
 
-// === DÉCOUVERTE DE PMEs ===
+// === DÉCOUVERTE AUTOMATIQUE DE PMEs ===
 let discProspects=[];
-async function discoverPME(){{
-    const city=document.getElementById('disc_city').value.trim();
-    const industry=document.getElementById('disc_industry').value.trim();
-    if(!city||!industry){{showNotice("Entrez une ville et un type d'entreprise",true);return;}}
-    const btn=document.getElementById('disc_btn');
-    const status=document.getElementById('disc_status');
-    btn.disabled=true;btn.textContent='⏳ Recherche...';
-    status.style.display='block';
-    status.innerHTML='🔍 Recherche de <b>'+industry+'</b> à <b>'+city+'</b>...<br><span style="color:#64748b;font-size:0.78rem;">Scraping des sites · Recherche des avis Google · Analyse IA des pain points · Génération des courriels — 45 à 120 secondes</span>';
-    document.getElementById('disc_results').innerHTML='';
+async function loadSuggestions(){{
+    const stats=document.getElementById('sugg_stats');
+    if(stats)stats.textContent='Chargement...';
     try{{
-        const r=await fetch('/api/admin/discover-prospects',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{city,industry,max_results:6}})}});
+        const r=await fetch('/api/admin/suggestions');
         const data=await r.json();
-        discProspects=data.prospects||[];
-        renderDiscResults(discProspects);
-        status.innerHTML='✅ <b>'+discProspects.length+' PMEs trouvées</b> pour "'+industry+'" à '+city+' — courriels générés par IA';
+        discProspects=data.suggestions||[];
+        const counts=data.counts||{{}};
+        const n=counts.new||0;const c=counts.contacted||0;const d=counts.dismissed||0;
+        if(stats)stats.innerHTML='<b>'+n+'</b> en attente &nbsp;·&nbsp; <b>'+c+'</b> contactés &nbsp;·&nbsp; <b>'+d+'</b> ignorés';
+        renderSuggestions(discProspects,counts);
     }}catch(e){{
-        status.innerHTML='❌ Erreur: '+e.message;
+        if(stats)stats.textContent='Erreur: '+e.message;
     }}
-    btn.disabled=false;btn.textContent='🔍 Chercher les PMEs';
 }}
-
-function renderDiscResults(list){{
-    const el=document.getElementById('disc_results');
-    if(!list.length){{el.innerHTML='<div class="panel" style="color:#64748b;text-align:center;padding:28px;">Aucun résultat — essayez un autre secteur ou une autre ville.</div>';return;}}
+async function refreshSuggestions(){{
+    const btn=document.getElementById('sugg_refresh_btn');
+    const loading=document.getElementById('sugg_loading');
+    const stats=document.getElementById('sugg_stats');
+    if(btn){{btn.disabled=true;btn.textContent='⏳ Recherche...';}}
+    if(loading)loading.style.display='block';
+    try{{
+        const r=await fetch('/api/admin/suggestions/refresh',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:'{{}}'}});
+        const data=await r.json();
+        discProspects=data.suggestions||[];
+        const counts=data.counts||{{}};
+        const n=counts.new||0;const c=counts.contacted||0;const d=counts.dismissed||0;
+        if(stats)stats.innerHTML='<b>'+n+'</b> en attente &nbsp;·&nbsp; <b>'+c+'</b> contactés &nbsp;·&nbsp; <b>'+d+'</b> ignorés';
+        renderSuggestions(discProspects,counts);
+        showNotice('✅ '+(data.saved||0)+' nouvelles PMEs ajoutées !',false);
+    }}catch(e){{
+        showNotice('❌ Erreur: '+e.message,true);
+    }}
+    if(loading)loading.style.display='none';
+    if(btn){{btn.disabled=false;btn.textContent='🔄 Refresh — nouvelles PMEs';}}
+}}
+async function suggestionAction(id,action,i){{
+    const card=document.getElementById('sugg_card_'+i);
+    if(card){{card.style.opacity='0.4';card.style.pointerEvents='none';}}
+    try{{
+        await fetch('/api/admin/suggestions/action',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{id,action}})}});
+        await loadSuggestions();
+    }}catch(e){{showNotice('❌ Erreur',true);}}
+}}
+function renderSuggestions(list,counts){{
+    const el=document.getElementById('sugg_results');
+    if(!el)return;
+    if(!list||!list.length){{
+        el.innerHTML='<div class="panel" style="color:#94a3b8;text-align:center;padding:32px;"><div style="font-size:2rem;margin-bottom:12px;">✅</div><div style="font-size:1rem;color:#e2e8f0;margin-bottom:8px;">Toutes les suggestions ont été traitées !</div><div style="color:#64748b;font-size:0.85rem;margin-bottom:16px;">Cliquez sur Refresh pour obtenir de nouvelles PMEs à contacter au Québec.</div><button class="btn" onclick="refreshSuggestions()">🔄 Chercher de nouvelles PMEs</button></div>';
+        return;
+    }}
     el.innerHTML=list.map((p,i)=>{{
         const eq=p.email_quality;
         const badge=eq==='site'||eq==='contact-page'
@@ -4703,16 +4958,6 @@ function renderDiscResults(list){{
         const emailRow=p.email
             ?'<div style="color:#38bdf8;font-size:0.82rem;margin-top:4px;">'+p.email+badge+'</div>'
             :'<div style="margin-top:4px;">'+badge+'</div>';
-        const e1=p.generated_emails&&p.generated_emails.email1?p.generated_emails.email1:null;
-        const preview=e1
-            ?'<div style="margin-top:10px;background:#0f1f2e;border-radius:8px;padding:10px;font-size:0.8rem;"><div style="color:#fbbf24;margin-bottom:4px;">📧 '+e1.subject+'</div><div style="color:#94a3b8;">'+(e1.body||'').substring(0,140)+'...</div></div>'
-            :`<div style="margin-top:8px;color:#64748b;font-size:0.78rem;">Génération d'email échouée — cliquez sur "Voir emails" pour réessayer.</div>`;
-        // Insights + pain points block
-        const ratingBadge=p.rating?'<span style="background:rgba(251,191,36,0.15);color:#fbbf24;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-right:6px;">⭐ '+p.rating+(p.review_count?' · '+p.review_count:'')+'</span>':'';
-        const painPills=(p.pain_points&&p.pain_points.length
-            ?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">'+(p.pain_points.map(pp=>'<span style="background:rgba(124,58,237,0.12);color:#a78bfa;padding:2px 10px;border-radius:10px;font-size:0.72rem;border:1px solid rgba(124,58,237,0.2);">⚠ '+pp+'</span>').join(''))+'</div>'
-            :'');
-        // Web quality badge
         const webScore=p.web_score||5;
         const webBadge=webScore<=2
             ?'<span style="background:rgba(239,68,68,0.12);color:#f87171;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-left:6px;border:1px solid rgba(239,68,68,0.2);">🖥️ Site à refaire</span>'
@@ -4720,27 +4965,24 @@ function renderDiscResults(list){{
         const webIssuePills=(p.web_issues&&p.web_issues.length&&webScore<=3
             ?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">'+(p.web_issues.map(iss=>'<span style="background:rgba(239,68,68,0.08);color:#f87171;padding:2px 10px;border-radius:10px;font-size:0.7rem;">'+iss+'</span>').join(''))+'</div>'
             :'');
+        const ratingBadge=p.rating?'<span style="background:rgba(251,191,36,0.15);color:#fbbf24;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-right:6px;">⭐ '+p.rating+(p.review_count?' · '+p.review_count:'')+'</span>':'';
+        const painPills=(p.pain_points&&p.pain_points.length
+            ?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">'+(p.pain_points.map(pp=>'<span style="background:rgba(124,58,237,0.12);color:#a78bfa;padding:2px 10px;border-radius:10px;font-size:0.72rem;border:1px solid rgba(124,58,237,0.2);">⚠ '+pp+'</span>').join(''))+'</div>'
+            :'');
         const insightsBlock=(p.insights||ratingBadge||painPills||webIssuePills
             ?'<div style="margin-top:10px;background:#0a0e17;border-radius:8px;padding:10px 12px;border-left:3px solid #7c3aed;">'
                 +(ratingBadge?'<div style="margin-bottom:6px;">'+ratingBadge+'</div>':'')
                 +(p.insights?'<div style="color:#94a3b8;font-size:0.8rem;line-height:1.5;margin-bottom:4px;">💡 '+p.insights+'</div>':'')
-                +painPills
-                +webIssuePills
+                +painPills+webIssuePills
             +'</div>'
             :'');
-        const saveBtn=p.email
-            ?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#16a34a;" onclick="saveDiscProspect('+i+')">💾 Sauvegarder</button>'
-            :'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#334155;color:#94a3b8;" onclick="addDiscEmail('+i+')">✏️ Ajouter email</button>';
-        const alreadySent=p.sent_emails&&p.sent_emails.includes(1);
-        const sendBtn=p.email&&p.emails_generated
-            ?(alreadySent
-                ?'<button class="btn" disabled style="padding:6px 12px;font-size:0.78rem;background:#16a34a;opacity:0.6;">✅ Envoyé</button>'
-                :'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#7c3aed;" onclick="sendDiscEmail('+i+',1)">📤 Envoyer</button>')
-            :'';
-        const refonteBtn=p.email&&p.has_refonte
-            ?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#dc2626;" onclick="openDiscRefonte('+i+')">🖥️ Pitch refonte</button>'
-            :'';
-        return '<div class="panel" style="margin-bottom:12px;">'
+        const e1=p.generated_emails&&p.generated_emails.email1?p.generated_emails.email1:null;
+        const preview=e1?'<div style="margin-top:10px;background:#0f1f2e;border-radius:8px;padding:10px;font-size:0.8rem;"><div style="color:#fbbf24;margin-bottom:4px;">📧 '+e1.subject+'</div><div style="color:#94a3b8;">'+(e1.body||'').substring(0,140)+'...</div></div>':'';
+        const sendBtn=p.email&&p.emails_generated?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#7c3aed;" onclick="sendDiscEmail('+i+',1)">📤 Envoyer</button>':'';
+        const refonteBtn=p.email&&p.has_refonte?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#dc2626;" onclick="openDiscRefonte('+i+')">🖥️ Pitch refonte</button>':'';
+        const viewBtn=p.emails_generated?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#0ea5e9;" onclick="openDiscEmail('+i+',1)">📨 Voir emails</button>':'';
+        const addEmailBtn=!p.email?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#334155;color:#94a3b8;" onclick="addDiscEmail('+i+')">✏️ Ajouter email</button>':'';
+        return '<div class="panel" id="sugg_card_'+i+'" style="margin-bottom:12px;">'
             +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">'
             +'<div style="flex:1;min-width:200px;">'
             +'<div style="font-weight:600;color:#e2e8f0;font-size:1rem;">'+p.name+webBadge+'</div>'
@@ -4750,14 +4992,15 @@ function renderDiscResults(list){{
             +'<div style="margin-top:4px;"><a href="'+p.website+'" target="_blank" style="color:#38bdf8;font-size:0.75rem;">'+p.website.replace(/^https?:\/\//,'').substring(0,60)+'</a></div>'
             +'</div>'
             +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;">'
-            +(p.emails_generated?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#0ea5e9;" onclick="openDiscEmail('+i+')">📨 Voir emails</button>':'')
-            +refonteBtn
-            +sendBtn
-            +saveBtn
+            +viewBtn+refonteBtn+sendBtn+addEmailBtn
             +'</div>'
             +'</div>'
-            +insightsBlock
-            +preview
+            +insightsBlock+preview
+            +'<div class="sugg-actions" style="margin-top:12px;display:flex;gap:8px;border-top:1px solid #1e3a5f;padding-top:10px;">'
+            +'<button class="btn" style="padding:6px 16px;font-size:0.82rem;background:#16a34a;" onclick="suggestionAction(\''+p.id+'\',\'contacted\','+i+')">✓ Contacté</button>'
+            +'<button class="btn" style="padding:6px 16px;font-size:0.82rem;background:#334155;color:#94a3b8;" onclick="suggestionAction(\''+p.id+'\',\'dismissed\','+i+')">✗ Ignorer</button>'
+            +'<button class="btn" style="padding:6px 16px;font-size:0.82rem;background:#0ea5e9;opacity:0.85;" onclick="saveDiscProspect('+i+')">💾 Sauvegarder</button>'
+            +'</div>'
             +'</div>';
     }}).join('');
 }}
@@ -4813,7 +5056,7 @@ async function sendDiscEmail(i,emailNum){{
             if(!p.sent_emails)p.sent_emails=[];
             p.sent_emails.push(emailNum);
             showNotice('✅ Courriel envoyé à '+p.email+' !',false);
-            renderDiscResults(discProspects);
+            renderSuggestions(discProspects,{{}});
             if(discEmailIdx===i)renderDiscEmailModal();
         }}else{{
             showNotice('❌ '+(data.detail||'Erreur SMTP — vérifiez SMTP_HOST dans Railway'),true);
@@ -4829,7 +5072,7 @@ function copyDiscEmail(){{
 }}
 function addDiscEmail(i){{
     const email=prompt('Entrez le courriel de '+discProspects[i].name+' :');
-    if(email&&email.includes('@')){{discProspects[i].email=email;discProspects[i].email_quality='manual';renderDiscResults(discProspects);}}
+    if(email&&email.includes('@')){{discProspects[i].email=email;discProspects[i].email_quality='manual';renderSuggestions(discProspects,{{}});}}
 }}
 async function saveDiscProspect(i){{
     const p=discProspects[i];
