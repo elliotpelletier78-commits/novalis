@@ -1131,6 +1131,10 @@
 </div>
 
 <script>
+// Force scroll to top — prevent browser restoring mid-page position
+if ('scrollRestoration' in history) { history.scrollRestoration = 'manual'; }
+window.scrollTo(0, 0);
+
 // Scroll progress bar
 const scrollProgress = document.getElementById('scroll-progress');
 window.addEventListener('scroll', () => {
