@@ -1258,12 +1258,15 @@ async def analyze_sentiment(text: str) -> float:
 
 def detect_language(text: str) -> str:
     """Détecte la langue du message (fr/en)."""
-    en_words = ["hello","hi","help","please","thank","thanks","what","when","where",
-                "how","can you","i need","i want","do you","good morning","good evening",
-                "sorry","excuse me","yes","no"]
+    en_single = {"hello","hi","help","please","thank","thanks","what","when","where",
+                 "how","can","yes","no","sorry","good","morning","evening","okay","ok"}
+    en_phrases = ["i need","i want","do you","good morning","good evening","excuse me",
+                  "can you","thank you","how can","how do","would you","could you"]
     text_lower = text.lower()
-    en_score = sum(1 for w in en_words if w in text_lower)
-    return "en" if en_score >= 1 else "fr"
+    words = set(re.sub(r"[^\w\s]", " ", text_lower).split())
+    score = sum(1 for w in en_single if w in words)
+    score += sum(2 for p in en_phrases if p in text_lower)
+    return "en" if score >= 3 else "fr"
 
 
 async def summarize_conversation(conv_id: str) -> str:
@@ -1411,10 +1414,10 @@ async def get_system_prompt(client: Dict, query: str = "", language: str = "fr")
 
     # Instruction de langue
     if language == "en":
-        lang_rule = "The customer is writing in English. Respond naturally in English while keeping your helpful, warm persona. Use Canadian English."
+        lang_rule = "The customer is writing in English. Respond naturally in English while keeping your helpful, warm persona. Use Canadian English. Keep a relaxed yet professional tone — no slang."
         lang_preamble = "LANGUAGE RULE: " + lang_rule
     else:
-        lang_preamble = "Réponds TOUJOURS en français québécois naturel et chaleureux. Utilise le vouvoiement."
+        lang_preamble = "Réponds TOUJOURS en français québécois. Ton décontracté mais professionnel — évite les argots (yo, tsé, genre, faque, bin). Utilise le vouvoiement. Chaleureux et clair."
 
     return f"""Tu es l'assistant virtuel de "{client['business_name']}" ({client.get('business_type', 'Commerce')}) situé à {client.get('address', 'Québec, Canada')}.
 
@@ -3323,7 +3326,7 @@ async def create_vapi_assistant(client_name: str, agent_name: str, system_prompt
                     "name": f"{agent_name} — {client_name}",
                     "firstMessage": first_message,
                     "firstMessageMode": "assistant-speaks-first",
-                    "transcriber": {"provider": "deepgram", "model": "nova-2", "language": "fr", "smartFormat": True},
+                    "transcriber": {"provider": "deepgram", "model": "nova-3", "language": "fr", "smartFormat": True},
                     "model": {
                         "provider": "anthropic",
                         "model": "claude-haiku-4-5-20251001",
@@ -5734,6 +5737,7 @@ async def demo_chat(request: Request):
         system_text = (
             "You are the Novalis AI demo assistant — a concise, expert AI for Quebec SMBs. "
             "Answer in 2-3 sentences max, in English. Be specific and helpful. "
+            "Keep a relaxed yet professional tone — no slang. "
             "If asked about pricing: Starter $497/mo, Pro $1,497/mo, Enterprise custom. "
             "If asked about results: first ROI in 22-30 days, -40% to -80% customer service costs. "
             "Encourage them to book a free consultation via the contact form."
@@ -5741,7 +5745,8 @@ async def demo_chat(request: Request):
     else:
         system_text = (
             "Tu es l'assistant démo de Novalis IA — une IA concise et experte pour les PME québécoises. "
-            "Réponds en 2-3 phrases max, en français québécois. Sois précis et utile. "
+            "Réponds en 2-3 phrases max, en français québécois. Ton décontracté mais professionnel. "
+            "Évite tout argot (yo, tsé, genre, faque). Utilise le vouvoiement. Sois chaleureux et précis. "
             "Prix: Starter 497$/mois, Pro 1 497$/mois, Entreprise sur mesure. "
             "Résultats: premier ROI en 22-30 jours, -40% à -80% coûts service client. "
             "Encourage la prise de contact via le formulaire."
