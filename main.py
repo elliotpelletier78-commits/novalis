@@ -3518,6 +3518,7 @@ async def dashboard(username: str = Depends(verify_admin)):
         <div class="nav-item" data-view="clients" title="Clients">🏢</div>
         <div class="nav-item" data-view="newclient" title="Nouveau client">➕</div>
         <div class="nav-item" data-view="rdlog" title="Journal R&D">🔬</div>
+        <div class="nav-item" data-view="generateur" title="Générateur d'emails">✉</div>
         <div class="nav-item" data-view="api" title="API">🔗</div>
     </div>
     <div class="main-content">
@@ -3625,6 +3626,75 @@ async def dashboard(username: str = Depends(verify_admin)):
                 </div>
                 <div class="panel" style="margin-top:16px;"><h3>Entrées récentes</h3><div id="rdEntries">Chargement...</div></div>
             </div>
+            <!-- GÉNÉRATEUR D'EMAILS -->
+            <div class="view" id="generateur">
+                <h2 style="color:#38bdf8;margin-bottom:4px;">✉ Générateur de prospection</h2>
+                <p style="color:#64748b;font-size:0.8rem;margin-bottom:20px;">Choisissez une ville + secteur, entrez le nom de la PME — les 3 emails personnalisés sortent en 10 secondes.</p>
+                <div class="panel">
+                    <h3 style="margin-bottom:14px;">1 — Infos de la PME</h3>
+                    <label>Ville</label>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+                        <button class="city-btn" data-city="Montréal" onclick="selectCity('Montréal')" style="background:rgba(56,189,248,0.08);border:1px solid #1e3a5f;color:#64748b;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Montréal</button>
+                        <button class="city-btn" data-city="Québec" onclick="selectCity('Québec')" style="background:rgba(56,189,248,0.08);border:1px solid #1e3a5f;color:#64748b;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Québec</button>
+                        <button class="city-btn" data-city="Laval" onclick="selectCity('Laval')" style="background:rgba(56,189,248,0.08);border:1px solid #1e3a5f;color:#64748b;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Laval</button>
+                        <button class="city-btn" data-city="Longueuil" onclick="selectCity('Longueuil')" style="background:rgba(56,189,248,0.08);border:1px solid #1e3a5f;color:#64748b;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Longueuil</button>
+                        <button class="city-btn" data-city="Gatineau" onclick="selectCity('Gatineau')" style="background:rgba(56,189,248,0.08);border:1px solid #1e3a5f;color:#64748b;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Gatineau</button>
+                        <button class="city-btn" data-city="Trois-Rivières" onclick="selectCity('Trois-Rivières')" style="background:rgba(56,189,248,0.08);border:1px solid #1e3a5f;color:#64748b;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Trois-Rivières</button>
+                        <button class="city-btn" data-city="Saguenay" onclick="selectCity('Saguenay')" style="background:rgba(56,189,248,0.08);border:1px solid #1e3a5f;color:#64748b;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Saguenay</button>
+                        <button class="city-btn" data-city="Sherbrooke" onclick="selectCity('Sherbrooke')" style="background:rgba(56,189,248,0.08);border:1px solid #1e3a5f;color:#64748b;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Sherbrooke</button>
+                        <button class="city-btn" data-city="Drummondville" onclick="selectCity('Drummondville')" style="background:rgba(56,189,248,0.08);border:1px solid #1e3a5f;color:#64748b;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Drummondville</button>
+                        <button class="city-btn" data-city="Saint-Jérôme" onclick="selectCity('Saint-Jérôme')" style="background:rgba(56,189,248,0.08);border:1px solid #1e3a5f;color:#64748b;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Saint-Jérôme</button>
+                        <button class="city-btn" data-city="Granby" onclick="selectCity('Granby')" style="background:rgba(56,189,248,0.08);border:1px solid #1e3a5f;color:#64748b;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Granby</button>
+                        <button class="city-btn" data-city="Rimouski" onclick="selectCity('Rimouski')" style="background:rgba(56,189,248,0.08);border:1px solid #1e3a5f;color:#64748b;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Rimouski</button>
+                        <button class="city-btn" data-city="Victoriaville" onclick="selectCity('Victoriaville')" style="background:rgba(56,189,248,0.08);border:1px solid #1e3a5f;color:#64748b;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Victoriaville</button>
+                        <button class="city-btn" data-city="Rouyn-Noranda" onclick="selectCity('Rouyn-Noranda')" style="background:rgba(56,189,248,0.08);border:1px solid #1e3a5f;color:#64748b;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Rouyn-Noranda</button>
+                        <button class="city-btn" data-city="Saint-Hyacinthe" onclick="selectCity('Saint-Hyacinthe')" style="background:rgba(56,189,248,0.08);border:1px solid #1e3a5f;color:#64748b;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Saint-Hyacinthe</button>
+                        <button class="city-btn" data-city="Brossard" onclick="selectCity('Brossard')" style="background:rgba(56,189,248,0.08);border:1px solid #1e3a5f;color:#64748b;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Brossard</button>
+                    </div>
+                    <input id="gen_city" placeholder="Ou tapez une ville personnalisée…" oninput="clearCityBtns()" style="margin-bottom:16px;"/>
+                    <div class="form-grid">
+                        <div><label>Secteur *</label>
+                            <select id="gen_industry">
+                                <option value="">— Choisir —</option>
+                                <option value="Salon / Spa">Salon / Spa</option>
+                                <option value="Garage / Auto">Garage / Auto</option>
+                                <option value="Clinique / Santé">Clinique / Santé</option>
+                                <option value="Clinique dentaire">Clinique dentaire</option>
+                                <option value="Immobilier">Immobilier</option>
+                                <option value="Cabinet comptable / Juridique">Cabinet comptable / Juridique</option>
+                                <option value="Restaurant / Traiteur">Restaurant / Traiteur</option>
+                                <option value="Pharmacie">Pharmacie</option>
+                                <option value="Commerce / Boutique">Commerce / Boutique</option>
+                                <option value="Entrepreneur / Construction">Entrepreneur / Construction</option>
+                                <option value="Marketing / Design">Marketing / Design</option>
+                                <option value="Formation / Coaching">Formation / Coaching</option>
+                            </select>
+                        </div>
+                        <div><label>Nom de l'entreprise *</label><input id="gen_biz" placeholder="ex: Salon Beauté Plus"/></div>
+                        <div><label>Nom du contact</label><input id="gen_name" placeholder="ex: Sophie Tremblay"/></div>
+                        <div><label>Courriel</label><input id="gen_email_addr" type="email" placeholder="ex: info@salonbeaute.ca"/></div>
+                        <div><label>Téléphone</label><input id="gen_phone" placeholder="ex: 514-555-0123"/></div>
+                        <div><label>Notes (détails spécifiques)</label><input id="gen_notes" placeholder="ex: 4.8★ Google, 15 ans en affaires"/></div>
+                    </div>
+                    <button class="btn" onclick="generateEmails()" style="margin-top:4px;">⚡ Générer les 3 emails</button>
+                </div>
+                <div id="gen_preview" style="display:none;margin-top:16px;">
+                    <div class="panel">
+                        <h3 style="margin-bottom:12px;">2 — Emails générés</h3>
+                        <div style="display:flex;gap:6px;margin-bottom:14px;">
+                            <button id="tab_e1" class="btn btn-sm" onclick="showGenTab(1)" style="background:rgba(56,189,248,0.2);color:#38bdf8;">📧 Email 1 — Accroche</button>
+                            <button id="tab_e2" class="btn btn-sm" onclick="showGenTab(2)" style="background:#1e3a5f;color:#64748b;">📧 Email 2 — Relance</button>
+                            <button id="tab_e3" class="btn btn-sm" onclick="showGenTab(3)" style="background:#1e3a5f;color:#64748b;">📧 Email 3 — Final</button>
+                        </div>
+                        <textarea id="gen_email_content" rows="20" style="background:#0f1f2e;border:1px solid #1e3a5f;border-radius:8px;padding:12px;color:#e2e8f0;width:100%;font-size:0.82rem;font-family:monospace;line-height:1.6;resize:vertical;margin-bottom:0;"></textarea>
+                        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center;">
+                            <button class="btn" onclick="copyGenEmail()">📋 Copier</button>
+                            <button class="btn" style="background:#34d399;color:#0a0e17;" onclick="saveGenProspect()">💾 Enregistrer prospect</button>
+                            <span id="gen_saved_notice" style="color:#34d399;font-size:0.8rem;display:none;">✅ Enregistré dans Prospection !</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <!-- API DOCS -->
             <div class="view" id="api">
                 <h2 style="color:#38bdf8;margin-bottom:16px;">Documentation API</h2>
@@ -3658,6 +3728,7 @@ document.querySelectorAll('.nav-item[data-view]').forEach(n=>{{n.addEventListene
     if(n.dataset.view==='clients')loadClients();
     if(n.dataset.view==='rdlog')loadRdLog();
     if(n.dataset.view==='prospects')loadProspects();
+    if(n.dataset.view==='generateur')initGenerateur();
 }});}});
 
 async function loadPlatformStats(){{
@@ -3729,44 +3800,61 @@ function _sectorBlocks(p) {{
     const ind = (p.industry||'').toLowerCase();
     const biz = p.business_name||p.name;
     const nom = p.name.split(' ')[0];
+    const cityRef = p.city ? ' à '+p.city : '';
     if(ind.includes('salon')||ind.includes('spa')) return {{
-        hook1: `Est-ce que vos clientes réservent encore par téléphone chez ${{biz}} ?`,
+        hook1: `Est-ce que vos clientes réservent encore par téléphone chez ${{biz}}${{cityRef}} ?`,
         body1: `Chaque appel manqué, c'est un rendez-vous perdu — et souvent une cliente qui appelle ailleurs. Notre agent IA décroche à votre place 24h/24, propose les créneaux disponibles et confirme le RDV automatiquement. En bonus, il envoie un rappel la veille pour réduire les no-shows de 40 %.`,
         hook2: `Suite à mon dernier message — une question rapide pour ${{biz}} :`,
         body2: `Combien d'appels manquez-vous par semaine quand vous êtes avec une cliente ? Même 2 ou 3 appels manqués par jour, c'est 400 à 600 $/semaine en rendez-vous perdus.\n\nNotre agent vocal IA règle exactement ce problème — il décroche chaque appel, prend le RDV et envoie un rappel automatique. Aucune ligne supplémentaire, aucun changement de numéro.`,
         hook3: `Dernier message de ma part — Novalis IA`,
         body3: `Je ne veux pas être intrusif. Si les appels manqués et la gestion des RDV ne sont pas un enjeu prioritaire pour ${{biz}} en ce moment, je comprends.\n\nSi jamais la situation change, l'essai gratuit de 7 jours reste ouvert sur novalisia.ca — on peut configurer votre agent en 48h.`
     }};
+    if(ind.includes('garage')||ind.includes('auto')||ind.includes('mécanique')||ind.includes('mecanique')) return {{
+        hook1: `${{biz}}${{cityRef}} — avez-vous le temps de répondre à chaque appel pendant les interventions ?`,
+        body1: `Techniciens sous les voitures, service en cours, téléphone qui sonne : les appels pour "est-ce que mon véhicule est prêt ?", "quel est le prix pour...", "avez-vous de la disponibilité ?" — personne pour répondre.\n\nNotre agent IA décroche chaque appel, confirme l'état des véhicules, répond aux questions courantes et prend les rendez-vous. Votre équipe reste concentrée sur les vrais travaux — et aucun client ne reste sans réponse.`,
+        hook2: `Re: Appels entrants — ${{biz}}`,
+        body2: `Suite à mon dernier message — une précision :\n\nNotre agent vocal apprend les spécificités de votre garage (délais typiques, prix moyens, spécialisations) et répond dans votre ton. Les garages avec qui on travaille rapportent -45 % d'appels sans réponse dès les premières semaines.\n\nDisponible pour une démo de 15 minutes ?`,
+        hook3: `Dernier message — Novalis IA`,
+        body3: `C'est mon dernier message. Si l'automatisation des appels entrants n'est pas une priorité pour ${{biz}} en ce moment, je comprends tout à fait.\n\nL'essai gratuit de 7 jours reste disponible sur novalisia.ca si jamais. Bonne continuation.`
+    }};
+    if(ind.includes('restaurant')||ind.includes('traiteur')||ind.includes('café')||ind.includes('cafe')||ind.includes('resto')) return {{
+        hook1: `${{biz}}${{cityRef}} — combien d'appels pour réserver passent dans le vide aux heures de pointe ?`,
+        body1: `Quand le service bat son plein, personne ne peut décrocher. Résultat : des réservations perdues, des questions sur le menu ou les heures sans réponse.\n\nNotre agent IA gère les réservations 24h/24, confirme les disponibilités, répond aux questions fréquentes et envoie des rappels automatiques pour réduire les no-shows. Le tout en français québécois, dans le ton de votre établissement.`,
+        hook2: `Re: Réservations et no-shows — ${{biz}}`,
+        body2: `Suite à mon dernier message — les restaurants avec qui on travaille constatent en moyenne 35 % moins de no-shows grâce aux rappels automatiques.\n\nL'agent prend aussi les réservations de groupe et répond aux questions sur les allergènes, le stationnement, les heures — sans que votre équipe de salle lève le petit doigt.\n\n15 minutes pour voir une démo ?`,
+        hook3: `Dernier message — Novalis IA`,
+        body3: `C'est mon dernier message. Si l'automatisation des réservations n'est pas une priorité pour ${{biz}} en ce moment, c'est parfaitement correct.\n\nnovalisia.ca — essai gratuit 7 jours si jamais. Bonne continuation.`
+    }};
     if(ind.includes('immob')) return {{
-        hook1: `Combien de leads vous passent entre les doigts chaque semaine chez ${{biz}} ?`,
+        hook1: `Combien de leads vous passent entre les doigts chaque semaine chez ${{biz}}${{cityRef}} ?`,
         body1: `En immobilier, la vitesse de réponse fait la différence. Un lead qui attend plus de 5 minutes a 10x moins de chances de convertir.\n\nNotre agent IA qualifie vos leads entrants en temps réel — acheteur ou vendeur, budget, secteur recherché — et transfère les dossiers chauds à votre équipe avec un résumé complet. Les suivis automatiques s'occupent du reste.`,
         hook2: `Re: Leads entrants — une donnée pour ${{biz}}`,
-        body2: `74 % des acheteurs immobiliers choisissent le premier courtier qui leur répond. Avec notre agent IA, votre équipe est "disponible" même à 22h un dimanche.\n\nJe peux vous montrer exactement comment ça fonctionnerait pour votre marché en Estrie — 15 minutes suffisent.`,
+        body2: `74 % des acheteurs immobiliers choisissent le premier courtier qui leur répond. Avec notre agent IA, votre équipe est "disponible" même à 22h un dimanche.\n\nJe peux vous montrer exactement comment ça fonctionnerait pour votre marché${{cityRef}} — 15 minutes suffisent.`,
         hook3: `Dernier message — Novalis IA`,
         body3: `C'est mon dernier message. Si l'automatisation des leads n'est pas une priorité pour ${{biz}} en ce moment, je comprends tout à fait.\n\nL'essai gratuit de 7 jours reste ouvert sur novalisia.ca si jamais l'intérêt revient.`
     }};
     if(ind.includes('marketing')||ind.includes('design')) return {{
         hook1: `Vos clients PME ont besoin d'IA — et ${{biz}} pourrait être leur point d'entrée`,
-        body1: `Chez Novalis IA, on développe des agents IA pour PME québécoises (service client, prise de RDV, qualification de prospects).\n\nOn cherche des agences partenaires en Estrie pour offrir nos solutions à leurs clients PME sous forme de service géré — revenu récurrent sans coût de développement de votre côté.\n\nÇa ressemble à quelque chose qui pourrait intéresser ${{biz}} et vos clients ?`,
+        body1: `Chez Novalis IA, on développe des agents IA pour PME québécoises (service client, prise de RDV, qualification de prospects).\n\nOn cherche des agences partenaires${{cityRef}} pour offrir nos solutions à leurs clients PME sous forme de service géré — revenu récurrent sans coût de développement de votre côté.\n\nÇa ressemble à quelque chose qui pourrait intéresser ${{biz}} et vos clients ?`,
         hook2: `Re: Partenariat revendeur — Novalis IA × ${{biz}}`,
         body2: `Suite à mon dernier message — pour être concret :\n\nLe modèle est simple : vous vendez nos agents IA à vos clients PME à votre propre tarif, on s'occupe de la configuration et du support. Vous gardez la marge, vos clients ont un service IA clé en main.\n\nPlusieurs agences québécoises nous ont rejoints pour ajouter cette corde à leur arc. Ça vous intéresse d'en parler 15 minutes ?`,
         hook3: `Dernier message — Novalis IA`,
         body3: `Je ne veux pas insister. Si un partenariat revendeur IA ne cadre pas avec la direction de ${{biz}} en ce moment, c'est parfaitement correct.\n\nSi la situation évolue, on est sur novalisia.ca — bonne continuation !`
     }};
-    if(ind.includes('clinique')||ind.includes('santé')||ind.includes('sante')) return {{
-        hook1: `Gérer la prise de RDV sur plusieurs cliniques sans engager de personnel supplémentaire`,
-        body1: `Novalis IA déploie des agents IA spécialisés en prise de rendez-vous pour cliniques privées — conformes à la Loi 25, données hébergées au Canada.\n\nVotre agent répond aux appels 24h/24, propose les créneaux disponibles selon chaque clinique et praticien, confirme le RDV et envoie un rappel automatique. Aucun appel manqué, aucune liste d'attente téléphonique.`,
+    if(ind.includes('clinique')||ind.includes('santé')||ind.includes('sante')||ind.includes('dentaire')||ind.includes('physio')||ind.includes('chiro')||ind.includes('pharmacie')) return {{
+        hook1: `Gérer la prise de RDV${{cityRef}} sans engager de personnel supplémentaire`,
+        body1: `Novalis IA déploie des agents IA spécialisés en prise de rendez-vous pour cliniques privées — conformes à la Loi 25, données hébergées au Canada.\n\nVotre agent répond aux appels 24h/24, propose les créneaux disponibles selon chaque praticien, confirme le RDV et envoie un rappel automatique. Aucun appel manqué, aucune liste d'attente téléphonique.`,
         hook2: `Re: Prise de RDV automatisée — ${{biz}}`,
-        body2: `Suite à mon dernier message — une précision importante pour votre contexte multi-sites :\n\nNotre agent peut gérer plusieurs cliniques avec des calendriers distincts depuis un seul système. Vos patients n'ont pas à savoir qu'ils parlent à une IA — la voix est naturelle, en français québécois.\n\n15 minutes pour voir une démo de ce que ça donnerait concrètement pour votre réseau ?`,
+        body2: `Suite à mon dernier message — une précision importante :\n\nNotre agent peut gérer plusieurs praticiens avec des calendriers distincts depuis un seul système. Vos patients n'ont pas à savoir qu'ils parlent à une IA — la voix est naturelle, en français québécois.\n\n15 minutes pour voir une démo de ce que ça donnerait concrètement pour ${{biz}} ?`,
         hook3: `Dernier message — Novalis IA`,
         body3: `C'est mon dernier message. Si l'automatisation de la prise de RDV n'est pas une priorité pour ${{biz}} en ce moment, je comprends.\n\nL'essai gratuit 7 jours reste disponible sur novalisia.ca si jamais. Bonne continuation.`
     }};
-    // Comptable / Juridique — défaut
+    // Défaut — PME générale
     return {{
-        hook1: `Vos clients vous appellent encore pour les mêmes questions chez ${{biz}} ?`,
-        body1: `Novalis IA aide les cabinets comptables à automatiser les réponses aux questions récurrentes de leurs clients — délais de production, documents requis, statut de déclarations, heures d'ouverture.\n\nVotre agent IA répond 24h/24, dans le ton de votre cabinet, sans jamais inventer d'information. Votre équipe se concentre sur les dossiers à valeur ajoutée.`,
+        hook1: `Vos clients vous appellent encore pour les mêmes questions chez ${{biz}}${{cityRef}} ?`,
+        body1: `Novalis IA aide les PME à automatiser les réponses aux questions récurrentes — heures d'ouverture, disponibilités, statut des dossiers, prix courants.\n\nVotre agent IA répond 24h/24, dans votre ton, sans jamais inventer d'information. Votre équipe se concentre sur les tâches à valeur ajoutée.`,
         hook2: `Re: Automatisation des réponses clients — ${{biz}}`,
-        body2: `Suite à mon dernier message — une donnée concrète :\n\nNos clients en cabinet reçoivent en moyenne 40 % de moins d'appels routiniers dans les 30 premiers jours. C'est 3 à 6 heures/semaine récupérées par employé.\n\nJe peux vous montrer comment ça fonctionnerait pour ${{biz}} en 15 minutes. Disponible cette semaine ?`,
+        body2: `Suite à mon dernier message — une donnée concrète :\n\nNos clients reçoivent en moyenne 40 % de moins d'appels routiniers dans les 30 premiers jours. C'est 3 à 6 heures/semaine récupérées par employé.\n\nJe peux vous montrer comment ça fonctionnerait pour ${{biz}} en 15 minutes. Disponible cette semaine ?`,
         hook3: `Dernier message — Novalis IA`,
         body3: `Je ne veux pas être intrusif — c'est mon dernier message.\n\nSi l'automatisation des réponses clients n'est pas une priorité pour ${{biz}} en ce moment, je comprends tout à fait. L'essai gratuit reste ouvert sur novalisia.ca.\n\nBonne continuation.`
     }};
@@ -4136,6 +4224,100 @@ async function loadRdLog(){{
 }}
 
 function exportRd(){{window.location.href='/api/v1/rd/export?format=csv';}}
+
+// ── GÉNÉRATEUR D'EMAILS ──
+let genEmails = {{1:'',2:'',3:''}};
+let genCurrentTab = 1;
+
+function initGenerateur(){{}}
+
+function selectCity(city){{
+    document.getElementById('gen_city').value = city;
+    document.querySelectorAll('.city-btn').forEach(b=>{{
+        const active = b.dataset.city === city;
+        b.style.background = active ? 'rgba(56,189,248,0.25)' : 'rgba(56,189,248,0.08)';
+        b.style.color = active ? '#38bdf8' : '#64748b';
+        b.style.borderColor = active ? '#38bdf8' : '#1e3a5f';
+    }});
+}}
+
+function clearCityBtns(){{
+    document.querySelectorAll('.city-btn').forEach(b=>{{
+        b.style.background='rgba(56,189,248,0.08)';
+        b.style.color='#64748b';
+        b.style.borderColor='#1e3a5f';
+    }});
+}}
+
+function generateEmails(){{
+    const city = document.getElementById('gen_city').value.trim();
+    const industry = document.getElementById('gen_industry').value;
+    const biz = document.getElementById('gen_biz').value.trim();
+    const contactName = document.getElementById('gen_name').value.trim();
+    const email = document.getElementById('gen_email_addr').value.trim();
+    const phone = document.getElementById('gen_phone').value.trim();
+    const notes = document.getElementById('gen_notes').value.trim();
+    if(!biz){{showNotice("Nom de l'entreprise requis",true);return;}}
+    const p = {{
+        name: contactName || ('Équipe '+biz),
+        business_name: biz,
+        email, phone, industry,
+        coworking: city,
+        city,
+        notes,
+    }};
+    genEmails[1] = EMAIL_TEMPLATES.email1(p);
+    genEmails[2] = EMAIL_TEMPLATES.email2(p);
+    genEmails[3] = EMAIL_TEMPLATES.email3(p);
+    document.getElementById('gen_preview').style.display = 'block';
+    document.getElementById('gen_saved_notice').style.display = 'none';
+    showGenTab(1);
+    setTimeout(()=>document.getElementById('gen_preview').scrollIntoView({{behavior:'smooth',block:'start'}}),50);
+}}
+
+function showGenTab(n){{
+    genCurrentTab = n;
+    document.getElementById('gen_email_content').value = genEmails[n];
+    [1,2,3].forEach(i=>{{
+        const btn = document.getElementById('tab_e'+i);
+        btn.style.background = i===n ? 'rgba(56,189,248,0.2)' : '#1e3a5f';
+        btn.style.color = i===n ? '#38bdf8' : '#64748b';
+    }});
+}}
+
+function copyGenEmail(){{
+    const ta = document.getElementById('gen_email_content');
+    ta.select();
+    navigator.clipboard.writeText(ta.value).then(()=>{{
+        showNotice('📋 Email '+genCurrentTab+' copié !',false);
+    }}).catch(()=>{{
+        document.execCommand('copy');
+        showNotice('📋 Email '+genCurrentTab+' copié !',false);
+    }});
+}}
+
+async function saveGenProspect(){{
+    const name = document.getElementById('gen_name').value.trim();
+    const biz = document.getElementById('gen_biz').value.trim();
+    const email = document.getElementById('gen_email_addr').value.trim();
+    if(!email){{showNotice('Courriel requis pour enregistrer',true);return;}}
+    const data = {{
+        name: name || ('Équipe '+biz),
+        business_name: biz,
+        email,
+        phone: document.getElementById('gen_phone').value.trim(),
+        coworking: document.getElementById('gen_city').value.trim(),
+        industry: document.getElementById('gen_industry').value,
+        notes: document.getElementById('gen_notes').value.trim(),
+    }};
+    const r = await fetch('/api/v1/prospects',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
+    if(r.ok){{
+        document.getElementById('gen_saved_notice').style.display='inline';
+        showNotice('✅ Prospect enregistré dans Prospection !',false);
+    }} else {{
+        showNotice('❌ Erreur — courriel déjà existant ?',true);
+    }}
+}}
 
 function tick(){{document.getElementById('clock').textContent=new Date().toLocaleTimeString('fr-CA',{{hour:'2-digit',minute:'2-digit'}});}}
 loadPlatformStats();loadLeads();tick();setInterval(loadPlatformStats,30000);setInterval(tick,1000);
