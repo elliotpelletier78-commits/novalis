@@ -748,7 +748,7 @@
                 <button onclick="sendDemo('Je voudrais réserver une table')">📅 Réserver</button>
                 <button onclick="sendDemo('Quels sont vos horaires ?')">🕐 Horaires</button>
                 <button onclick="sendDemo('Avez-vous un menu végétarien ?')">🥗 Menu</button>
-                <button onclick="sendDemo('C'est urgent, j'ai un problème')">🚨 Urgent</button>
+                <button onclick="sendDemo(&quot;C'est urgent, j'ai un problème&quot;)">🚨 Urgent</button>
             </div>
             <div class="demo-input-row">
                 <input type="text" id="demoInput" placeholder="Écrivez votre message..." onkeydown="if(event.key==='Enter')sendDemo()">
@@ -1131,9 +1131,12 @@
 </div>
 
 <script>
-// Force scroll to top — prevent browser restoring mid-page position
+// Force scroll to top — bypass smooth-scroll CSS and hash anchors
 if ('scrollRestoration' in history) { history.scrollRestoration = 'manual'; }
+document.documentElement.style.scrollBehavior = 'auto';
 window.scrollTo(0, 0);
+if (location.hash) { history.replaceState('', document.title, location.pathname + location.search); }
+document.addEventListener('DOMContentLoaded', () => { window.scrollTo({top:0,behavior:'instant'}); });
 
 // Scroll progress bar
 const scrollProgress = document.getElementById('scroll-progress');
