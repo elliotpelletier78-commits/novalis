@@ -8,7 +8,7 @@ export default {
         pearl:    '#EDE8DF',
         copper:   '#A86844',
         slate:    '#1D2733',
-        dim:      '#4A5260',
+        dim:      '#8899AA',
         'copper-light': '#C4895A',
         'slate-light':  '#253345',
       },

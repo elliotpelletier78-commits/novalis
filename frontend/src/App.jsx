@@ -13,6 +13,7 @@ import Testimonials from './components/Testimonials'
 import RoiCalc from './components/RoiCalc'
 import Subsidies from './components/Subsidies'
 import Pricing from './components/Pricing'
+import WhyNovalis from './components/WhyNovalis'
 import TechStack from './components/TechStack'
 import FAQ from './components/FAQ'
 import Contact from './components/Contact'
@@ -41,6 +42,7 @@ export default function App() {
         <RoiCalc />
         <Subsidies />
         <Pricing />
+        <WhyNovalis />
         <TechStack />
         <FAQ />
         <Contact />

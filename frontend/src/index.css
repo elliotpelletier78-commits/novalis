@@ -9,7 +9,7 @@
   --copper-light: #C4895A;
   --slate:    #1D2733;
   --slate-light: #253345;
-  --dim:      #4A5260;
+  --dim:      #8899AA;
 }
 
 @layer base {
@@ -197,7 +197,7 @@
   inset: 0;
   pointer-events: none;
   z-index: 9999;
-  opacity: 0.045;
+  opacity: 0.02;
 }
 
 /* Smooth section transitions */
