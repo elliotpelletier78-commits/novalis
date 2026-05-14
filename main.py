@@ -3772,7 +3772,7 @@ async function loadLeads(){{
         l.innerHTML=d.map(c=>{{
             const phone=c.owner_phone||'';
             const waNum=phone.replace(/[^0-9]/g,'');
-            const waMsg=encodeURIComponent('Bonjour '+c.owner_name+', je contacte de la part de l\'équipe Novalis IA. Vous avez rempli notre formulaire sur novalisia.ca. Êtes-vous disponible pour un appel de 15 minutes ?');
+            const waMsg=encodeURIComponent("Bonjour "+c.owner_name+", je contacte de la part de l’équipe Novalis IA. Vous avez rempli notre formulaire sur novalisia.ca. Êtes-vous disponible pour un appel de 15 minutes ?");
             const svc=c.service_type||'non précisé';
             const msg=(c.message||'').slice(0,180);
             const ago=timeAgo(c.created_at);
