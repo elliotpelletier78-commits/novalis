@@ -67,7 +67,7 @@ export default function Process() {
           {/* Vertical line */}
           <div
             className="absolute left-[1.35rem] top-4 bottom-4 hidden md:block"
-            style={{ width: '0.5px', background: 'rgba(168,104,68,0.2)' }}
+            style={{ width: '0.5px', background: 'rgba(40,96,232,0.2)' }}
           />
 
           <div className="flex flex-col gap-6">
@@ -82,7 +82,7 @@ export default function Process() {
                   <div
                     className="w-[2.7rem] h-[2.7rem] flex items-center justify-center text-xs font-sans tracking-widest transition-colors duration-300 z-10"
                     style={{
-                      border: '0.5px solid rgba(168,104,68,0.4)',
+                      border: '0.5px solid rgba(40,96,232,0.4)',
                       background: 'var(--obsidian)',
                       color: 'var(--copper)',
                     }}
@@ -97,7 +97,7 @@ export default function Process() {
                     <h3 className="font-display italic text-2xl text-pearl">{step.title}</h3>
                     <span
                       className="text-[0.65rem] tracking-widest uppercase px-3 py-1 shrink-0"
-                      style={{ border: '0.5px solid rgba(168,104,68,0.25)', color: 'var(--copper)' }}
+                      style={{ border: '0.5px solid rgba(40,96,232,0.25)', color: 'var(--copper)' }}
                     >
                       {step.duration}
                     </span>

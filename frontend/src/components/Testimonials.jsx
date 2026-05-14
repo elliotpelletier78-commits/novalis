@@ -81,7 +81,7 @@ export default function Testimonials() {
               />
               <div
                 className="font-display italic text-4xl mb-4 leading-none"
-                style={{ color: 'rgba(168,104,68,0.25)' }}
+                style={{ color: 'rgba(40,96,232,0.25)' }}
               >
                 {String(i + 1).padStart(2, '0')}
               </div>

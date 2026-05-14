@@ -4,13 +4,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        obsidian: '#090C0F',
-        pearl:    '#EDE8DF',
-        copper:   '#A86844',
-        slate:    '#1D2733',
-        dim:      '#4A5260',
-        'copper-light': '#C4895A',
-        'slate-light':  '#253345',
+        obsidian: '#06111E',
+        pearl:    '#E8EFF8',
+        copper:   '#2860E8',
+        slate:    '#0D1B2E',
+        dim:      '#7A97B5',
+        'copper-light': '#5B84F5',
+        'slate-light':  '#132333',
       },
       fontFamily: {
         display: ['"Cormorant Garamond"', 'Georgia', 'serif'],
@@ -23,7 +23,7 @@ export default {
       },
       boxShadow: {
         'diffuse': '0 40px 80px rgba(0,0,0,0.6)',
-        'copper-glow': '0 0 60px rgba(168,104,68,0.25)',
+        'copper-glow': '0 0 60px rgba(40,96,232,0.3)',
       },
       borderWidth: {
         'half': '0.5px',

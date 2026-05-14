@@ -29,7 +29,7 @@ export default function Hero() {
         aria-hidden="true"
         style={{
           position: 'absolute', inset: 0,
-          background: 'radial-gradient(ellipse 80% 60% at 60% 30%, rgba(168,104,68,0.07) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse 80% 60% at 60% 30%, rgba(40,96,232,0.07) 0%, transparent 70%)',
           pointerEvents: 'none',
         }}
       />
@@ -42,7 +42,7 @@ export default function Hero() {
         style={{
           position: 'absolute', top: '38%', left: 0, right: 0,
           height: '0.5px',
-          background: 'linear-gradient(90deg, transparent 0%, rgba(168,104,68,0.18) 40%, rgba(168,104,68,0.18) 60%, transparent 100%)',
+          background: 'linear-gradient(90deg, transparent 0%, rgba(40,96,232,0.18) 40%, rgba(40,96,232,0.18) 60%, transparent 100%)',
           transformOrigin: 'left',
         }}
       />

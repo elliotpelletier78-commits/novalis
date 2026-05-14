@@ -133,7 +133,7 @@ export default function Cases() {
         >
           <div
             className="shrink-0 w-5 h-5 flex items-center justify-center text-xs mt-0.5"
-            style={{ border: '0.5px solid rgba(168,104,68,0.4)', color: 'var(--copper)' }}
+            style={{ border: '0.5px solid rgba(40,96,232,0.4)', color: 'var(--copper)' }}
           >
             i
           </div>

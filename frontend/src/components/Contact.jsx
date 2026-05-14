@@ -83,7 +83,7 @@ export default function Contact() {
       <div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] pointer-events-none"
         style={{
-          background: 'radial-gradient(circle, rgba(168,104,68,0.05) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(40,96,232,0.05) 0%, transparent 70%)',
           filter: 'blur(60px)',
         }}
       />

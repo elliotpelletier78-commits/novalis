@@ -127,7 +127,7 @@ export default function Services() {
 
                 <div
                   className="w-10 h-10 flex items-center justify-center mb-5 transition-colors duration-300"
-                  style={{ border: '0.5px solid rgba(168,104,68,0.3)', color: 'var(--copper)' }}
+                  style={{ border: '0.5px solid rgba(40,96,232,0.3)', color: 'var(--copper)' }}
                 >
                   <Icon size={18} />
                 </div>
@@ -136,13 +136,6 @@ export default function Services() {
                   {svc.title}
                 </h3>
                 <p className="text-dim text-sm leading-relaxed">{svc.desc}</p>
-
-                <div
-                  className="mt-6 flex items-center gap-2 text-xs tracking-widest uppercase text-copper/60 group-hover:text-copper transition-colors duration-300"
-                >
-                  <span>En savoir plus</span>
-                  <div className="w-4 h-[0.5px] bg-current transition-all duration-300 group-hover:w-8" />
-                </div>
               </motion.div>
             )
           })}

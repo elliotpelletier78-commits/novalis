@@ -97,7 +97,7 @@ export default function Demo() {
                 >
                   <div
                     className="w-8 h-8 flex items-center justify-center"
-                    style={{ background: 'rgba(168,104,68,0.15)', border: '0.5px solid rgba(168,104,68,0.3)' }}
+                    style={{ background: 'rgba(40,96,232,0.15)', border: '0.5px solid rgba(40,96,232,0.3)' }}
                   >
                     <Bot size={14} className="text-copper" />
                   </div>
@@ -120,7 +120,7 @@ export default function Demo() {
                       {msg.role === 'assistant' && (
                         <div
                           className="w-6 h-6 shrink-0 flex items-center justify-center mt-1"
-                          style={{ border: '0.5px solid rgba(168,104,68,0.3)', color: 'var(--copper)' }}
+                          style={{ border: '0.5px solid rgba(40,96,232,0.3)', color: 'var(--copper)' }}
                         >
                           <Bot size={11} />
                         </div>
@@ -137,7 +137,7 @@ export default function Demo() {
                       {msg.role === 'user' && (
                         <div
                           className="w-6 h-6 shrink-0 flex items-center justify-center mt-1"
-                          style={{ background: 'rgba(168,104,68,0.2)', color: 'var(--copper)' }}
+                          style={{ background: 'rgba(40,96,232,0.2)', color: 'var(--copper)' }}
                         >
                           <User size={11} />
                         </div>
@@ -148,7 +148,7 @@ export default function Demo() {
                     <div className="flex gap-3">
                       <div
                         className="w-6 h-6 shrink-0 flex items-center justify-center"
-                        style={{ border: '0.5px solid rgba(168,104,68,0.3)', color: 'var(--copper)' }}
+                        style={{ border: '0.5px solid rgba(40,96,232,0.3)', color: 'var(--copper)' }}
                       >
                         <Bot size={11} />
                       </div>

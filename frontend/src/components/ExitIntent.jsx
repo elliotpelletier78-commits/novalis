@@ -74,7 +74,7 @@ export default function ExitIntent() {
             className="relative max-w-md w-full"
             style={{
               background: '#0f1419',
-              border: '0.5px solid rgba(168,104,68,0.35)',
+              border: '0.5px solid rgba(40,96,232,0.35)',
               padding: '40px 36px',
             }}
           >
@@ -144,7 +144,7 @@ export default function ExitIntent() {
               <div className="text-center py-4">
                 <div
                   className="w-12 h-12 mx-auto mb-5 flex items-center justify-center"
-                  style={{ background: 'rgba(168,104,68,0.12)', border: '0.5px solid rgba(168,104,68,0.4)' }}
+                  style={{ background: 'rgba(40,96,232,0.12)', border: '0.5px solid rgba(40,96,232,0.4)' }}
                 >
                   <span className="text-2xl">✓</span>
                 </div>
