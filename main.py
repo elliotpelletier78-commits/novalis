@@ -3516,33 +3516,73 @@ def _scrape_business_website(url: str) -> dict:
         return {"email": "", "email_quality": "error", "text": "", "phone": "", "error": str(e)}
 
 
+def _research_business_sync(name: str, city: str) -> dict:
+    """Search for online reviews and mentions of a business to identify pain points."""
+    try:
+        # Search for reviews
+        snippets = []
+        for query in [f'"{name}" "{city}" avis clients google', f'{name} {city} Quebec']:
+            results = _ddg_search_sync(query, 6)
+            for r in results:
+                s = r.get("snippet", "").strip()
+                if s and len(s) > 30:
+                    snippets.append(s)
+
+        combined = " | ".join(snippets[:10])
+
+        # Extract rating (4.5/5, 4,5 étoiles, 4.5 stars)
+        rating = ""
+        review_count = ""
+        for s in snippets:
+            if not rating:
+                m = re.search(r'(\d[\.,]\d)\s*(?:/5|étoile|star|★)', s, re.IGNORECASE)
+                if m:
+                    rating = m.group(0).strip()
+            if not review_count:
+                m2 = re.search(r'(\d+)\s*(?:avis|review|évaluation)', s, re.IGNORECASE)
+                if m2:
+                    review_count = m2.group(1) + " avis"
+
+        return {"snippets": combined[:2000], "rating": rating, "review_count": review_count}
+    except Exception as e:
+        logging.error(f"Research error for {name}: {e}")
+        return {"snippets": "", "rating": "", "review_count": ""}
+
 async def _generate_prospect_emails_claude(biz: dict) -> dict:
     if not claude_client:
         return {}
     name = biz.get("name", "")
     city = biz.get("city", "")
     industry = biz.get("industry", "")
-    site_text = biz.get("site_text", "")[:2000]
+    site_text = biz.get("site_text", "")[:1800]
     website = biz.get("website", "")
-    prompt = f"""Tu es un expert en vente B2B pour Novalis IA, une startup québécoise.
+    research = biz.get("research", {})
+    snippets = research.get("snippets", "")[:1200]
+    rating = research.get("rating", "")
+    review_count = research.get("review_count", "")
+    rating_line = f"Note en ligne: {rating} ({review_count})" if rating else (f"Avis trouvés: {review_count}" if review_count else "")
 
-PRODUIT: Agent IA conversationnel pour PME — répond 24/7 par SMS/WhatsApp/web, prend des RDV, répond aux FAQ. Prix: 497$/mois (Starter), 1497$/mois (Pro).
+    prompt = f"""Tu es un expert en vente B2B et analyste business pour Novalis IA, startup québécoise.
 
-PME CIBLE:
-- Nom: {name}
-- Ville: {city}
-- Secteur: {industry}
-- Site: {website}
-- Contenu du site: {site_text if site_text else "(non disponible)"}
+PRODUIT: Agent IA conversationnel — répond 24/7 par SMS/WhatsApp/web, prend des RDV, répond aux FAQ. Prix: 497$/mois.
 
-Génère exactement 3 courriels de prospection distincts. Utilise des détails SPÉCIFIQUES du site (services, équipe, valeurs, offres). Chaque email < 150 mots. Signature: Elliot Pelletier, Novalis IA, novalisia.ca
+PME ANALYSÉE: {name} | {city} | {industry}
+Site: {website}
+{rating_line}
 
-Email 1: Pain point spécifique au secteur
-Email 2: ROI + preuve sociale ("un salon comme le vôtre économise 8h/semaine")
-Email 3: Offre démo 15 min gratuite — appel à l'action direct
+CONTENU DU SITE:
+{site_text or "(non disponible)"}
 
-Réponds UNIQUEMENT avec ce JSON valide (aucun autre texte):
+AVIS ET MENTIONS EN LIGNE:
+{snippets or "(non disponible)"}
+
+TÂCHE — réponds UNIQUEMENT avec ce JSON (aucun autre texte):
+1. Identifie 2-3 problèmes CONCRETS et SPÉCIFIQUES à CETTE entreprise (basés sur les avis et le site).
+2. Génère 3 courriels qui CITENT ces problèmes précis. Chaque email < 150 mots. Signature: Elliot Pelletier, Novalis IA, novalisia.ca
+
 {{
+  "insights": "Analyse en 1-2 phrases: ce que tu as découvert et pourquoi Novalis IA est la solution idéale pour eux spécifiquement.",
+  "pain_points": ["Problème précis 1", "Problème précis 2", "Problème précis 3"],
   "email1": {{"subject": "...", "body": "..."}},
   "email2": {{"subject": "...", "body": "..."}},
   "email3": {{"subject": "...", "body": "..."}}
@@ -3598,18 +3638,26 @@ async def discover_prospects_endpoint(request: Request, username: str = Depends(
         if len(filtered) >= max_results:
             break
 
-    # Scrape all websites in parallel
-    scrape_tasks = [loop.run_in_executor(None, _scrape_business_website, b.get("url", "")) for b in filtered]
-    scraped = await asyncio.gather(*scrape_tasks)
+    # Extract names now (needed for research queries)
+    names = []
+    for biz in filtered:
+        title = biz.get("title", "")
+        names.append((re.split(r"[|\-–—]", title)[0].strip() if title else biz.get("url", ""))[:80])
 
-    # Build prospect dicts
+    # Scrape websites + research reviews in parallel (all at once)
+    scrape_coros = [loop.run_in_executor(None, _scrape_business_website, b.get("url", "")) for b in filtered]
+    research_coros = [loop.run_in_executor(None, _research_business_sync, names[i], city) for i in range(len(filtered))]
+    all_results = await asyncio.gather(*scrape_coros, *research_coros)
+    scraped = all_results[:len(filtered)]
+    researched = all_results[len(filtered):]
+
+    # Build prospect dicts with research data
     biz_list = []
     for i, biz in enumerate(filtered):
-        title = biz.get("title", "")
-        name = re.split(r"[|\-–—]", title)[0].strip() if title else biz.get("url", "")
         sc = scraped[i]
+        res = researched[i]
         biz_list.append({
-            "name": name[:80],
+            "name": names[i],
             "website": biz.get("url", ""),
             "city": city,
             "industry": industry,
@@ -3618,9 +3666,10 @@ async def discover_prospects_endpoint(request: Request, username: str = Depends(
             "phone": sc.get("phone", ""),
             "snippet": biz.get("snippet", ""),
             "site_text": sc.get("text", ""),
+            "research": res,
         })
 
-    # Generate emails in parallel with Claude
+    # Generate insights + emails in parallel with Claude
     gen_tasks = [_generate_prospect_emails_claude(b) for b in biz_list]
     email_results = await asyncio.gather(*gen_tasks)
 
@@ -3629,7 +3678,12 @@ async def discover_prospects_endpoint(request: Request, username: str = Depends(
         emails = email_results[i]
         b["generated_emails"] = emails
         b["emails_generated"] = bool(emails.get("email1"))
+        b["insights"] = emails.get("insights", "")
+        b["pain_points"] = emails.get("pain_points", [])
+        b["rating"] = b["research"].get("rating", "")
+        b["review_count"] = b["research"].get("review_count", "")
         del b["site_text"]
+        del b["research"]
         prospects.append(b)
 
     return {"prospects": prospects, "city": city, "industry": industry, "count": len(prospects)}
@@ -4565,7 +4619,7 @@ async function discoverPME(){{
     const status=document.getElementById('disc_status');
     btn.disabled=true;btn.textContent='⏳ Recherche...';
     status.style.display='block';
-    status.innerHTML='🔍 Recherche de <b>'+industry+'</b> à <b>'+city+'</b>...<br><span style="color:#64748b;font-size:0.78rem;">Analyse des sites web + génération des courriels par IA — 30 à 90 secondes</span>';
+    status.innerHTML='🔍 Recherche de <b>'+industry+'</b> à <b>'+city+'</b>...<br><span style="color:#64748b;font-size:0.78rem;">Scraping des sites · Recherche des avis Google · Analyse IA des pain points · Génération des courriels — 45 à 120 secondes</span>';
     document.getElementById('disc_results').innerHTML='';
     try{{
         const r=await fetch('/api/admin/discover-prospects',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{city,industry,max_results:6}})}});
@@ -4594,6 +4648,18 @@ function renderDiscResults(list){{
         const preview=e1
             ?'<div style="margin-top:10px;background:#0f1f2e;border-radius:8px;padding:10px;font-size:0.8rem;"><div style="color:#fbbf24;margin-bottom:4px;">📧 '+e1.subject+'</div><div style="color:#94a3b8;">'+(e1.body||'').substring(0,140)+'...</div></div>'
             :`<div style="margin-top:8px;color:#64748b;font-size:0.78rem;">Génération d'email échouée — cliquez sur "Voir emails" pour réessayer.</div>`;
+        // Insights + pain points block
+        const ratingBadge=p.rating?'<span style="background:rgba(251,191,36,0.15);color:#fbbf24;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-right:6px;">⭐ '+p.rating+(p.review_count?' · '+p.review_count:'')+'</span>':'';
+        const painPills=(p.pain_points&&p.pain_points.length
+            ?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">'+(p.pain_points.map(pp=>'<span style="background:rgba(124,58,237,0.12);color:#a78bfa;padding:2px 10px;border-radius:10px;font-size:0.72rem;border:1px solid rgba(124,58,237,0.2);">⚠ '+pp+'</span>').join(''))+'</div>'
+            :'');
+        const insightsBlock=(p.insights||ratingBadge||painPills
+            ?'<div style="margin-top:10px;background:#0a0e17;border-radius:8px;padding:10px 12px;border-left:3px solid #7c3aed;">'
+                +(ratingBadge?'<div style="margin-bottom:6px;">'+ratingBadge+'</div>':'')
+                +(p.insights?'<div style="color:#94a3b8;font-size:0.8rem;line-height:1.5;margin-bottom:4px;">💡 '+p.insights+'</div>':'')
+                +painPills
+            +'</div>'
+            :'');
         const saveBtn=p.email
             ?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#16a34a;" onclick="saveDiscProspect('+i+')">💾 Sauvegarder</button>'
             :'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#334155;color:#94a3b8;" onclick="addDiscEmail('+i+')">✏️ Ajouter email</button>';
@@ -4618,6 +4684,7 @@ function renderDiscResults(list){{
             +saveBtn
             +'</div>'
             +'</div>'
+            +insightsBlock
             +preview
             +'</div>';
     }}).join('');
