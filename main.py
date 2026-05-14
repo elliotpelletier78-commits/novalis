@@ -3448,7 +3448,10 @@ async def dashboard(username: str = Depends(verify_admin)):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Novalis — Platform Admin</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Novalis — Platform Admin v{VERSION}</title>
     <style>
         *{{margin:0;padding:0;box-sizing:border-box;}}
         body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0e17;color:#e2e8f0;}}
