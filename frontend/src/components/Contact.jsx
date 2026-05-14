@@ -131,7 +131,7 @@ export default function Contact() {
 
             <div
               className="mt-10 pt-8"
-              style={{ borderTop: '0.5px solid rgba(237,232,223,0.08)' }}
+              style={{ borderTop: '0.5px solid rgba(11,26,46,0.08)' }}
             >
               <p className="text-[0.65rem] tracking-widest uppercase text-dim mb-2">Contact direct</p>
               <a

@@ -120,7 +120,7 @@ export default function RoiCalc() {
                         color: row.highlight
                           ? 'var(--copper-light)'
                           : row.negative
-                          ? 'rgba(237,232,223,0.5)'
+                          ? 'rgba(11,26,46,0.4)'
                           : 'var(--pearl)',
                       }}
                     >
@@ -131,13 +131,13 @@ export default function RoiCalc() {
 
                 <div
                   className="pt-6"
-                  style={{ borderTop: '0.5px solid rgba(237,232,223,0.1)' }}
+                  style={{ borderTop: '0.5px solid rgba(11,26,46,0.1)' }}
                 >
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-pearl font-medium">Gain net annuel</span>
                     <span
                       className="font-display italic"
-                      style={{ fontSize: '2.5rem', color: roiPositif ? 'var(--copper-light)' : 'rgba(237,232,223,0.5)' }}
+                      style={{ fontSize: '2.5rem', color: roiPositif ? 'var(--copper-light)' : 'rgba(11,26,46,0.4)' }}
                     >
                       {roiPositif ? `${fmt(netAnnual)} $` : '—'}
                     </span>

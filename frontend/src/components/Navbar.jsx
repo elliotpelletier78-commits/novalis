@@ -36,9 +36,10 @@ export default function Navbar() {
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         scrolled
-          ? 'glass-card py-3'
+          ? 'py-3 bg-white border-b border-black/[0.06]'
           : 'bg-transparent py-5'
       }`}
+      style={scrolled ? { boxShadow: '0 2px 16px rgba(11,26,46,0.08)' } : {}}
       aria-label="Navigation principale"
     >
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
@@ -97,7 +98,7 @@ export default function Navbar() {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="md:hidden overflow-hidden glass-card border-t-0 border-x-0"
+            className="md:hidden overflow-hidden bg-white border-t border-black/[0.06]"
           >
             <ul className="flex flex-col px-6 py-6 gap-5" role="list">
               {links.map((l) => (
