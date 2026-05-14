@@ -3635,6 +3635,21 @@ async def discover_prospects_endpoint(request: Request, username: str = Depends(
     return {"prospects": prospects, "city": city, "industry": industry, "count": len(prospects)}
 
 
+@app.post("/api/admin/send-prospect-email")
+async def send_prospect_email_endpoint(request: Request, username: str = Depends(verify_admin)):
+    data = await request.json()
+    to = data.get("to", "").strip()
+    subject = data.get("subject", "").strip()
+    body = data.get("body", "").strip()
+    if not to or not subject or not body:
+        raise HTTPException(400, "to, subject et body requis")
+    if not SMTP_HOST or not SMTP_USER:
+        raise HTTPException(503, "SMTP non configuré — ajoutez SMTP_HOST, SMTP_USER et SMTP_PASS dans Railway")
+    html_body = "<div style=\"font-family:sans-serif;font-size:15px;line-height:1.7;color:#222;max-width:600px;\">" + body.replace("\n", "<br>") + "</div>"
+    await send_email(to, subject, html_body)
+    return {"ok": True, "to": to}
+
+
 # ============================================================
 # DASHBOARD ADMIN (HTML)
 # ============================================================
@@ -4582,6 +4597,12 @@ function renderDiscResults(list){{
         const saveBtn=p.email
             ?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#16a34a;" onclick="saveDiscProspect('+i+')">💾 Sauvegarder</button>'
             :'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#334155;color:#94a3b8;" onclick="addDiscEmail('+i+')">✏️ Ajouter email</button>';
+        const alreadySent=p.sent_emails&&p.sent_emails.includes(1);
+        const sendBtn=p.email&&p.emails_generated
+            ?(alreadySent
+                ?'<button class="btn" disabled style="padding:6px 12px;font-size:0.78rem;background:#16a34a;opacity:0.6;">✅ Envoyé</button>'
+                :'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#7c3aed;" onclick="sendDiscEmail('+i+',1)">📤 Envoyer</button>')
+            :'';
         return '<div class="panel" style="margin-bottom:12px;">'
             +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">'
             +'<div style="flex:1;min-width:200px;">'
@@ -4593,6 +4614,7 @@ function renderDiscResults(list){{
             +'</div>'
             +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;">'
             +(p.emails_generated?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#0ea5e9;" onclick="openDiscEmail('+i+')">📨 Voir emails</button>':'')
+            +sendBtn
             +saveBtn
             +'</div>'
             +'</div>'
@@ -4618,8 +4640,34 @@ function renderDiscEmailModal(){{
         const t=document.getElementById('disc_tab_'+n);
         if(t)t.style.background=n===discEmailTab?'#0ea5e9':'#1e3a5f';
     }});
+    const sb=document.getElementById('disc_send_modal_btn');
+    if(sb){{
+        const sent=p.sent_emails&&p.sent_emails.includes(discEmailTab);
+        sb.disabled=sent;sb.textContent=sent?'✅ Envoyé':'📤 Envoyer';
+        sb.style.background=sent?'#16a34a':'#7c3aed';sb.style.opacity=sent?'0.65':'1';
+    }}
 }}
 function switchDiscTab(n){{discEmailTab=n;renderDiscEmailModal();}}
+async function sendDiscEmail(i,emailNum){{
+    const p=discProspects[i];
+    if(!p.email){{showNotice("Ajoutez d'abord le courriel avec ✏️",true);return;}}
+    const e=(p.generated_emails||{{}})['email'+emailNum]||{{}};
+    if(!e.subject||!e.body){{showNotice('Email non disponible',true);return;}}
+    try{{
+        const r=await fetch('/api/admin/send-prospect-email',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{to:p.email,subject:e.subject,body:e.body}})}});
+        const data=await r.json();
+        if(r.ok){{
+            if(!p.sent_emails)p.sent_emails=[];
+            p.sent_emails.push(emailNum);
+            showNotice('✅ Courriel envoyé à '+p.email+' !',false);
+            renderDiscResults(discProspects);
+            if(discEmailIdx===i)renderDiscEmailModal();
+        }}else{{
+            showNotice('❌ '+(data.detail||'Erreur SMTP — vérifiez SMTP_HOST dans Railway'),true);
+        }}
+    }}catch(ex){{showNotice('❌ Erreur réseau',true);}}
+}}
+async function sendDiscEmailFromModal(){{await sendDiscEmail(discEmailIdx,discEmailTab);}}
 function copyDiscEmail(){{
     const s=document.getElementById('disc_em_subj').value;
     const b=document.getElementById('disc_em_body').value;
@@ -4745,6 +4793,7 @@ async function saveDiscProspect(i){{
         <label>Corps du courriel</label>
         <textarea id="disc_em_body" rows="12" style="margin-bottom:16px;font-family:inherit;font-size:0.85rem;line-height:1.6;white-space:pre-wrap;"></textarea>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button id="disc_send_modal_btn" class="btn" style="background:#7c3aed;" onclick="sendDiscEmailFromModal()">📤 Envoyer</button>
             <button class="btn" onclick="copyDiscEmail()">📋 Copier</button>
             <button class="btn" style="background:#16a34a;" onclick="saveDiscProspect(discEmailIdx)">💾 Sauvegarder PME</button>
             <button class="btn" style="background:#334155;color:#94a3b8;" onclick="document.getElementById('discEmailModal').style.display='none'">Fermer</button>
