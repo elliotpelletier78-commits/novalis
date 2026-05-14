@@ -3518,7 +3518,7 @@ async def dashboard(username: str = Depends(verify_admin)):
         <div class="nav-item" data-view="clients" title="Clients">🏢</div>
         <div class="nav-item" data-view="newclient" title="Nouveau client">➕</div>
         <div class="nav-item" data-view="rdlog" title="Journal R&D">🔬</div>
-        <div class="nav-item" data-view="generateur" title="Générateur d'emails">✉</div>
+        <div class="nav-item" data-view="generateur" title="Générateur d'emails" style="font-size:1rem;">📧</div>
         <div class="nav-item" data-view="api" title="API">🔗</div>
     </div>
     <div class="main-content">
@@ -3724,7 +3724,7 @@ async def dashboard(username: str = Depends(verify_admin)):
 document.querySelectorAll('.nav-item[data-view]').forEach(n=>{{n.addEventListener('click',()=>{{
     document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
     document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
-    n.classList.add('active');document.getElementById(n.dataset.view).classList.add('active');
+    n.classList.add('active');const vEl=document.getElementById(n.dataset.view);if(vEl)vEl.classList.add('active');
     if(n.dataset.view==='clients')loadClients();
     if(n.dataset.view==='rdlog')loadRdLog();
     if(n.dataset.view==='prospects')loadProspects();
