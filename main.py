@@ -3513,13 +3513,13 @@ async def dashboard(username: str = Depends(verify_admin)):
 <div class="container">
     <div class="sidebar">
         <div class="nav-logo">N</div>
-        <div class="nav-item active" data-view="dashboard" title="Dashboard">📊</div>
-        <div class="nav-item" data-view="prospects" title="Prospection">🎯</div>
-        <div class="nav-item" data-view="clients" title="Clients">🏢</div>
-        <div class="nav-item" data-view="newclient" title="Nouveau client">➕</div>
-        <div class="nav-item" data-view="rdlog" title="Journal R&D">🔬</div>
-        <div class="nav-item" data-view="generateur" title="Générateur d'emails" style="font-size:1rem;">📧</div>
-        <div class="nav-item" data-view="api" title="API">🔗</div>
+        <div class="nav-item active" data-view="dashboard" title="Dashboard" onclick="showView('dashboard')">📊</div>
+        <div class="nav-item" data-view="prospects" title="Prospection" onclick="showView('prospects')">🎯</div>
+        <div class="nav-item" data-view="clients" title="Clients" onclick="showView('clients')">🏢</div>
+        <div class="nav-item" data-view="newclient" title="Nouveau client" onclick="showView('newclient')">➕</div>
+        <div class="nav-item" data-view="rdlog" title="Journal R&D" onclick="showView('rdlog')">🔬</div>
+        <div class="nav-item" data-view="generateur" title="Générateur d'emails" onclick="showView('generateur')" style="font-size:1rem;">📧</div>
+        <div class="nav-item" data-view="api" title="API" onclick="showView('api')">🔗</div>
     </div>
     <div class="main-content">
         <div class="header">
@@ -3721,15 +3721,17 @@ async def dashboard(username: str = Depends(verify_admin)):
     </div>
 </div>
 <script>
-document.querySelectorAll('.nav-item[data-view]').forEach(n=>{{n.addEventListener('click',()=>{{
+function showView(v){{
     document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
     document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
-    n.classList.add('active');const vEl=document.getElementById(n.dataset.view);if(vEl)vEl.classList.add('active');
-    if(n.dataset.view==='clients')loadClients();
-    if(n.dataset.view==='rdlog')loadRdLog();
-    if(n.dataset.view==='prospects')loadProspects();
-    if(n.dataset.view==='generateur')initGenerateur();
-}});}});
+    const ni=document.querySelector('.nav-item[data-view="'+v+'"]');
+    if(ni)ni.classList.add('active');
+    const vEl=document.getElementById(v);
+    if(vEl)vEl.classList.add('active');
+    if(v==='clients')loadClients();
+    if(v==='rdlog')loadRdLog();
+    if(v==='prospects')loadProspects();
+}}
 
 async function loadPlatformStats(){{
     try{{const r=await fetch('/api/v1/platform/stats');const d=await r.json();
