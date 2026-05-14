@@ -51,6 +51,7 @@ from twilio.request_validator import RequestValidator
 import requests as http_requests
 import asyncio
 import re
+import urllib.parse as _urlparse
 import smtplib
 import math
 import tempfile
@@ -3438,6 +3439,203 @@ async def list_leads(username: str = Depends(verify_admin)):
     return [dict(r) for r in rows]
 
 # ============================================================
+# PME DISCOVERY — Scraping + IA prospecting engine
+# ============================================================
+
+def _ddg_search_sync(query: str, max_results: int = 15) -> list:
+    try:
+        from bs4 import BeautifulSoup
+        url = "https://html.duckduckgo.com/html/?q=" + _urlparse.quote(query) + "&kl=ca-fr"
+        headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"}
+        r = http_requests.get(url, headers=headers, timeout=12)
+        soup = BeautifulSoup(r.text, "html.parser")
+        results = []
+        for item in soup.select(".result")[:max_results * 2]:
+            title_el = item.select_one(".result__title a")
+            snip_el = item.select_one(".result__snippet")
+            if not title_el:
+                continue
+            href = title_el.get("href", "")
+            if "uddg=" in href:
+                href = _urlparse.unquote(href.split("uddg=")[-1].split("&")[0])
+            if not href.startswith("http"):
+                continue
+            results.append({
+                "title": title_el.get_text(strip=True),
+                "url": href,
+                "snippet": snip_el.get_text(strip=True) if snip_el else ""
+            })
+            if len(results) >= max_results:
+                break
+        return results
+    except Exception as e:
+        logging.error(f"DDG search error: {e}")
+        return []
+
+
+def _scrape_business_website(url: str) -> dict:
+    if not url or not url.startswith("http"):
+        return {"email": "", "email_quality": "none", "text": "", "phone": ""}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+        "Accept-Language": "fr-CA,fr;q=0.9"
+    }
+
+    def _extract_emails(html_text):
+        found = re.findall(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", html_text)
+        bad = ["example", "sentry", "noreply", "no-reply", "jquery", "schema.org",
+               "test.", "wp-", "wordpress", "plugin", "woocommerce", "example.com", ".png", ".jpg"]
+        return [e for e in found if not any(b in e.lower() for b in bad)]
+
+    try:
+        from bs4 import BeautifulSoup
+        r = http_requests.get(url, headers=headers, timeout=8, allow_redirects=True)
+        html = r.text
+        soup = BeautifulSoup(html, "html.parser")
+        for tag in soup(["script", "style", "nav", "footer"]):
+            tag.decompose()
+        text = re.sub(r"\s+", " ", soup.get_text(separator=" ", strip=True)).strip()[:3000]
+        emails = _extract_emails(html)
+        email = emails[0] if emails else ""
+        eq = "site" if email else "none"
+        if not email:
+            base = url.rstrip("/")
+            for path in ["/contact", "/nous-joindre", "/contactez-nous", "/coordonnees", "/about"]:
+                try:
+                    cr = http_requests.get(base + path, headers=headers, timeout=5)
+                    ce = _extract_emails(cr.text)
+                    if ce:
+                        email = ce[0]
+                        eq = "contact-page"
+                        break
+                except Exception:
+                    pass
+        phones = re.findall(r"(?:\+?1[\s\-]?)?\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}", text)
+        return {"email": email, "email_quality": eq, "text": text[:2500], "phone": phones[0].strip() if phones else ""}
+    except Exception as e:
+        return {"email": "", "email_quality": "error", "text": "", "phone": "", "error": str(e)}
+
+
+async def _generate_prospect_emails_claude(biz: dict) -> dict:
+    if not claude_client:
+        return {}
+    name = biz.get("name", "")
+    city = biz.get("city", "")
+    industry = biz.get("industry", "")
+    site_text = biz.get("site_text", "")[:2000]
+    website = biz.get("website", "")
+    prompt = f"""Tu es un expert en vente B2B pour Novalis IA, une startup québécoise.
+
+PRODUIT: Agent IA conversationnel pour PME — répond 24/7 par SMS/WhatsApp/web, prend des RDV, répond aux FAQ. Prix: 497$/mois (Starter), 1497$/mois (Pro).
+
+PME CIBLE:
+- Nom: {name}
+- Ville: {city}
+- Secteur: {industry}
+- Site: {website}
+- Contenu du site: {site_text if site_text else "(non disponible)"}
+
+Génère exactement 3 courriels de prospection distincts. Utilise des détails SPÉCIFIQUES du site (services, équipe, valeurs, offres). Chaque email < 150 mots. Signature: Elliot Pelletier, Novalis IA, novalisia.ca
+
+Email 1: Pain point spécifique au secteur
+Email 2: ROI + preuve sociale ("un salon comme le vôtre économise 8h/semaine")
+Email 3: Offre démo 15 min gratuite — appel à l'action direct
+
+Réponds UNIQUEMENT avec ce JSON valide (aucun autre texte):
+{{
+  "email1": {{"subject": "...", "body": "..."}},
+  "email2": {{"subject": "...", "body": "..."}},
+  "email3": {{"subject": "...", "body": "..."}}
+}}"""
+    try:
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None,
+            lambda: claude_client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=1800,
+                messages=[{"role": "user", "content": prompt}]
+            )
+        )
+        raw = response.content[0].text.strip()
+        if "```json" in raw:
+            raw = raw.split("```json")[1].split("```")[0].strip()
+        elif "```" in raw:
+            raw = raw.split("```")[1].split("```")[0].strip()
+        return json.loads(raw)
+    except Exception as e:
+        logging.error(f"Claude email gen error: {e}")
+        return {}
+
+
+_DDG_EXCLUDE = {
+    "yellowpages", "pagesjaunes", "yelp", "facebook", "instagram", "google",
+    "tripadvisor", "foursquare", "canada411", "kijiji", "linkedin", "twitter",
+    "youtube", "wikipedia", "reddit", "amazon", "ebay", "annuaire", "411.ca",
+    "trouve", "hotfrog", "cylex", "chambre"
+}
+
+
+@app.post("/api/admin/discover-prospects")
+async def discover_prospects_endpoint(request: Request, username: str = Depends(verify_admin)):
+    data = await request.json()
+    city = data.get("city", "").strip()
+    industry = data.get("industry", "").strip()
+    max_results = min(int(data.get("max_results", 6)), 10)
+    if not city or not industry:
+        raise HTTPException(400, "city et industry requis")
+
+    query = f"{industry} {city} Quebec"
+    loop = asyncio.get_event_loop()
+    raw = await loop.run_in_executor(None, _ddg_search_sync, query, max_results * 3)
+
+    filtered = []
+    for r in raw:
+        url = r.get("url", "")
+        if any(d in url.lower() for d in _DDG_EXCLUDE):
+            continue
+        filtered.append(r)
+        if len(filtered) >= max_results:
+            break
+
+    # Scrape all websites in parallel
+    scrape_tasks = [loop.run_in_executor(None, _scrape_business_website, b.get("url", "")) for b in filtered]
+    scraped = await asyncio.gather(*scrape_tasks)
+
+    # Build prospect dicts
+    biz_list = []
+    for i, biz in enumerate(filtered):
+        title = biz.get("title", "")
+        name = re.split(r"[|\-–—]", title)[0].strip() if title else biz.get("url", "")
+        sc = scraped[i]
+        biz_list.append({
+            "name": name[:80],
+            "website": biz.get("url", ""),
+            "city": city,
+            "industry": industry,
+            "email": sc.get("email", ""),
+            "email_quality": sc.get("email_quality", "none"),
+            "phone": sc.get("phone", ""),
+            "snippet": biz.get("snippet", ""),
+            "site_text": sc.get("text", ""),
+        })
+
+    # Generate emails in parallel with Claude
+    gen_tasks = [_generate_prospect_emails_claude(b) for b in biz_list]
+    email_results = await asyncio.gather(*gen_tasks)
+
+    prospects = []
+    for i, b in enumerate(biz_list):
+        emails = email_results[i]
+        b["generated_emails"] = emails
+        b["emails_generated"] = bool(emails.get("email1"))
+        del b["site_text"]
+        prospects.append(b)
+
+    return {"prospects": prospects, "city": city, "industry": industry, "count": len(prospects)}
+
+
+# ============================================================
 # DASHBOARD ADMIN (HTML)
 # ============================================================
 @app.get("/admin", response_class=HTMLResponse)
@@ -3522,6 +3720,7 @@ async def dashboard(username: str = Depends(verify_admin)):
         <div class="nav-item" data-view="newclient" title="Nouveau client" onclick="showView('newclient')">➕</div>
         <div class="nav-item" data-view="rdlog" title="Journal R&D" onclick="showView('rdlog')">🔬</div>
         <div class="nav-item" data-view="generateur" title="Générateur d'emails" onclick="showView('generateur')" style="font-size:1rem;">📧</div>
+        <div class="nav-item" data-view="decouverte" title="Découverte PMEs" onclick="showView('decouverte')" style="font-size:1rem;">🔍</div>
         <div class="nav-item" data-view="api" title="API" onclick="showView('api')">🔗</div>
     </div>
     <div class="main-content">
@@ -3697,6 +3896,20 @@ async def dashboard(username: str = Depends(verify_admin)):
                         </div>
                     </div>
                 </div>
+            </div>
+            <!-- DÉCOUVERTE DE PMEs -->
+            <div class="view" id="decouverte">
+                <h2 style="color:#38bdf8;margin-bottom:4px;">🔍 Découverte de PMEs</h2>
+                <p style="color:#64748b;font-size:0.8rem;margin-bottom:20px;">Entrez une ville + type d'entreprise — le moteur trouve les PMEs, analyse leur site web et génère un courriel personnalisé pour chacune automatiquement.</p>
+                <div class="panel">
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+                        <div style="flex:1;min-width:160px;"><label>Ville</label><input id="disc_city" placeholder="ex: Montréal, Laval..." value="Montréal"/></div>
+                        <div style="flex:2;min-width:220px;"><label>Type d'entreprise</label><input id="disc_industry" placeholder="ex: salon de coiffure, dentiste, garage, restaurant..."/></div>
+                        <div><label style="opacity:0;">.</label><button class="btn" onclick="discoverPME()" id="disc_btn" style="white-space:nowrap;">🔍 Chercher les PMEs</button></div>
+                    </div>
+                    <div id="disc_status" style="display:none;margin-top:12px;color:#94a3b8;font-size:0.85rem;padding:12px;background:#0f1f2e;border-radius:8px;line-height:1.6;"></div>
+                </div>
+                <div id="disc_results" style="margin-top:16px;"></div>
             </div>
             <!-- API DOCS -->
             <div class="view" id="api">
@@ -4326,6 +4539,105 @@ async function saveGenProspect(){{
 
 function tick(){{document.getElementById('clock').textContent=new Date().toLocaleTimeString('fr-CA',{{hour:'2-digit',minute:'2-digit'}});}}
 loadPlatformStats();loadLeads();tick();setInterval(loadPlatformStats,30000);setInterval(tick,1000);
+
+// === DÉCOUVERTE DE PMEs ===
+let discProspects=[];
+async function discoverPME(){{
+    const city=document.getElementById('disc_city').value.trim();
+    const industry=document.getElementById('disc_industry').value.trim();
+    if(!city||!industry){{showNotice("Entrez une ville et un type d'entreprise",true);return;}}
+    const btn=document.getElementById('disc_btn');
+    const status=document.getElementById('disc_status');
+    btn.disabled=true;btn.textContent='⏳ Recherche...';
+    status.style.display='block';
+    status.innerHTML='🔍 Recherche de <b>'+industry+'</b> à <b>'+city+'</b>...<br><span style="color:#64748b;font-size:0.78rem;">Analyse des sites web + génération des courriels par IA — 30 à 90 secondes</span>';
+    document.getElementById('disc_results').innerHTML='';
+    try{{
+        const r=await fetch('/api/admin/discover-prospects',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{city,industry,max_results:6}})}});
+        const data=await r.json();
+        discProspects=data.prospects||[];
+        renderDiscResults(discProspects);
+        status.innerHTML='✅ <b>'+discProspects.length+' PMEs trouvées</b> pour "'+industry+'" à '+city+' — courriels générés par IA';
+    }}catch(e){{
+        status.innerHTML='❌ Erreur: '+e.message;
+    }}
+    btn.disabled=false;btn.textContent='🔍 Chercher les PMEs';
+}}
+
+function renderDiscResults(list){{
+    const el=document.getElementById('disc_results');
+    if(!list.length){{el.innerHTML='<div class="panel" style="color:#64748b;text-align:center;padding:28px;">Aucun résultat — essayez un autre secteur ou une autre ville.</div>';return;}}
+    el.innerHTML=list.map((p,i)=>{{
+        const eq=p.email_quality;
+        const badge=eq==='site'||eq==='contact-page'
+            ?'<span style="background:rgba(52,211,153,0.15);color:#34d399;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-left:6px;">✅ Email trouvé</span>'
+            :'<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-left:6px;">⚠️ Email manquant</span>';
+        const emailRow=p.email
+            ?'<div style="color:#38bdf8;font-size:0.82rem;margin-top:4px;">'+p.email+badge+'</div>'
+            :'<div style="margin-top:4px;">'+badge+'</div>';
+        const e1=p.generated_emails&&p.generated_emails.email1?p.generated_emails.email1:null;
+        const preview=e1
+            ?'<div style="margin-top:10px;background:#0f1f2e;border-radius:8px;padding:10px;font-size:0.8rem;"><div style="color:#fbbf24;margin-bottom:4px;">📧 '+e1.subject+'</div><div style="color:#94a3b8;">'+(e1.body||'').substring(0,140)+'...</div></div>'
+            :`<div style="margin-top:8px;color:#64748b;font-size:0.78rem;">Génération d'email échouée — cliquez sur "Voir emails" pour réessayer.</div>`;
+        const saveBtn=p.email
+            ?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#16a34a;" onclick="saveDiscProspect('+i+')">💾 Sauvegarder</button>'
+            :'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#334155;color:#94a3b8;" onclick="addDiscEmail('+i+')">✏️ Ajouter email</button>';
+        return '<div class="panel" style="margin-bottom:12px;">'
+            +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">'
+            +'<div style="flex:1;min-width:200px;">'
+            +'<div style="font-weight:600;color:#e2e8f0;font-size:1rem;">'+p.name+'</div>'
+            +'<div style="color:#64748b;font-size:0.78rem;margin-top:2px;">'+p.city+' · '+p.industry+'</div>'
+            +emailRow
+            +(p.phone?'<div style="color:#94a3b8;font-size:0.78rem;margin-top:2px;">📞 '+p.phone+'</div>':'')
+            +'<div style="margin-top:4px;"><a href="'+p.website+'" target="_blank" style="color:#38bdf8;font-size:0.75rem;">'+p.website.replace(/^https?:\/\//,'').substring(0,60)+'</a></div>'
+            +'</div>'
+            +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;">'
+            +(p.emails_generated?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#0ea5e9;" onclick="openDiscEmail('+i+')">📨 Voir emails</button>':'')
+            +saveBtn
+            +'</div>'
+            +'</div>'
+            +preview
+            +'</div>';
+    }}).join('');
+}}
+
+let discEmailIdx=-1,discEmailTab=1;
+function openDiscEmail(i){{
+    discEmailIdx=i;discEmailTab=1;
+    document.getElementById('discEmailModal').style.display='flex';
+    renderDiscEmailModal();
+}}
+function renderDiscEmailModal(){{
+    if(discEmailIdx<0)return;
+    const p=discProspects[discEmailIdx];
+    const e=(p.generated_emails||{{}})['email'+discEmailTab]||{{}};
+    document.getElementById('disc_em_name').textContent=p.name;
+    document.getElementById('disc_em_subj').value=e.subject||'';
+    document.getElementById('disc_em_body').value=e.body||'';
+    [1,2,3].forEach(n=>{{
+        const t=document.getElementById('disc_tab_'+n);
+        if(t)t.style.background=n===discEmailTab?'#0ea5e9':'#1e3a5f';
+    }});
+}}
+function switchDiscTab(n){{discEmailTab=n;renderDiscEmailModal();}}
+function copyDiscEmail(){{
+    const s=document.getElementById('disc_em_subj').value;
+    const b=document.getElementById('disc_em_body').value;
+    navigator.clipboard.writeText('Objet: '+s+'\\n\\n'+b);
+    showNotice('📋 Email copié !',false);
+}}
+function addDiscEmail(i){{
+    const email=prompt('Entrez le courriel de '+discProspects[i].name+' :');
+    if(email&&email.includes('@')){{discProspects[i].email=email;discProspects[i].email_quality='manual';renderDiscResults(discProspects);}}
+}}
+async function saveDiscProspect(i){{
+    const p=discProspects[i];
+    if(!p.email){{showNotice('Aucun email — cliquez ✏️ pour en ajouter un',true);return;}}
+    const body={{name:p.name.split(' ')[0]||p.name,business_name:p.name,email:p.email,phone:p.phone||'',coworking:p.city,industry:p.industry,notes:'Via Découverte IA — '+p.website}};
+    const r=await fetch('/api/v1/prospects',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});
+    if(r.ok){{showNotice('✅ '+p.name+' sauvegardé dans Prospection !',false);if(discEmailIdx===i)document.getElementById('discEmailModal').style.display='none';}}
+    else showNotice('❌ Déjà existant ou erreur',true);
+}}
 </script>
 
 <!-- ADD PROSPECT MODAL -->
@@ -4413,6 +4725,30 @@ loadPlatformStats();loadLeads();tick();setInterval(loadPlatformStats,30000);setI
             <button class="btn" style="background:#334155;color:#94a3b8;" onclick="closeEditModal()">Annuler</button>
         </div>
         <div id="em_result" style="margin-top:10px;font-size:0.9rem;"></div>
+    </div>
+</div>
+
+<!-- DISCOVERY EMAIL MODAL -->
+<div id="discEmailModal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.82);align-items:center;justify-content:center;padding:24px;">
+    <div style="background:#1a2332;border:1px solid #1e3a5f;border-radius:16px;padding:28px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="color:#38bdf8;margin:0;">📨 Emails — <span id="disc_em_name"></span></h3>
+            <button onclick="document.getElementById('discEmailModal').style.display='none'" style="background:transparent;border:none;color:#94a3b8;font-size:2rem;cursor:pointer;line-height:1;">×</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <button id="disc_tab_1" onclick="switchDiscTab(1)" style="background:#0ea5e9;border:none;color:white;padding:6px 18px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;">Email 1</button>
+            <button id="disc_tab_2" onclick="switchDiscTab(2)" style="background:#1e3a5f;border:none;color:#94a3b8;padding:6px 18px;border-radius:8px;cursor:pointer;font-size:0.85rem;">Email 2</button>
+            <button id="disc_tab_3" onclick="switchDiscTab(3)" style="background:#1e3a5f;border:none;color:#94a3b8;padding:6px 18px;border-radius:8px;cursor:pointer;font-size:0.85rem;">Email 3</button>
+        </div>
+        <label>Objet</label>
+        <input id="disc_em_subj" style="margin-bottom:12px;"/>
+        <label>Corps du courriel</label>
+        <textarea id="disc_em_body" rows="12" style="margin-bottom:16px;font-family:inherit;font-size:0.85rem;line-height:1.6;white-space:pre-wrap;"></textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn" onclick="copyDiscEmail()">📋 Copier</button>
+            <button class="btn" style="background:#16a34a;" onclick="saveDiscProspect(discEmailIdx)">💾 Sauvegarder PME</button>
+            <button class="btn" style="background:#334155;color:#94a3b8;" onclick="document.getElementById('discEmailModal').style.display='none'">Fermer</button>
+        </div>
     </div>
 </div>
 </body>
