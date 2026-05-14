@@ -63,7 +63,7 @@ export default function VoiceDemo() {
   return (
     <section id="voice-demo" className="relative py-24 overflow-hidden">
       <div className="absolute inset-0 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse 60% 40% at 50% 50%, rgba(168,104,68,0.06) 0%, transparent 70%)'
+        background: 'radial-gradient(ellipse 60% 40% at 50% 50%, rgba(40,96,232,0.06) 0%, transparent 70%)'
       }} />
 
       <div className="max-w-3xl mx-auto px-6 text-center">

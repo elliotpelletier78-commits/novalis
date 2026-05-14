@@ -148,7 +148,7 @@ export default function AICapabilities() {
                 {cap.tag && (
                   <span
                     className="inline-block px-2 py-0.5 text-[0.55rem] tracking-widest uppercase mb-4 self-start"
-                    style={{ background: 'rgba(168,104,68,0.15)', color: 'var(--copper)', border: '0.5px solid rgba(168,104,68,0.3)' }}
+                    style={{ background: 'rgba(40,96,232,0.15)', color: 'var(--copper)', border: '0.5px solid rgba(40,96,232,0.3)' }}
                   >
                     {cap.tag}
                   </span>
@@ -156,7 +156,7 @@ export default function AICapabilities() {
 
                 <div
                   className="w-8 h-8 flex items-center justify-center mb-5 group-hover:bg-copper/10 transition-colors duration-300"
-                  style={{ border: '0.5px solid rgba(168,104,68,0.3)', color: 'var(--copper)' }}
+                  style={{ border: '0.5px solid rgba(40,96,232,0.3)', color: 'var(--copper)' }}
                 >
                   <Icon size={14} />
                 </div>

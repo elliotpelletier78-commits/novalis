@@ -87,7 +87,7 @@ export default function Cursor() {
           width: '32px',
           height: '32px',
           borderRadius: '50%',
-          border: '0.5px solid rgba(168,104,68,0.6)',
+          border: '0.5px solid rgba(40,96,232,0.6)',
           pointerEvents: 'none',
           zIndex: 99998,
           transform: 'translate(-50%,-50%) scale(1)',

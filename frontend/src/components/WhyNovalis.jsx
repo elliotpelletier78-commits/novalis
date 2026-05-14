@@ -74,7 +74,7 @@ export default function WhyNovalis() {
             <div className="grid grid-cols-3 px-8 py-5" style={{ borderBottom: '0.5px solid rgba(237,232,223,0.08)' }}>
               <div />
               <div className="text-center">
-                <div className="inline-flex items-center gap-2 px-3 py-1" style={{ background: 'rgba(168,104,68,0.12)', border: '0.5px solid rgba(168,104,68,0.3)' }}>
+                <div className="inline-flex items-center gap-2 px-3 py-1" style={{ background: 'rgba(40,96,232,0.12)', border: '0.5px solid rgba(40,96,232,0.3)' }}>
                   <span className="font-display italic text-base text-pearl">Novalis</span>
                   <span className="text-[0.55rem] tracking-widest uppercase text-copper">IA</span>
                 </div>

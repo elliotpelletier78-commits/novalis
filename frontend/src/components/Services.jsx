@@ -127,7 +127,7 @@ export default function Services() {
 
                 <div
                   className="w-10 h-10 flex items-center justify-center mb-5 transition-colors duration-300"
-                  style={{ border: '0.5px solid rgba(168,104,68,0.3)', color: 'var(--copper)' }}
+                  style={{ border: '0.5px solid rgba(40,96,232,0.3)', color: 'var(--copper)' }}
                 >
                   <Icon size={18} />
                 </div>

@@ -50,7 +50,7 @@ function FAQItem({ faq, index }) {
         <div
           className="shrink-0 w-7 h-7 flex items-center justify-center transition-colors duration-200"
           style={{
-            border: '0.5px solid rgba(168,104,68,0.3)',
+            border: '0.5px solid rgba(40,96,232,0.3)',
             color: open ? 'var(--copper)' : 'var(--dim)',
           }}
         >
