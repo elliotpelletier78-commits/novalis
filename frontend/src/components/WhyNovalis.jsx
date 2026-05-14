@@ -71,7 +71,7 @@ export default function WhyNovalis() {
             />
 
             {/* Header row */}
-            <div className="grid grid-cols-3 px-8 py-5" style={{ borderBottom: '0.5px solid rgba(237,232,223,0.08)' }}>
+            <div className="grid grid-cols-3 px-8 py-5" style={{ borderBottom: '0.5px solid rgba(11,26,46,0.08)' }}>
               <div />
               <div className="text-center">
                 <div className="inline-flex items-center gap-2 px-3 py-1" style={{ background: 'rgba(40,96,232,0.12)', border: '0.5px solid rgba(40,96,232,0.3)' }}>
@@ -88,8 +88,8 @@ export default function WhyNovalis() {
             {rows.map((row, i) => (
               <div
                 key={row.feature}
-                className="grid grid-cols-3 px-8 py-4 items-center transition-colors duration-200 hover:bg-white/[0.02]"
-                style={{ borderBottom: i < rows.length - 1 ? '0.5px solid rgba(237,232,223,0.05)' : undefined }}
+                className="grid grid-cols-3 px-8 py-4 items-center transition-colors duration-200 hover:bg-black/[0.02]"
+                style={{ borderBottom: i < rows.length - 1 ? '0.5px solid rgba(11,26,46,0.06)' : undefined }}
               >
                 <span className="text-xs tracking-wide text-dim font-sans">{row.feature}</span>
                 <div className="flex justify-center">

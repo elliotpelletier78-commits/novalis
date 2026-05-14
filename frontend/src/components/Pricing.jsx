@@ -147,7 +147,7 @@ export default function Pricing() {
                 {/* Price */}
                 <div
                   className="mb-8 pb-8"
-                  style={{ borderBottom: '0.5px solid rgba(237,232,223,0.08)' }}
+                  style={{ borderBottom: '0.5px solid rgba(11,26,46,0.08)' }}
                 >
                   {plan.price ? (
                     <div className="flex items-end gap-2">

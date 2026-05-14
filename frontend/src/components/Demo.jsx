@@ -93,7 +93,7 @@ export default function Demo() {
                 {/* Header */}
                 <div
                   className="flex items-center gap-3 px-6 py-4"
-                  style={{ borderBottom: '0.5px solid rgba(237,232,223,0.08)' }}
+                  style={{ borderBottom: '0.5px solid rgba(11,26,46,0.08)' }}
                 >
                   <div
                     className="w-8 h-8 flex items-center justify-center"
@@ -170,7 +170,7 @@ export default function Demo() {
                 {/* Input */}
                 <div
                   className="px-6 py-4"
-                  style={{ borderTop: '0.5px solid rgba(237,232,223,0.08)' }}
+                  style={{ borderTop: '0.5px solid rgba(11,26,46,0.08)' }}
                 >
                   <form
                     className="flex gap-3"

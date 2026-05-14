@@ -106,7 +106,7 @@ export default function Cases() {
 
                 <div
                   className="mt-auto pt-6"
-                  style={{ borderTop: '0.5px solid rgba(237,232,223,0.06)' }}
+                  style={{ borderTop: '0.5px solid rgba(11,26,46,0.06)' }}
                 >
                   <div className="text-[0.6rem] tracking-widest uppercase text-dim mb-3">Résultats attendus</div>
                   <ul className="space-y-2">

@@ -7,7 +7,7 @@ export default function Footer() {
   return (
     <footer
       className="relative pt-20 pb-10 overflow-hidden"
-      style={{ borderTop: '0.5px solid rgba(237,232,223,0.08)' }}
+      style={{ borderTop: '0.5px solid rgba(11,26,46,0.08)' }}
     >
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid lg:grid-cols-12 gap-12 mb-16">
@@ -111,7 +111,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div
           className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8"
-          style={{ borderTop: '0.5px solid rgba(237,232,223,0.06)' }}
+          style={{ borderTop: '0.5px solid rgba(11,26,46,0.06)' }}
         >
           <p className="text-[0.65rem] text-dim tracking-wide">
             © {year} Novalis IA inc. · Tous droits réservés · Québec, Canada

@@ -115,7 +115,7 @@ export default function ExitIntent() {
                     onChange={(e) => setName(e.target.value)}
                     required
                     className="w-full bg-transparent text-pearl text-sm px-4 py-3 outline-none"
-                    style={{ border: '0.5px solid rgba(237,232,223,0.15)' }}
+                    style={{ border: '0.5px solid rgba(255,255,255,0.18)' }}
                   />
                   <input
                     type="email"
@@ -124,7 +124,7 @@ export default function ExitIntent() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     className="w-full bg-transparent text-pearl text-sm px-4 py-3 outline-none"
-                    style={{ border: '0.5px solid rgba(237,232,223,0.15)' }}
+                    style={{ border: '0.5px solid rgba(255,255,255,0.18)' }}
                   />
                   <button
                     type="submit"

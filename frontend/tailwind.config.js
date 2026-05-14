@@ -4,13 +4,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        obsidian: '#06111E',
-        pearl:    '#E8EFF8',
+        obsidian: '#F4F7FC',
+        pearl:    '#0B1A2E',
         copper:   '#2860E8',
-        slate:    '#0D1B2E',
-        dim:      '#7A97B5',
-        'copper-light': '#5B84F5',
-        'slate-light':  '#132333',
+        slate:    '#FFFFFF',
+        dim:      '#4E6880',
+        'copper-light': '#1A4BD4',
+        'slate-light':  '#E8F0FC',
       },
       fontFamily: {
         display: ['"Cormorant Garamond"', 'Georgia', 'serif'],
