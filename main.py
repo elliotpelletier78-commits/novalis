@@ -129,7 +129,7 @@ logger = logging.getLogger("novalis")
 # Version
 VERSION = "6.1"
 
-_ADMIN_JS_RAW = """\
+_ADMIN_JS_RAW = r"""
 window.addEventListener('error',function(e){{
     var n=document.getElementById('admin-notice');
     if(n){{n.textContent='⚠️ JS Error: '+e.message+' — ligne '+e.lineno;n.style.display='block';n.style.borderColor='#ef4444';n.style.color='#ef4444';}}
@@ -5222,7 +5222,7 @@ async def dashboard(username: str = Depends(verify_admin)):
 @app.get("/admin.js")
 async def admin_js_endpoint():
     """Serve admin panel JavaScript as external file (bypasses CSP inline script restrictions)."""
-    js = _ADMIN_JS_RAW.replace('{{', '{').replace('}}', '}').replace('{VERSION}', VERSION)
+    js = _ADMIN_JS_RAW.lstrip('\n').replace('{{', '{').replace('}}', '}').replace('{VERSION}', VERSION)
     from fastapi.responses import Response as FastAPIResponse
     return FastAPIResponse(content=js, media_type="application/javascript", headers={
         "Cache-Control": "no-cache, no-store, must-revalidate",
