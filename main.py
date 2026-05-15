@@ -129,6 +129,9 @@ logger = logging.getLogger("novalis")
 # Version
 VERSION = "6.1"
 
+# In-memory state for background refresh job
+_refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
+
 _ADMIN_JS_RAW = r"""
 window.addEventListener('error',function(e){{
     var n=document.getElementById('admin-notice');
@@ -760,26 +763,59 @@ async function loadSuggestions(){{
         if(stats)stats.textContent='Erreur: '+e.message;
     }}
 }}
+let _refreshPollTimer=null;
 async function refreshSuggestions(){{
     const btn=document.getElementById('sugg_refresh_btn');
-    const loading=document.getElementById('sugg_loading');
     const stats=document.getElementById('sugg_stats');
-    if(btn){{btn.disabled=true;btn.textContent='⏳ Recherche...';}}
-    if(loading)loading.style.display='block';
+    if(btn){{btn.disabled=true;btn.textContent='⏳ Démarrage...';}}
     try{{
         const r=await fetch('/api/admin/suggestions/refresh',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:'{{}}'}});
         const data=await r.json();
-        discProspects=data.suggestions||[];
-        const counts=data.counts||{{}};
-        const n=counts.new||0;const c=counts.contacted||0;const d=counts.dismissed||0;
-        if(stats)stats.innerHTML='<b>'+n+'</b> en attente &nbsp;·&nbsp; <b>'+c+'</b> contactés &nbsp;·&nbsp; <b>'+d+'</b> ignorés';
-        renderSuggestions(discProspects,counts);
-        showNotice('✅ '+(data.saved||0)+' nouvelles PMEs ajoutées !',false);
+        if(data.already_running){{
+            if(stats)stats.textContent='⏳ Recherche déjà en cours...';
+            _pollRefreshStatus();return;
+        }}
+        if(!data.started){{showNotice('❌ Impossible de démarrer',true);if(btn){{btn.disabled=false;btn.textContent='🔄 Refresh — nouvelles PMEs';}}return;}}
+        if(stats)stats.textContent='🔍 Recherche PMEs au Québec... (0 trouvées)';
+        _pollRefreshStatus();
     }}catch(e){{
-        showNotice('❌ Erreur: '+e.message,true);
+        showNotice('❌ Erreur réseau: '+e.message,true);
+        if(btn){{btn.disabled=false;btn.textContent='🔄 Refresh — nouvelles PMEs';}}
     }}
-    if(loading)loading.style.display='none';
-    if(btn){{btn.disabled=false;btn.textContent='🔄 Refresh — nouvelles PMEs';}}
+}}
+function _pollRefreshStatus(){{
+    if(_refreshPollTimer)clearInterval(_refreshPollTimer);
+    let dots=0;
+    _refreshPollTimer=setInterval(async()=>{{
+        const stats=document.getElementById('sugg_stats');
+        const btn=document.getElementById('sugg_refresh_btn');
+        try{{
+            const r=await fetch('/api/admin/suggestions/refresh/status');
+            const d=await r.json();
+            dots=(dots+1)%4;
+            const dot='.'.repeat(dots+1);
+            if(!d.done){{
+                if(stats)stats.textContent='🔍 Analyse en cours'+dot+' ('+d.saved+' trouvées)';
+                return;
+            }}
+            clearInterval(_refreshPollTimer);_refreshPollTimer=null;
+            if(d.error){{showNotice('❌ Erreur: '+d.error,true);}}
+            else{{
+                discProspects=d.suggestions||[];
+                const counts=d.counts||{{}};
+                const n=counts.new||0;const c=counts.contacted||0;const dism=counts.dismissed||0;
+                const withEmail=(d.suggestions||[]).filter(s=>s.email).length;
+                if(stats)stats.innerHTML='<b>'+n+'</b> en attente &nbsp;·&nbsp; <b style="color:#34d399;">'+withEmail+'</b> avec email &nbsp;·&nbsp; <b>'+c+'</b> contactés &nbsp;·&nbsp; <b>'+dism+'</b> ignorés';
+                renderSuggestions(discProspects,counts);
+                showNotice('✅ '+(d.saved||0)+' nouvelles PMEs ajoutées !',false);
+            }}
+            if(btn){{btn.disabled=false;btn.textContent='🔄 Refresh — nouvelles PMEs';}}
+        }}catch(e){{
+            clearInterval(_refreshPollTimer);_refreshPollTimer=null;
+            showNotice('❌ Erreur polling: '+e.message,true);
+            if(btn){{btn.disabled=false;btn.textContent='🔄 Refresh — nouvelles PMEs';}}
+        }}
+    }},2500);
 }}
 async function suggestionAction(id,action,i){{
     const card=document.getElementById('sugg_card_'+i);
@@ -4278,7 +4314,7 @@ def _ddg_search_sync(query: str, max_results: int = 15) -> list:
         from bs4 import BeautifulSoup
         url = "https://html.duckduckgo.com/html/?q=" + _urlparse.quote(query) + "&kl=ca-fr"
         headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"}
-        r = http_requests.get(url, headers=headers, timeout=12)
+        r = http_requests.get(url, headers=headers, timeout=8)
         soup = BeautifulSoup(r.text, "html.parser")
         results = []
         for item in soup.select(".result")[:max_results * 2]:
@@ -4358,7 +4394,7 @@ def _scrape_business_website(url: str) -> dict:
 
     try:
         from bs4 import BeautifulSoup
-        r = http_requests.get(url, headers=headers, timeout=8, allow_redirects=True)
+        r = http_requests.get(url, headers=headers, timeout=5, allow_redirects=True)
         html = r.text
         soup = BeautifulSoup(html, "html.parser")
         for tag in soup(["script", "style", "nav", "footer"]):
@@ -4371,7 +4407,7 @@ def _scrape_business_website(url: str) -> dict:
             base = url.rstrip("/")
             for path in ["/contact", "/nous-joindre", "/contactez-nous", "/coordonnees", "/about"]:
                 try:
-                    cr = http_requests.get(base + path, headers=headers, timeout=5)
+                    cr = http_requests.get(base + path, headers=headers, timeout=3)
                     ce = _extract_emails(cr.text)
                     if ce:
                         email = ce[0]
@@ -4617,21 +4653,31 @@ async def _auto_discover_batch(max_new: int = 10) -> int:
         targets = list(_DISCOVERY_TARGETS)
     city, industry = _random.choice(targets)
     search_key = f"{city}|{industry}"
-    query = f"{industry} {city} Quebec"
     loop = asyncio.get_event_loop()
-    # Fetch more candidates than needed so we can filter low-need ones
-    raw = await loop.run_in_executor(None, _ddg_search_sync, query, max_new * 4)
     filtered = []
-    for r in raw:
-        url = r.get("url", "")
-        if any(d in url.lower() for d in _DDG_EXCLUDE):
-            continue
-        if url in known_sites:
-            continue
-        filtered.append(r)
-        if len(filtered) >= max_new * 2:  # fetch 2x, Claude will filter
+    # Try primary query then fallback queries to guarantee results
+    queries = [
+        f"{industry} {city} Quebec",
+        f"{industry} {city} site:.ca",
+        f"PME {industry} {city}",
+    ]
+    for query in queries:
+        raw = await loop.run_in_executor(None, _ddg_search_sync, query, max_new * 4)
+        for r in raw:
+            url = r.get("url", "")
+            if any(d in url.lower() for d in _DDG_EXCLUDE):
+                continue
+            if url in known_sites:
+                continue
+            if any(r2.get("url") == url for r2 in filtered):
+                continue
+            filtered.append(r)
+            if len(filtered) >= max_new * 2:
+                break
+        if filtered:
             break
     if not filtered:
+        logging.warning(f"_auto_discover_batch: 0 résultats pour {city} / {industry}")
         return 0
     names = []
     for biz in filtered:
@@ -4726,12 +4772,46 @@ async def suggestions_action_endpoint(request: Request, username: str = Depends(
     return {"ok": True, "id": suggestion_id, "status": action}
 
 
+async def _run_refresh_job():
+    """Background task: discover PMEs and update _refresh_job status."""
+    global _refresh_job
+    try:
+        saved = 0
+        # Try up to 3 different city/industry combos to guarantee ≥ 8 saves
+        for attempt in range(3):
+            if saved >= 8:
+                break
+            batch_saved = await _auto_discover_batch(max_new=8)
+            saved += batch_saved
+            _refresh_job["saved"] = saved
+        _refresh_job["done"] = True
+        _refresh_job["error"] = ""
+    except Exception as e:
+        _refresh_job["error"] = str(e)
+        _refresh_job["done"] = True
+    finally:
+        _refresh_job["running"] = False
+
+
 @app.post("/api/admin/suggestions/refresh")
 async def refresh_suggestions_endpoint(request: Request, username: str = Depends(verify_admin)):
-    saved = await _auto_discover_batch(max_new=15)
-    suggestions = await _get_suggestions_from_db(limit=15)
-    counts = await _suggestions_count_by_status()
-    return {"saved": saved, "suggestions": suggestions, "counts": counts}
+    """Start background refresh — returns immediately so Railway doesn't timeout."""
+    global _refresh_job
+    if _refresh_job["running"]:
+        return {"started": False, "already_running": True}
+    _refresh_job = {"running": True, "saved": 0, "done": False, "error": "", "started_at": datetime.now().isoformat()}
+    asyncio.create_task(_run_refresh_job())
+    return {"started": True}
+
+
+@app.get("/api/admin/suggestions/refresh/status")
+async def refresh_status_endpoint(username: str = Depends(verify_admin)):
+    """Poll this endpoint to check if a background refresh is done."""
+    status = dict(_refresh_job)
+    if status["done"]:
+        status["suggestions"] = await _get_suggestions_from_db(limit=15)
+        status["counts"] = await _suggestions_count_by_status()
+    return status
 
 
 @app.post("/api/admin/discover-prospects")
