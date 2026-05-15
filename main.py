@@ -127,7 +127,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "6.0"
+VERSION = "6.1"
 
 # Landing page HTML — lu depuis le fichier source pour éviter la duplication
 def _load_landing_html() -> str:
@@ -4296,6 +4296,11 @@ async def dashboard(username: str = Depends(verify_admin)):
     </div>
 </div>
 <script>
+window.addEventListener('error',function(e){{
+    var n=document.getElementById('admin-notice');
+    if(n){{n.textContent='⚠️ JS Error: '+e.message+' — ligne '+e.lineno;n.style.display='block';n.style.borderColor='#ef4444';n.style.color='#ef4444';}}
+}});
+document.getElementById('clock').textContent='v{VERSION}';
 function showView(v){{
     document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
     document.querySelectorAll('.view').forEach(x=>{{x.style.display='none';}});
