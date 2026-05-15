@@ -4298,11 +4298,11 @@ async def dashboard(username: str = Depends(verify_admin)):
 <script>
 function showView(v){{
     document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
-    document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(x=>{{x.style.display='none';}});
     const ni=document.querySelector('.nav-item[data-view="'+v+'"]');
     if(ni)ni.classList.add('active');
     const vEl=document.getElementById(v);
-    if(vEl)vEl.classList.add('active');
+    if(vEl)vEl.style.display='block';
     if(v==='clients')loadClients();
     if(v==='rdlog')loadRdLog();
     if(v==='prospects')loadProspects();
@@ -4898,6 +4898,9 @@ async function saveGenProspect(){{
 }}
 
 function tick(){{document.getElementById('clock').textContent=new Date().toLocaleTimeString('fr-CA',{{hour:'2-digit',minute:'2-digit'}});}}
+// Init: hide all views, show only dashboard
+document.querySelectorAll('.view').forEach(x=>{{x.style.display='none';}});
+const _dv=document.getElementById('dashboard');if(_dv)_dv.style.display='block';
 loadPlatformStats();loadLeads();tick();setInterval(loadPlatformStats,30000);setInterval(tick,1000);
 
 // === DÉCOUVERTE AUTOMATIQUE DE PMEs ===
