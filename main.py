@@ -4003,7 +4003,7 @@ async def send_prospect_email_endpoint(request: Request, username: str = Depends
 @app.get("/admin", response_class=HTMLResponse)
 async def dashboard(username: str = Depends(verify_admin)):
     """Admin dashboard — plateforme Novalis V3."""
-    return f"""<!DOCTYPE html>
+    html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -5202,6 +5202,11 @@ async function saveDiscProspect(i){{
 </div>
 </body>
 </html>"""
+    return HTMLResponse(content=html, headers={
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    })
 
 # ============================================================
 # KNOWLEDGE BASE — Base de connaissances par client
