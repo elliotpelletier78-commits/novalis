@@ -4022,7 +4022,7 @@ async def dashboard(username: str = Depends(verify_admin)):
         .header h1{{color:#38bdf8;font-size:1.3rem;}}
         .content{{flex:1;overflow-y:auto;padding:24px;}}
         .nav-logo{{width:44px;height:44px;background:linear-gradient(135deg,#38bdf8,#34d399);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;color:#0a0e17;font-size:1.1rem;margin-bottom:12px;}}
-        .nav-item{{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;color:#64748b;font-size:1.2rem;}}
+        .nav-item{{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;color:#64748b;font-size:1.2rem;background:transparent;border:none;outline:none;padding:0;font-family:inherit;}}
         .nav-item:hover{{background:rgba(56,189,248,0.1);color:#38bdf8;}}
         .nav-item.active{{background:rgba(56,189,248,0.2);color:#38bdf8;}}
         .view{{display:none;}}.view.active{{display:block;}}
@@ -4076,14 +4076,14 @@ async def dashboard(username: str = Depends(verify_admin)):
 <div class="container">
     <div class="sidebar">
         <div class="nav-logo">N</div>
-        <div class="nav-item active" data-view="dashboard" title="Dashboard" onclick="showView('dashboard')">📊</div>
-        <div class="nav-item" data-view="prospects" title="Prospection" onclick="showView('prospects')">🎯</div>
-        <div class="nav-item" data-view="clients" title="Clients" onclick="showView('clients')">🏢</div>
-        <div class="nav-item" data-view="newclient" title="Nouveau client" onclick="showView('newclient')">➕</div>
-        <div class="nav-item" data-view="rdlog" title="Journal R&D" onclick="showView('rdlog')">🔬</div>
-        <div class="nav-item" data-view="generateur" title="Générateur d'emails" onclick="showView('generateur')" style="font-size:1rem;">📧</div>
-        <div class="nav-item" data-view="decouverte" title="Découverte PMEs" onclick="showView('decouverte')" style="font-size:1rem;">🔍</div>
-        <div class="nav-item" data-view="api" title="API" onclick="showView('api')">🔗</div>
+        <button type="button" class="nav-item active" data-view="dashboard" title="Dashboard" onclick="showView('dashboard')">📊</button>
+        <button type="button" class="nav-item" data-view="prospects" title="Prospection" onclick="showView('prospects')">🎯</button>
+        <button type="button" class="nav-item" data-view="clients" title="Clients" onclick="showView('clients')">🏢</button>
+        <button type="button" class="nav-item" data-view="newclient" title="Nouveau client" onclick="showView('newclient')">➕</button>
+        <button type="button" class="nav-item" data-view="rdlog" title="Journal R&D" onclick="showView('rdlog')">🔬</button>
+        <button type="button" class="nav-item" data-view="generateur" title="Générateur d'emails" onclick="showView('generateur')" style="font-size:1rem;">📧</button>
+        <button type="button" class="nav-item" data-view="decouverte" title="Découverte PMEs" onclick="showView('decouverte')" style="font-size:1rem;">🔍</button>
+        <button type="button" class="nav-item" data-view="api" title="API" onclick="showView('api')">🔗</button>
     </div>
     <div class="main-content">
         <div class="header">
