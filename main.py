@@ -129,6 +129,806 @@ logger = logging.getLogger("novalis")
 # Version
 VERSION = "6.1"
 
+_ADMIN_JS_RAW = """\
+window.addEventListener('error',function(e){{
+    var n=document.getElementById('admin-notice');
+    if(n){{n.textContent='⚠️ JS Error: '+e.message+' — ligne '+e.lineno;n.style.display='block';n.style.borderColor='#ef4444';n.style.color='#ef4444';}}
+}});
+document.getElementById('clock').textContent='v{VERSION}';
+function showView(v){{
+    document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(x=>{{x.style.display='none';}});
+    const ni=document.querySelector('.nav-item[data-view="'+v+'"]');
+    if(ni)ni.classList.add('active');
+    const vEl=document.getElementById(v);
+    if(vEl)vEl.style.display='block';
+    if(v==='clients')loadClients();
+    if(v==='rdlog')loadRdLog();
+    if(v==='prospects')loadProspects();
+    if(v==='decouverte')loadSuggestions();
+}}
+
+async function loadPlatformStats(){{
+    try{{const r=await fetch('/api/v1/platform/stats');const d=await r.json();
+    document.getElementById('pClients').textContent=d.active_clients;
+    document.getElementById('pConvs').textContent=d.total_conversations;
+    document.getElementById('pMsgs').textContent=d.total_messages;
+    document.getElementById('pAppts').textContent=d.total_appointments;
+    document.getElementById('pToday').textContent=d.today_interactions;
+    document.getElementById('pMrr').textContent=d.mrr;
+    const nl=d.new_leads||0;
+    const el=document.getElementById('pLeads');
+    el.textContent=nl;
+    if(nl>0){{el.classList.add('has-leads');}}else{{el.classList.remove('has-leads');}}
+    }}catch(e){{}}
+}}
+
+function timeAgo(iso){{
+    const diff=Date.now()-new Date(iso).getTime();
+    const m=Math.floor(diff/60000);
+    if(m<60)return m+'min';
+    const h=Math.floor(m/60);
+    if(h<24)return h+'h';
+    return Math.floor(h/24)+'j';
+}}
+
+async function loadLeads(){{
+    try{{
+        const r=await fetch('/api/v1/leads');
+        const d=await r.json();
+        const l=document.getElementById('leadsList');
+        if(!d.length){{
+            l.innerHTML='<div class="no-leads">✅ Aucun nouveau lead — tout a été traité</div>';
+            return;
+        }}
+        l.innerHTML=d.map(c=>{{
+            const phone=c.owner_phone||'';
+            const waNum=phone.replace(/[^0-9]/g,'');
+            const waMsg=encodeURIComponent("Bonjour "+c.owner_name+", je contacte de la part de l’équipe Novalis IA. Vous avez rempli notre formulaire sur novalisia.ca. Êtes-vous disponible pour un appel de 15 minutes ?");
+            const svc=c.service_type||'non précisé';
+            const msg=(c.message||'').slice(0,180);
+            const ago=timeAgo(c.created_at);
+            return `<div class="lead-card">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                    <div>
+                        <div class="lead-name">${{c.business_name}}</div>
+                        <div class="lead-meta">${{c.owner_name}} · ${{c.owner_email}}${{phone?' · '+phone:''}}</div>
+                        <div style="margin-top:4px;"><span class="badge" style="background:rgba(251,146,60,0.12);color:#fb923c;border:0.5px solid rgba(251,146,60,0.3);font-size:0.68rem;">${{svc}}</span></div>
+                    </div>
+                    <div style="color:#475569;font-size:0.72rem;white-space:nowrap;">⏱ ${{ago}}</div>
+                </div>
+                ${{msg?'<div class="lead-msg">'+msg+'</div>':''}}
+                <div class="lead-actions">
+                    <a class="action-btn btn-email" href="mailto:${{c.owner_email}}?subject=Suite à votre demande — Novalis IA&body=Bonjour ${{c.owner_name}},%0D%0A%0D%0AMerci de votre intérêt pour Novalis IA...">✉ Email</a>
+                    ${{phone&&waNum?'<a class="action-btn btn-wa" href="https://wa.me/'+waNum+'?text='+waMsg+'" target="_blank">💬 WhatsApp</a>':''}}
+                    ${{phone?'<a class="action-btn btn-call" href="tel:'+phone+'">📞 Appeler</a>':''}}
+                    <button class="action-btn btn-portal" onclick="getPortalLink('${{c.id}}')">🔗 Portail</button>
+                </div>
+            </div>`;
+        }}).join('');
+    }}catch(e){{console.error(e);}}
+}}
+
+const PROSPECT_STATUS_LABELS = {{
+    new:'🆕 Nouveau', email1_sent:'📧 Email 1', email2_sent:'📧 Email 2', email3_sent:'📧 Email 3',
+    replied:'💬 Répondu', meeting:'📅 Réunion', converted:'✅ Converti', not_interested:'❌ Pas intéressé'
+}};
+function _sectorBlocks(p) {{
+    const ind = (p.industry||'').toLowerCase();
+    const biz = p.business_name||p.name;
+    const nom = p.name.split(' ')[0];
+    const cityRef = p.city ? ' à '+p.city : '';
+    if(ind.includes('salon')||ind.includes('spa')) return {{
+        hook1: `Est-ce que vos clientes réservent encore par téléphone chez ${{biz}}${{cityRef}} ?`,
+        body1: `Chaque appel manqué, c'est un rendez-vous perdu — et souvent une cliente qui appelle ailleurs. Notre agent IA décroche à votre place 24h/24, propose les créneaux disponibles et confirme le RDV automatiquement. En bonus, il envoie un rappel la veille pour réduire les no-shows de 40 %.`,
+        hook2: `Suite à mon dernier message — une question rapide pour ${{biz}} :`,
+        body2: `Combien d'appels manquez-vous par semaine quand vous êtes avec une cliente ? Même 2 ou 3 appels manqués par jour, c'est 400 à 600 $/semaine en rendez-vous perdus.\n\nNotre agent vocal IA règle exactement ce problème — il décroche chaque appel, prend le RDV et envoie un rappel automatique. Aucune ligne supplémentaire, aucun changement de numéro.`,
+        hook3: `Dernier message de ma part — Novalis IA`,
+        body3: `Je ne veux pas être intrusif. Si les appels manqués et la gestion des RDV ne sont pas un enjeu prioritaire pour ${{biz}} en ce moment, je comprends.\n\nSi jamais la situation change, l'essai gratuit de 7 jours reste ouvert sur novalisia.ca — on peut configurer votre agent en 48h.`
+    }};
+    if(ind.includes('garage')||ind.includes('auto')||ind.includes('mécanique')||ind.includes('mecanique')) return {{
+        hook1: `${{biz}}${{cityRef}} — avez-vous le temps de répondre à chaque appel pendant les interventions ?`,
+        body1: `Techniciens sous les voitures, service en cours, téléphone qui sonne : les appels pour "est-ce que mon véhicule est prêt ?", "quel est le prix pour...", "avez-vous de la disponibilité ?" — personne pour répondre.\n\nNotre agent IA décroche chaque appel, confirme l'état des véhicules, répond aux questions courantes et prend les rendez-vous. Votre équipe reste concentrée sur les vrais travaux — et aucun client ne reste sans réponse.`,
+        hook2: `Re: Appels entrants — ${{biz}}`,
+        body2: `Suite à mon dernier message — une précision :\n\nNotre agent vocal apprend les spécificités de votre garage (délais typiques, prix moyens, spécialisations) et répond dans votre ton. Les garages avec qui on travaille rapportent -45 % d'appels sans réponse dès les premières semaines.\n\nDisponible pour une démo de 15 minutes ?`,
+        hook3: `Dernier message — Novalis IA`,
+        body3: `C'est mon dernier message. Si l'automatisation des appels entrants n'est pas une priorité pour ${{biz}} en ce moment, je comprends tout à fait.\n\nL'essai gratuit de 7 jours reste disponible sur novalisia.ca si jamais. Bonne continuation.`
+    }};
+    if(ind.includes('restaurant')||ind.includes('traiteur')||ind.includes('café')||ind.includes('cafe')||ind.includes('resto')) return {{
+        hook1: `${{biz}}${{cityRef}} — combien d'appels pour réserver passent dans le vide aux heures de pointe ?`,
+        body1: `Quand le service bat son plein, personne ne peut décrocher. Résultat : des réservations perdues, des questions sur le menu ou les heures sans réponse.\n\nNotre agent IA gère les réservations 24h/24, confirme les disponibilités, répond aux questions fréquentes et envoie des rappels automatiques pour réduire les no-shows. Le tout en français québécois, dans le ton de votre établissement.`,
+        hook2: `Re: Réservations et no-shows — ${{biz}}`,
+        body2: `Suite à mon dernier message — les restaurants avec qui on travaille constatent en moyenne 35 % moins de no-shows grâce aux rappels automatiques.\n\nL'agent prend aussi les réservations de groupe et répond aux questions sur les allergènes, le stationnement, les heures — sans que votre équipe de salle lève le petit doigt.\n\n15 minutes pour voir une démo ?`,
+        hook3: `Dernier message — Novalis IA`,
+        body3: `C'est mon dernier message. Si l'automatisation des réservations n'est pas une priorité pour ${{biz}} en ce moment, c'est parfaitement correct.\n\nnovalisia.ca — essai gratuit 7 jours si jamais. Bonne continuation.`
+    }};
+    if(ind.includes('immob')) return {{
+        hook1: `Combien de leads vous passent entre les doigts chaque semaine chez ${{biz}}${{cityRef}} ?`,
+        body1: `En immobilier, la vitesse de réponse fait la différence. Un lead qui attend plus de 5 minutes a 10x moins de chances de convertir.\n\nNotre agent IA qualifie vos leads entrants en temps réel — acheteur ou vendeur, budget, secteur recherché — et transfère les dossiers chauds à votre équipe avec un résumé complet. Les suivis automatiques s'occupent du reste.`,
+        hook2: `Re: Leads entrants — une donnée pour ${{biz}}`,
+        body2: `74 % des acheteurs immobiliers choisissent le premier courtier qui leur répond. Avec notre agent IA, votre équipe est "disponible" même à 22h un dimanche.\n\nJe peux vous montrer exactement comment ça fonctionnerait pour votre marché${{cityRef}} — 15 minutes suffisent.`,
+        hook3: `Dernier message — Novalis IA`,
+        body3: `C'est mon dernier message. Si l'automatisation des leads n'est pas une priorité pour ${{biz}} en ce moment, je comprends tout à fait.\n\nL'essai gratuit de 7 jours reste ouvert sur novalisia.ca si jamais l'intérêt revient.`
+    }};
+    if(ind.includes('marketing')||ind.includes('design')) return {{
+        hook1: `Vos clients PME ont besoin d'IA — et ${{biz}} pourrait être leur point d'entrée`,
+        body1: `Chez Novalis IA, on développe des agents IA pour PME québécoises (service client, prise de RDV, qualification de prospects).\n\nOn cherche des agences partenaires${{cityRef}} pour offrir nos solutions à leurs clients PME sous forme de service géré — revenu récurrent sans coût de développement de votre côté.\n\nÇa ressemble à quelque chose qui pourrait intéresser ${{biz}} et vos clients ?`,
+        hook2: `Re: Partenariat revendeur — Novalis IA × ${{biz}}`,
+        body2: `Suite à mon dernier message — pour être concret :\n\nLe modèle est simple : vous vendez nos agents IA à vos clients PME à votre propre tarif, on s'occupe de la configuration et du support. Vous gardez la marge, vos clients ont un service IA clé en main.\n\nPlusieurs agences québécoises nous ont rejoints pour ajouter cette corde à leur arc. Ça vous intéresse d'en parler 15 minutes ?`,
+        hook3: `Dernier message — Novalis IA`,
+        body3: `Je ne veux pas insister. Si un partenariat revendeur IA ne cadre pas avec la direction de ${{biz}} en ce moment, c'est parfaitement correct.\n\nSi la situation évolue, on est sur novalisia.ca — bonne continuation !`
+    }};
+    if(ind.includes('clinique')||ind.includes('santé')||ind.includes('sante')||ind.includes('dentaire')||ind.includes('physio')||ind.includes('chiro')||ind.includes('pharmacie')) return {{
+        hook1: `Gérer la prise de RDV${{cityRef}} sans engager de personnel supplémentaire`,
+        body1: `Novalis IA déploie des agents IA spécialisés en prise de rendez-vous pour cliniques privées — conformes à la Loi 25, données hébergées au Canada.\n\nVotre agent répond aux appels 24h/24, propose les créneaux disponibles selon chaque praticien, confirme le RDV et envoie un rappel automatique. Aucun appel manqué, aucune liste d'attente téléphonique.`,
+        hook2: `Re: Prise de RDV automatisée — ${{biz}}`,
+        body2: `Suite à mon dernier message — une précision importante :\n\nNotre agent peut gérer plusieurs praticiens avec des calendriers distincts depuis un seul système. Vos patients n'ont pas à savoir qu'ils parlent à une IA — la voix est naturelle, en français québécois.\n\n15 minutes pour voir une démo de ce que ça donnerait concrètement pour ${{biz}} ?`,
+        hook3: `Dernier message — Novalis IA`,
+        body3: `C'est mon dernier message. Si l'automatisation de la prise de RDV n'est pas une priorité pour ${{biz}} en ce moment, je comprends.\n\nL'essai gratuit 7 jours reste disponible sur novalisia.ca si jamais. Bonne continuation.`
+    }};
+    // Défaut — PME générale
+    return {{
+        hook1: `Vos clients vous appellent encore pour les mêmes questions chez ${{biz}}${{cityRef}} ?`,
+        body1: `Novalis IA aide les PME à automatiser les réponses aux questions récurrentes — heures d'ouverture, disponibilités, statut des dossiers, prix courants.\n\nVotre agent IA répond 24h/24, dans votre ton, sans jamais inventer d'information. Votre équipe se concentre sur les tâches à valeur ajoutée.`,
+        hook2: `Re: Automatisation des réponses clients — ${{biz}}`,
+        body2: `Suite à mon dernier message — une donnée concrète :\n\nNos clients reçoivent en moyenne 40 % de moins d'appels routiniers dans les 30 premiers jours. C'est 3 à 6 heures/semaine récupérées par employé.\n\nJe peux vous montrer comment ça fonctionnerait pour ${{biz}} en 15 minutes. Disponible cette semaine ?`,
+        hook3: `Dernier message — Novalis IA`,
+        body3: `Je ne veux pas être intrusif — c'est mon dernier message.\n\nSi l'automatisation des réponses clients n'est pas une priorité pour ${{biz}} en ce moment, je comprends tout à fait. L'essai gratuit reste ouvert sur novalisia.ca.\n\nBonne continuation.`
+    }};
+}}
+
+const EMAIL_TEMPLATES = {{
+    email1: (p) => {{
+        const s = _sectorBlocks(p);
+        const biz = p.business_name||p.name;
+        return `Objet : ${{s.hook1}}\n\nBonjour ${{p.name.split(' ')[0]}},\n\n${{s.hook1}}\n\n${{s.body1}}\n\nJe propose un essai gratuit de 7 jours — aucune carte de crédit, aucun engagement. On configure tout en 48h.\n\nÇa vous intéresserait qu'on en parle 15 minutes cette semaine ?\n\nÉquipe Novalis\nnovalisia.ca | +1 819 342-2290\n\n---\nPour vous désabonner, répondez "Non merci".`;
+    }},
+    email2: (p) => {{
+        const s = _sectorBlocks(p);
+        return `Objet : ${{s.hook2}}\n\nBonjour ${{p.name.split(' ')[0]}},\n\n${{s.body2}}\n\nÉquipe Novalis\nnovalisia.ca | +1 819 342-2290\n\n---\nPour vous désabonner, répondez "Non merci".`;
+    }},
+    email3: (p) => {{
+        const s = _sectorBlocks(p);
+        return `Objet : ${{s.hook3}}\n\nBonjour ${{p.name.split(' ')[0]}},\n\n${{s.body3}}\n\nÉquipe Novalis\nnovalisia.ca`;
+    }}
+}};
+
+let allProspects = [];
+
+async function loadProspects(){{
+    try{{
+        const r = await fetch('/api/v1/prospects');
+        allProspects = await r.json();
+        renderProspects();
+    }}catch(e){{console.error(e);}}
+}}
+
+function renderProspects(){{
+    const filter = document.getElementById('pFilterStatus')?.value||'';
+    const list = filter ? allProspects.filter(p=>p.status===filter) : allProspects;
+    const l = document.getElementById('prospectList');
+    if(!list.length){{l.innerHTML='<div style="color:#94a3b8;text-align:center;padding:20px;">Aucun prospect'+(filter?' avec ce statut':'')+' — cliquez ➕ pour en ajouter</div>';return;}}
+    // Stats strip
+    const stats={{new:0,email1_sent:0,email2_sent:0,email3_sent:0,replied:0,meeting:0,converted:0,not_interested:0}};
+    allProspects.forEach(p=>{{if(stats[p.status]!==undefined)stats[p.status]++;}});
+    const strip=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+      ${{Object.entries(stats).filter(([,v])=>v>0).map(([k,v])=>`<span class="badge ${{k}}">${{PROSPECT_STATUS_LABELS[k]||k}} ${{v}}</span>`).join('')}}
+    </div>`;
+    l.innerHTML = strip + list.map(p=>`<div class="client-card" style="border-left:3px solid ${{p.status==='converted'?'#34d399':p.status==='replied'||p.status==='meeting'?'#a855f7':'#1e3a5f'}};">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">
+          <div>
+            <div class="client-name">${{p.business_name||p.name}}</div>
+            <div class="client-meta">${{p.name}} · ${{p.email}}${{p.phone?' · '+p.phone:''}}${{p.coworking?' · 🏢 '+p.coworking:''}}${{p.industry?' · '+p.industry:''}}</div>
+            ${{p.notes?'<div style="font-size:0.75rem;color:#64748b;margin-top:4px;font-style:italic;">'+p.notes+'</div>':''}}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+            <span class="badge ${{p.status}}">${{PROSPECT_STATUS_LABELS[p.status]||p.status}}</span>
+            <div style="font-size:0.65rem;color:#475569;">${{p.email1_sent_at?'E1:'+p.email1_sent_at.slice(0,10):''}} ${{p.email2_sent_at?'E2:'+p.email2_sent_at.slice(0,10):''}} ${{p.email3_sent_at?'E3:'+p.email3_sent_at.slice(0,10):''}}</div>
+          </div>
+        </div>
+        <div class="lead-actions" style="margin-top:10px;">
+          ${{p.status==='new'?`<button class="action-btn btn-email" onclick="showEmailTemplate('${{p.id}}',1)">📧 Email 1</button>`:''}}\
+          ${{p.status==='email1_sent'?`<button class="action-btn btn-email" onclick="showEmailTemplate('${{p.id}}',2)">📧 Email 2</button>`:''}}\
+          ${{p.status==='email2_sent'?`<button class="action-btn btn-email" onclick="showEmailTemplate('${{p.id}}',3)">📧 Email 3</button>`:''}}\
+          <select onchange="updateProspectStatus('${{p.id}}',this.value);this.value=''" style="background:#1e3a5f;border:none;color:#94a3b8;padding:4px 8px;border-radius:4px;font-size:0.72rem;cursor:pointer;">
+            <option value="">Changer statut…</option>
+            ${{Object.entries(PROSPECT_STATUS_LABELS).map(([k,v])=>`<option value="${{k}}">${{v}}</option>`).join('')}}
+          </select>
+          <button class="action-btn" style="background:rgba(239,68,68,0.1);color:#ef4444;" onclick="deleteProspect('${{p.id}}')">✕</button>
+        </div>
+    </div>`).join('');
+}}
+
+async function updateProspectStatus(id, status){{
+    if(!status)return;
+    const now = new Date().toISOString();
+    const patch = {{status}};
+    if(status==='email1_sent')patch.email1_sent_at=now;
+    if(status==='email2_sent')patch.email2_sent_at=now;
+    if(status==='email3_sent')patch.email3_sent_at=now;
+    if(status==='replied')patch.replied_at=now;
+    if(status==='converted')patch.converted_at=now;
+    await fetch('/api/v1/prospects/'+id,{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(patch)}});
+    await loadProspects();
+}}
+
+async function deleteProspect(id){{
+    if(!confirm('Supprimer ce prospect ?'))return;
+    await fetch('/api/v1/prospects/'+id,{{method:'DELETE'}});
+    await loadProspects();
+}}
+
+function showEmailTemplate(id, num){{
+    const p = allProspects.find(x=>x.id===id);
+    if(!p)return;
+    const tpl = EMAIL_TEMPLATES['email'+num](p);
+    document.getElementById('emailTplContent').value = tpl;
+    document.getElementById('emailTplModal').style.display='flex';
+    document.getElementById('emailTplTitle').textContent = 'Modèle Email '+num+' — '+( p.business_name||p.name);
+    document.getElementById('emailTplId').value = id;
+    document.getElementById('emailTplNum').value = num;
+}}
+
+function copyEmailTpl(){{
+    const ta = document.getElementById('emailTplContent');
+    ta.select();navigator.clipboard.writeText(ta.value).then(()=>{{
+        const btn=document.getElementById('copyTplBtn');btn.textContent='✅ Copié !';
+        setTimeout(()=>{{btn.textContent='📋 Copier';}},2000);
+    }});
+}}
+
+async function markEmailSent(){{
+    const id=document.getElementById('emailTplId').value;
+    const num=parseInt(document.getElementById('emailTplNum').value);
+    const statusMap={{1:'email1_sent',2:'email2_sent',3:'email3_sent'}};
+    await updateProspectStatus(id, statusMap[num]);
+    document.getElementById('emailTplModal').style.display='none';
+}}
+
+async function sendEmailViaNovalis(){{
+    const id=document.getElementById('emailTplId').value;
+    const num=parseInt(document.getElementById('emailTplNum').value);
+    const body=document.getElementById('emailTplContent').value;
+    const btn=document.getElementById('sendNovalisBtn');
+    btn.textContent='Envoi en cours…';btn.disabled=true;
+    try{{
+        const r=await fetch('/api/v1/prospects/'+id+'/send-email',{{
+            method:'POST',
+            headers:{{'Content-Type':'application/json'}},
+            credentials:'include',
+            body:JSON.stringify({{email_num:num,body}})
+        }});
+        if(r.ok){{
+            btn.textContent='✅ Envoyé !';
+            setTimeout(()=>{{document.getElementById('emailTplModal').style.display='none';loadProspects();}},1500);
+        }}else{{
+            const d=await r.json();
+            btn.textContent='❌ Erreur';
+            showNotice(d.detail||'Erreur SMTP',true);
+            setTimeout(()=>{{btn.textContent='🚀 Envoyer via Novalis';btn.disabled=false;}},2000);
+        }}
+    }}catch(e){{btn.textContent='❌ Erreur réseau';btn.disabled=false;}}
+}}
+
+async function importProspectsCsv(input){{
+    if(!input.files.length)return;
+    const text=await input.files[0].text();
+    const r=await fetch('/api/v1/prospects/import',{{
+        method:'POST',
+        headers:{{'Content-Type':'text/csv'}},
+        credentials:'include',
+        body:text
+    }});
+    if(r.ok){{
+        const d=await r.json();
+        showNotice(`✅ Import réussi — ${{d.added}} ajouté(s), ${{d.skipped}} ignoré(s) (doublons ou manquants)`,false);
+        await loadProspects();
+    }}else{{
+        showNotice('❌ Erreur import CSV',true);
+    }}
+    input.value='';
+}}
+
+async function seedProspects(){{
+    const btn=document.getElementById('seedBtn');
+    btn.disabled=true;btn.textContent='⏳ Chargement…';
+    const r=await fetch('/api/v1/prospects/seed',{{method:'POST',credentials:'include'}});
+    if(r.ok){{
+        const d=await r.json();
+        showNotice('✅ '+d.added+' prospect(s) ajouté(s), '+d.skipped+' déjà existant(s)',false);
+        await loadProspects();
+    }}else{{
+        showNotice('❌ Erreur lors du chargement',true);
+    }}
+    btn.disabled=false;btn.textContent='🌱 Charger prospects initiaux';
+}}
+
+async function sendEmail1ToAll(){{
+    const newProspects = allProspects.filter(p=>p.status==='new');
+    if(!newProspects.length){{showNotice('Aucun prospect avec statut "Nouveau"',true);return;}}
+    const names=newProspects.map(p=>p.business_name||p.name).join(', ');
+    if(!confirm('Envoyer Email 1 a '+newProspects.length+' prospect(s) : '+names))return;
+    const btn=document.getElementById('sendAllBtn');
+    btn.disabled=true;btn.textContent='⏳ Envoi en cours…';
+    let ok=0,fail=0;
+    for(const p of newProspects){{
+        try{{
+            const r=await fetch('/api/v1/prospects/'+p.id+'/send-email',{{
+                method:'POST',
+                headers:{{'Content-Type':'application/json'}},
+                credentials:'include',
+                body:JSON.stringify({{email_num:1}})
+            }});
+            if(r.ok) ok++; else fail++;
+        }}catch(e){{fail++;}}
+        await new Promise(res=>setTimeout(res,800));
+    }}
+    btn.disabled=false;btn.textContent='📤 Email 1 à tous les nouveaux';
+    showNotice('✅ '+ok+' email(s) envoyé(s)'+(fail?' — ❌ '+fail+' échec(s)':''),fail>0);
+    await loadProspects();
+}}
+
+function openAddProspect(){{document.getElementById('addProspectModal').style.display='flex';}}
+function closeAddProspect(){{document.getElementById('addProspectModal').style.display='none';}}
+
+async function saveProspect(){{
+    const data={{
+        name: document.getElementById('ap_name').value.trim(),
+        business_name: document.getElementById('ap_biz').value.trim(),
+        email: document.getElementById('ap_email').value.trim(),
+        phone: document.getElementById('ap_phone').value.trim(),
+        coworking: document.getElementById('ap_cw').value.trim(),
+        industry: document.getElementById('ap_industry').value,
+        notes: document.getElementById('ap_notes').value.trim(),
+    }};
+    if(!data.name||!data.email){{showNotice('Nom et courriel requis',true);return;}}
+    const r=await fetch('/api/v1/prospects',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
+    if(r.ok){{closeAddProspect();['ap_name','ap_biz','ap_email','ap_phone','ap_cw','ap_notes'].forEach(id=>{{document.getElementById(id).value='';}});await loadProspects();}}
+    else showNotice('Erreur — vérifiez les champs',true);
+}}
+
+function showNotice(msg,isErr){{
+    const d=document.getElementById('admin-notice');
+    d.textContent=msg;d.style.display='block';
+    d.style.borderColor=isErr?'#ef4444':'#34d399';d.style.color=isErr?'#ef4444':'#34d399';
+    setTimeout(()=>{{d.style.display='none';}},4000);
+}}
+
+async function loadClients(){{
+    try{{const r=await fetch('/api/v1/clients');const d=await r.json();
+    const l=document.getElementById('clientList');
+    if(!d.length){{l.innerHTML='<div style="color:#94a3b8;text-align:center;padding:20px;">Aucun client</div>';return;}}
+    l.innerHTML=d.map(c=>`<div class="client-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div class="client-name">${{c.business_name}}</div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
+                <span class="badge ${{c.status}}">${{c.status}}</span>
+                <span class="badge ${{c.plan}}">${{c.plan}}</span>
+                <button class="btn btn-sm" onclick="getPortalLink('${{c.id}}')" title="Copier lien portail">🔗 Portail</button>
+                <button class="btn btn-sm" style="background:#1e3a5f;color:#a855f7;" onclick="openEditModal('${{c.id}}')" title="Modifier">✏️</button>
+                <button class="btn btn-sm" style="background:${{c.status==='active'?'rgba(239,68,68,0.12)':'rgba(52,211,153,0.12)'}};color:${{c.status==='active'?'#ef4444':'#34d399'}};" onclick="toggleStatus('${{c.id}}','${{c.status}}')">${{c.status==='active'?'⏸':'▶'}}</button>
+            </div>
+        </div>
+        <div class="client-meta">${{c.owner_name}} · ${{c.owner_email}} · ${{c.twilio_phone||'—'}} · ${{c.messages_used_month}}/${{c.max_messages_month}} msg</div>
+        <div style="font-size:0.7rem;color:#475569;margin-top:3px;">ID: ${{c.id}} · Créé: ${{c.created_at?.slice(0,10)||'—'}}</div>
+    </div>`).join('');
+    }}catch(e){{console.error(e);}}
+}}
+
+async function getPortalLink(id){{
+    try{{
+        const c=await fetch('/api/v1/clients/'+id).then(r=>r.json());
+        const url=window.location.origin+'/portal?t='+c.portal_token;
+        await navigator.clipboard.writeText(url).catch(()=>{{}});
+        const n=document.getElementById('admin-notice');
+        if(n){{n.textContent='✓ Lien copié : '+url;n.style.display='block';setTimeout(()=>n.style.display='none',5000);}}
+    }}catch(e){{console.error('getPortalLink:',e);}}
+}}
+
+async function openEditModal(id){{
+    try{{
+        const c=await fetch('/api/v1/clients/'+id).then(r=>r.json());
+        document.getElementById('em_id').value=c.id;
+        document.getElementById('em_name').value=c.business_name||'';
+        document.getElementById('em_type').value=c.business_type||'';
+        document.getElementById('em_owner').value=c.owner_name||'';
+        document.getElementById('em_email').value=c.owner_email||'';
+        document.getElementById('em_phone').value=c.owner_phone||'';
+        document.getElementById('em_twilio').value=c.twilio_phone||'';
+        document.getElementById('em_address').value=c.address||'';
+        document.getElementById('em_hours').value=c.hours||'';
+        document.getElementById('em_services').value=c.services||'';
+        document.getElementById('em_info').value=c.info||'';
+        document.getElementById('em_custom_prompt').value=c.custom_prompt||'';
+        document.getElementById('em_fb_page_id').value=c.fb_page_id||'';
+        document.getElementById('em_max_msgs').value=c.max_messages_month||500;
+        document.getElementById('em_plan').value=c.plan||'starter';
+        document.getElementById('em_apikey').textContent=c.api_key||'';
+        document.getElementById('em_result').textContent='';
+        document.getElementById('editModalOverlay').style.display='flex';
+    }}catch(e){{console.error('openEditModal:',e);}}
+}}
+
+function closeEditModal(){{document.getElementById('editModalOverlay').style.display='none';}}
+
+async function saveClientEdit(){{
+    const id=document.getElementById('em_id').value;
+    const data={{
+        business_name:document.getElementById('em_name').value,
+        business_type:document.getElementById('em_type').value,
+        owner_name:document.getElementById('em_owner').value,
+        owner_email:document.getElementById('em_email').value,
+        owner_phone:document.getElementById('em_phone').value,
+        twilio_phone:document.getElementById('em_twilio').value,
+        address:document.getElementById('em_address').value,
+        hours:document.getElementById('em_hours').value,
+        services:document.getElementById('em_services').value,
+        info:document.getElementById('em_info').value,
+        custom_prompt:document.getElementById('em_custom_prompt').value,
+        fb_page_id:document.getElementById('em_fb_page_id').value,
+        max_messages_month:parseInt(document.getElementById('em_max_msgs').value)||500,
+        plan:document.getElementById('em_plan').value,
+    }};
+    try{{
+        const r=await fetch('/api/v1/clients/'+id,{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
+        if(r.ok){{
+            document.getElementById('em_result').innerHTML='<span style="color:#34d399;">✓ Sauvegardé !</span>';
+            setTimeout(()=>{{closeEditModal();loadClients();}},1200);
+        }}else{{
+            const e=await r.json();
+            document.getElementById('em_result').textContent='❌ '+(e.detail||'Erreur');
+        }}
+    }}catch(e){{document.getElementById('em_result').textContent='❌ Erreur réseau';}}
+}}
+
+async function toggleStatus(id,status){{
+    const newStatus=status==='active'?'inactive':'active';
+    if(!confirm((newStatus==='inactive'?'Désactiver':'Réactiver')+' ce client ?'))return;
+    await fetch('/api/v1/clients/'+id,{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{status:newStatus}})}}).catch(()=>{{}});
+    loadClients();
+}}
+
+async function createClient(){{
+    const data={{
+        business_name:document.getElementById('nc_name').value,
+        business_type:document.getElementById('nc_type').value,
+        owner_name:document.getElementById('nc_owner').value,
+        owner_email:document.getElementById('nc_email').value,
+        owner_phone:document.getElementById('nc_phone').value,
+        twilio_phone:document.getElementById('nc_twilio').value,
+        address:document.getElementById('nc_address').value,
+        hours:document.getElementById('nc_hours').value,
+        services:document.getElementById('nc_services').value,
+        info:document.getElementById('nc_info').value,
+        plan:document.getElementById('nc_plan').value,
+        fb_page_id:document.getElementById('nc_fb_page_id').value,
+        fb_page_token:document.getElementById('nc_fb_token').value,
+        custom_prompt:document.getElementById('nc_custom_prompt').value,
+        max_messages_month:parseInt(document.getElementById('nc_max_msgs').value)||500,
+    }};
+    try{{const r=await fetch('/api/v1/clients',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
+    const d=await r.json();
+    document.getElementById('nc_result').innerHTML=`✅ Client créé!<br/>API Key: <code style="color:#fbbf24;">${{d.api_key}}</code><br/>Conservez cette clé précieusement.`;
+    }}catch(e){{document.getElementById('nc_result').textContent='❌ Erreur: '+e;}}
+}}
+
+async function addRdEntry(){{
+    const data={{
+        category:document.getElementById('rd_cat').value,
+        title:document.getElementById('rd_title').value,
+        description:document.getElementById('rd_desc').value,
+        hours:parseFloat(document.getElementById('rd_hours').value),
+        technical_details:document.getElementById('rd_tech').value,
+        results:document.getElementById('rd_results').value,
+    }};
+    try{{await fetch('/api/v1/rd/log',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
+    document.getElementById('rd_title').value='';document.getElementById('rd_desc').value='';
+    document.getElementById('rd_tech').value='';document.getElementById('rd_results').value='';
+    loadRdLog();
+    }}catch(e){{}}
+}}
+
+async function loadRdLog(){{
+    try{{const r=await fetch('/api/v1/rd/log');const d=await r.json();
+    const el=document.getElementById('rdEntries');
+    if(!d.entries.length){{el.innerHTML='<div style="color:#94a3b8;">Aucune entrée</div>';return;}}
+    el.innerHTML=`<div style="color:#34d399;margin-bottom:12px;">${{d.summary}}</div>`+
+    d.entries.slice(0,20).map(e=>`<div style="background:#0f1f2e;padding:12px;border-radius:8px;margin-bottom:8px;border-left:3px solid #38bdf8;">
+        <div style="display:flex;justify-content:space-between;"><strong style="color:#38bdf8;">${{e.title}}</strong><span style="color:#94a3b8;font-size:0.8rem;">${{e.date}} · ${{e.hours}}h · ${{e.category}}</span></div>
+        <div style="color:#cbd5e1;font-size:0.85rem;margin-top:4px;">${{e.description}}</div>
+    </div>`).join('');
+    }}catch(e){{}}
+}}
+
+function exportRd(){{window.location.href='/api/v1/rd/export?format=csv';}}
+
+// ── GÉNÉRATEUR D'EMAILS ──
+let genEmails = {{1:'',2:'',3:''}};
+let genCurrentTab = 1;
+
+function initGenerateur(){{}}
+
+function selectCity(city){{
+    document.getElementById('gen_city').value = city;
+    document.querySelectorAll('.city-btn').forEach(b=>{{
+        const active = b.dataset.city === city;
+        b.style.background = active ? 'rgba(56,189,248,0.25)' : 'rgba(56,189,248,0.08)';
+        b.style.color = active ? '#38bdf8' : '#64748b';
+        b.style.borderColor = active ? '#38bdf8' : '#1e3a5f';
+    }});
+}}
+
+function clearCityBtns(){{
+    document.querySelectorAll('.city-btn').forEach(b=>{{
+        b.style.background='rgba(56,189,248,0.08)';
+        b.style.color='#64748b';
+        b.style.borderColor='#1e3a5f';
+    }});
+}}
+
+function generateEmails(){{
+    const city = document.getElementById('gen_city').value.trim();
+    const industry = document.getElementById('gen_industry').value;
+    const biz = document.getElementById('gen_biz').value.trim();
+    const contactName = document.getElementById('gen_name').value.trim();
+    const email = document.getElementById('gen_email_addr').value.trim();
+    const phone = document.getElementById('gen_phone').value.trim();
+    const notes = document.getElementById('gen_notes').value.trim();
+    if(!biz){{showNotice("Nom de l'entreprise requis",true);return;}}
+    const p = {{
+        name: contactName || ('Équipe '+biz),
+        business_name: biz,
+        email, phone, industry,
+        coworking: city,
+        city,
+        notes,
+    }};
+    genEmails[1] = EMAIL_TEMPLATES.email1(p);
+    genEmails[2] = EMAIL_TEMPLATES.email2(p);
+    genEmails[3] = EMAIL_TEMPLATES.email3(p);
+    document.getElementById('gen_preview').style.display = 'block';
+    document.getElementById('gen_saved_notice').style.display = 'none';
+    showGenTab(1);
+    setTimeout(()=>document.getElementById('gen_preview').scrollIntoView({{behavior:'smooth',block:'start'}}),50);
+}}
+
+function showGenTab(n){{
+    genCurrentTab = n;
+    document.getElementById('gen_email_content').value = genEmails[n];
+    [1,2,3].forEach(i=>{{
+        const btn = document.getElementById('tab_e'+i);
+        btn.style.background = i===n ? 'rgba(56,189,248,0.2)' : '#1e3a5f';
+        btn.style.color = i===n ? '#38bdf8' : '#64748b';
+    }});
+}}
+
+function copyGenEmail(){{
+    const ta = document.getElementById('gen_email_content');
+    ta.select();
+    navigator.clipboard.writeText(ta.value).then(()=>{{
+        showNotice('📋 Email '+genCurrentTab+' copié !',false);
+    }}).catch(()=>{{
+        document.execCommand('copy');
+        showNotice('📋 Email '+genCurrentTab+' copié !',false);
+    }});
+}}
+
+async function saveGenProspect(){{
+    const name = document.getElementById('gen_name').value.trim();
+    const biz = document.getElementById('gen_biz').value.trim();
+    const email = document.getElementById('gen_email_addr').value.trim();
+    if(!email){{showNotice('Courriel requis pour enregistrer',true);return;}}
+    const data = {{
+        name: name || ('Équipe '+biz),
+        business_name: biz,
+        email,
+        phone: document.getElementById('gen_phone').value.trim(),
+        coworking: document.getElementById('gen_city').value.trim(),
+        industry: document.getElementById('gen_industry').value,
+        notes: document.getElementById('gen_notes').value.trim(),
+    }};
+    const r = await fetch('/api/v1/prospects',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
+    if(r.ok){{
+        document.getElementById('gen_saved_notice').style.display='inline';
+        showNotice('✅ Prospect enregistré dans Prospection !',false);
+    }} else {{
+        showNotice('❌ Erreur — courriel déjà existant ?',true);
+    }}
+}}
+
+function tick(){{document.getElementById('clock').textContent=new Date().toLocaleTimeString('fr-CA',{{hour:'2-digit',minute:'2-digit'}});}}
+// Init: hide all views, show only dashboard
+document.querySelectorAll('.view').forEach(x=>{{x.style.display='none';}});
+const _dv=document.getElementById('dashboard');if(_dv)_dv.style.display='block';
+loadPlatformStats();loadLeads();tick();setInterval(loadPlatformStats,30000);setInterval(tick,1000);
+
+// === DÉCOUVERTE AUTOMATIQUE DE PMEs ===
+let discProspects=[];
+async function loadSuggestions(){{
+    const stats=document.getElementById('sugg_stats');
+    if(stats)stats.textContent='Chargement...';
+    try{{
+        const r=await fetch('/api/admin/suggestions');
+        const data=await r.json();
+        discProspects=data.suggestions||[];
+        const counts=data.counts||{{}};
+        const n=counts.new||0;const c=counts.contacted||0;const d=counts.dismissed||0;
+        if(stats)stats.innerHTML='<b>'+n+'</b> en attente &nbsp;·&nbsp; <b>'+c+'</b> contactés &nbsp;·&nbsp; <b>'+d+'</b> ignorés';
+        renderSuggestions(discProspects,counts);
+    }}catch(e){{
+        if(stats)stats.textContent='Erreur: '+e.message;
+    }}
+}}
+async function refreshSuggestions(){{
+    const btn=document.getElementById('sugg_refresh_btn');
+    const loading=document.getElementById('sugg_loading');
+    const stats=document.getElementById('sugg_stats');
+    if(btn){{btn.disabled=true;btn.textContent='⏳ Recherche...';}}
+    if(loading)loading.style.display='block';
+    try{{
+        const r=await fetch('/api/admin/suggestions/refresh',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:'{{}}'}});
+        const data=await r.json();
+        discProspects=data.suggestions||[];
+        const counts=data.counts||{{}};
+        const n=counts.new||0;const c=counts.contacted||0;const d=counts.dismissed||0;
+        if(stats)stats.innerHTML='<b>'+n+'</b> en attente &nbsp;·&nbsp; <b>'+c+'</b> contactés &nbsp;·&nbsp; <b>'+d+'</b> ignorés';
+        renderSuggestions(discProspects,counts);
+        showNotice('✅ '+(data.saved||0)+' nouvelles PMEs ajoutées !',false);
+    }}catch(e){{
+        showNotice('❌ Erreur: '+e.message,true);
+    }}
+    if(loading)loading.style.display='none';
+    if(btn){{btn.disabled=false;btn.textContent='🔄 Refresh — nouvelles PMEs';}}
+}}
+async function suggestionAction(id,action,i){{
+    const card=document.getElementById('sugg_card_'+i);
+    if(card){{card.style.opacity='0.4';card.style.pointerEvents='none';}}
+    try{{
+        await fetch('/api/admin/suggestions/action',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{id,action}})}});
+        await loadSuggestions();
+    }}catch(e){{showNotice('❌ Erreur',true);}}
+}}
+function renderSuggestions(list,counts){{
+    const el=document.getElementById('sugg_results');
+    if(!el)return;
+    if(!list||!list.length){{
+        el.innerHTML='<div class="panel" style="color:#94a3b8;text-align:center;padding:32px;"><div style="font-size:2rem;margin-bottom:12px;">✅</div><div style="font-size:1rem;color:#e2e8f0;margin-bottom:8px;">Toutes les suggestions ont été traitées !</div><div style="color:#64748b;font-size:0.85rem;margin-bottom:16px;">Cliquez sur Refresh pour obtenir de nouvelles PMEs à contacter au Québec.</div><button class="btn" onclick="refreshSuggestions()">🔄 Chercher de nouvelles PMEs</button></div>';
+        return;
+    }}
+    el.innerHTML=list.map((p,i)=>{{
+        const eq=p.email_quality;
+        const badge=eq==='site'||eq==='contact-page'
+            ?'<span style="background:rgba(52,211,153,0.15);color:#34d399;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-left:6px;">✅ Email trouvé</span>'
+            :'<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-left:6px;">⚠️ Email manquant</span>';
+        const emailRow=p.email
+            ?'<div style="color:#38bdf8;font-size:0.82rem;margin-top:4px;">'+p.email+badge+'</div>'
+            :'<div style="margin-top:4px;">'+badge+'</div>';
+        const webScore=p.web_score||5;
+        const webBadge=webScore<=2
+            ?'<span style="background:rgba(239,68,68,0.12);color:#f87171;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-left:6px;border:1px solid rgba(239,68,68,0.2);">🖥️ Site à refaire</span>'
+            :(webScore<=3?'<span style="background:rgba(245,158,11,0.1);color:#f59e0b;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-left:6px;">🖥️ Site vieillissant</span>':'');
+        const webIssuePills=(p.web_issues&&p.web_issues.length&&webScore<=3
+            ?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">'+(p.web_issues.map(iss=>'<span style="background:rgba(239,68,68,0.08);color:#f87171;padding:2px 10px;border-radius:10px;font-size:0.7rem;">'+iss+'</span>').join(''))+'</div>'
+            :'');
+        const ratingBadge=p.rating?'<span style="background:rgba(251,191,36,0.15);color:#fbbf24;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-right:6px;">⭐ '+p.rating+(p.review_count?' · '+p.review_count:'')+'</span>':'';
+        const painPills=(p.pain_points&&p.pain_points.length
+            ?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">'+(p.pain_points.map(pp=>'<span style="background:rgba(124,58,237,0.12);color:#a78bfa;padding:2px 10px;border-radius:10px;font-size:0.72rem;border:1px solid rgba(124,58,237,0.2);">⚠ '+pp+'</span>').join(''))+'</div>'
+            :'');
+        const insightsBlock=(p.insights||ratingBadge||painPills||webIssuePills
+            ?'<div style="margin-top:10px;background:#0a0e17;border-radius:8px;padding:10px 12px;border-left:3px solid #7c3aed;">'
+                +(ratingBadge?'<div style="margin-bottom:6px;">'+ratingBadge+'</div>':'')
+                +(p.insights?'<div style="color:#94a3b8;font-size:0.8rem;line-height:1.5;margin-bottom:4px;">💡 '+p.insights+'</div>':'')
+                +painPills+webIssuePills
+            +'</div>'
+            :'');
+        const e1=p.generated_emails&&p.generated_emails.email1?p.generated_emails.email1:null;
+        const preview=e1?'<div style="margin-top:10px;background:#0f1f2e;border-radius:8px;padding:10px;font-size:0.8rem;"><div style="color:#fbbf24;margin-bottom:4px;">📧 '+e1.subject+'</div><div style="color:#94a3b8;">'+(e1.body||'').substring(0,140)+'...</div></div>':'';
+        const sendBtn=p.email&&p.emails_generated?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#7c3aed;" onclick="sendDiscEmail('+i+',1)">📤 Envoyer</button>':'';
+        const refonteBtn=p.email&&p.has_refonte?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#dc2626;" onclick="openDiscRefonte('+i+')">🖥️ Pitch refonte</button>':'';
+        const viewBtn=p.emails_generated?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#0ea5e9;" onclick="openDiscEmail('+i+',1)">📨 Voir emails</button>':'';
+        const addEmailBtn=!p.email?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#334155;color:#94a3b8;" onclick="addDiscEmail('+i+')">✏️ Ajouter email</button>':'';
+        return '<div class="panel" id="sugg_card_'+i+'" style="margin-bottom:12px;">'
+            +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">'
+            +'<div style="flex:1;min-width:200px;">'
+            +'<div style="font-weight:600;color:#e2e8f0;font-size:1rem;">'+p.name+webBadge+'</div>'
+            +'<div style="color:#64748b;font-size:0.78rem;margin-top:2px;">'+p.city+' · '+p.industry+'</div>'
+            +emailRow
+            +(p.phone?'<div style="color:#94a3b8;font-size:0.78rem;margin-top:2px;">📞 '+p.phone+'</div>':'')
+            +'<div style="margin-top:4px;"><a href="'+p.website+'" target="_blank" style="color:#38bdf8;font-size:0.75rem;">'+p.website.replace(/^https?:\/\//,'').substring(0,60)+'</a></div>'
+            +'</div>'
+            +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;">'
+            +viewBtn+refonteBtn+sendBtn+addEmailBtn
+            +'</div>'
+            +'</div>'
+            +insightsBlock+preview
+            +'<div class="sugg-actions" style="margin-top:12px;display:flex;gap:8px;border-top:1px solid #1e3a5f;padding-top:10px;">'
+            +'<button class="btn" style="padding:6px 16px;font-size:0.82rem;background:#16a34a;" onclick="suggestionAction(\''+p.id+'\',\'contacted\','+i+')">✓ Contacté</button>'
+            +'<button class="btn" style="padding:6px 16px;font-size:0.82rem;background:#334155;color:#94a3b8;" onclick="suggestionAction(\''+p.id+'\',\'dismissed\','+i+')">✗ Ignorer</button>'
+            +'<button class="btn" style="padding:6px 16px;font-size:0.82rem;background:#0ea5e9;opacity:0.85;" onclick="saveDiscProspect('+i+')">💾 Sauvegarder</button>'
+            +'</div>'
+            +'</div>';
+    }}).join('');
+}}
+
+let discEmailIdx=-1,discEmailTab=1;
+function openDiscEmail(i,tab){{
+    discEmailIdx=i;discEmailTab=tab||1;
+    document.getElementById('discEmailModal').style.display='flex';
+    renderDiscEmailModal();
+}}
+function renderDiscEmailModal(){{
+    if(discEmailIdx<0)return;
+    const p=discProspects[discEmailIdx];
+    const isRefonte=discEmailTab==='refonte';
+    const e=isRefonte
+        ?(p.generated_emails&&p.generated_emails.email_refonte)||{{}}
+        :(p.generated_emails||{{}})[''+'email'+discEmailTab]||{{}};
+    document.getElementById('disc_em_name').textContent=p.name+(isRefonte?' — Refonte site':'');
+    document.getElementById('disc_em_subj').value=e.subject||'';
+    document.getElementById('disc_em_body').value=e.body||'';
+    [1,2,3].forEach(n=>{{
+        const t=document.getElementById('disc_tab_'+n);
+        if(t)t.style.background=n===discEmailTab?'#0ea5e9':'#1e3a5f';
+    }});
+    const tr=document.getElementById('disc_tab_refonte');
+    if(tr){{
+        tr.style.display=p.has_refonte?'inline-block':'none';
+        tr.style.background=isRefonte?'#dc2626':'#1e3a5f';
+        tr.style.color=isRefonte?'white':'#94a3b8';
+    }}
+    const sb=document.getElementById('disc_send_modal_btn');
+    if(sb){{
+        const key=isRefonte?'refonte':discEmailTab;
+        const sent=p.sent_emails&&p.sent_emails.includes(key);
+        sb.disabled=sent;sb.textContent=sent?'✅ Envoyé':'📤 Envoyer';
+        sb.style.background=sent?'#16a34a':(isRefonte?'#dc2626':'#7c3aed');sb.style.opacity=sent?'0.65':'1';
+    }}
+}}
+function switchDiscTab(n){{discEmailTab=n;renderDiscEmailModal();}}
+function openDiscRefonte(i){{openDiscEmail(i,'refonte');}}
+async function sendDiscEmail(i,emailNum){{
+    const p=discProspects[i];
+    if(!p.email){{showNotice("Ajoutez d'abord le courriel avec ✏️",true);return;}}
+    const isRefonte=emailNum==='refonte';
+    const e=isRefonte
+        ?((p.generated_emails&&p.generated_emails.email_refonte)||{{}})
+        :((p.generated_emails||{{}})[''+'email'+emailNum]||{{}});
+    if(!e.subject||!e.body){{showNotice('Email non disponible',true);return;}}
+    try{{
+        const r=await fetch('/api/admin/send-prospect-email',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{to:p.email,subject:e.subject,body:e.body}})}});
+        const data=await r.json();
+        if(r.ok){{
+            if(!p.sent_emails)p.sent_emails=[];
+            p.sent_emails.push(emailNum);
+            showNotice('✅ Courriel envoyé à '+p.email+' !',false);
+            renderSuggestions(discProspects,{{}});
+            if(discEmailIdx===i)renderDiscEmailModal();
+        }}else{{
+            showNotice('❌ '+(data.detail||'Erreur SMTP — vérifiez SMTP_HOST dans Railway'),true);
+        }}
+    }}catch(ex){{showNotice('❌ Erreur réseau',true);}}
+}}
+async function sendDiscEmailFromModal(){{await sendDiscEmail(discEmailIdx,discEmailTab);}}
+function copyDiscEmail(){{
+    const s=document.getElementById('disc_em_subj').value;
+    const b=document.getElementById('disc_em_body').value;
+    navigator.clipboard.writeText('Objet: '+s+'\\n\\n'+b);
+    showNotice('📋 Email copié !',false);
+}}
+function addDiscEmail(i){{
+    const email=prompt('Entrez le courriel de '+discProspects[i].name+' :');
+    if(email&&email.includes('@')){{discProspects[i].email=email;discProspects[i].email_quality='manual';renderSuggestions(discProspects,{{}});}}
+}}
+async function saveDiscProspect(i){{
+    const p=discProspects[i];
+    if(!p.email){{showNotice('Aucun email — cliquez ✏️ pour en ajouter un',true);return;}}
+    const body={{name:p.name.split(' ')[0]||p.name,business_name:p.name,email:p.email,phone:p.phone||'',coworking:p.city,industry:p.industry,notes:'Via Découverte IA — '+p.website}};
+    const r=await fetch('/api/v1/prospects',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});
+    if(r.ok){{showNotice('✅ '+p.name+' sauvegardé dans Prospection !',false);if(discEmailIdx===i)document.getElementById('discEmailModal').style.display='none';}}
+    else showNotice('❌ Déjà existant ou erreur',true);
+}}
+"""
+
 # Landing page HTML — lu depuis le fichier source pour éviter la duplication
 def _load_landing_html() -> str:
     html_path = os.path.join(os.path.dirname(__file__), "landing.html")
@@ -4295,805 +5095,7 @@ async def dashboard(username: str = Depends(verify_admin)):
         </div>
     </div>
 </div>
-<script>
-window.addEventListener('error',function(e){{
-    var n=document.getElementById('admin-notice');
-    if(n){{n.textContent='⚠️ JS Error: '+e.message+' — ligne '+e.lineno;n.style.display='block';n.style.borderColor='#ef4444';n.style.color='#ef4444';}}
-}});
-document.getElementById('clock').textContent='v{VERSION}';
-function showView(v){{
-    document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
-    document.querySelectorAll('.view').forEach(x=>{{x.style.display='none';}});
-    const ni=document.querySelector('.nav-item[data-view="'+v+'"]');
-    if(ni)ni.classList.add('active');
-    const vEl=document.getElementById(v);
-    if(vEl)vEl.style.display='block';
-    if(v==='clients')loadClients();
-    if(v==='rdlog')loadRdLog();
-    if(v==='prospects')loadProspects();
-    if(v==='decouverte')loadSuggestions();
-}}
-
-async function loadPlatformStats(){{
-    try{{const r=await fetch('/api/v1/platform/stats');const d=await r.json();
-    document.getElementById('pClients').textContent=d.active_clients;
-    document.getElementById('pConvs').textContent=d.total_conversations;
-    document.getElementById('pMsgs').textContent=d.total_messages;
-    document.getElementById('pAppts').textContent=d.total_appointments;
-    document.getElementById('pToday').textContent=d.today_interactions;
-    document.getElementById('pMrr').textContent=d.mrr;
-    const nl=d.new_leads||0;
-    const el=document.getElementById('pLeads');
-    el.textContent=nl;
-    if(nl>0){{el.classList.add('has-leads');}}else{{el.classList.remove('has-leads');}}
-    }}catch(e){{}}
-}}
-
-function timeAgo(iso){{
-    const diff=Date.now()-new Date(iso).getTime();
-    const m=Math.floor(diff/60000);
-    if(m<60)return m+'min';
-    const h=Math.floor(m/60);
-    if(h<24)return h+'h';
-    return Math.floor(h/24)+'j';
-}}
-
-async function loadLeads(){{
-    try{{
-        const r=await fetch('/api/v1/leads');
-        const d=await r.json();
-        const l=document.getElementById('leadsList');
-        if(!d.length){{
-            l.innerHTML='<div class="no-leads">✅ Aucun nouveau lead — tout a été traité</div>';
-            return;
-        }}
-        l.innerHTML=d.map(c=>{{
-            const phone=c.owner_phone||'';
-            const waNum=phone.replace(/[^0-9]/g,'');
-            const waMsg=encodeURIComponent("Bonjour "+c.owner_name+", je contacte de la part de l’équipe Novalis IA. Vous avez rempli notre formulaire sur novalisia.ca. Êtes-vous disponible pour un appel de 15 minutes ?");
-            const svc=c.service_type||'non précisé';
-            const msg=(c.message||'').slice(0,180);
-            const ago=timeAgo(c.created_at);
-            return `<div class="lead-card">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-                    <div>
-                        <div class="lead-name">${{c.business_name}}</div>
-                        <div class="lead-meta">${{c.owner_name}} · ${{c.owner_email}}${{phone?' · '+phone:''}}</div>
-                        <div style="margin-top:4px;"><span class="badge" style="background:rgba(251,146,60,0.12);color:#fb923c;border:0.5px solid rgba(251,146,60,0.3);font-size:0.68rem;">${{svc}}</span></div>
-                    </div>
-                    <div style="color:#475569;font-size:0.72rem;white-space:nowrap;">⏱ ${{ago}}</div>
-                </div>
-                ${{msg?'<div class="lead-msg">'+msg+'</div>':''}}
-                <div class="lead-actions">
-                    <a class="action-btn btn-email" href="mailto:${{c.owner_email}}?subject=Suite à votre demande — Novalis IA&body=Bonjour ${{c.owner_name}},%0D%0A%0D%0AMerci de votre intérêt pour Novalis IA...">✉ Email</a>
-                    ${{phone&&waNum?'<a class="action-btn btn-wa" href="https://wa.me/'+waNum+'?text='+waMsg+'" target="_blank">💬 WhatsApp</a>':''}}
-                    ${{phone?'<a class="action-btn btn-call" href="tel:'+phone+'">📞 Appeler</a>':''}}
-                    <button class="action-btn btn-portal" onclick="getPortalLink('${{c.id}}')">🔗 Portail</button>
-                </div>
-            </div>`;
-        }}).join('');
-    }}catch(e){{console.error(e);}}
-}}
-
-const PROSPECT_STATUS_LABELS = {{
-    new:'🆕 Nouveau', email1_sent:'📧 Email 1', email2_sent:'📧 Email 2', email3_sent:'📧 Email 3',
-    replied:'💬 Répondu', meeting:'📅 Réunion', converted:'✅ Converti', not_interested:'❌ Pas intéressé'
-}};
-function _sectorBlocks(p) {{
-    const ind = (p.industry||'').toLowerCase();
-    const biz = p.business_name||p.name;
-    const nom = p.name.split(' ')[0];
-    const cityRef = p.city ? ' à '+p.city : '';
-    if(ind.includes('salon')||ind.includes('spa')) return {{
-        hook1: `Est-ce que vos clientes réservent encore par téléphone chez ${{biz}}${{cityRef}} ?`,
-        body1: `Chaque appel manqué, c'est un rendez-vous perdu — et souvent une cliente qui appelle ailleurs. Notre agent IA décroche à votre place 24h/24, propose les créneaux disponibles et confirme le RDV automatiquement. En bonus, il envoie un rappel la veille pour réduire les no-shows de 40 %.`,
-        hook2: `Suite à mon dernier message — une question rapide pour ${{biz}} :`,
-        body2: `Combien d'appels manquez-vous par semaine quand vous êtes avec une cliente ? Même 2 ou 3 appels manqués par jour, c'est 400 à 600 $/semaine en rendez-vous perdus.\n\nNotre agent vocal IA règle exactement ce problème — il décroche chaque appel, prend le RDV et envoie un rappel automatique. Aucune ligne supplémentaire, aucun changement de numéro.`,
-        hook3: `Dernier message de ma part — Novalis IA`,
-        body3: `Je ne veux pas être intrusif. Si les appels manqués et la gestion des RDV ne sont pas un enjeu prioritaire pour ${{biz}} en ce moment, je comprends.\n\nSi jamais la situation change, l'essai gratuit de 7 jours reste ouvert sur novalisia.ca — on peut configurer votre agent en 48h.`
-    }};
-    if(ind.includes('garage')||ind.includes('auto')||ind.includes('mécanique')||ind.includes('mecanique')) return {{
-        hook1: `${{biz}}${{cityRef}} — avez-vous le temps de répondre à chaque appel pendant les interventions ?`,
-        body1: `Techniciens sous les voitures, service en cours, téléphone qui sonne : les appels pour "est-ce que mon véhicule est prêt ?", "quel est le prix pour...", "avez-vous de la disponibilité ?" — personne pour répondre.\n\nNotre agent IA décroche chaque appel, confirme l'état des véhicules, répond aux questions courantes et prend les rendez-vous. Votre équipe reste concentrée sur les vrais travaux — et aucun client ne reste sans réponse.`,
-        hook2: `Re: Appels entrants — ${{biz}}`,
-        body2: `Suite à mon dernier message — une précision :\n\nNotre agent vocal apprend les spécificités de votre garage (délais typiques, prix moyens, spécialisations) et répond dans votre ton. Les garages avec qui on travaille rapportent -45 % d'appels sans réponse dès les premières semaines.\n\nDisponible pour une démo de 15 minutes ?`,
-        hook3: `Dernier message — Novalis IA`,
-        body3: `C'est mon dernier message. Si l'automatisation des appels entrants n'est pas une priorité pour ${{biz}} en ce moment, je comprends tout à fait.\n\nL'essai gratuit de 7 jours reste disponible sur novalisia.ca si jamais. Bonne continuation.`
-    }};
-    if(ind.includes('restaurant')||ind.includes('traiteur')||ind.includes('café')||ind.includes('cafe')||ind.includes('resto')) return {{
-        hook1: `${{biz}}${{cityRef}} — combien d'appels pour réserver passent dans le vide aux heures de pointe ?`,
-        body1: `Quand le service bat son plein, personne ne peut décrocher. Résultat : des réservations perdues, des questions sur le menu ou les heures sans réponse.\n\nNotre agent IA gère les réservations 24h/24, confirme les disponibilités, répond aux questions fréquentes et envoie des rappels automatiques pour réduire les no-shows. Le tout en français québécois, dans le ton de votre établissement.`,
-        hook2: `Re: Réservations et no-shows — ${{biz}}`,
-        body2: `Suite à mon dernier message — les restaurants avec qui on travaille constatent en moyenne 35 % moins de no-shows grâce aux rappels automatiques.\n\nL'agent prend aussi les réservations de groupe et répond aux questions sur les allergènes, le stationnement, les heures — sans que votre équipe de salle lève le petit doigt.\n\n15 minutes pour voir une démo ?`,
-        hook3: `Dernier message — Novalis IA`,
-        body3: `C'est mon dernier message. Si l'automatisation des réservations n'est pas une priorité pour ${{biz}} en ce moment, c'est parfaitement correct.\n\nnovalisia.ca — essai gratuit 7 jours si jamais. Bonne continuation.`
-    }};
-    if(ind.includes('immob')) return {{
-        hook1: `Combien de leads vous passent entre les doigts chaque semaine chez ${{biz}}${{cityRef}} ?`,
-        body1: `En immobilier, la vitesse de réponse fait la différence. Un lead qui attend plus de 5 minutes a 10x moins de chances de convertir.\n\nNotre agent IA qualifie vos leads entrants en temps réel — acheteur ou vendeur, budget, secteur recherché — et transfère les dossiers chauds à votre équipe avec un résumé complet. Les suivis automatiques s'occupent du reste.`,
-        hook2: `Re: Leads entrants — une donnée pour ${{biz}}`,
-        body2: `74 % des acheteurs immobiliers choisissent le premier courtier qui leur répond. Avec notre agent IA, votre équipe est "disponible" même à 22h un dimanche.\n\nJe peux vous montrer exactement comment ça fonctionnerait pour votre marché${{cityRef}} — 15 minutes suffisent.`,
-        hook3: `Dernier message — Novalis IA`,
-        body3: `C'est mon dernier message. Si l'automatisation des leads n'est pas une priorité pour ${{biz}} en ce moment, je comprends tout à fait.\n\nL'essai gratuit de 7 jours reste ouvert sur novalisia.ca si jamais l'intérêt revient.`
-    }};
-    if(ind.includes('marketing')||ind.includes('design')) return {{
-        hook1: `Vos clients PME ont besoin d'IA — et ${{biz}} pourrait être leur point d'entrée`,
-        body1: `Chez Novalis IA, on développe des agents IA pour PME québécoises (service client, prise de RDV, qualification de prospects).\n\nOn cherche des agences partenaires${{cityRef}} pour offrir nos solutions à leurs clients PME sous forme de service géré — revenu récurrent sans coût de développement de votre côté.\n\nÇa ressemble à quelque chose qui pourrait intéresser ${{biz}} et vos clients ?`,
-        hook2: `Re: Partenariat revendeur — Novalis IA × ${{biz}}`,
-        body2: `Suite à mon dernier message — pour être concret :\n\nLe modèle est simple : vous vendez nos agents IA à vos clients PME à votre propre tarif, on s'occupe de la configuration et du support. Vous gardez la marge, vos clients ont un service IA clé en main.\n\nPlusieurs agences québécoises nous ont rejoints pour ajouter cette corde à leur arc. Ça vous intéresse d'en parler 15 minutes ?`,
-        hook3: `Dernier message — Novalis IA`,
-        body3: `Je ne veux pas insister. Si un partenariat revendeur IA ne cadre pas avec la direction de ${{biz}} en ce moment, c'est parfaitement correct.\n\nSi la situation évolue, on est sur novalisia.ca — bonne continuation !`
-    }};
-    if(ind.includes('clinique')||ind.includes('santé')||ind.includes('sante')||ind.includes('dentaire')||ind.includes('physio')||ind.includes('chiro')||ind.includes('pharmacie')) return {{
-        hook1: `Gérer la prise de RDV${{cityRef}} sans engager de personnel supplémentaire`,
-        body1: `Novalis IA déploie des agents IA spécialisés en prise de rendez-vous pour cliniques privées — conformes à la Loi 25, données hébergées au Canada.\n\nVotre agent répond aux appels 24h/24, propose les créneaux disponibles selon chaque praticien, confirme le RDV et envoie un rappel automatique. Aucun appel manqué, aucune liste d'attente téléphonique.`,
-        hook2: `Re: Prise de RDV automatisée — ${{biz}}`,
-        body2: `Suite à mon dernier message — une précision importante :\n\nNotre agent peut gérer plusieurs praticiens avec des calendriers distincts depuis un seul système. Vos patients n'ont pas à savoir qu'ils parlent à une IA — la voix est naturelle, en français québécois.\n\n15 minutes pour voir une démo de ce que ça donnerait concrètement pour ${{biz}} ?`,
-        hook3: `Dernier message — Novalis IA`,
-        body3: `C'est mon dernier message. Si l'automatisation de la prise de RDV n'est pas une priorité pour ${{biz}} en ce moment, je comprends.\n\nL'essai gratuit 7 jours reste disponible sur novalisia.ca si jamais. Bonne continuation.`
-    }};
-    // Défaut — PME générale
-    return {{
-        hook1: `Vos clients vous appellent encore pour les mêmes questions chez ${{biz}}${{cityRef}} ?`,
-        body1: `Novalis IA aide les PME à automatiser les réponses aux questions récurrentes — heures d'ouverture, disponibilités, statut des dossiers, prix courants.\n\nVotre agent IA répond 24h/24, dans votre ton, sans jamais inventer d'information. Votre équipe se concentre sur les tâches à valeur ajoutée.`,
-        hook2: `Re: Automatisation des réponses clients — ${{biz}}`,
-        body2: `Suite à mon dernier message — une donnée concrète :\n\nNos clients reçoivent en moyenne 40 % de moins d'appels routiniers dans les 30 premiers jours. C'est 3 à 6 heures/semaine récupérées par employé.\n\nJe peux vous montrer comment ça fonctionnerait pour ${{biz}} en 15 minutes. Disponible cette semaine ?`,
-        hook3: `Dernier message — Novalis IA`,
-        body3: `Je ne veux pas être intrusif — c'est mon dernier message.\n\nSi l'automatisation des réponses clients n'est pas une priorité pour ${{biz}} en ce moment, je comprends tout à fait. L'essai gratuit reste ouvert sur novalisia.ca.\n\nBonne continuation.`
-    }};
-}}
-
-const EMAIL_TEMPLATES = {{
-    email1: (p) => {{
-        const s = _sectorBlocks(p);
-        const biz = p.business_name||p.name;
-        return `Objet : ${{s.hook1}}\n\nBonjour ${{p.name.split(' ')[0]}},\n\n${{s.hook1}}\n\n${{s.body1}}\n\nJe propose un essai gratuit de 7 jours — aucune carte de crédit, aucun engagement. On configure tout en 48h.\n\nÇa vous intéresserait qu'on en parle 15 minutes cette semaine ?\n\nÉquipe Novalis\nnovalisia.ca | +1 819 342-2290\n\n---\nPour vous désabonner, répondez "Non merci".`;
-    }},
-    email2: (p) => {{
-        const s = _sectorBlocks(p);
-        return `Objet : ${{s.hook2}}\n\nBonjour ${{p.name.split(' ')[0]}},\n\n${{s.body2}}\n\nÉquipe Novalis\nnovalisia.ca | +1 819 342-2290\n\n---\nPour vous désabonner, répondez "Non merci".`;
-    }},
-    email3: (p) => {{
-        const s = _sectorBlocks(p);
-        return `Objet : ${{s.hook3}}\n\nBonjour ${{p.name.split(' ')[0]}},\n\n${{s.body3}}\n\nÉquipe Novalis\nnovalisia.ca`;
-    }}
-}};
-
-let allProspects = [];
-
-async function loadProspects(){{
-    try{{
-        const r = await fetch('/api/v1/prospects');
-        allProspects = await r.json();
-        renderProspects();
-    }}catch(e){{console.error(e);}}
-}}
-
-function renderProspects(){{
-    const filter = document.getElementById('pFilterStatus')?.value||'';
-    const list = filter ? allProspects.filter(p=>p.status===filter) : allProspects;
-    const l = document.getElementById('prospectList');
-    if(!list.length){{l.innerHTML='<div style="color:#94a3b8;text-align:center;padding:20px;">Aucun prospect'+(filter?' avec ce statut':'')+' — cliquez ➕ pour en ajouter</div>';return;}}
-    // Stats strip
-    const stats={{new:0,email1_sent:0,email2_sent:0,email3_sent:0,replied:0,meeting:0,converted:0,not_interested:0}};
-    allProspects.forEach(p=>{{if(stats[p.status]!==undefined)stats[p.status]++;}});
-    const strip=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
-      ${{Object.entries(stats).filter(([,v])=>v>0).map(([k,v])=>`<span class="badge ${{k}}">${{PROSPECT_STATUS_LABELS[k]||k}} ${{v}}</span>`).join('')}}
-    </div>`;
-    l.innerHTML = strip + list.map(p=>`<div class="client-card" style="border-left:3px solid ${{p.status==='converted'?'#34d399':p.status==='replied'||p.status==='meeting'?'#a855f7':'#1e3a5f'}};">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">
-          <div>
-            <div class="client-name">${{p.business_name||p.name}}</div>
-            <div class="client-meta">${{p.name}} · ${{p.email}}${{p.phone?' · '+p.phone:''}}${{p.coworking?' · 🏢 '+p.coworking:''}}${{p.industry?' · '+p.industry:''}}</div>
-            ${{p.notes?'<div style="font-size:0.75rem;color:#64748b;margin-top:4px;font-style:italic;">'+p.notes+'</div>':''}}
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-            <span class="badge ${{p.status}}">${{PROSPECT_STATUS_LABELS[p.status]||p.status}}</span>
-            <div style="font-size:0.65rem;color:#475569;">${{p.email1_sent_at?'E1:'+p.email1_sent_at.slice(0,10):''}} ${{p.email2_sent_at?'E2:'+p.email2_sent_at.slice(0,10):''}} ${{p.email3_sent_at?'E3:'+p.email3_sent_at.slice(0,10):''}}</div>
-          </div>
-        </div>
-        <div class="lead-actions" style="margin-top:10px;">
-          ${{p.status==='new'?`<button class="action-btn btn-email" onclick="showEmailTemplate('${{p.id}}',1)">📧 Email 1</button>`:''}}\
-          ${{p.status==='email1_sent'?`<button class="action-btn btn-email" onclick="showEmailTemplate('${{p.id}}',2)">📧 Email 2</button>`:''}}\
-          ${{p.status==='email2_sent'?`<button class="action-btn btn-email" onclick="showEmailTemplate('${{p.id}}',3)">📧 Email 3</button>`:''}}\
-          <select onchange="updateProspectStatus('${{p.id}}',this.value);this.value=''" style="background:#1e3a5f;border:none;color:#94a3b8;padding:4px 8px;border-radius:4px;font-size:0.72rem;cursor:pointer;">
-            <option value="">Changer statut…</option>
-            ${{Object.entries(PROSPECT_STATUS_LABELS).map(([k,v])=>`<option value="${{k}}">${{v}}</option>`).join('')}}
-          </select>
-          <button class="action-btn" style="background:rgba(239,68,68,0.1);color:#ef4444;" onclick="deleteProspect('${{p.id}}')">✕</button>
-        </div>
-    </div>`).join('');
-}}
-
-async function updateProspectStatus(id, status){{
-    if(!status)return;
-    const now = new Date().toISOString();
-    const patch = {{status}};
-    if(status==='email1_sent')patch.email1_sent_at=now;
-    if(status==='email2_sent')patch.email2_sent_at=now;
-    if(status==='email3_sent')patch.email3_sent_at=now;
-    if(status==='replied')patch.replied_at=now;
-    if(status==='converted')patch.converted_at=now;
-    await fetch('/api/v1/prospects/'+id,{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(patch)}});
-    await loadProspects();
-}}
-
-async function deleteProspect(id){{
-    if(!confirm('Supprimer ce prospect ?'))return;
-    await fetch('/api/v1/prospects/'+id,{{method:'DELETE'}});
-    await loadProspects();
-}}
-
-function showEmailTemplate(id, num){{
-    const p = allProspects.find(x=>x.id===id);
-    if(!p)return;
-    const tpl = EMAIL_TEMPLATES['email'+num](p);
-    document.getElementById('emailTplContent').value = tpl;
-    document.getElementById('emailTplModal').style.display='flex';
-    document.getElementById('emailTplTitle').textContent = 'Modèle Email '+num+' — '+( p.business_name||p.name);
-    document.getElementById('emailTplId').value = id;
-    document.getElementById('emailTplNum').value = num;
-}}
-
-function copyEmailTpl(){{
-    const ta = document.getElementById('emailTplContent');
-    ta.select();navigator.clipboard.writeText(ta.value).then(()=>{{
-        const btn=document.getElementById('copyTplBtn');btn.textContent='✅ Copié !';
-        setTimeout(()=>{{btn.textContent='📋 Copier';}},2000);
-    }});
-}}
-
-async function markEmailSent(){{
-    const id=document.getElementById('emailTplId').value;
-    const num=parseInt(document.getElementById('emailTplNum').value);
-    const statusMap={{1:'email1_sent',2:'email2_sent',3:'email3_sent'}};
-    await updateProspectStatus(id, statusMap[num]);
-    document.getElementById('emailTplModal').style.display='none';
-}}
-
-async function sendEmailViaNovalis(){{
-    const id=document.getElementById('emailTplId').value;
-    const num=parseInt(document.getElementById('emailTplNum').value);
-    const body=document.getElementById('emailTplContent').value;
-    const btn=document.getElementById('sendNovalisBtn');
-    btn.textContent='Envoi en cours…';btn.disabled=true;
-    try{{
-        const r=await fetch('/api/v1/prospects/'+id+'/send-email',{{
-            method:'POST',
-            headers:{{'Content-Type':'application/json'}},
-            credentials:'include',
-            body:JSON.stringify({{email_num:num,body}})
-        }});
-        if(r.ok){{
-            btn.textContent='✅ Envoyé !';
-            setTimeout(()=>{{document.getElementById('emailTplModal').style.display='none';loadProspects();}},1500);
-        }}else{{
-            const d=await r.json();
-            btn.textContent='❌ Erreur';
-            showNotice(d.detail||'Erreur SMTP',true);
-            setTimeout(()=>{{btn.textContent='🚀 Envoyer via Novalis';btn.disabled=false;}},2000);
-        }}
-    }}catch(e){{btn.textContent='❌ Erreur réseau';btn.disabled=false;}}
-}}
-
-async function importProspectsCsv(input){{
-    if(!input.files.length)return;
-    const text=await input.files[0].text();
-    const r=await fetch('/api/v1/prospects/import',{{
-        method:'POST',
-        headers:{{'Content-Type':'text/csv'}},
-        credentials:'include',
-        body:text
-    }});
-    if(r.ok){{
-        const d=await r.json();
-        showNotice(`✅ Import réussi — ${{d.added}} ajouté(s), ${{d.skipped}} ignoré(s) (doublons ou manquants)`,false);
-        await loadProspects();
-    }}else{{
-        showNotice('❌ Erreur import CSV',true);
-    }}
-    input.value='';
-}}
-
-async function seedProspects(){{
-    const btn=document.getElementById('seedBtn');
-    btn.disabled=true;btn.textContent='⏳ Chargement…';
-    const r=await fetch('/api/v1/prospects/seed',{{method:'POST',credentials:'include'}});
-    if(r.ok){{
-        const d=await r.json();
-        showNotice('✅ '+d.added+' prospect(s) ajouté(s), '+d.skipped+' déjà existant(s)',false);
-        await loadProspects();
-    }}else{{
-        showNotice('❌ Erreur lors du chargement',true);
-    }}
-    btn.disabled=false;btn.textContent='🌱 Charger prospects initiaux';
-}}
-
-async function sendEmail1ToAll(){{
-    const newProspects = allProspects.filter(p=>p.status==='new');
-    if(!newProspects.length){{showNotice('Aucun prospect avec statut "Nouveau"',true);return;}}
-    const names=newProspects.map(p=>p.business_name||p.name).join(', ');
-    if(!confirm('Envoyer Email 1 a '+newProspects.length+' prospect(s) : '+names))return;
-    const btn=document.getElementById('sendAllBtn');
-    btn.disabled=true;btn.textContent='⏳ Envoi en cours…';
-    let ok=0,fail=0;
-    for(const p of newProspects){{
-        try{{
-            const r=await fetch('/api/v1/prospects/'+p.id+'/send-email',{{
-                method:'POST',
-                headers:{{'Content-Type':'application/json'}},
-                credentials:'include',
-                body:JSON.stringify({{email_num:1}})
-            }});
-            if(r.ok) ok++; else fail++;
-        }}catch(e){{fail++;}}
-        await new Promise(res=>setTimeout(res,800));
-    }}
-    btn.disabled=false;btn.textContent='📤 Email 1 à tous les nouveaux';
-    showNotice('✅ '+ok+' email(s) envoyé(s)'+(fail?' — ❌ '+fail+' échec(s)':''),fail>0);
-    await loadProspects();
-}}
-
-function openAddProspect(){{document.getElementById('addProspectModal').style.display='flex';}}
-function closeAddProspect(){{document.getElementById('addProspectModal').style.display='none';}}
-
-async function saveProspect(){{
-    const data={{
-        name: document.getElementById('ap_name').value.trim(),
-        business_name: document.getElementById('ap_biz').value.trim(),
-        email: document.getElementById('ap_email').value.trim(),
-        phone: document.getElementById('ap_phone').value.trim(),
-        coworking: document.getElementById('ap_cw').value.trim(),
-        industry: document.getElementById('ap_industry').value,
-        notes: document.getElementById('ap_notes').value.trim(),
-    }};
-    if(!data.name||!data.email){{showNotice('Nom et courriel requis',true);return;}}
-    const r=await fetch('/api/v1/prospects',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
-    if(r.ok){{closeAddProspect();['ap_name','ap_biz','ap_email','ap_phone','ap_cw','ap_notes'].forEach(id=>{{document.getElementById(id).value='';}});await loadProspects();}}
-    else showNotice('Erreur — vérifiez les champs',true);
-}}
-
-function showNotice(msg,isErr){{
-    const d=document.getElementById('admin-notice');
-    d.textContent=msg;d.style.display='block';
-    d.style.borderColor=isErr?'#ef4444':'#34d399';d.style.color=isErr?'#ef4444':'#34d399';
-    setTimeout(()=>{{d.style.display='none';}},4000);
-}}
-
-async function loadClients(){{
-    try{{const r=await fetch('/api/v1/clients');const d=await r.json();
-    const l=document.getElementById('clientList');
-    if(!d.length){{l.innerHTML='<div style="color:#94a3b8;text-align:center;padding:20px;">Aucun client</div>';return;}}
-    l.innerHTML=d.map(c=>`<div class="client-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-            <div class="client-name">${{c.business_name}}</div>
-            <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
-                <span class="badge ${{c.status}}">${{c.status}}</span>
-                <span class="badge ${{c.plan}}">${{c.plan}}</span>
-                <button class="btn btn-sm" onclick="getPortalLink('${{c.id}}')" title="Copier lien portail">🔗 Portail</button>
-                <button class="btn btn-sm" style="background:#1e3a5f;color:#a855f7;" onclick="openEditModal('${{c.id}}')" title="Modifier">✏️</button>
-                <button class="btn btn-sm" style="background:${{c.status==='active'?'rgba(239,68,68,0.12)':'rgba(52,211,153,0.12)'}};color:${{c.status==='active'?'#ef4444':'#34d399'}};" onclick="toggleStatus('${{c.id}}','${{c.status}}')">${{c.status==='active'?'⏸':'▶'}}</button>
-            </div>
-        </div>
-        <div class="client-meta">${{c.owner_name}} · ${{c.owner_email}} · ${{c.twilio_phone||'—'}} · ${{c.messages_used_month}}/${{c.max_messages_month}} msg</div>
-        <div style="font-size:0.7rem;color:#475569;margin-top:3px;">ID: ${{c.id}} · Créé: ${{c.created_at?.slice(0,10)||'—'}}</div>
-    </div>`).join('');
-    }}catch(e){{console.error(e);}}
-}}
-
-async function getPortalLink(id){{
-    try{{
-        const c=await fetch('/api/v1/clients/'+id).then(r=>r.json());
-        const url=window.location.origin+'/portal?t='+c.portal_token;
-        await navigator.clipboard.writeText(url).catch(()=>{{}});
-        const n=document.getElementById('admin-notice');
-        if(n){{n.textContent='✓ Lien copié : '+url;n.style.display='block';setTimeout(()=>n.style.display='none',5000);}}
-    }}catch(e){{console.error('getPortalLink:',e);}}
-}}
-
-async function openEditModal(id){{
-    try{{
-        const c=await fetch('/api/v1/clients/'+id).then(r=>r.json());
-        document.getElementById('em_id').value=c.id;
-        document.getElementById('em_name').value=c.business_name||'';
-        document.getElementById('em_type').value=c.business_type||'';
-        document.getElementById('em_owner').value=c.owner_name||'';
-        document.getElementById('em_email').value=c.owner_email||'';
-        document.getElementById('em_phone').value=c.owner_phone||'';
-        document.getElementById('em_twilio').value=c.twilio_phone||'';
-        document.getElementById('em_address').value=c.address||'';
-        document.getElementById('em_hours').value=c.hours||'';
-        document.getElementById('em_services').value=c.services||'';
-        document.getElementById('em_info').value=c.info||'';
-        document.getElementById('em_custom_prompt').value=c.custom_prompt||'';
-        document.getElementById('em_fb_page_id').value=c.fb_page_id||'';
-        document.getElementById('em_max_msgs').value=c.max_messages_month||500;
-        document.getElementById('em_plan').value=c.plan||'starter';
-        document.getElementById('em_apikey').textContent=c.api_key||'';
-        document.getElementById('em_result').textContent='';
-        document.getElementById('editModalOverlay').style.display='flex';
-    }}catch(e){{console.error('openEditModal:',e);}}
-}}
-
-function closeEditModal(){{document.getElementById('editModalOverlay').style.display='none';}}
-
-async function saveClientEdit(){{
-    const id=document.getElementById('em_id').value;
-    const data={{
-        business_name:document.getElementById('em_name').value,
-        business_type:document.getElementById('em_type').value,
-        owner_name:document.getElementById('em_owner').value,
-        owner_email:document.getElementById('em_email').value,
-        owner_phone:document.getElementById('em_phone').value,
-        twilio_phone:document.getElementById('em_twilio').value,
-        address:document.getElementById('em_address').value,
-        hours:document.getElementById('em_hours').value,
-        services:document.getElementById('em_services').value,
-        info:document.getElementById('em_info').value,
-        custom_prompt:document.getElementById('em_custom_prompt').value,
-        fb_page_id:document.getElementById('em_fb_page_id').value,
-        max_messages_month:parseInt(document.getElementById('em_max_msgs').value)||500,
-        plan:document.getElementById('em_plan').value,
-    }};
-    try{{
-        const r=await fetch('/api/v1/clients/'+id,{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
-        if(r.ok){{
-            document.getElementById('em_result').innerHTML='<span style="color:#34d399;">✓ Sauvegardé !</span>';
-            setTimeout(()=>{{closeEditModal();loadClients();}},1200);
-        }}else{{
-            const e=await r.json();
-            document.getElementById('em_result').textContent='❌ '+(e.detail||'Erreur');
-        }}
-    }}catch(e){{document.getElementById('em_result').textContent='❌ Erreur réseau';}}
-}}
-
-async function toggleStatus(id,status){{
-    const newStatus=status==='active'?'inactive':'active';
-    if(!confirm((newStatus==='inactive'?'Désactiver':'Réactiver')+' ce client ?'))return;
-    await fetch('/api/v1/clients/'+id,{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{status:newStatus}})}}).catch(()=>{{}});
-    loadClients();
-}}
-
-async function createClient(){{
-    const data={{
-        business_name:document.getElementById('nc_name').value,
-        business_type:document.getElementById('nc_type').value,
-        owner_name:document.getElementById('nc_owner').value,
-        owner_email:document.getElementById('nc_email').value,
-        owner_phone:document.getElementById('nc_phone').value,
-        twilio_phone:document.getElementById('nc_twilio').value,
-        address:document.getElementById('nc_address').value,
-        hours:document.getElementById('nc_hours').value,
-        services:document.getElementById('nc_services').value,
-        info:document.getElementById('nc_info').value,
-        plan:document.getElementById('nc_plan').value,
-        fb_page_id:document.getElementById('nc_fb_page_id').value,
-        fb_page_token:document.getElementById('nc_fb_token').value,
-        custom_prompt:document.getElementById('nc_custom_prompt').value,
-        max_messages_month:parseInt(document.getElementById('nc_max_msgs').value)||500,
-    }};
-    try{{const r=await fetch('/api/v1/clients',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
-    const d=await r.json();
-    document.getElementById('nc_result').innerHTML=`✅ Client créé!<br/>API Key: <code style="color:#fbbf24;">${{d.api_key}}</code><br/>Conservez cette clé précieusement.`;
-    }}catch(e){{document.getElementById('nc_result').textContent='❌ Erreur: '+e;}}
-}}
-
-async function addRdEntry(){{
-    const data={{
-        category:document.getElementById('rd_cat').value,
-        title:document.getElementById('rd_title').value,
-        description:document.getElementById('rd_desc').value,
-        hours:parseFloat(document.getElementById('rd_hours').value),
-        technical_details:document.getElementById('rd_tech').value,
-        results:document.getElementById('rd_results').value,
-    }};
-    try{{await fetch('/api/v1/rd/log',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
-    document.getElementById('rd_title').value='';document.getElementById('rd_desc').value='';
-    document.getElementById('rd_tech').value='';document.getElementById('rd_results').value='';
-    loadRdLog();
-    }}catch(e){{}}
-}}
-
-async function loadRdLog(){{
-    try{{const r=await fetch('/api/v1/rd/log');const d=await r.json();
-    const el=document.getElementById('rdEntries');
-    if(!d.entries.length){{el.innerHTML='<div style="color:#94a3b8;">Aucune entrée</div>';return;}}
-    el.innerHTML=`<div style="color:#34d399;margin-bottom:12px;">${{d.summary}}</div>`+
-    d.entries.slice(0,20).map(e=>`<div style="background:#0f1f2e;padding:12px;border-radius:8px;margin-bottom:8px;border-left:3px solid #38bdf8;">
-        <div style="display:flex;justify-content:space-between;"><strong style="color:#38bdf8;">${{e.title}}</strong><span style="color:#94a3b8;font-size:0.8rem;">${{e.date}} · ${{e.hours}}h · ${{e.category}}</span></div>
-        <div style="color:#cbd5e1;font-size:0.85rem;margin-top:4px;">${{e.description}}</div>
-    </div>`).join('');
-    }}catch(e){{}}
-}}
-
-function exportRd(){{window.location.href='/api/v1/rd/export?format=csv';}}
-
-// ── GÉNÉRATEUR D'EMAILS ──
-let genEmails = {{1:'',2:'',3:''}};
-let genCurrentTab = 1;
-
-function initGenerateur(){{}}
-
-function selectCity(city){{
-    document.getElementById('gen_city').value = city;
-    document.querySelectorAll('.city-btn').forEach(b=>{{
-        const active = b.dataset.city === city;
-        b.style.background = active ? 'rgba(56,189,248,0.25)' : 'rgba(56,189,248,0.08)';
-        b.style.color = active ? '#38bdf8' : '#64748b';
-        b.style.borderColor = active ? '#38bdf8' : '#1e3a5f';
-    }});
-}}
-
-function clearCityBtns(){{
-    document.querySelectorAll('.city-btn').forEach(b=>{{
-        b.style.background='rgba(56,189,248,0.08)';
-        b.style.color='#64748b';
-        b.style.borderColor='#1e3a5f';
-    }});
-}}
-
-function generateEmails(){{
-    const city = document.getElementById('gen_city').value.trim();
-    const industry = document.getElementById('gen_industry').value;
-    const biz = document.getElementById('gen_biz').value.trim();
-    const contactName = document.getElementById('gen_name').value.trim();
-    const email = document.getElementById('gen_email_addr').value.trim();
-    const phone = document.getElementById('gen_phone').value.trim();
-    const notes = document.getElementById('gen_notes').value.trim();
-    if(!biz){{showNotice("Nom de l'entreprise requis",true);return;}}
-    const p = {{
-        name: contactName || ('Équipe '+biz),
-        business_name: biz,
-        email, phone, industry,
-        coworking: city,
-        city,
-        notes,
-    }};
-    genEmails[1] = EMAIL_TEMPLATES.email1(p);
-    genEmails[2] = EMAIL_TEMPLATES.email2(p);
-    genEmails[3] = EMAIL_TEMPLATES.email3(p);
-    document.getElementById('gen_preview').style.display = 'block';
-    document.getElementById('gen_saved_notice').style.display = 'none';
-    showGenTab(1);
-    setTimeout(()=>document.getElementById('gen_preview').scrollIntoView({{behavior:'smooth',block:'start'}}),50);
-}}
-
-function showGenTab(n){{
-    genCurrentTab = n;
-    document.getElementById('gen_email_content').value = genEmails[n];
-    [1,2,3].forEach(i=>{{
-        const btn = document.getElementById('tab_e'+i);
-        btn.style.background = i===n ? 'rgba(56,189,248,0.2)' : '#1e3a5f';
-        btn.style.color = i===n ? '#38bdf8' : '#64748b';
-    }});
-}}
-
-function copyGenEmail(){{
-    const ta = document.getElementById('gen_email_content');
-    ta.select();
-    navigator.clipboard.writeText(ta.value).then(()=>{{
-        showNotice('📋 Email '+genCurrentTab+' copié !',false);
-    }}).catch(()=>{{
-        document.execCommand('copy');
-        showNotice('📋 Email '+genCurrentTab+' copié !',false);
-    }});
-}}
-
-async function saveGenProspect(){{
-    const name = document.getElementById('gen_name').value.trim();
-    const biz = document.getElementById('gen_biz').value.trim();
-    const email = document.getElementById('gen_email_addr').value.trim();
-    if(!email){{showNotice('Courriel requis pour enregistrer',true);return;}}
-    const data = {{
-        name: name || ('Équipe '+biz),
-        business_name: biz,
-        email,
-        phone: document.getElementById('gen_phone').value.trim(),
-        coworking: document.getElementById('gen_city').value.trim(),
-        industry: document.getElementById('gen_industry').value,
-        notes: document.getElementById('gen_notes').value.trim(),
-    }};
-    const r = await fetch('/api/v1/prospects',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
-    if(r.ok){{
-        document.getElementById('gen_saved_notice').style.display='inline';
-        showNotice('✅ Prospect enregistré dans Prospection !',false);
-    }} else {{
-        showNotice('❌ Erreur — courriel déjà existant ?',true);
-    }}
-}}
-
-function tick(){{document.getElementById('clock').textContent=new Date().toLocaleTimeString('fr-CA',{{hour:'2-digit',minute:'2-digit'}});}}
-// Init: hide all views, show only dashboard
-document.querySelectorAll('.view').forEach(x=>{{x.style.display='none';}});
-const _dv=document.getElementById('dashboard');if(_dv)_dv.style.display='block';
-loadPlatformStats();loadLeads();tick();setInterval(loadPlatformStats,30000);setInterval(tick,1000);
-
-// === DÉCOUVERTE AUTOMATIQUE DE PMEs ===
-let discProspects=[];
-async function loadSuggestions(){{
-    const stats=document.getElementById('sugg_stats');
-    if(stats)stats.textContent='Chargement...';
-    try{{
-        const r=await fetch('/api/admin/suggestions');
-        const data=await r.json();
-        discProspects=data.suggestions||[];
-        const counts=data.counts||{{}};
-        const n=counts.new||0;const c=counts.contacted||0;const d=counts.dismissed||0;
-        if(stats)stats.innerHTML='<b>'+n+'</b> en attente &nbsp;·&nbsp; <b>'+c+'</b> contactés &nbsp;·&nbsp; <b>'+d+'</b> ignorés';
-        renderSuggestions(discProspects,counts);
-    }}catch(e){{
-        if(stats)stats.textContent='Erreur: '+e.message;
-    }}
-}}
-async function refreshSuggestions(){{
-    const btn=document.getElementById('sugg_refresh_btn');
-    const loading=document.getElementById('sugg_loading');
-    const stats=document.getElementById('sugg_stats');
-    if(btn){{btn.disabled=true;btn.textContent='⏳ Recherche...';}}
-    if(loading)loading.style.display='block';
-    try{{
-        const r=await fetch('/api/admin/suggestions/refresh',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:'{{}}'}});
-        const data=await r.json();
-        discProspects=data.suggestions||[];
-        const counts=data.counts||{{}};
-        const n=counts.new||0;const c=counts.contacted||0;const d=counts.dismissed||0;
-        if(stats)stats.innerHTML='<b>'+n+'</b> en attente &nbsp;·&nbsp; <b>'+c+'</b> contactés &nbsp;·&nbsp; <b>'+d+'</b> ignorés';
-        renderSuggestions(discProspects,counts);
-        showNotice('✅ '+(data.saved||0)+' nouvelles PMEs ajoutées !',false);
-    }}catch(e){{
-        showNotice('❌ Erreur: '+e.message,true);
-    }}
-    if(loading)loading.style.display='none';
-    if(btn){{btn.disabled=false;btn.textContent='🔄 Refresh — nouvelles PMEs';}}
-}}
-async function suggestionAction(id,action,i){{
-    const card=document.getElementById('sugg_card_'+i);
-    if(card){{card.style.opacity='0.4';card.style.pointerEvents='none';}}
-    try{{
-        await fetch('/api/admin/suggestions/action',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{id,action}})}});
-        await loadSuggestions();
-    }}catch(e){{showNotice('❌ Erreur',true);}}
-}}
-function renderSuggestions(list,counts){{
-    const el=document.getElementById('sugg_results');
-    if(!el)return;
-    if(!list||!list.length){{
-        el.innerHTML='<div class="panel" style="color:#94a3b8;text-align:center;padding:32px;"><div style="font-size:2rem;margin-bottom:12px;">✅</div><div style="font-size:1rem;color:#e2e8f0;margin-bottom:8px;">Toutes les suggestions ont été traitées !</div><div style="color:#64748b;font-size:0.85rem;margin-bottom:16px;">Cliquez sur Refresh pour obtenir de nouvelles PMEs à contacter au Québec.</div><button class="btn" onclick="refreshSuggestions()">🔄 Chercher de nouvelles PMEs</button></div>';
-        return;
-    }}
-    el.innerHTML=list.map((p,i)=>{{
-        const eq=p.email_quality;
-        const badge=eq==='site'||eq==='contact-page'
-            ?'<span style="background:rgba(52,211,153,0.15);color:#34d399;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-left:6px;">✅ Email trouvé</span>'
-            :'<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-left:6px;">⚠️ Email manquant</span>';
-        const emailRow=p.email
-            ?'<div style="color:#38bdf8;font-size:0.82rem;margin-top:4px;">'+p.email+badge+'</div>'
-            :'<div style="margin-top:4px;">'+badge+'</div>';
-        const webScore=p.web_score||5;
-        const webBadge=webScore<=2
-            ?'<span style="background:rgba(239,68,68,0.12);color:#f87171;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-left:6px;border:1px solid rgba(239,68,68,0.2);">🖥️ Site à refaire</span>'
-            :(webScore<=3?'<span style="background:rgba(245,158,11,0.1);color:#f59e0b;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-left:6px;">🖥️ Site vieillissant</span>':'');
-        const webIssuePills=(p.web_issues&&p.web_issues.length&&webScore<=3
-            ?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">'+(p.web_issues.map(iss=>'<span style="background:rgba(239,68,68,0.08);color:#f87171;padding:2px 10px;border-radius:10px;font-size:0.7rem;">'+iss+'</span>').join(''))+'</div>'
-            :'');
-        const ratingBadge=p.rating?'<span style="background:rgba(251,191,36,0.15);color:#fbbf24;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-right:6px;">⭐ '+p.rating+(p.review_count?' · '+p.review_count:'')+'</span>':'';
-        const painPills=(p.pain_points&&p.pain_points.length
-            ?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">'+(p.pain_points.map(pp=>'<span style="background:rgba(124,58,237,0.12);color:#a78bfa;padding:2px 10px;border-radius:10px;font-size:0.72rem;border:1px solid rgba(124,58,237,0.2);">⚠ '+pp+'</span>').join(''))+'</div>'
-            :'');
-        const insightsBlock=(p.insights||ratingBadge||painPills||webIssuePills
-            ?'<div style="margin-top:10px;background:#0a0e17;border-radius:8px;padding:10px 12px;border-left:3px solid #7c3aed;">'
-                +(ratingBadge?'<div style="margin-bottom:6px;">'+ratingBadge+'</div>':'')
-                +(p.insights?'<div style="color:#94a3b8;font-size:0.8rem;line-height:1.5;margin-bottom:4px;">💡 '+p.insights+'</div>':'')
-                +painPills+webIssuePills
-            +'</div>'
-            :'');
-        const e1=p.generated_emails&&p.generated_emails.email1?p.generated_emails.email1:null;
-        const preview=e1?'<div style="margin-top:10px;background:#0f1f2e;border-radius:8px;padding:10px;font-size:0.8rem;"><div style="color:#fbbf24;margin-bottom:4px;">📧 '+e1.subject+'</div><div style="color:#94a3b8;">'+(e1.body||'').substring(0,140)+'...</div></div>':'';
-        const sendBtn=p.email&&p.emails_generated?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#7c3aed;" onclick="sendDiscEmail('+i+',1)">📤 Envoyer</button>':'';
-        const refonteBtn=p.email&&p.has_refonte?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#dc2626;" onclick="openDiscRefonte('+i+')">🖥️ Pitch refonte</button>':'';
-        const viewBtn=p.emails_generated?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#0ea5e9;" onclick="openDiscEmail('+i+',1)">📨 Voir emails</button>':'';
-        const addEmailBtn=!p.email?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#334155;color:#94a3b8;" onclick="addDiscEmail('+i+')">✏️ Ajouter email</button>':'';
-        return '<div class="panel" id="sugg_card_'+i+'" style="margin-bottom:12px;">'
-            +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">'
-            +'<div style="flex:1;min-width:200px;">'
-            +'<div style="font-weight:600;color:#e2e8f0;font-size:1rem;">'+p.name+webBadge+'</div>'
-            +'<div style="color:#64748b;font-size:0.78rem;margin-top:2px;">'+p.city+' · '+p.industry+'</div>'
-            +emailRow
-            +(p.phone?'<div style="color:#94a3b8;font-size:0.78rem;margin-top:2px;">📞 '+p.phone+'</div>':'')
-            +'<div style="margin-top:4px;"><a href="'+p.website+'" target="_blank" style="color:#38bdf8;font-size:0.75rem;">'+p.website.replace(/^https?:\/\//,'').substring(0,60)+'</a></div>'
-            +'</div>'
-            +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;">'
-            +viewBtn+refonteBtn+sendBtn+addEmailBtn
-            +'</div>'
-            +'</div>'
-            +insightsBlock+preview
-            +'<div class="sugg-actions" style="margin-top:12px;display:flex;gap:8px;border-top:1px solid #1e3a5f;padding-top:10px;">'
-            +'<button class="btn" style="padding:6px 16px;font-size:0.82rem;background:#16a34a;" onclick="suggestionAction(\''+p.id+'\',\'contacted\','+i+')">✓ Contacté</button>'
-            +'<button class="btn" style="padding:6px 16px;font-size:0.82rem;background:#334155;color:#94a3b8;" onclick="suggestionAction(\''+p.id+'\',\'dismissed\','+i+')">✗ Ignorer</button>'
-            +'<button class="btn" style="padding:6px 16px;font-size:0.82rem;background:#0ea5e9;opacity:0.85;" onclick="saveDiscProspect('+i+')">💾 Sauvegarder</button>'
-            +'</div>'
-            +'</div>';
-    }}).join('');
-}}
-
-let discEmailIdx=-1,discEmailTab=1;
-function openDiscEmail(i,tab){{
-    discEmailIdx=i;discEmailTab=tab||1;
-    document.getElementById('discEmailModal').style.display='flex';
-    renderDiscEmailModal();
-}}
-function renderDiscEmailModal(){{
-    if(discEmailIdx<0)return;
-    const p=discProspects[discEmailIdx];
-    const isRefonte=discEmailTab==='refonte';
-    const e=isRefonte
-        ?(p.generated_emails&&p.generated_emails.email_refonte)||{{}}
-        :(p.generated_emails||{{}})[''+'email'+discEmailTab]||{{}};
-    document.getElementById('disc_em_name').textContent=p.name+(isRefonte?' — Refonte site':'');
-    document.getElementById('disc_em_subj').value=e.subject||'';
-    document.getElementById('disc_em_body').value=e.body||'';
-    [1,2,3].forEach(n=>{{
-        const t=document.getElementById('disc_tab_'+n);
-        if(t)t.style.background=n===discEmailTab?'#0ea5e9':'#1e3a5f';
-    }});
-    const tr=document.getElementById('disc_tab_refonte');
-    if(tr){{
-        tr.style.display=p.has_refonte?'inline-block':'none';
-        tr.style.background=isRefonte?'#dc2626':'#1e3a5f';
-        tr.style.color=isRefonte?'white':'#94a3b8';
-    }}
-    const sb=document.getElementById('disc_send_modal_btn');
-    if(sb){{
-        const key=isRefonte?'refonte':discEmailTab;
-        const sent=p.sent_emails&&p.sent_emails.includes(key);
-        sb.disabled=sent;sb.textContent=sent?'✅ Envoyé':'📤 Envoyer';
-        sb.style.background=sent?'#16a34a':(isRefonte?'#dc2626':'#7c3aed');sb.style.opacity=sent?'0.65':'1';
-    }}
-}}
-function switchDiscTab(n){{discEmailTab=n;renderDiscEmailModal();}}
-function openDiscRefonte(i){{openDiscEmail(i,'refonte');}}
-async function sendDiscEmail(i,emailNum){{
-    const p=discProspects[i];
-    if(!p.email){{showNotice("Ajoutez d'abord le courriel avec ✏️",true);return;}}
-    const isRefonte=emailNum==='refonte';
-    const e=isRefonte
-        ?((p.generated_emails&&p.generated_emails.email_refonte)||{{}})
-        :((p.generated_emails||{{}})[''+'email'+emailNum]||{{}});
-    if(!e.subject||!e.body){{showNotice('Email non disponible',true);return;}}
-    try{{
-        const r=await fetch('/api/admin/send-prospect-email',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{to:p.email,subject:e.subject,body:e.body}})}});
-        const data=await r.json();
-        if(r.ok){{
-            if(!p.sent_emails)p.sent_emails=[];
-            p.sent_emails.push(emailNum);
-            showNotice('✅ Courriel envoyé à '+p.email+' !',false);
-            renderSuggestions(discProspects,{{}});
-            if(discEmailIdx===i)renderDiscEmailModal();
-        }}else{{
-            showNotice('❌ '+(data.detail||'Erreur SMTP — vérifiez SMTP_HOST dans Railway'),true);
-        }}
-    }}catch(ex){{showNotice('❌ Erreur réseau',true);}}
-}}
-async function sendDiscEmailFromModal(){{await sendDiscEmail(discEmailIdx,discEmailTab);}}
-function copyDiscEmail(){{
-    const s=document.getElementById('disc_em_subj').value;
-    const b=document.getElementById('disc_em_body').value;
-    navigator.clipboard.writeText('Objet: '+s+'\\n\\n'+b);
-    showNotice('📋 Email copié !',false);
-}}
-function addDiscEmail(i){{
-    const email=prompt('Entrez le courriel de '+discProspects[i].name+' :');
-    if(email&&email.includes('@')){{discProspects[i].email=email;discProspects[i].email_quality='manual';renderSuggestions(discProspects,{{}});}}
-}}
-async function saveDiscProspect(i){{
-    const p=discProspects[i];
-    if(!p.email){{showNotice('Aucun email — cliquez ✏️ pour en ajouter un',true);return;}}
-    const body={{name:p.name.split(' ')[0]||p.name,business_name:p.name,email:p.email,phone:p.phone||'',coworking:p.city,industry:p.industry,notes:'Via Découverte IA — '+p.website}};
-    const r=await fetch('/api/v1/prospects',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});
-    if(r.ok){{showNotice('✅ '+p.name+' sauvegardé dans Prospection !',false);if(discEmailIdx===i)document.getElementById('discEmailModal').style.display='none';}}
-    else showNotice('❌ Déjà existant ou erreur',true);
-}}
-</script>
+<script src="/admin.js?v={VERSION}"></script>
 
 <!-- ADD PROSPECT MODAL -->
 <div id="addProspectModal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;padding:24px;overflow-y:auto;">
@@ -5215,6 +5217,17 @@ async function saveDiscProspect(i){{
         "Pragma": "no-cache",
         "Expires": "0",
     })
+
+
+@app.get("/admin.js")
+async def admin_js_endpoint():
+    """Serve admin panel JavaScript as external file (bypasses CSP inline script restrictions)."""
+    js = _ADMIN_JS_RAW.replace('{{', '{').replace('}}', '}').replace('{VERSION}', VERSION)
+    from fastapi.responses import Response as FastAPIResponse
+    return FastAPIResponse(content=js, media_type="application/javascript", headers={
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+    })
+
 
 # ============================================================
 # KNOWLEDGE BASE — Base de connaissances par client
