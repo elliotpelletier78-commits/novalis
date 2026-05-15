@@ -757,7 +757,8 @@ async function loadSuggestions(){{
         const counts=data.counts||{{}};
         const n=counts.new||0;const c=counts.contacted||0;const d=counts.dismissed||0;
         const withEmail=(data.suggestions||[]).filter(s=>s.email).length;
-        if(stats)stats.innerHTML='<b>'+n+'</b> en attente &nbsp;·&nbsp; <b style="color:#34d399;">'+withEmail+'</b> avec email &nbsp;·&nbsp; <b>'+c+'</b> contactés &nbsp;·&nbsp; <b>'+d+'</b> ignorés';
+        const bankCount=data.bank_count||0;
+        if(stats)stats.innerHTML='<b>'+n+'</b> en attente &nbsp;·&nbsp; <b style="color:#34d399;">'+withEmail+'</b> avec email &nbsp;·&nbsp; <span style="color:#94a3b8;font-size:0.85em;">banque: '+bankCount+'</span> &nbsp;·&nbsp; <b>'+c+'</b> contactés';
         renderSuggestions(discProspects,counts);
     }}catch(e){{
         if(stats)stats.textContent='Erreur: '+e.message;
@@ -1472,6 +1473,20 @@ async def init_db():
             )
         """)
 
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS prospect_bank (
+                id TEXT PRIMARY KEY,
+                name TEXT, website TEXT, city TEXT, industry TEXT,
+                email TEXT DEFAULT '', email_quality TEXT DEFAULT 'none', phone TEXT DEFAULT '',
+                web_score INTEGER DEFAULT 5, web_issues TEXT DEFAULT '[]',
+                insights TEXT DEFAULT '', pain_points TEXT DEFAULT '[]',
+                rating TEXT DEFAULT '', review_count TEXT DEFAULT '',
+                generated_emails TEXT DEFAULT '{}', has_refonte INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'ready',
+                search_key TEXT DEFAULT '', created_at TEXT, updated_at TEXT
+            )
+        """)
+
         await db.commit()
         logger.info("Base de données V6.0 (agence IA premium) initialisée")
 
@@ -1537,6 +1552,7 @@ async def startup():
     asyncio.create_task(appointment_reminder_task())
     asyncio.create_task(weekly_report_task())
     asyncio.create_task(trial_monitor_task())
+    asyncio.create_task(_bank_builder_loop())
     logger.info(f"Novalis V{VERSION} démarré — Agence IA")
 
 # ============================================================
@@ -4640,13 +4656,34 @@ async def _suggestions_count_by_status() -> dict:
         return {r[0]: r[1] for r in rows}
 
 
-async def _auto_discover_batch(max_new: int = 10) -> int:
+async def _bank_builder_loop():
+    """Runs forever, keeps prospect_bank filled to 200 ready entries."""
+    await asyncio.sleep(30)  # wait for server to finish starting
+    while True:
+        try:
+            async with aiosqlite.connect(DB_PATH) as db:
+                cursor = await db.execute(
+                    "SELECT COUNT(*) FROM prospect_bank WHERE status='ready'"
+                )
+                count = (await cursor.fetchone())[0]
+            if count < 200:
+                await _auto_discover_batch(max_new=8, save_to_bank=True)
+                logging.info(f"Bank builder: {count} → added batch (target 200)")
+            else:
+                logging.info(f"Bank full: {count} ready entries")
+        except Exception as e:
+            logging.error(f"Bank builder error: {e}")
+        await asyncio.sleep(90)  # 90s between batches
+
+
+async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) -> int:
     import random as _random
+    target_table = "prospect_bank" if save_to_bank else "prospect_suggestions"
     async with aiosqlite.connect(DB_PATH) as db:
-        cursor = await db.execute("SELECT DISTINCT search_key FROM prospect_suggestions")
+        cursor = await db.execute(f"SELECT DISTINCT search_key FROM {target_table}")
         rows = await cursor.fetchall()
         used_keys = {r[0] for r in rows}
-        cursor2 = await db.execute("SELECT website FROM prospect_suggestions")
+        cursor2 = await db.execute(f"SELECT website FROM {target_table}")
         known_sites = {r[0] for r in await cursor2.fetchall()}
     targets = [(c, i) for c, i in _DISCOVERY_TARGETS if f"{c}|{i}" not in used_keys]
     if not targets:
@@ -4717,8 +4754,9 @@ async def _auto_discover_batch(max_new: int = 10) -> int:
                 logging.info(f"Skipped low-need PME: {b['name']} (score {emails.get('need_score','?')})")
                 continue
             try:
-                await db.execute("""
-                    INSERT OR IGNORE INTO prospect_suggestions
+                row_status = "ready" if save_to_bank else "new"
+                await db.execute(f"""
+                    INSERT OR IGNORE INTO {target_table}
                     (id, name, website, city, industry, email, email_quality, phone,
                      web_score, web_issues, insights, pain_points, rating, review_count,
                      generated_emails, has_refonte, status, search_key, created_at, updated_at)
@@ -4735,7 +4773,7 @@ async def _auto_discover_batch(max_new: int = 10) -> int:
                     b["research"].get("review_count", ""),
                     json.dumps(emails, ensure_ascii=False),
                     1 if bool(emails.get("email_refonte")) else 0,
-                    "new", search_key, now, now,
+                    row_status, search_key, now, now,
                 ))
                 saved += 1
             except Exception as e:
@@ -4750,7 +4788,10 @@ async def get_suggestions_endpoint(request: Request, username: str = Depends(ver
     counts = await _suggestions_count_by_status()
     if len(suggestions) < 8:
         asyncio.create_task(_auto_discover_batch(max_new=10))
-    return {"suggestions": suggestions, "counts": counts}
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT COUNT(*) FROM prospect_bank WHERE status='ready'")
+        bank_count = (await cursor.fetchone())[0]
+    return {"suggestions": suggestions, "counts": counts, "bank_count": bank_count}
 
 
 @app.post("/api/admin/suggestions/action")
@@ -4773,17 +4814,63 @@ async def suggestions_action_endpoint(request: Request, username: str = Depends(
 
 
 async def _run_refresh_job():
-    """Background task: discover PMEs and update _refresh_job status."""
+    """Background task: pull from bank (instant) OR discover live (fallback)."""
     global _refresh_job
     try:
         saved = 0
-        # Try up to 3 different city/industry combos to guarantee ≥ 8 saves
-        for attempt in range(3):
-            if saved >= 8:
-                break
-            batch_saved = await _auto_discover_batch(max_new=8)
-            saved += batch_saved
-            _refresh_job["saved"] = saved
+        # Try to pull from bank first (instant)
+        async with aiosqlite.connect(DB_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                """SELECT * FROM prospect_bank WHERE status='ready'
+                   ORDER BY
+                     CASE WHEN email != '' AND email IS NOT NULL THEN 0 ELSE 1 END,
+                     web_score ASC, created_at DESC
+                   LIMIT 15"""
+            )
+            bank_rows = await cursor.fetchall()
+            now = datetime.now().isoformat()
+            for row in bank_rows:
+                d = dict(row)
+                d.pop('status', None)
+                try:
+                    await db.execute("""
+                        INSERT OR IGNORE INTO prospect_suggestions
+                        (id, name, website, city, industry, email, email_quality, phone,
+                         web_score, web_issues, insights, pain_points, rating, review_count,
+                         generated_emails, has_refonte, status, search_key, created_at, updated_at)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    """, (
+                        d["id"], d["name"], d["website"], d["city"], d["industry"],
+                        d["email"], d["email_quality"], d["phone"],
+                        d["web_score"], d["web_issues"], d["insights"],
+                        d["pain_points"], d["rating"], d["review_count"],
+                        d["generated_emails"], d["has_refonte"],
+                        "new", d["search_key"], now, now,
+                    ))
+                    await db.execute(
+                        "UPDATE prospect_bank SET status='used', updated_at=? WHERE id=?",
+                        (now, d["id"])
+                    )
+                    saved += 1
+                except Exception as e:
+                    logging.error(f"Bank transfer error: {e}")
+            await db.commit()
+
+        _refresh_job["saved"] = saved
+
+        # Fallback: live scraping if bank was empty
+        if saved == 0:
+            for _ in range(3):
+                batch = await _auto_discover_batch(max_new=8)
+                saved += batch
+                _refresh_job["saved"] = saved
+                if saved >= 5:
+                    break
+
+        # Immediately trigger bank refill in background
+        asyncio.create_task(_auto_discover_batch(max_new=8, save_to_bank=True))
+
         _refresh_job["done"] = True
         _refresh_job["error"] = ""
     except Exception as e:
