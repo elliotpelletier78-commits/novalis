@@ -808,7 +808,9 @@ function _pollRefreshStatus(){{
                 const withEmail=(d.suggestions||[]).filter(s=>s.email).length;
                 if(stats)stats.innerHTML='<b>'+n+'</b> en attente &nbsp;·&nbsp; <b style="color:#34d399;">'+withEmail+'</b> avec email &nbsp;·&nbsp; <b>'+c+'</b> contactés &nbsp;·&nbsp; <b>'+dism+'</b> ignorés';
                 renderSuggestions(discProspects,counts);
-                showNotice('✅ '+(d.saved||0)+' nouvelles PMEs ajoutées !',false);
+                const sv=d.saved||0;const bk=d.bank_count||0;
+                if(sv>0){{showNotice('✅ '+sv+' nouvelles PMEs ajoutées ! (banque: '+bk+' restantes)',false);}}
+                else{{showNotice('⏳ Banque en remplissage automatique — réessayez dans ~2 min. (banque actuelle: '+bk+')',true);}}
             }}
             if(btn){{btn.disabled=false;btn.textContent='🔄 Refresh — nouvelles PMEs';}}
         }}catch(e){{
@@ -4658,7 +4660,7 @@ async def _suggestions_count_by_status() -> dict:
 
 async def _bank_builder_loop():
     """Runs forever, keeps prospect_bank filled to 200 ready entries."""
-    await asyncio.sleep(30)  # wait for server to finish starting
+    await asyncio.sleep(20)  # wait for server to finish starting
     while True:
         try:
             async with aiosqlite.connect(DB_PATH) as db:
@@ -4667,20 +4669,29 @@ async def _bank_builder_loop():
                 )
                 count = (await cursor.fetchone())[0]
             if count < 200:
-                await _auto_discover_batch(max_new=8, save_to_bank=True)
-                logging.info(f"Bank builder: {count} → added batch (target 200)")
+                batch_size = 12 if count < 30 else 8
+                added = await _auto_discover_batch(max_new=batch_size, save_to_bank=True)
+                logging.info(f"Bank builder: {count} ready → +{added} (target 200)")
+                # Critically low → refill fast, no long wait
+                sleep_time = 10 if count < 15 else (30 if count < 50 else 90)
             else:
                 logging.info(f"Bank full: {count} ready entries")
+                sleep_time = 120
         except Exception as e:
             logging.error(f"Bank builder error: {e}")
-        await asyncio.sleep(90)  # 90s between batches
+            sleep_time = 30
+        await asyncio.sleep(sleep_time)
 
 
 async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) -> int:
     import random as _random
     target_table = "prospect_bank" if save_to_bank else "prospect_suggestions"
     async with aiosqlite.connect(DB_PATH) as db:
-        cursor = await db.execute(f"SELECT DISTINCT search_key FROM {target_table}")
+        # For bank: only count 'ready' entries as used keys (recycle 'used' slots)
+        if save_to_bank:
+            cursor = await db.execute("SELECT DISTINCT search_key FROM prospect_bank WHERE status='ready'")
+        else:
+            cursor = await db.execute(f"SELECT DISTINCT search_key FROM {target_table}")
         rows = await cursor.fetchall()
         used_keys = {r[0] for r in rows}
         cursor2 = await db.execute(f"SELECT website FROM {target_table}")
@@ -4868,8 +4879,9 @@ async def _run_refresh_job():
                 if saved >= 5:
                     break
 
-        # Immediately trigger bank refill in background
-        asyncio.create_task(_auto_discover_batch(max_new=8, save_to_bank=True))
+        # Immediately trigger bank refill in background (more aggressive if bank was empty)
+        refill_n = 15 if saved < 3 else 8
+        asyncio.create_task(_auto_discover_batch(max_new=refill_n, save_to_bank=True))
 
         _refresh_job["done"] = True
         _refresh_job["error"] = ""
@@ -4898,6 +4910,9 @@ async def refresh_status_endpoint(username: str = Depends(verify_admin)):
     if status["done"]:
         status["suggestions"] = await _get_suggestions_from_db(limit=15)
         status["counts"] = await _suggestions_count_by_status()
+        async with aiosqlite.connect(DB_PATH) as db:
+            cursor = await db.execute("SELECT COUNT(*) FROM prospect_bank WHERE status='ready'")
+            status["bank_count"] = (await cursor.fetchone())[0]
     return status
 
 
