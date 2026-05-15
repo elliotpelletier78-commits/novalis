@@ -753,7 +753,8 @@ async function loadSuggestions(){{
         discProspects=data.suggestions||[];
         const counts=data.counts||{{}};
         const n=counts.new||0;const c=counts.contacted||0;const d=counts.dismissed||0;
-        if(stats)stats.innerHTML='<b>'+n+'</b> en attente &nbsp;·&nbsp; <b>'+c+'</b> contactés &nbsp;·&nbsp; <b>'+d+'</b> ignorés';
+        const withEmail=(data.suggestions||[]).filter(s=>s.email).length;
+        if(stats)stats.innerHTML='<b>'+n+'</b> en attente &nbsp;·&nbsp; <b style="color:#34d399;">'+withEmail+'</b> avec email &nbsp;·&nbsp; <b>'+c+'</b> contactés &nbsp;·&nbsp; <b>'+d+'</b> ignorés';
         renderSuggestions(discProspects,counts);
     }}catch(e){{
         if(stats)stats.textContent='Erreur: '+e.message;
@@ -803,6 +804,8 @@ function renderSuggestions(list,counts){{
         const emailRow=p.email
             ?'<div style="color:#38bdf8;font-size:0.82rem;margin-top:4px;">'+p.email+badge+'</div>'
             :'<div style="margin-top:4px;">'+badge+'</div>';
+        const ns=p.generated_emails&&p.generated_emails.need_score?p.generated_emails.need_score:null;
+        const needBadge=ns?'<span style="background:rgba(52,211,153,0.12);color:#34d399;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-left:6px;border:1px solid rgba(52,211,153,0.25);">🎯 Besoin '+ns+'/10</span>':'';
         const webScore=p.web_score||5;
         const webBadge=webScore<=2
             ?'<span style="background:rgba(239,68,68,0.12);color:#f87171;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-left:6px;border:1px solid rgba(239,68,68,0.2);">🖥️ Site à refaire</span>'
@@ -830,7 +833,7 @@ function renderSuggestions(list,counts){{
         return '<div class="panel" id="sugg_card_'+i+'" style="margin-bottom:12px;">'
             +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">'
             +'<div style="flex:1;min-width:200px;">'
-            +'<div style="font-weight:600;color:#e2e8f0;font-size:1rem;">'+p.name+webBadge+'</div>'
+            +'<div style="font-weight:600;color:#e2e8f0;font-size:1rem;">'+p.name+needBadge+webBadge+'</div>'
             +'<div style="color:#64748b;font-size:0.78rem;margin-top:2px;">'+p.city+' · '+p.industry+'</div>'
             +emailRow
             +(p.phone?'<div style="color:#94a3b8;font-size:0.78rem;margin-top:2px;">📞 '+p.phone+'</div>':'')
@@ -4442,7 +4445,7 @@ async def _generate_prospect_emails_claude(biz: dict) -> dict:
         refonte_instruction = '\n4. Génère aussi "email_refonte": un courriel proposant une refonte complète de leur site web pour ~1000$ (site moderne, mobile, SEO, livré en 2-3 semaines). Mentionne les problèmes spécifiques de leur site actuel.'
         refonte_json = ',\n  "email_refonte": {{"subject": "...", "body": "..."}}'
 
-    prompt = f"""Tu es un expert en vente B2B et analyste business pour Novalis IA, startup québécoise.
+    prompt = f"""Tu es un expert en vente B2B pour Novalis IA, startup québécoise d'automatisation IA.
 
 PRODUITS:
 - Agent IA conversationnel: répond 24/7 par SMS/WhatsApp/web, prend des RDV, répond aux FAQ. Prix: 497$/mois.
@@ -4460,13 +4463,24 @@ AVIS ET MENTIONS EN LIGNE:
 {snippets or "(non disponible)"}
 
 TÂCHE — réponds UNIQUEMENT avec ce JSON (aucun autre texte):
-1. Identifie 2-3 problèmes CONCRETS et SPÉCIFIQUES à CETTE entreprise (basés sur les avis et le site).
-2. Génère 3 courriels Agent IA qui CITENT ces problèmes précis. Chaque email < 150 mots. Signature: Elliot Pelletier, Novalis IA, novalisia.ca
-3. Dans "insights": analyse 1-2 phrases sur pourquoi Novalis IA est idéal pour EUX.{refonte_instruction}
+
+ÉTAPE 1 — Évalue le besoin réel (need_score 1-10):
+- 8-10: Problèmes évidents (avis se plaignent d'attentes/appels manqués, site médiocre, heures limitées)
+- 5-7: Besoin probable mais non confirmé
+- 1-4: Pas de problème clair, business déjà bien automatisé ou trop petit
+
+Si need_score < 6, retourne SEULEMENT: {{"need_score": X, "skip": true, "reason": "..."}}
+
+Si need_score >= 6:
+1. Identifie 2-3 problèmes CONCRETS et SPÉCIFIQUES basés sur les avis et le site réel.
+2. Génère 3 courriels qui CITENT ces problèmes précis. Chaque email < 150 mots. Signature: Elliot Pelletier, Novalis IA, novalisia.ca
+3. Dans "insights": 1-2 phrases sur pourquoi Novalis IA est idéal pour EUX spécifiquement.{refonte_instruction}
 
 {{
+  "need_score": X,
+  "skip": false,
   "insights": "...",
-  "pain_points": ["Problème précis 1", "Problème précis 2", "Problème précis 3"],
+  "pain_points": ["Problème précis 1", "Problème précis 2"],
   "email1": {{"subject": "...", "body": "..."}},
   "email2": {{"subject": "...", "body": "..."}},
   "email3": {{"subject": "...", "body": "..."}}{refonte_json}
@@ -4556,11 +4570,16 @@ _DISCOVERY_TARGETS = [
 ]
 
 
-async def _get_suggestions_from_db(limit: int = 8) -> list:
+async def _get_suggestions_from_db(limit: int = 15) -> list:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
-            "SELECT * FROM prospect_suggestions WHERE status='new' ORDER BY web_score ASC, created_at DESC LIMIT ?",
+            """SELECT * FROM prospect_suggestions WHERE status='new'
+               ORDER BY
+                 CASE WHEN email != '' AND email IS NOT NULL THEN 0 ELSE 1 END,
+                 web_score ASC,
+                 created_at DESC
+               LIMIT ?""",
             (limit,)
         )
         rows = await cursor.fetchall()
@@ -4585,12 +4604,14 @@ async def _suggestions_count_by_status() -> dict:
         return {r[0]: r[1] for r in rows}
 
 
-async def _auto_discover_batch(max_new: int = 6) -> int:
+async def _auto_discover_batch(max_new: int = 10) -> int:
     import random as _random
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute("SELECT DISTINCT search_key FROM prospect_suggestions")
         rows = await cursor.fetchall()
         used_keys = {r[0] for r in rows}
+        cursor2 = await db.execute("SELECT website FROM prospect_suggestions")
+        known_sites = {r[0] for r in await cursor2.fetchall()}
     targets = [(c, i) for c, i in _DISCOVERY_TARGETS if f"{c}|{i}" not in used_keys]
     if not targets:
         targets = list(_DISCOVERY_TARGETS)
@@ -4598,14 +4619,17 @@ async def _auto_discover_batch(max_new: int = 6) -> int:
     search_key = f"{city}|{industry}"
     query = f"{industry} {city} Quebec"
     loop = asyncio.get_event_loop()
-    raw = await loop.run_in_executor(None, _ddg_search_sync, query, max_new * 3)
+    # Fetch more candidates than needed so we can filter low-need ones
+    raw = await loop.run_in_executor(None, _ddg_search_sync, query, max_new * 4)
     filtered = []
     for r in raw:
         url = r.get("url", "")
         if any(d in url.lower() for d in _DDG_EXCLUDE):
             continue
+        if url in known_sites:
+            continue
         filtered.append(r)
-        if len(filtered) >= max_new:
+        if len(filtered) >= max_new * 2:  # fetch 2x, Claude will filter
             break
     if not filtered:
         return 0
@@ -4642,6 +4666,10 @@ async def _auto_discover_batch(max_new: int = 6) -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         for i, b in enumerate(biz_list):
             emails = email_results[i]
+            # Skip businesses Claude scored as low-need
+            if emails.get("skip") or int(emails.get("need_score", 6)) < 6:
+                logging.info(f"Skipped low-need PME: {b['name']} (score {emails.get('need_score','?')})")
+                continue
             try:
                 await db.execute("""
                     INSERT OR IGNORE INTO prospect_suggestions
@@ -4672,10 +4700,10 @@ async def _auto_discover_batch(max_new: int = 6) -> int:
 
 @app.get("/api/admin/suggestions")
 async def get_suggestions_endpoint(request: Request, username: str = Depends(verify_admin)):
-    suggestions = await _get_suggestions_from_db(limit=8)
+    suggestions = await _get_suggestions_from_db(limit=15)
     counts = await _suggestions_count_by_status()
-    if len(suggestions) < 4:
-        asyncio.create_task(_auto_discover_batch())
+    if len(suggestions) < 8:
+        asyncio.create_task(_auto_discover_batch(max_new=10))
     return {"suggestions": suggestions, "counts": counts}
 
 
@@ -4700,8 +4728,8 @@ async def suggestions_action_endpoint(request: Request, username: str = Depends(
 
 @app.post("/api/admin/suggestions/refresh")
 async def refresh_suggestions_endpoint(request: Request, username: str = Depends(verify_admin)):
-    saved = await _auto_discover_batch(max_new=6)
-    suggestions = await _get_suggestions_from_db(limit=8)
+    saved = await _auto_discover_batch(max_new=15)
+    suggestions = await _get_suggestions_from_db(limit=15)
     counts = await _suggestions_count_by_status()
     return {"saved": saved, "suggestions": suggestions, "counts": counts}
 
