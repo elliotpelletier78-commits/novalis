@@ -839,6 +839,28 @@ async function suggestionAction(id,action,i){{
         await loadSuggestions();
     }}catch(e){{showNotice('❌ Erreur',true);}}
 }}
+async function sendEmailToAll(){{
+    const withEmail=discProspects.filter(p=>p.email&&p.emails_generated&&(!p.sent_emails||!p.sent_emails.includes(1)));
+    if(withEmail.length===0){{showNotice('Aucune PME avec email disponible',true);return;}}
+    if(!confirm('Envoyer Email 1 à '+withEmail.length+' PME(s) ?\n\n'+withEmail.map(p=>p.name+' — '+p.email).join('\n')))return;
+    let sent=0,failed=0;
+    for(const p of withEmail){{
+        try{{
+            const idx=discProspects.indexOf(p);
+            const e=(p.generated_emails||{{}})['email1']||{{}};
+            if(!e.subject||!e.body)continue;
+            const r=await fetch('/api/admin/send-prospect-email',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{to:p.email,subject:e.subject,body:e.body,prospect_id:p.id}})}});
+            if(r.ok){{sent++;if(!p.sent_emails)p.sent_emails=[];p.sent_emails.push(1);}}
+            else if(r.status===503){{
+                const url='mailto:'+p.email+'?subject='+encodeURIComponent(e.subject)+'&body='+encodeURIComponent(e.body);
+                window.open(url,'_blank');sent++;
+            }}else failed++;
+        }}catch(ex){{failed++;}}
+        await new Promise(r=>setTimeout(r,500));// small delay between sends
+    }}
+    renderSuggestions(discProspects,{{}});
+    showNotice('✅ '+sent+' emails envoyés'+(failed?' ('+failed+' échecs)':'')+'!',false);
+}}
 function renderSuggestions(list,counts){{
     const el=document.getElementById('sugg_results');
     if(!el)return;
@@ -4802,59 +4824,334 @@ _DDG_EXCLUDE = {
 }
 
 _DISCOVERY_TARGETS = [
+    # Montréal — all industries
     ("Montréal", "salon de coiffure"), ("Montréal", "clinique dentaire"),
     ("Montréal", "garage automobile"), ("Montréal", "restaurant"),
     ("Montréal", "clinique physiothérapie"), ("Montréal", "spa massothérapie"),
+    ("Montréal", "cabinet comptable"), ("Montréal", "plombier"),
+    ("Montréal", "électricien"), ("Montréal", "serrurier"),
+    ("Montréal", "peintre"), ("Montréal", "nettoyage"),
+    ("Montréal", "déménagement"), ("Montréal", "traiteur"),
+    ("Montréal", "boulangerie"), ("Montréal", "pharmacie"),
+    ("Montréal", "optométriste"), ("Montréal", "chiropraticien"),
+    ("Montréal", "notaire"), ("Montréal", "avocat"),
+    ("Montréal", "assurances"), ("Montréal", "agence immobilière"),
+    ("Montréal", "agence marketing"), ("Montréal", "école de conduite"),
+    ("Montréal", "garderie"), ("Montréal", "gym"),
+    ("Montréal", "spa"), ("Montréal", "esthéticienne"),
+    ("Montréal", "vétérinaire"), ("Montréal", "fleuriste"),
+    ("Montréal", "boutique vêtements"), ("Montréal", "quincaillerie"),
+    ("Montréal", "imprimerie"), ("Montréal", "photographe"),
+    ("Montréal", "événements"), ("Montréal", "mécanicien"),
+    ("Montréal", "toiture"),
+    # Laval
     ("Laval", "salon de coiffure"), ("Laval", "clinique dentaire"),
     ("Laval", "garage automobile"), ("Laval", "restaurant"),
     ("Laval", "clinique physiothérapie"), ("Laval", "cabinet comptable"),
+    ("Laval", "plombier"), ("Laval", "électricien"),
+    ("Laval", "serrurier"), ("Laval", "peintre"),
+    ("Laval", "nettoyage"), ("Laval", "déménagement"),
+    ("Laval", "traiteur"), ("Laval", "boulangerie"),
+    ("Laval", "pharmacie"), ("Laval", "optométriste"),
+    ("Laval", "chiropraticien"), ("Laval", "notaire"),
+    ("Laval", "avocat"), ("Laval", "assurances"),
+    ("Laval", "agence immobilière"), ("Laval", "école de conduite"),
+    ("Laval", "garderie"), ("Laval", "gym"),
+    ("Laval", "esthéticienne"), ("Laval", "vétérinaire"),
+    ("Laval", "fleuriste"), ("Laval", "boutique vêtements"),
+    ("Laval", "photographe"), ("Laval", "mécanicien"),
+    ("Laval", "toiture"),
+    # Longueuil
     ("Longueuil", "salon de coiffure"), ("Longueuil", "clinique dentaire"),
     ("Longueuil", "garage automobile"), ("Longueuil", "restaurant"),
+    ("Longueuil", "clinique physiothérapie"), ("Longueuil", "cabinet comptable"),
+    ("Longueuil", "plombier"), ("Longueuil", "électricien"),
+    ("Longueuil", "peintre"), ("Longueuil", "nettoyage"),
+    ("Longueuil", "traiteur"), ("Longueuil", "boulangerie"),
+    ("Longueuil", "pharmacie"), ("Longueuil", "notaire"),
+    ("Longueuil", "avocat"), ("Longueuil", "assurances"),
+    ("Longueuil", "agence immobilière"), ("Longueuil", "école de conduite"),
+    ("Longueuil", "garderie"), ("Longueuil", "gym"),
+    ("Longueuil", "esthéticienne"), ("Longueuil", "vétérinaire"),
+    ("Longueuil", "fleuriste"), ("Longueuil", "mécanicien"),
+    ("Longueuil", "toiture"),
+    # Brossard
     ("Brossard", "salon de coiffure"), ("Brossard", "clinique dentaire"),
     ("Brossard", "restaurant"), ("Brossard", "clinique physiothérapie"),
+    ("Brossard", "garage automobile"), ("Brossard", "cabinet comptable"),
+    ("Brossard", "plombier"), ("Brossard", "électricien"),
+    ("Brossard", "peintre"), ("Brossard", "nettoyage"),
+    ("Brossard", "pharmacie"), ("Brossard", "notaire"),
+    ("Brossard", "assurances"), ("Brossard", "agence immobilière"),
+    ("Brossard", "garderie"), ("Brossard", "gym"),
+    ("Brossard", "esthéticienne"), ("Brossard", "vétérinaire"),
+    ("Brossard", "mécanicien"), ("Brossard", "toiture"),
+    # Québec (ville)
     ("Québec", "salon de coiffure"), ("Québec", "clinique dentaire"),
     ("Québec", "garage automobile"), ("Québec", "restaurant"),
     ("Québec", "clinique physiothérapie"), ("Québec", "cabinet comptable"),
+    ("Québec", "plombier"), ("Québec", "électricien"),
+    ("Québec", "serrurier"), ("Québec", "peintre"),
+    ("Québec", "nettoyage"), ("Québec", "déménagement"),
+    ("Québec", "traiteur"), ("Québec", "boulangerie"),
+    ("Québec", "pharmacie"), ("Québec", "optométriste"),
+    ("Québec", "chiropraticien"), ("Québec", "notaire"),
+    ("Québec", "avocat"), ("Québec", "assurances"),
+    ("Québec", "agence immobilière"), ("Québec", "agence marketing"),
+    ("Québec", "école de conduite"), ("Québec", "garderie"),
+    ("Québec", "gym"), ("Québec", "spa"),
+    ("Québec", "esthéticienne"), ("Québec", "vétérinaire"),
+    ("Québec", "fleuriste"), ("Québec", "boutique vêtements"),
+    ("Québec", "imprimerie"), ("Québec", "photographe"),
+    ("Québec", "événements"), ("Québec", "mécanicien"),
+    ("Québec", "toiture"),
+    # Lévis
     ("Lévis", "salon de coiffure"), ("Lévis", "clinique dentaire"),
     ("Lévis", "garage automobile"), ("Lévis", "restaurant"),
+    ("Lévis", "clinique physiothérapie"), ("Lévis", "cabinet comptable"),
+    ("Lévis", "plombier"), ("Lévis", "électricien"),
+    ("Lévis", "peintre"), ("Lévis", "nettoyage"),
+    ("Lévis", "pharmacie"), ("Lévis", "notaire"),
+    ("Lévis", "avocat"), ("Lévis", "assurances"),
+    ("Lévis", "agence immobilière"), ("Lévis", "garderie"),
+    ("Lévis", "gym"), ("Lévis", "esthéticienne"),
+    ("Lévis", "vétérinaire"), ("Lévis", "mécanicien"),
+    ("Lévis", "toiture"),
+    # Sherbrooke
     ("Sherbrooke", "salon de coiffure"), ("Sherbrooke", "clinique dentaire"),
     ("Sherbrooke", "garage automobile"), ("Sherbrooke", "restaurant"),
     ("Sherbrooke", "clinique physiothérapie"), ("Sherbrooke", "cabinet comptable"),
+    ("Sherbrooke", "plombier"), ("Sherbrooke", "électricien"),
+    ("Sherbrooke", "serrurier"), ("Sherbrooke", "peintre"),
+    ("Sherbrooke", "nettoyage"), ("Sherbrooke", "déménagement"),
+    ("Sherbrooke", "traiteur"), ("Sherbrooke", "boulangerie"),
+    ("Sherbrooke", "pharmacie"), ("Sherbrooke", "optométriste"),
+    ("Sherbrooke", "chiropraticien"), ("Sherbrooke", "notaire"),
+    ("Sherbrooke", "avocat"), ("Sherbrooke", "assurances"),
+    ("Sherbrooke", "agence immobilière"), ("Sherbrooke", "école de conduite"),
+    ("Sherbrooke", "garderie"), ("Sherbrooke", "gym"),
+    ("Sherbrooke", "esthéticienne"), ("Sherbrooke", "vétérinaire"),
+    ("Sherbrooke", "fleuriste"), ("Sherbrooke", "photographe"),
+    ("Sherbrooke", "événements"), ("Sherbrooke", "mécanicien"),
+    ("Sherbrooke", "toiture"),
+    # Saguenay
     ("Saguenay", "salon de coiffure"), ("Saguenay", "clinique dentaire"),
     ("Saguenay", "garage automobile"), ("Saguenay", "restaurant"),
+    ("Saguenay", "clinique physiothérapie"), ("Saguenay", "cabinet comptable"),
+    ("Saguenay", "plombier"), ("Saguenay", "électricien"),
+    ("Saguenay", "peintre"), ("Saguenay", "nettoyage"),
+    ("Saguenay", "pharmacie"), ("Saguenay", "notaire"),
+    ("Saguenay", "avocat"), ("Saguenay", "assurances"),
+    ("Saguenay", "agence immobilière"), ("Saguenay", "garderie"),
+    ("Saguenay", "gym"), ("Saguenay", "esthéticienne"),
+    ("Saguenay", "vétérinaire"), ("Saguenay", "mécanicien"),
+    ("Saguenay", "toiture"),
+    # Gatineau
     ("Gatineau", "salon de coiffure"), ("Gatineau", "clinique dentaire"),
     ("Gatineau", "garage automobile"), ("Gatineau", "restaurant"),
     ("Gatineau", "clinique physiothérapie"), ("Gatineau", "cabinet comptable"),
+    ("Gatineau", "plombier"), ("Gatineau", "électricien"),
+    ("Gatineau", "serrurier"), ("Gatineau", "peintre"),
+    ("Gatineau", "nettoyage"), ("Gatineau", "déménagement"),
+    ("Gatineau", "traiteur"), ("Gatineau", "pharmacie"),
+    ("Gatineau", "notaire"), ("Gatineau", "avocat"),
+    ("Gatineau", "assurances"), ("Gatineau", "agence immobilière"),
+    ("Gatineau", "école de conduite"), ("Gatineau", "garderie"),
+    ("Gatineau", "gym"), ("Gatineau", "esthéticienne"),
+    ("Gatineau", "vétérinaire"), ("Gatineau", "mécanicien"),
+    ("Gatineau", "toiture"),
+    # Trois-Rivières
     ("Trois-Rivières", "salon de coiffure"), ("Trois-Rivières", "clinique dentaire"),
     ("Trois-Rivières", "garage automobile"), ("Trois-Rivières", "restaurant"),
-    ("Granby", "salon de coiffure"), ("Granby", "clinique dentaire"),
-    ("Granby", "garage automobile"), ("Granby", "restaurant"),
-    ("Saint-Jérôme", "salon de coiffure"), ("Saint-Jérôme", "clinique dentaire"),
-    ("Saint-Jérôme", "garage automobile"), ("Saint-Jérôme", "restaurant"),
-    ("Repentigny", "salon de coiffure"), ("Repentigny", "clinique dentaire"),
-    ("Repentigny", "restaurant"), ("Repentigny", "clinique physiothérapie"),
-    ("Blainville", "salon de coiffure"), ("Blainville", "clinique dentaire"),
-    ("Blainville", "restaurant"), ("Blainville", "clinique physiothérapie"),
-    ("Rimouski", "salon de coiffure"), ("Rimouski", "clinique dentaire"),
-    ("Rimouski", "garage automobile"), ("Rimouski", "restaurant"),
+    ("Trois-Rivières", "clinique physiothérapie"), ("Trois-Rivières", "cabinet comptable"),
+    ("Trois-Rivières", "plombier"), ("Trois-Rivières", "électricien"),
+    ("Trois-Rivières", "peintre"), ("Trois-Rivières", "nettoyage"),
+    ("Trois-Rivières", "pharmacie"), ("Trois-Rivières", "notaire"),
+    ("Trois-Rivières", "avocat"), ("Trois-Rivières", "assurances"),
+    ("Trois-Rivières", "agence immobilière"), ("Trois-Rivières", "garderie"),
+    ("Trois-Rivières", "gym"), ("Trois-Rivières", "esthéticienne"),
+    ("Trois-Rivières", "vétérinaire"), ("Trois-Rivières", "mécanicien"),
+    ("Trois-Rivières", "toiture"),
+    # Drummondville
     ("Drummondville", "salon de coiffure"), ("Drummondville", "clinique dentaire"),
     ("Drummondville", "garage automobile"), ("Drummondville", "restaurant"),
-    ("Saint-Hyacinthe", "salon de coiffure"), ("Saint-Hyacinthe", "clinique dentaire"),
-    ("Saint-Hyacinthe", "garage automobile"), ("Saint-Hyacinthe", "restaurant"),
-    ("Joliette", "salon de coiffure"), ("Joliette", "clinique dentaire"),
-    ("Joliette", "restaurant"), ("Joliette", "clinique physiothérapie"),
-    ("Victoriaville", "salon de coiffure"), ("Victoriaville", "clinique dentaire"),
-    ("Victoriaville", "garage automobile"), ("Victoriaville", "restaurant"),
-    ("Val-d'Or", "salon de coiffure"), ("Val-d'Or", "clinique dentaire"),
-    ("Val-d'Or", "garage automobile"), ("Val-d'Or", "restaurant"),
-    ("Rouyn-Noranda", "salon de coiffure"), ("Rouyn-Noranda", "clinique dentaire"),
-    ("Rouyn-Noranda", "garage automobile"), ("Rouyn-Noranda", "restaurant"),
-    ("Sept-Îles", "salon de coiffure"), ("Sept-Îles", "clinique dentaire"),
-    ("Sept-Îles", "restaurant"), ("Sept-Îles", "garage automobile"),
-    ("Saint-Georges", "salon de coiffure"), ("Saint-Georges", "clinique dentaire"),
-    ("Saint-Georges", "garage automobile"), ("Saint-Georges", "restaurant"),
+    ("Drummondville", "clinique physiothérapie"), ("Drummondville", "cabinet comptable"),
+    ("Drummondville", "plombier"), ("Drummondville", "électricien"),
+    ("Drummondville", "peintre"), ("Drummondville", "nettoyage"),
+    ("Drummondville", "pharmacie"), ("Drummondville", "notaire"),
+    ("Drummondville", "assurances"), ("Drummondville", "agence immobilière"),
+    ("Drummondville", "garderie"), ("Drummondville", "gym"),
+    ("Drummondville", "esthéticienne"), ("Drummondville", "vétérinaire"),
+    ("Drummondville", "mécanicien"), ("Drummondville", "toiture"),
+    # Saint-Jean-sur-Richelieu
+    ("Saint-Jean-sur-Richelieu", "salon de coiffure"), ("Saint-Jean-sur-Richelieu", "clinique dentaire"),
+    ("Saint-Jean-sur-Richelieu", "garage automobile"), ("Saint-Jean-sur-Richelieu", "restaurant"),
+    ("Saint-Jean-sur-Richelieu", "clinique physiothérapie"), ("Saint-Jean-sur-Richelieu", "plombier"),
+    ("Saint-Jean-sur-Richelieu", "électricien"), ("Saint-Jean-sur-Richelieu", "peintre"),
+    ("Saint-Jean-sur-Richelieu", "nettoyage"), ("Saint-Jean-sur-Richelieu", "pharmacie"),
+    ("Saint-Jean-sur-Richelieu", "notaire"), ("Saint-Jean-sur-Richelieu", "assurances"),
+    ("Saint-Jean-sur-Richelieu", "agence immobilière"), ("Saint-Jean-sur-Richelieu", "garderie"),
+    ("Saint-Jean-sur-Richelieu", "gym"), ("Saint-Jean-sur-Richelieu", "esthéticienne"),
+    ("Saint-Jean-sur-Richelieu", "vétérinaire"), ("Saint-Jean-sur-Richelieu", "mécanicien"),
+    ("Saint-Jean-sur-Richelieu", "toiture"),
+    # Granby
+    ("Granby", "salon de coiffure"), ("Granby", "clinique dentaire"),
+    ("Granby", "garage automobile"), ("Granby", "restaurant"),
+    ("Granby", "clinique physiothérapie"), ("Granby", "cabinet comptable"),
+    ("Granby", "plombier"), ("Granby", "électricien"),
+    ("Granby", "peintre"), ("Granby", "nettoyage"),
+    ("Granby", "pharmacie"), ("Granby", "notaire"),
+    ("Granby", "assurances"), ("Granby", "agence immobilière"),
+    ("Granby", "garderie"), ("Granby", "gym"),
+    ("Granby", "esthéticienne"), ("Granby", "vétérinaire"),
+    ("Granby", "mécanicien"), ("Granby", "toiture"),
+    # Blainville
+    ("Blainville", "salon de coiffure"), ("Blainville", "clinique dentaire"),
+    ("Blainville", "restaurant"), ("Blainville", "clinique physiothérapie"),
+    ("Blainville", "garage automobile"), ("Blainville", "plombier"),
+    ("Blainville", "électricien"), ("Blainville", "peintre"),
+    ("Blainville", "nettoyage"), ("Blainville", "pharmacie"),
+    ("Blainville", "notaire"), ("Blainville", "assurances"),
+    ("Blainville", "agence immobilière"), ("Blainville", "garderie"),
+    ("Blainville", "gym"), ("Blainville", "esthéticienne"),
+    ("Blainville", "vétérinaire"), ("Blainville", "mécanicien"),
+    ("Blainville", "toiture"),
+    # Mirabel
     ("Mirabel", "salon de coiffure"), ("Mirabel", "clinique dentaire"),
     ("Mirabel", "garage automobile"), ("Mirabel", "restaurant"),
+    ("Mirabel", "clinique physiothérapie"), ("Mirabel", "plombier"),
+    ("Mirabel", "électricien"), ("Mirabel", "peintre"),
+    ("Mirabel", "nettoyage"), ("Mirabel", "pharmacie"),
+    ("Mirabel", "notaire"), ("Mirabel", "assurances"),
+    ("Mirabel", "agence immobilière"), ("Mirabel", "garderie"),
+    ("Mirabel", "gym"), ("Mirabel", "esthéticienne"),
+    ("Mirabel", "vétérinaire"), ("Mirabel", "mécanicien"),
+    ("Mirabel", "toiture"),
+    # Terrebonne
+    ("Terrebonne", "salon de coiffure"), ("Terrebonne", "clinique dentaire"),
+    ("Terrebonne", "garage automobile"), ("Terrebonne", "restaurant"),
+    ("Terrebonne", "clinique physiothérapie"), ("Terrebonne", "plombier"),
+    ("Terrebonne", "électricien"), ("Terrebonne", "peintre"),
+    ("Terrebonne", "nettoyage"), ("Terrebonne", "pharmacie"),
+    ("Terrebonne", "notaire"), ("Terrebonne", "assurances"),
+    ("Terrebonne", "agence immobilière"), ("Terrebonne", "garderie"),
+    ("Terrebonne", "gym"), ("Terrebonne", "esthéticienne"),
+    ("Terrebonne", "vétérinaire"), ("Terrebonne", "mécanicien"),
+    ("Terrebonne", "toiture"),
+    # Repentigny
+    ("Repentigny", "salon de coiffure"), ("Repentigny", "clinique dentaire"),
+    ("Repentigny", "restaurant"), ("Repentigny", "clinique physiothérapie"),
+    ("Repentigny", "garage automobile"), ("Repentigny", "plombier"),
+    ("Repentigny", "électricien"), ("Repentigny", "peintre"),
+    ("Repentigny", "nettoyage"), ("Repentigny", "pharmacie"),
+    ("Repentigny", "notaire"), ("Repentigny", "assurances"),
+    ("Repentigny", "agence immobilière"), ("Repentigny", "garderie"),
+    ("Repentigny", "gym"), ("Repentigny", "esthéticienne"),
+    ("Repentigny", "vétérinaire"), ("Repentigny", "mécanicien"),
+    ("Repentigny", "toiture"),
+    # Saint-Jérôme
+    ("Saint-Jérôme", "salon de coiffure"), ("Saint-Jérôme", "clinique dentaire"),
+    ("Saint-Jérôme", "garage automobile"), ("Saint-Jérôme", "restaurant"),
+    ("Saint-Jérôme", "clinique physiothérapie"), ("Saint-Jérôme", "plombier"),
+    ("Saint-Jérôme", "électricien"), ("Saint-Jérôme", "peintre"),
+    ("Saint-Jérôme", "nettoyage"), ("Saint-Jérôme", "pharmacie"),
+    ("Saint-Jérôme", "notaire"), ("Saint-Jérôme", "assurances"),
+    ("Saint-Jérôme", "agence immobilière"), ("Saint-Jérôme", "garderie"),
+    ("Saint-Jérôme", "gym"), ("Saint-Jérôme", "esthéticienne"),
+    ("Saint-Jérôme", "vétérinaire"), ("Saint-Jérôme", "mécanicien"),
+    ("Saint-Jérôme", "toiture"),
+    # Châteauguay
+    ("Châteauguay", "salon de coiffure"), ("Châteauguay", "clinique dentaire"),
+    ("Châteauguay", "restaurant"), ("Châteauguay", "clinique physiothérapie"),
+    ("Châteauguay", "garage automobile"), ("Châteauguay", "plombier"),
+    ("Châteauguay", "électricien"), ("Châteauguay", "peintre"),
+    ("Châteauguay", "nettoyage"), ("Châteauguay", "pharmacie"),
+    ("Châteauguay", "notaire"), ("Châteauguay", "assurances"),
+    ("Châteauguay", "agence immobilière"), ("Châteauguay", "garderie"),
+    ("Châteauguay", "gym"), ("Châteauguay", "esthéticienne"),
+    ("Châteauguay", "vétérinaire"), ("Châteauguay", "mécanicien"),
+    ("Châteauguay", "toiture"),
+    # Rimouski
+    ("Rimouski", "salon de coiffure"), ("Rimouski", "clinique dentaire"),
+    ("Rimouski", "garage automobile"), ("Rimouski", "restaurant"),
+    ("Rimouski", "clinique physiothérapie"), ("Rimouski", "cabinet comptable"),
+    ("Rimouski", "plombier"), ("Rimouski", "électricien"),
+    ("Rimouski", "peintre"), ("Rimouski", "nettoyage"),
+    ("Rimouski", "pharmacie"), ("Rimouski", "notaire"),
+    ("Rimouski", "assurances"), ("Rimouski", "agence immobilière"),
+    ("Rimouski", "garderie"), ("Rimouski", "gym"),
+    ("Rimouski", "esthéticienne"), ("Rimouski", "vétérinaire"),
+    ("Rimouski", "mécanicien"), ("Rimouski", "toiture"),
+    # Sept-Îles
+    ("Sept-Îles", "salon de coiffure"), ("Sept-Îles", "clinique dentaire"),
+    ("Sept-Îles", "restaurant"), ("Sept-Îles", "garage automobile"),
+    ("Sept-Îles", "plombier"), ("Sept-Îles", "électricien"),
+    ("Sept-Îles", "peintre"), ("Sept-Îles", "nettoyage"),
+    ("Sept-Îles", "pharmacie"), ("Sept-Îles", "notaire"),
+    ("Sept-Îles", "assurances"), ("Sept-Îles", "agence immobilière"),
+    ("Sept-Îles", "garderie"), ("Sept-Îles", "gym"),
+    ("Sept-Îles", "esthéticienne"), ("Sept-Îles", "vétérinaire"),
+    ("Sept-Îles", "mécanicien"), ("Sept-Îles", "toiture"),
+    # Saint-Hyacinthe
+    ("Saint-Hyacinthe", "salon de coiffure"), ("Saint-Hyacinthe", "clinique dentaire"),
+    ("Saint-Hyacinthe", "garage automobile"), ("Saint-Hyacinthe", "restaurant"),
+    ("Saint-Hyacinthe", "plombier"), ("Saint-Hyacinthe", "électricien"),
+    ("Saint-Hyacinthe", "peintre"), ("Saint-Hyacinthe", "nettoyage"),
+    ("Saint-Hyacinthe", "pharmacie"), ("Saint-Hyacinthe", "notaire"),
+    ("Saint-Hyacinthe", "assurances"), ("Saint-Hyacinthe", "agence immobilière"),
+    ("Saint-Hyacinthe", "garderie"), ("Saint-Hyacinthe", "gym"),
+    ("Saint-Hyacinthe", "esthéticienne"), ("Saint-Hyacinthe", "vétérinaire"),
+    ("Saint-Hyacinthe", "mécanicien"), ("Saint-Hyacinthe", "toiture"),
+    # Joliette
+    ("Joliette", "salon de coiffure"), ("Joliette", "clinique dentaire"),
+    ("Joliette", "restaurant"), ("Joliette", "clinique physiothérapie"),
+    ("Joliette", "plombier"), ("Joliette", "électricien"),
+    ("Joliette", "peintre"), ("Joliette", "nettoyage"),
+    ("Joliette", "pharmacie"), ("Joliette", "notaire"),
+    ("Joliette", "assurances"), ("Joliette", "agence immobilière"),
+    ("Joliette", "garderie"), ("Joliette", "gym"),
+    ("Joliette", "esthéticienne"), ("Joliette", "vétérinaire"),
+    ("Joliette", "mécanicien"), ("Joliette", "toiture"),
+    # Victoriaville
+    ("Victoriaville", "salon de coiffure"), ("Victoriaville", "clinique dentaire"),
+    ("Victoriaville", "garage automobile"), ("Victoriaville", "restaurant"),
+    ("Victoriaville", "plombier"), ("Victoriaville", "électricien"),
+    ("Victoriaville", "peintre"), ("Victoriaville", "nettoyage"),
+    ("Victoriaville", "pharmacie"), ("Victoriaville", "notaire"),
+    ("Victoriaville", "assurances"), ("Victoriaville", "agence immobilière"),
+    ("Victoriaville", "garderie"), ("Victoriaville", "gym"),
+    ("Victoriaville", "esthéticienne"), ("Victoriaville", "vétérinaire"),
+    ("Victoriaville", "mécanicien"), ("Victoriaville", "toiture"),
+    # Val-d'Or
+    ("Val-d'Or", "salon de coiffure"), ("Val-d'Or", "clinique dentaire"),
+    ("Val-d'Or", "garage automobile"), ("Val-d'Or", "restaurant"),
+    ("Val-d'Or", "plombier"), ("Val-d'Or", "électricien"),
+    ("Val-d'Or", "peintre"), ("Val-d'Or", "nettoyage"),
+    ("Val-d'Or", "pharmacie"), ("Val-d'Or", "notaire"),
+    ("Val-d'Or", "assurances"), ("Val-d'Or", "agence immobilière"),
+    ("Val-d'Or", "garderie"), ("Val-d'Or", "gym"),
+    ("Val-d'Or", "esthéticienne"), ("Val-d'Or", "vétérinaire"),
+    ("Val-d'Or", "mécanicien"), ("Val-d'Or", "toiture"),
+    # Rouyn-Noranda
+    ("Rouyn-Noranda", "salon de coiffure"), ("Rouyn-Noranda", "clinique dentaire"),
+    ("Rouyn-Noranda", "garage automobile"), ("Rouyn-Noranda", "restaurant"),
+    ("Rouyn-Noranda", "plombier"), ("Rouyn-Noranda", "électricien"),
+    ("Rouyn-Noranda", "peintre"), ("Rouyn-Noranda", "nettoyage"),
+    ("Rouyn-Noranda", "pharmacie"), ("Rouyn-Noranda", "notaire"),
+    ("Rouyn-Noranda", "assurances"), ("Rouyn-Noranda", "agence immobilière"),
+    ("Rouyn-Noranda", "garderie"), ("Rouyn-Noranda", "gym"),
+    ("Rouyn-Noranda", "esthéticienne"), ("Rouyn-Noranda", "vétérinaire"),
+    ("Rouyn-Noranda", "mécanicien"), ("Rouyn-Noranda", "toiture"),
+    # Saint-Georges
+    ("Saint-Georges", "salon de coiffure"), ("Saint-Georges", "clinique dentaire"),
+    ("Saint-Georges", "garage automobile"), ("Saint-Georges", "restaurant"),
+    ("Saint-Georges", "plombier"), ("Saint-Georges", "électricien"),
+    ("Saint-Georges", "peintre"), ("Saint-Georges", "nettoyage"),
+    ("Saint-Georges", "pharmacie"), ("Saint-Georges", "notaire"),
+    ("Saint-Georges", "assurances"), ("Saint-Georges", "agence immobilière"),
+    ("Saint-Georges", "garderie"), ("Saint-Georges", "gym"),
+    ("Saint-Georges", "esthéticienne"), ("Saint-Georges", "vétérinaire"),
+    ("Saint-Georges", "mécanicien"), ("Saint-Georges", "toiture"),
 ]
 
 
@@ -5039,6 +5336,49 @@ async def get_suggestions_endpoint(request: Request, username: str = Depends(ver
     return {"suggestions": suggestions, "counts": counts, "bank_count": bank_count}
 
 
+async def _send_interested_email(p: dict):
+    """Send warm response email when a PME is marked as interested."""
+    try:
+        prompt = f"""Tu es Elliot Pelletier, fondateur de Novalis IA.
+
+Une PME vient de montrer de l'intérêt pour nos services. Génère un courriel de réponse chaleureux.
+
+PME: {p['name']} | {p['city']} | {p['industry']}
+
+Règles:
+- Objet: court et personnel (ex: "Super nouvelle — {p['name']}")
+- Corps: max 80 mots, chaleureux, explique les 3 prochaines étapes simples:
+  1. Appel de 15 min pour comprendre vos besoins
+  2. Déploiement de l'agent IA en 48h
+  3. 1er mois gratuit — aucun risque
+- Inclure: "Répondez à ce courriel pour qu'on planifie un appel"
+- Signature: — Elliot | Novalis IA | novalisia.ca | novalisproia@gmail.com
+
+Réponds UNIQUEMENT avec JSON: {{"subject": "...", "body": "..."}}"""
+
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None,
+            lambda: claude_client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=400,
+                messages=[{"role": "user", "content": prompt}]
+            )
+        )
+        raw = response.content[0].text.strip()
+        if "```json" in raw:
+            raw = raw.split("```json")[1].split("```")[0].strip()
+        email_data = json.loads(raw)
+        subject = email_data.get("subject", f"Merci de votre intérêt — Novalis IA")
+        body = email_data.get("body", "")
+        if body:
+            html_body = "<div style='font-family:sans-serif;font-size:15px;line-height:1.8;color:#222;max-width:600px;'>" + body.replace("\n", "<br>") + "</div>"
+            await send_email(p["email"], subject, html_body)
+            logging.info(f"Interested email sent to {p['name']} ({p['email']})")
+    except Exception as e:
+        logging.error(f"_send_interested_email error: {e}")
+
+
 @app.post("/api/admin/suggestions/action")
 async def suggestions_action_endpoint(request: Request, username: str = Depends(verify_admin)):
     data = await request.json()
@@ -5055,6 +5395,15 @@ async def suggestions_action_endpoint(request: Request, username: str = Depends(
         if result.rowcount == 0:
             raise HTTPException(404, "Suggestion introuvable")
         await db.commit()
+    # If marked interested, send warm welcome email
+    if action == "interested":
+        async with aiosqlite.connect(DB_PATH) as db2:
+            db2.row_factory = aiosqlite.Row
+            cursor = await db2.execute("SELECT * FROM prospect_suggestions WHERE id=?", (suggestion_id,))
+            prospect = await cursor.fetchone()
+        if prospect and prospect["email"] and claude_client and SMTP_HOST and SMTP_USER:
+            p = dict(prospect)
+            asyncio.create_task(_send_interested_email(p))
     return {"ok": True, "id": suggestion_id, "status": action}
 
 
@@ -5621,6 +5970,7 @@ async def dashboard(username: str = Depends(verify_admin)):
                 <div class="panel" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
                     <div id="sugg_stats" style="color:#94a3b8;font-size:0.85rem;">Chargement des suggestions...</div>
                     <button class="btn" onclick="refreshSuggestions()" id="sugg_refresh_btn" style="white-space:nowrap;">🔄 Refresh — nouvelles PMEs</button>
+                    <button id="mass_send_btn" class="btn" style="background:#7c3aed;padding:8px 16px;" onclick="sendEmailToAll()">📤 Envoyer à tous</button>
                 </div>
                 <div id="sugg_loading" style="display:none;color:#94a3b8;font-size:0.85rem;padding:16px;background:#0f1f2e;border-radius:8px;margin-bottom:12px;">⏳ Recherche de nouvelles PMEs à travers le Québec... (60-120 secondes)</div>
                 <div id="sugg_results" style="margin-top:8px;"></div>
