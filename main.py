@@ -136,7 +136,7 @@ _auto_outreach = {
     "enabled": False,
     "sent_today": 0,
     "last_reset": "",
-    "daily_limit": 30,
+    "daily_limit": 40,
     "interval_minutes": 20,
     "last_sent_at": "",
     "last_prospect": "",
