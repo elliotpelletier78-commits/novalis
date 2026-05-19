@@ -127,7 +127,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "6.1"
+VERSION = "6.2"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -149,6 +149,7 @@ function showView(v){{
     if(v==='rdlog')loadRdLog();
     if(v==='prospects')loadProspects();
     if(v==='decouverte')loadSuggestions();
+    if(v==='v_pipeline')loadPipeline();
 }}
 
 async function loadPlatformStats(){{
@@ -753,7 +754,7 @@ function tick(){{document.getElementById('clock').textContent=new Date().toLocal
 // Init: hide all views, show only dashboard
 document.querySelectorAll('.view').forEach(x=>{{x.style.display='none';}});
 const _dv=document.getElementById('dashboard');if(_dv)_dv.style.display='block';
-loadPlatformStats();loadLeads();tick();setInterval(loadPlatformStats,30000);setInterval(tick,1000);
+loadPlatformStats();loadLeads();loadEmailStats();tick();setInterval(loadPlatformStats,30000);setInterval(tick,1000);
 
 // === DÉCOUVERTE AUTOMATIQUE DE PMEs ===
 let discProspects=[];
@@ -878,6 +879,7 @@ function renderSuggestions(list,counts){{
         const sendBtn=p.email&&p.emails_generated?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#7c3aed;" onclick="sendDiscEmail('+i+',1)">📤 Envoyer</button>':'';
         const refonteBtn=p.email&&p.has_refonte?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#dc2626;" onclick="openDiscRefonte('+i+')">🖥️ Pitch refonte</button>':'';
         const viewBtn=p.emails_generated?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#0ea5e9;" onclick="openDiscEmail('+i+',1)">📨 Voir emails</button>':'';
+        const proposalBtn='<button class="btn proposal-btn" style="padding:6px 12px;font-size:0.78rem;background:#0f766e;" onclick="generateProposal('+i+')">📄 Proposition</button>';
         const addEmailBtn=!p.email?'<button class="btn" style="padding:6px 12px;font-size:0.78rem;background:#334155;color:#94a3b8;" onclick="addDiscEmail('+i+')">✏️ Ajouter email</button>':'';
         return '<div class="panel" id="sugg_card_'+i+'" style="margin-bottom:12px;">'
             +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">'
@@ -889,7 +891,7 @@ function renderSuggestions(list,counts){{
             +'<div style="margin-top:4px;"><a href="'+p.website+'" target="_blank" style="color:#38bdf8;font-size:0.75rem;">'+p.website.replace(/^https?:\/\//,'').substring(0,60)+'</a></div>'
             +'</div>'
             +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;">'
-            +viewBtn+refonteBtn+sendBtn+addEmailBtn
+            +viewBtn+refonteBtn+sendBtn+proposalBtn+addEmailBtn
             +'</div>'
             +'</div>'
             +insightsBlock+preview
@@ -982,6 +984,101 @@ async function saveDiscProspect(i){{
     const r=await fetch('/api/v1/prospects',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});
     if(r.ok){{showNotice('✅ '+p.name+' sauvegardé dans Prospection !',false);if(discEmailIdx===i)document.getElementById('discEmailModal').style.display='none';}}
     else showNotice('❌ Déjà existant ou erreur',true);
+}}
+
+// === PIPELINE / KANBAN ===
+async function loadPipeline(){{
+    try{{
+        const r=await fetch('/api/admin/pipeline');
+        if(!r.ok){{showNotice('❌ Erreur chargement pipeline',true);return;}}
+        const data=await r.json();
+        const cols=[
+            {{key:'new',label:'Découverts',color:'#38bdf8'}},
+            {{key:'contacted',label:'Contactés',color:'#a855f7'}},
+            {{key:'interested',label:'Intéressés',color:'#f59e0b'}},
+            {{key:'client',label:'Clients',color:'#34d399'}},
+        ];
+        const grid=document.getElementById('pipeline_grid');
+        if(!grid)return;
+        grid.innerHTML=cols.map(col=>{{
+            const items=data[col.key]||[];
+            const cards=items.map(p=>{{
+                const emailHtml=p.email
+                    ?'<div style="color:#34d399;font-size:0.75rem;margin-top:3px;">✉ '+p.email+'</div>'
+                    :'<div style="color:#475569;font-size:0.75rem;margin-top:3px;">— pas d\'email</div>';
+                const intBtn=col.key==='contacted'
+                    ?'<button onclick="markInterested(\''+p.id+'\')" style="margin-top:6px;background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);border-radius:6px;padding:3px 10px;font-size:0.72rem;cursor:pointer;width:100%;">✋ Marquer Intéressé</button>'
+                    :'';
+                return '<div style="background:#0f1f2e;border-radius:8px;padding:10px 12px;margin-bottom:8px;border-left:3px solid '+col.color+';">'
+                    +'<div style="font-weight:600;color:#e2e8f0;font-size:0.88rem;">'+p.name+'</div>'
+                    +'<div style="color:#64748b;font-size:0.75rem;margin-top:2px;">'+p.city+' · '+p.industry+'</div>'
+                    +emailHtml+intBtn
+                    +'</div>';
+            }}).join('');
+            return '<div style="flex:1;min-width:200px;background:#1a2332;border-radius:12px;padding:14px;border:1px solid #1e3a5f;">'
+                +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
+                +'<div style="font-weight:700;color:'+col.color+';font-size:0.9rem;">'+col.label+'</div>'
+                +'<span style="background:rgba(255,255,255,0.07);color:#94a3b8;border-radius:20px;padding:2px 10px;font-size:0.78rem;">'+items.length+'</span>'
+                +'</div>'
+                +(cards||'<div style="color:#475569;font-size:0.8rem;text-align:center;padding:16px 0;">—</div>')
+                +'</div>';
+        }}).join('');
+    }}catch(e){{showNotice('❌ Erreur: '+e.message,true);}}
+}}
+
+async function markInterested(id){{
+    try{{
+        await fetch('/api/admin/suggestions/action',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{id,action:'interested'}})}});
+        await loadPipeline();
+        showNotice('✅ Statut mis à jour: Intéressé',false);
+    }}catch(e){{showNotice('❌ Erreur',true);}}
+}}
+
+// === GÉNÉRATEUR DE PROPOSITION ===
+async function generateProposal(i){{
+    const p=discProspects[i];
+    if(!p)return;
+    const btn=document.querySelector('#sugg_card_'+i+' .proposal-btn');
+    if(btn){{btn.textContent='⏳ Génération...';btn.disabled=true;}}
+    try{{
+        const r=await fetch('/api/admin/generate-proposal',{{
+            method:'POST',
+            headers:{{'Content-Type':'application/json'}},
+            body:JSON.stringify({{prospect_id:p.id}})
+        }});
+        const data=await r.json();
+        if(!r.ok){{showNotice('❌ '+(data.detail||'Erreur génération'),true);return;}}
+        document.getElementById('proposalModalName').textContent=p.name;
+        document.getElementById('proposalContent').value=data.proposal||'';
+        document.getElementById('proposalModal').style.display='flex';
+    }}catch(e){{showNotice('❌ Erreur réseau',true);}}
+    finally{{if(btn){{btn.textContent='📄 Proposition';btn.disabled=false;}}}}
+}}
+
+function copyProposal(){{
+    const ta=document.getElementById('proposalContent');
+    ta.select();
+    navigator.clipboard.writeText(ta.value).then(()=>{{
+        const btn=document.getElementById('copyProposalBtn');
+        btn.textContent='✅ Copié !';
+        setTimeout(()=>{{btn.textContent='📋 Copier';}},2000);
+    }}).catch(()=>{{document.execCommand('copy');showNotice('📋 Copié !',false);}});
+}}
+
+// === EMAIL STATS (DASHBOARD) ===
+async function loadEmailStats(){{
+    try{{
+        const r=await fetch('/api/admin/email-stats');
+        if(!r.ok)return;
+        const d=await r.json();
+        const el=document.getElementById('emailStatsRow');
+        if(!el)return;
+        el.innerHTML=
+            '<div class="stat-card"><div class="stat-label">📧 Emails envoyés</div><div class="stat-value">'+d.sent+'</div></div>'
+            +'<div class="stat-card"><div class="stat-label">🔄 Relances envoyées</div><div class="stat-value">'+d.followups+'</div></div>'
+            +'<div class="stat-card" style="border-color:#f59e0b44;"><div class="stat-label" style="color:#f59e0b;">✋ Intéressés</div><div class="stat-value">'+d.interested+'<span style="font-size:0.65rem;color:#94a3b8;margin-left:4px;">'+d.response_rate+'%</span></div></div>'
+            +'<div class="stat-card" style="border-color:#34d39944;"><div class="stat-label" style="color:#34d399;">🏆 Clients</div><div class="stat-value">'+d.clients+'</div></div>';
+    }}catch(e){{}}
 }}
 """
 
@@ -4947,8 +5044,8 @@ async def suggestions_action_endpoint(request: Request, username: str = Depends(
     data = await request.json()
     suggestion_id = data.get("id", "").strip()
     action = data.get("action", "").strip()
-    if action not in ("contacted", "dismissed", "saved"):
-        raise HTTPException(400, "action doit être: contacted, dismissed ou saved")
+    if action not in ("contacted", "dismissed", "saved", "interested", "client"):
+        raise HTTPException(400, "action doit être: contacted, dismissed, saved, interested ou client")
     now = datetime.now().isoformat()
     async with aiosqlite.connect(DB_PATH) as db:
         result = await db.execute(
@@ -5135,6 +5232,98 @@ async def smtp_status_endpoint(username: str = Depends(verify_admin)):
     return {"configured": configured, "host": SMTP_HOST or "(non défini)", "user": SMTP_USER or "(non défini)"}
 
 
+@app.get("/api/admin/pipeline")
+async def pipeline_endpoint(username: str = Depends(verify_admin)):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT id, name, city, industry, email, status, email_sent_at, created_at FROM prospect_suggestions ORDER BY created_at DESC"
+        )
+        rows = [dict(r) for r in await cursor.fetchall()]
+    columns = {
+        "new": [r for r in rows if r["status"] == "new"],
+        "contacted": [r for r in rows if r["status"] == "contacted"],
+        "interested": [r for r in rows if r["status"] == "interested"],
+        "client": [r for r in rows if r["status"] == "client"],
+        "dismissed": [r for r in rows if r["status"] == "dismissed"],
+    }
+    return columns
+
+
+@app.get("/api/admin/email-stats")
+async def email_stats_endpoint(username: str = Depends(verify_admin)):
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE email_sent_at != '' AND email_sent_at IS NOT NULL")
+        sent = (await cursor.fetchone())[0]
+        cursor = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE followup_sent_at != '' AND followup_sent_at IS NOT NULL")
+        followups = (await cursor.fetchone())[0]
+        cursor = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE status = 'interested'")
+        interested = (await cursor.fetchone())[0]
+        cursor = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE status = 'client'")
+        clients = (await cursor.fetchone())[0]
+        cursor = await db.execute("SELECT COUNT(*) FROM prospect_suggestions")
+        total = (await cursor.fetchone())[0]
+    response_rate = round(interested / sent * 100, 1) if sent > 0 else 0
+    return {"sent": sent, "followups": followups, "interested": interested, "clients": clients, "total": total, "response_rate": response_rate}
+
+
+@app.post("/api/admin/generate-proposal")
+async def generate_proposal_endpoint(request: Request, username: str = Depends(verify_admin)):
+    data = await request.json()
+    prospect_id = data.get("prospect_id", "")
+    if not prospect_id:
+        raise HTTPException(400, "prospect_id requis")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT id, name, city, industry, email, insights, pain_points FROM prospect_suggestions WHERE id = ?",
+            (prospect_id,)
+        )
+        row = await cursor.fetchone()
+    if not row:
+        raise HTTPException(404, "Prospect introuvable")
+    p = dict(row)
+    pain_text = ""
+    try:
+        pain_list = json.loads(p.get("pain_points") or "[]")
+        if pain_list:
+            pain_text = ", ".join(pain_list)
+    except Exception:
+        pass
+    prompt = f"""Tu es Elliot Pelletier, fondateur de Novalis IA (novalisia.ca). Génère une proposition commerciale professionnelle en français pour la PME suivante.
+
+PME: {p['name']}
+Ville: {p.get('city','—')}
+Secteur: {p.get('industry','—')}
+Email: {p.get('email','—')}
+Points de douleur identifiés: {pain_text or p.get('insights','Non précisé')}
+
+La proposition doit inclure:
+1. En-tête: "Proposition commerciale — Novalis IA"
+2. Adressée à: {p['name']}
+3. Problème identifié: points de douleur spécifiques à leur secteur
+4. Solution proposée: agent IA 24/7 de Novalis déployé pour leur cas précis
+5. Délai de déploiement: 48h
+6. Tarif: 497$/mois, premier mois GRATUIT (offre clients de la première heure)
+7. Signature: Elliot Pelletier | Novalis IA | novalisia.ca | novalisproia@gmail.com
+
+Ton: professionnel mais chaleureux, en québécois naturel. Maximum 400 mots. Texte brut uniquement, pas de markdown."""
+
+    if not claude_client:
+        raise HTTPException(503, "API Claude non configurée")
+    loop = asyncio.get_event_loop()
+    response = await loop.run_in_executor(
+        None,
+        lambda: claude_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=800,
+            messages=[{"role": "user", "content": prompt}]
+        )
+    )
+    proposal_text = response.content[0].text.strip()
+    return {"proposal": proposal_text, "prospect": p["name"]}
+
+
 @app.post("/api/admin/send-prospect-email")
 async def send_prospect_email_endpoint(request: Request, username: str = Depends(verify_admin)):
     data = await request.json()
@@ -5246,6 +5435,7 @@ async def dashboard(username: str = Depends(verify_admin)):
         <button type="button" class="nav-item" data-view="rdlog" title="Journal R&D" onclick="showView('rdlog')">🔬</button>
         <button type="button" class="nav-item" data-view="generateur" title="Générateur d'emails" onclick="showView('generateur')" style="font-size:1rem;">📧</button>
         <button type="button" class="nav-item" data-view="decouverte" title="Découverte PMEs" onclick="showView('decouverte')" style="font-size:1rem;">🔍</button>
+        <button type="button" class="nav-item" data-view="v_pipeline" title="Pipeline" onclick="showView('v_pipeline')" style="font-size:1rem;">📊</button>
         <button type="button" class="nav-item" data-view="api" title="API" onclick="showView('api')">🔗</button>
     </div>
     <div class="main-content">
@@ -5269,8 +5459,10 @@ async def dashboard(username: str = Depends(verify_admin)):
                     <div class="stat-card"><div class="stat-label">Aujourd'hui</div><div class="stat-value" id="pToday">0</div></div>
                     <div class="stat-card"><div class="stat-label">MRR</div><div class="stat-value" id="pMrr">0$</div></div>
                 </div>
+                <!-- EMAIL STATS -->
+                <div class="stats-grid" id="emailStatsRow" style="margin-top:0;"></div>
                 <!-- LEADS PANEL -->
-                <div id="leadsPanel" class="panel" style="border-color:#fb923c33;">
+                <div id="leadsPanel" class="panel" style="border-color:#fb923c33;margin-top:16px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                         <h3 style="color:#fb923c;margin:0;">🔥 Nouveaux leads — 7 derniers jours</h3>
                         <button class="btn btn-sm" style="background:rgba(251,146,60,0.15);color:#fb923c;" onclick="loadLeads()">↻ Rafraîchir</button>
@@ -5433,6 +5625,19 @@ async def dashboard(username: str = Depends(verify_admin)):
                 <div id="sugg_loading" style="display:none;color:#94a3b8;font-size:0.85rem;padding:16px;background:#0f1f2e;border-radius:8px;margin-bottom:12px;">⏳ Recherche de nouvelles PMEs à travers le Québec... (60-120 secondes)</div>
                 <div id="sugg_results" style="margin-top:8px;"></div>
             </div>
+            <!-- PIPELINE / KANBAN -->
+            <div class="view" id="v_pipeline">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+                    <div>
+                        <h2 style="color:#38bdf8;margin-bottom:4px;">📊 Pipeline commercial</h2>
+                        <p style="color:#64748b;font-size:0.8rem;margin:0;">Vue kanban des PMEs par étape — de la découverte au client.</p>
+                    </div>
+                    <button class="btn" onclick="loadPipeline()">↻ Rafraîchir</button>
+                </div>
+                <div id="pipeline_grid" style="display:flex;gap:14px;overflow-x:auto;padding-bottom:8px;">
+                    <div style="color:#94a3b8;padding:32px;">Chargement...</div>
+                </div>
+            </div>
             <!-- API DOCS -->
             <div class="view" id="api">
                 <h2 style="color:#38bdf8;margin-bottom:16px;">Documentation API</h2>
@@ -5545,6 +5750,22 @@ async def dashboard(username: str = Depends(verify_admin)):
             <button class="btn" style="background:#334155;color:#94a3b8;" onclick="closeEditModal()">Annuler</button>
         </div>
         <div id="em_result" style="margin-top:10px;font-size:0.9rem;"></div>
+    </div>
+</div>
+
+<!-- PROPOSAL MODAL -->
+<div id="proposalModal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.82);align-items:center;justify-content:center;padding:24px;overflow-y:auto;">
+    <div style="background:#1a2332;border:1px solid #1e3a5f;border-radius:16px;padding:28px;max-width:680px;width:100%;max-height:90vh;overflow-y:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="color:#0d9488;margin:0;">📄 Proposition — <span id="proposalModalName"></span></h3>
+            <button onclick="document.getElementById('proposalModal').style.display='none'" style="background:transparent;border:none;color:#94a3b8;font-size:2rem;cursor:pointer;line-height:1;">×</button>
+        </div>
+        <p style="color:#64748b;font-size:0.78rem;margin-bottom:10px;">Proposition commerciale générée par IA — modifiez si nécessaire, puis copiez.</p>
+        <textarea id="proposalContent" rows="20" style="background:#0f1f2e;border:1px solid #1e3a5f;border-radius:8px;padding:12px;color:#e2e8f0;width:100%;font-size:0.82rem;font-family:monospace;line-height:1.6;resize:vertical;margin-bottom:12px;"></textarea>
+        <div style="display:flex;gap:8px;">
+            <button id="copyProposalBtn" class="btn" onclick="copyProposal()">📋 Copier</button>
+            <button class="btn" style="background:#334155;color:#94a3b8;" onclick="document.getElementById('proposalModal').style.display='none'">Fermer</button>
+        </div>
     </div>
 </div>
 
