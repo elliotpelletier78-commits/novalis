@@ -937,7 +937,7 @@ async function sendDiscEmail(i,emailNum){{
         :((p.generated_emails||{{}})[''+'email'+emailNum]||{{}});
     if(!e.subject||!e.body){{showNotice('Email non disponible',true);return;}}
     try{{
-        const r=await fetch('/api/admin/send-prospect-email',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{to:p.email,subject:e.subject,body:e.body}})}});
+        const r=await fetch('/api/admin/send-prospect-email',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{to:p.email,subject:e.subject,body:e.body,prospect_id:p.id}})}});
         const data=await r.json();
         if(r.ok){{
             if(!p.sent_emails)p.sent_emails=[];
@@ -945,6 +945,10 @@ async function sendDiscEmail(i,emailNum){{
             showNotice('✅ Courriel envoyé à '+p.email+' !',false);
             renderSuggestions(discProspects,{{}});
             if(discEmailIdx===i)renderDiscEmailModal();
+        }}else if(r.status===503){{
+            const mailtoUrl='mailto:'+p.email+'?subject='+encodeURIComponent(e.subject)+'&body='+encodeURIComponent(e.body);
+            window.open(mailtoUrl,'_blank');
+            showNotice('📧 Ouverture dans votre client email — SMTP non configuré dans Railway',false);
         }}else{{
             showNotice('❌ '+(data.detail||'Erreur SMTP — vérifiez SMTP_HOST dans Railway'),true);
         }}
