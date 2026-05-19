@@ -9,3 +9,4 @@ push_to_github.command
 frontend/node_modules/
 frontend/.vite/
 railpack.json
+.claude/
