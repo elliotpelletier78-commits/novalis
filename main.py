@@ -794,9 +794,27 @@ async function loadAutoOutreachStatus(){{
             +'<div><div style="font-size:0.7rem;color:#64748b;">Total envoyés</div><div style="font-size:1.4rem;font-weight:800;color:#38bdf8;">'+d.total_sent+'</div></div>'
             +'<div><div style="font-size:0.7rem;color:#64748b;">Dernier envoi</div><div style="font-size:0.85rem;font-weight:600;color:#e2e8f0;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(d.last_prospect||'—')+'</div></div>'
             +'</div>'
-            +(on?'<div style="font-size:0.78rem;color:#34d399;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:6px;padding:6px 12px;">🤖 En cours — envoie automatiquement toutes les '+d.interval_minutes+' min</div>':'')
+            +(on?'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span style="font-size:0.78rem;color:#34d399;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:6px;padding:6px 12px;">🤖 Envoie automatiquement toutes les '+d.interval_minutes+' min</span><button onclick="sendNow(this)" style="background:#1e40af;color:#93c5fd;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;">⚡ Envoyer maintenant</button></div>':'')
             +'</div>';
     }}catch(e){{}}
+}}
+async function sendNow(btn){{
+    const orig=btn.textContent;btn.textContent='⏳...';btn.disabled=true;
+    try{{
+        const r=await fetch('/api/admin/auto-outreach/send-now',{{method:'POST'}});
+        const d=await r.json();
+        if(r.ok){{
+            const sent=d.sent||[];const errs=d.errors||[];
+            let msg='';
+            if(sent.length)msg+='✅ Envoyé: '+sent.join(', ')+'. ';
+            if(errs.length)msg+='⚠️ Erreurs: '+errs.join(' | ')+'. ';
+            if(!sent.length&&!errs.length)msg='⚠️ Aucun prospect prêt (new:'+d.total_new+', avec email:'+d.with_email+', prêts:'+d.ready_to_send+')';
+            showNotice(msg||'Done',errs.length>0&&!sent.length);
+            loadAutoOutreachStatus();
+            loadSuggestions();
+        }}else{{showNotice('❌ '+(d.detail||'Erreur'),true);}}
+    }}catch(e){{showNotice('❌ '+e.message,true);}}
+    btn.textContent=orig;btn.disabled=false;
 }}
 async function toggleAutoOutreach(){{
     await fetch('/api/admin/auto-outreach/toggle',{{method:'POST'}});
@@ -5912,6 +5930,56 @@ async def toggle_auto_outreach(username: str = Depends(verify_admin)):
 @app.get("/api/admin/auto-outreach/status")
 async def auto_outreach_status(username: str = Depends(verify_admin)):
     return _auto_outreach
+
+
+@app.post("/api/admin/auto-outreach/send-now")
+async def outreach_send_now(username: str = Depends(verify_admin)):
+    """Force immediate send of up to 3 emails — bypasses the 20-min timer. Returns debug info."""
+    if not SMTP_HOST or not SMTP_USER:
+        raise HTTPException(503, "SMTP non configuré")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        # Check what's available
+        c1 = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE status='new'")
+        total_new = (await c1.fetchone())[0]
+        c2 = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE status='new' AND email != ''")
+        with_email = (await c2.fetchone())[0]
+        c3 = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE status='new' AND email != '' AND (email_sent_at IS NULL OR email_sent_at = '')")
+        not_sent = (await c3.fetchone())[0]
+        c4 = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE status='new' AND email != '' AND (email_sent_at IS NULL OR email_sent_at = '') AND generated_emails IS NOT NULL AND generated_emails != '{}'")
+        ready = (await c4.fetchone())[0]
+        cursor = await db.execute("""
+            SELECT * FROM prospect_suggestions
+            WHERE status='new' AND email != ''
+              AND (email_sent_at IS NULL OR email_sent_at = '')
+              AND generated_emails IS NOT NULL AND generated_emails != '{}'
+            ORDER BY CASE WHEN email_quality IN ('verified','direct') THEN 0 ELSE 1 END, web_score ASC
+            LIMIT 3
+        """)
+        prospects = [dict(r) for r in await cursor.fetchall()]
+    debug = {"total_new": total_new, "with_email": with_email, "not_yet_sent": not_sent, "ready_to_send": ready, "sent": [], "errors": []}
+    for p in prospects:
+        try:
+            emails = json.loads(p.get("generated_emails") or "{}")
+            email1 = emails.get("email1", {})
+            if not email1.get("subject") or not email1.get("body"):
+                debug["errors"].append(f"{p['name']}: email1 vide dans generated_emails")
+                continue
+            unsubscribe_url = f"https://novalisia.ca/unsubscribe?id={p['id']}"
+            html_body = f"<div style='font-family:sans-serif;font-size:15px;line-height:1.8;color:#222;max-width:600px;'>{email1['body'].replace(chr(10),'<br>')}<br><br><hr style='border:none;border-top:1px solid #eee;margin:24px 0;'><p style='font-size:11px;color:#999;'>Novalis IA — Québec | <a href='{unsubscribe_url}' style='color:#999;'>Se désabonner</a></p></div>"
+            await send_email(p["email"], email1["subject"], html_body)
+            now = datetime.now().isoformat()
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute("UPDATE prospect_suggestions SET email_sent_at=?, status='contacted', updated_at=? WHERE id=?", (now, now, p["id"]))
+                await db.commit()
+            _auto_outreach["sent_today"] += 1
+            _auto_outreach["total_sent"] += 1
+            _auto_outreach["last_sent_at"] = now
+            _auto_outreach["last_prospect"] = f"{p['name']} ({p['city']})"
+            debug["sent"].append(f"{p['name']} → {p['email']}")
+        except Exception as e:
+            debug["errors"].append(f"{p['name']}: {str(e)}")
+    return debug
 
 
 @app.get("/unsubscribe", response_class=HTMLResponse)
