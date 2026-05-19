@@ -1869,7 +1869,47 @@ async def _auto_outreach_loop():
                 prospects = [dict(r) for r in await cursor.fetchall()]
 
             if not prospects:
-                # No PMEs ready — trigger bank pull + discover
+                # Try to generate emails for prospects that have email but no generated_emails
+                async with aiosqlite.connect(DB_PATH) as db:
+                    db.row_factory = aiosqlite.Row
+                    cursor = await db.execute("""
+                        SELECT * FROM prospect_suggestions
+                        WHERE status='new' AND email != '' AND email IS NOT NULL
+                          AND (email_sent_at IS NULL OR email_sent_at = '')
+                          AND (generated_emails IS NULL OR generated_emails = '{}')
+                        LIMIT 5
+                    """)
+                    missing_emails = [dict(r) for r in await cursor.fetchall()]
+                if missing_emails:
+                    logging.info(f"Auto-outreach: génération emails pour {len(missing_emails)} prospects...")
+                    for p in missing_emails:
+                        try:
+                            biz = {
+                                "name": p["name"], "city": p["city"], "industry": p["industry"],
+                                "website": p["website"], "email": p["email"],
+                                "web_score": p.get("web_score", 5),
+                                "web_issues": json.loads(p.get("web_issues") or "[]"),
+                                "site_text": "", "research": {
+                                    "rating": p.get("rating", ""),
+                                    "review_count": p.get("review_count", ""),
+                                    "snippets": p.get("insights", "")
+                                }
+                            }
+                            emails = await _generate_prospect_emails_claude(biz)
+                            if emails and not emails.get("skip"):
+                                now = datetime.now().isoformat()
+                                async with aiosqlite.connect(DB_PATH) as db:
+                                    await db.execute(
+                                        "UPDATE prospect_suggestions SET generated_emails=?, updated_at=? WHERE id=?",
+                                        (json.dumps(emails, ensure_ascii=False), now, p["id"])
+                                    )
+                                    await db.commit()
+                                logging.info(f"Auto-outreach: emails générés pour {p['name']}")
+                        except Exception as e:
+                            logging.error(f"Auto-outreach generate error: {e}")
+                    await asyncio.sleep(10)
+                    continue  # loop again to pick up newly generated emails
+                # Still nothing — trigger bank pull + discover
                 logging.info("Auto-outreach: no ready prospects, triggering discovery...")
                 asyncio.create_task(_run_refresh_job())
                 await asyncio.sleep(120)
@@ -5957,6 +5997,35 @@ async def outreach_send_now(username: str = Depends(verify_admin)):
             LIMIT 3
         """)
         prospects = [dict(r) for r in await cursor.fetchall()]
+    # If no prospects with generated emails, generate them now
+    if not prospects:
+        async with aiosqlite.connect(DB_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("""
+                SELECT * FROM prospect_suggestions
+                WHERE status='new' AND email != ''
+                  AND (email_sent_at IS NULL OR email_sent_at = '')
+                  AND (generated_emails IS NULL OR generated_emails = '{}')
+                LIMIT 5
+            """)
+            to_generate = [dict(r) for r in await cursor.fetchall()]
+        for p in to_generate:
+            try:
+                biz = {"name": p["name"], "city": p["city"], "industry": p["industry"],
+                       "website": p["website"], "email": p["email"],
+                       "web_score": p.get("web_score", 5),
+                       "web_issues": json.loads(p.get("web_issues") or "[]"),
+                       "site_text": "", "research": {"rating": p.get("rating",""), "review_count": p.get("review_count",""), "snippets": p.get("insights","")}}
+                emails = await _generate_prospect_emails_claude(biz)
+                if emails and not emails.get("skip"):
+                    now = datetime.now().isoformat()
+                    async with aiosqlite.connect(DB_PATH) as db:
+                        await db.execute("UPDATE prospect_suggestions SET generated_emails=?, updated_at=? WHERE id=?",
+                                        (json.dumps(emails, ensure_ascii=False), now, p["id"]))
+                        await db.commit()
+                    prospects.append({**p, "generated_emails": json.dumps(emails)})
+            except Exception as e:
+                pass
     debug = {"total_new": total_new, "with_email": with_email, "not_yet_sent": not_sent, "ready_to_send": ready, "sent": [], "errors": []}
     for p in prospects:
         try:
