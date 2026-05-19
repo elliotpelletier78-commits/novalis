@@ -132,6 +132,17 @@ VERSION = "6.2"
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
 
+_auto_outreach = {
+    "enabled": False,
+    "sent_today": 0,
+    "last_reset": "",
+    "daily_limit": 30,
+    "interval_minutes": 20,
+    "last_sent_at": "",
+    "last_prospect": "",
+    "total_sent": 0,
+}
+
 _ADMIN_JS_RAW = r"""
 window.addEventListener('error',function(e){{
     var n=document.getElementById('admin-notice');
@@ -148,7 +159,7 @@ function showView(v){{
     if(v==='clients')loadClients();
     if(v==='rdlog')loadRdLog();
     if(v==='prospects')loadProspects();
-    if(v==='decouverte')loadSuggestions();
+    if(v==='decouverte'){{loadSuggestions();loadAutoOutreachStatus();}}
     if(v==='v_pipeline')loadPipeline();
 }}
 
@@ -755,6 +766,36 @@ function tick(){{document.getElementById('clock').textContent=new Date().toLocal
 document.querySelectorAll('.view').forEach(x=>{{x.style.display='none';}});
 const _dv=document.getElementById('dashboard');if(_dv)_dv.style.display='block';
 loadPlatformStats();loadLeads();loadEmailStats();tick();setInterval(loadPlatformStats,30000);setInterval(tick,1000);
+setInterval(()=>{{if(document.getElementById('decouverte')&&document.getElementById('decouverte').style.display!=='none')loadAutoOutreachStatus();}},30000);
+
+// === AUTO-OUTREACH ENGINE ===
+async function loadAutoOutreachStatus(){{
+    try{{
+        const r=await fetch('/api/admin/auto-outreach/status');
+        const d=await r.json();
+        const panel=document.getElementById('outreach_panel');
+        if(!panel)return;
+        const on=d.enabled;
+        panel.innerHTML=
+            '<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">'
+            +'<div>'
+            +'<div style="font-size:0.75rem;color:#94a3b8;margin-bottom:6px;">PROSPECTION AUTOMATIQUE</div>'
+            +'<button onclick="toggleAutoOutreach()" style="padding:10px 28px;border-radius:8px;border:none;cursor:pointer;font-size:1rem;font-weight:700;background:'+(on?'#16a34a':'#334155')+';color:'+(on?'#fff':'#94a3b8')+';transition:all 0.2s;">'
+            +(on?'● EN MARCHE':'○ ARRÊTÉE')+'</button>'
+            +'</div>'
+            +'<div style="display:flex;gap:24px;flex-wrap:wrap;">'
+            +'<div><div style="font-size:0.7rem;color:#64748b;">Envoyés aujourd\'hui</div><div style="font-size:1.4rem;font-weight:800;color:#34d399;">'+d.sent_today+' / '+d.daily_limit+'</div></div>'
+            +'<div><div style="font-size:0.7rem;color:#64748b;">Total envoyés</div><div style="font-size:1.4rem;font-weight:800;color:#38bdf8;">'+d.total_sent+'</div></div>'
+            +'<div><div style="font-size:0.7rem;color:#64748b;">Dernier envoi</div><div style="font-size:0.85rem;font-weight:600;color:#e2e8f0;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(d.last_prospect||'—')+'</div></div>'
+            +'</div>'
+            +(on?'<div style="font-size:0.78rem;color:#34d399;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:6px;padding:6px 12px;">🤖 En cours — envoie automatiquement toutes les '+d.interval_minutes+' min</div>':'')
+            +'</div>';
+    }}catch(e){{}}
+}}
+async function toggleAutoOutreach(){{
+    await fetch('/api/admin/auto-outreach/toggle',{{method:'POST'}});
+    await loadAutoOutreachStatus();
+}}
 
 // === DÉCOUVERTE AUTOMATIQUE DE PMEs ===
 let discProspects=[];
@@ -1744,6 +1785,105 @@ Réponds UNIQUEMENT avec ce JSON:
         await asyncio.sleep(6 * 3600)  # check every 6 hours
 
 
+async def _auto_outreach_loop():
+    """Autonomous engine: discover PMEs → send emails → follow-up. Runs forever."""
+    await asyncio.sleep(90)  # wait for server startup
+    while True:
+        try:
+            if not _auto_outreach["enabled"] or not SMTP_HOST or not SMTP_USER:
+                await asyncio.sleep(60)
+                continue
+
+            # Reset daily counter at midnight
+            today = datetime.now().strftime("%Y-%m-%d")
+            if _auto_outreach["last_reset"] != today:
+                _auto_outreach["sent_today"] = 0
+                _auto_outreach["last_reset"] = today
+
+            if _auto_outreach["sent_today"] >= _auto_outreach["daily_limit"]:
+                # Daily limit reached — wait until midnight
+                now = datetime.now()
+                tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=5, second=0)
+                wait_secs = (tomorrow - now).total_seconds()
+                logging.info(f"Auto-outreach: daily limit reached ({_auto_outreach['sent_today']}). Waiting until tomorrow.")
+                await asyncio.sleep(max(wait_secs, 300))
+                continue
+
+            # Get uncontacted PMEs with emails, prioritize those with verified emails
+            async with aiosqlite.connect(DB_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute("""
+                    SELECT * FROM prospect_suggestions
+                    WHERE status='new'
+                      AND email != '' AND email IS NOT NULL
+                      AND (email_sent_at IS NULL OR email_sent_at = '')
+                      AND generated_emails IS NOT NULL AND generated_emails != '{}'
+                    ORDER BY
+                        CASE WHEN email_quality IN ('verified','direct') THEN 0 ELSE 1 END,
+                        web_score ASC
+                    LIMIT 3
+                """)
+                prospects = [dict(r) for r in await cursor.fetchall()]
+
+            if not prospects:
+                # No PMEs ready — trigger bank pull + discover
+                logging.info("Auto-outreach: no ready prospects, triggering discovery...")
+                asyncio.create_task(_run_refresh_job())
+                await asyncio.sleep(120)
+                continue
+
+            for p in prospects:
+                if _auto_outreach["sent_today"] >= _auto_outreach["daily_limit"]:
+                    break
+                if not _auto_outreach["enabled"]:
+                    break
+                try:
+                    emails = json.loads(p.get("generated_emails") or "{}")
+                    email1 = emails.get("email1", {})
+                    if not email1.get("subject") or not email1.get("body"):
+                        continue
+
+                    # Add CASL-compliant unsubscribe link
+                    unsubscribe_url = f"https://novalisia.ca/unsubscribe?id={p['id']}"
+                    body_text = email1["body"]
+                    html_body = f"""<div style="font-family:sans-serif;font-size:15px;line-height:1.8;color:#222;max-width:600px;">
+{body_text.replace(chr(10), '<br>')}
+<br><br>
+<hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
+<p style="font-size:11px;color:#999;">
+Novalis IA — Québec, Canada | novalisproia@gmail.com<br>
+<a href="{unsubscribe_url}" style="color:#999;">Se désabonner</a>
+</p>
+</div>"""
+
+                    await send_email(p["email"], email1["subject"], html_body)
+
+                    now = datetime.now().isoformat()
+                    async with aiosqlite.connect(DB_PATH) as db:
+                        await db.execute(
+                            "UPDATE prospect_suggestions SET email_sent_at=?, status='contacted', updated_at=? WHERE id=?",
+                            (now, now, p["id"])
+                        )
+                        await db.commit()
+
+                    _auto_outreach["sent_today"] += 1
+                    _auto_outreach["total_sent"] += 1
+                    _auto_outreach["last_sent_at"] = now
+                    _auto_outreach["last_prospect"] = f"{p['name']} ({p['city']})"
+                    logging.info(f"Auto-outreach ✓ {p['name']} <{p['email']}> — {_auto_outreach['sent_today']}/{_auto_outreach['daily_limit']} today")
+
+                    await asyncio.sleep(45)  # 45s between sends (anti-spam)
+
+                except Exception as e:
+                    logging.error(f"Auto-outreach send error for {p.get('name', '?')}: {e}")
+
+        except Exception as e:
+            logging.error(f"Auto-outreach loop error: {e}")
+
+        # Wait interval_minutes before next batch
+        await asyncio.sleep(_auto_outreach["interval_minutes"] * 60)
+
+
 @app.on_event("startup")
 async def startup():
     # Always log admin credentials clearly so they can be recovered from Railway logs
@@ -1769,6 +1909,7 @@ async def startup():
     asyncio.create_task(trial_monitor_task())
     asyncio.create_task(_bank_builder_loop())
     asyncio.create_task(_followup_loop())
+    asyncio.create_task(_auto_outreach_loop())
     logger.info(f"Novalis V{VERSION} démarré — Agence IA")
 
 # ============================================================
@@ -5698,6 +5839,35 @@ async def send_prospect_email_endpoint(request: Request, username: str = Depends
     return {"ok": True, "to": to}
 
 
+@app.post("/api/admin/auto-outreach/toggle")
+async def toggle_auto_outreach(username: str = Depends(verify_admin)):
+    _auto_outreach["enabled"] = not _auto_outreach["enabled"]
+    state = "activé" if _auto_outreach["enabled"] else "désactivé"
+    logging.info(f"Auto-outreach {state} par admin")
+    return _auto_outreach
+
+@app.get("/api/admin/auto-outreach/status")
+async def auto_outreach_status(username: str = Depends(verify_admin)):
+    return _auto_outreach
+
+
+@app.get("/unsubscribe", response_class=HTMLResponse)
+async def unsubscribe(id: str = ""):
+    if id:
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute(
+                "UPDATE prospect_suggestions SET status='dismissed', updated_at=? WHERE id=?",
+                (datetime.now().isoformat(), id)
+            )
+            await db.commit()
+    return HTMLResponse("""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<title>Désabonnement — Novalis IA</title>
+<style>body{font-family:sans-serif;background:#060a12;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}
+.box{text-align:center;padding:48px;max-width:400px;}h1{color:#34d399;margin-bottom:16px;}p{color:#94a3b8;line-height:1.6;}a{color:#38bdf8;}</style></head>
+<body><div class="box"><h1>✓ Désabonné</h1><p>Vous ne recevrez plus de courriels de notre part.<br>Merci d'avoir pris le temps de lire.</p>
+<p style="margin-top:24px;"><a href="https://novalisia.ca">← novalisia.ca</a></p></div></body></html>""")
+
+
 # ============================================================
 # DASHBOARD ADMIN (HTML)
 # ============================================================
@@ -5965,6 +6135,7 @@ async def dashboard(username: str = Depends(verify_admin)):
             </div>
             <!-- DÉCOUVERTE DE PMEs -->
             <div class="view" id="decouverte">
+                <div id="outreach_panel" style="background:#0f1a2b;border:1px solid #1e3a5f;border-radius:12px;padding:20px 24px;margin-bottom:20px;"></div>
                 <h2 style="color:#38bdf8;margin-bottom:4px;">🔍 Découverte automatique de PMEs</h2>
                 <p style="color:#64748b;font-size:0.8rem;margin-bottom:16px;">Novalis cherche automatiquement des PMEs québécoises qui ont besoin de vous — sites désuets, mauvais avis, opportunités IA. Cliquez "Contacté" ou "Ignorer" pour chaque suggestion, puis Refresh pour en obtenir de nouvelles.</p>
                 <div class="panel" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
