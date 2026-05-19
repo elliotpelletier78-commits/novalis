@@ -164,6 +164,16 @@ async function loadPlatformStats(){{
     el.textContent=nl;
     if(nl>0){{el.classList.add('has-leads');}}else{{el.classList.remove('has-leads');}}
     }}catch(e){{}}
+    // Show SMTP status warning if not configured
+    fetch('/api/admin/smtp-status').then(r=>r.json()).then(d=>{{
+        if(!d.configured){{
+            const warn=document.createElement('div');
+            warn.style.cssText='background:#7c3aed22;border:1px solid #7c3aed55;border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:0.85rem;color:#a78bfa;';
+            warn.innerHTML='⚠️ <b>SMTP non configuré</b> — Le bouton "Envoyer" ouvrira votre client email (Gmail/Mail). Pour envoyer depuis Novalis, ajoutez <code>SMTP_HOST</code>, <code>SMTP_USER</code>, <code>SMTP_PASS</code> dans Railway Variables. <a href="https://support.google.com/mail/answer/185833" target="_blank" style="color:#c4b5fd;">Guide Gmail →</a>';
+            const dashView=document.getElementById('dashboard');
+            if(dashView&&!dashView.querySelector('.smtp-warn')){{warn.className='smtp-warn';dashView.prepend(warn);}}
+        }}
+    }}).catch(()=>{{}});
 }}
 
 function timeAgo(iso){{
@@ -1488,6 +1498,15 @@ async def init_db():
         """)
 
         await db.commit()
+
+        # Add new columns to prospect_suggestions (safe — fails silently if already exist)
+        try:
+            await db.execute("ALTER TABLE prospect_suggestions ADD COLUMN email_sent_at TEXT DEFAULT ''")
+            await db.execute("ALTER TABLE prospect_suggestions ADD COLUMN followup_sent_at TEXT DEFAULT ''")
+            await db.commit()
+        except Exception:
+            pass  # columns already exist
+
         logger.info("Base de données V6.0 (agence IA premium) initialisée")
 
 
@@ -1531,6 +1550,75 @@ async def appointment_reminder_task():
         except Exception as e:
             logger.error(f"Erreur tâche rappels: {e}")
 
+async def _followup_loop():
+    """Send follow-up emails 3 days after initial contact if no response."""
+    await asyncio.sleep(300)  # 5 min after startup
+    while True:
+        try:
+            three_days_ago = (datetime.now() - timedelta(days=3)).isoformat()
+            async with aiosqlite.connect(DB_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute(
+                    """SELECT * FROM prospect_suggestions
+                       WHERE email_sent_at != '' AND email_sent_at < ?
+                         AND (followup_sent_at IS NULL OR followup_sent_at = '')
+                         AND status = 'contacted' AND email != ''
+                       LIMIT 5""",
+                    (three_days_ago,)
+                )
+                prospects = [dict(r) for r in await cursor.fetchall()]
+
+            for p in prospects:
+                try:
+                    if not claude_client:
+                        continue
+                    prompt = f"""Génère un court email de relance (suivi) pour une PME qui n'a pas répondu à notre premier email il y a 3 jours.
+
+PME: {p['name']} | {p['city']} | {p['industry']}
+
+Règles STRICTES:
+- Objet: court et naturel (ex: "Re: {p['name']}", "Toujours intéressé?")
+- Corps: MAX 40 mots, ton humain, rappel discret qu'on avait écrit, demande si intéressé
+- PAS de formules corporatives
+- Signature: — Elliot | Novalis IA | novalisia.ca
+
+Réponds UNIQUEMENT avec ce JSON:
+{{"subject": "...", "body": "..."}}"""
+
+                    loop = asyncio.get_event_loop()
+                    response = await loop.run_in_executor(
+                        None,
+                        lambda: claude_client.messages.create(
+                            model="claude-haiku-4-5-20251001",
+                            max_tokens=300,
+                            messages=[{"role": "user", "content": prompt}]
+                        )
+                    )
+                    raw = response.content[0].text.strip()
+                    if "```json" in raw:
+                        raw = raw.split("```json")[1].split("```")[0].strip()
+                    email_data = json.loads(raw)
+                    subject = email_data.get("subject", f"Relance — {p['name']}")
+                    body = email_data.get("body", "")
+
+                    if body and SMTP_HOST and SMTP_USER:
+                        html_body = "<div style='font-family:sans-serif;font-size:15px;line-height:1.7;color:#222;max-width:600px;'>" + body.replace("\n", "<br>") + "</div>"
+                        await send_email(p['email'], subject, html_body)
+                        now = datetime.now().isoformat()
+                        async with aiosqlite.connect(DB_PATH) as db:
+                            await db.execute(
+                                "UPDATE prospect_suggestions SET followup_sent_at=?, updated_at=? WHERE id=?",
+                                (now, now, p['id'])
+                            )
+                            await db.commit()
+                        logging.info(f"Follow-up envoyé à {p['name']} ({p['email']})")
+                except Exception as e:
+                    logging.error(f"Follow-up error for {p.get('name','?')}: {e}")
+        except Exception as e:
+            logging.error(f"Followup loop error: {e}")
+        await asyncio.sleep(6 * 3600)  # check every 6 hours
+
+
 @app.on_event("startup")
 async def startup():
     if not os.getenv("ADMIN_PASS"):
@@ -1553,6 +1641,7 @@ async def startup():
     asyncio.create_task(weekly_report_task())
     asyncio.create_task(trial_monitor_task())
     asyncio.create_task(_bank_builder_loop())
+    asyncio.create_task(_followup_loop())
     logger.info(f"Novalis V{VERSION} démarré — Agence IA")
 
 # ============================================================
@@ -3972,6 +4061,20 @@ async def submit_inquiry(request: Request):
 
     logger.info(f"Nouvelle demande de {name} ({email}) — service: {service_type} — trial 7 jours activé")
 
+    # Notify Elliot immediately
+    admin_email = os.getenv("ADMIN_EMAIL", "") or os.getenv("SMTP_USER", "")
+    if admin_email:
+        notif_body = f"""<div style='font-family:sans-serif;font-size:15px;line-height:1.7;color:#222;'>
+<h2 style='color:#7c3aed;'>🎉 Nouveau prospect — novalisia.ca</h2>
+<p><b>Nom:</b> {name}</p>
+<p><b>Courriel:</b> {email}</p>
+<p><b>Entreprise:</b> {business_name}</p>
+<p><b>Service:</b> {service_type}</p>
+<p><b>Description:</b><br>{description}</p>
+<p style='margin-top:20px;'><a href='https://novalisia.ca/admin' style='background:#7c3aed;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;'>Voir dans l'admin →</a></p>
+</div>"""
+        asyncio.create_task(send_email(admin_email, f"🎉 Nouveau prospect: {name} — {business_name}", notif_body))
+
     # Analyse IA + création assistant Vapi en arrière-plan
     ai_profile = await analyze_inquiry_with_ai(name, str(description), str(service_type))
     vapi_assistant_id = None
@@ -4977,6 +5080,12 @@ async def discover_prospects_endpoint(request: Request, username: str = Depends(
     return {"prospects": prospects, "city": city, "industry": industry, "count": len(prospects)}
 
 
+@app.get("/api/admin/smtp-status")
+async def smtp_status_endpoint(username: str = Depends(verify_admin)):
+    configured = bool(SMTP_HOST and SMTP_USER and SMTP_PASS)
+    return {"configured": configured, "host": SMTP_HOST or "(non défini)", "user": SMTP_USER or "(non défini)"}
+
+
 @app.post("/api/admin/send-prospect-email")
 async def send_prospect_email_endpoint(request: Request, username: str = Depends(verify_admin)):
     data = await request.json()
@@ -4989,6 +5098,16 @@ async def send_prospect_email_endpoint(request: Request, username: str = Depends
         raise HTTPException(503, "SMTP non configuré — ajoutez SMTP_HOST, SMTP_USER et SMTP_PASS dans Railway")
     html_body = "<div style=\"font-family:sans-serif;font-size:15px;line-height:1.7;color:#222;max-width:600px;\">" + body.replace("\n", "<br>") + "</div>"
     await send_email(to, subject, html_body)
+    # Record that email was sent
+    prospect_id = data.get("prospect_id", "").strip()
+    if prospect_id:
+        now = datetime.now().isoformat()
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute(
+                "UPDATE prospect_suggestions SET email_sent_at=?, status='contacted', updated_at=? WHERE id=? AND email_sent_at=''",
+                (now, now, prospect_id)
+            )
+            await db.commit()
     return {"ok": True, "to": to}
 
 
