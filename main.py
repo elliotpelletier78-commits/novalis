@@ -9037,8 +9037,222 @@ async def landing_page():
         return FileResponse(react_index)
     return LANDING_HTML
 
+@app.get("/politique-confidentialite", response_class=HTMLResponse)
+async def privacy_policy():
+    return HTMLResponse(content="""<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Politique de confidentialite -- Novalis IA</title>
+    <meta name="description" content="Politique de confidentialite de Novalis IA, conforme a la Loi 25 du Quebec.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #060a12;
+            --bg2: #0d1520;
+            --card: #111827;
+            --border: rgba(255,255,255,0.07);
+            --accent: #38bdf8;
+            --accent2: #0ea5e9;
+            --green: #34d399;
+            --text: #f1f5f9;
+            --muted: #64748b;
+            --muted2: #94a3b8;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+        nav { position: sticky; top: 0; width: 100%; z-index: 100; background: rgba(6,10,18,0.92); backdrop-filter: blur(24px); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+        .nav-logo { font-weight: 900; font-size: 1.1rem; color: var(--accent); letter-spacing: 1px; text-decoration: none; }
+        .nav-back { color: var(--muted2); text-decoration: none; font-size: 0.88rem; transition: color 0.2s; }
+        .nav-back:hover { color: var(--accent); }
+        .container { max-width: 760px; margin: 0 auto; padding: 56px 24px 80px; }
+        h1 { font-size: 2rem; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+        .subtitle { color: var(--muted2); font-size: 0.9rem; margin-bottom: 48px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+        h2 { font-size: 1.15rem; font-weight: 700; color: var(--accent); margin: 36px 0 12px; }
+        p { color: var(--muted2); margin-bottom: 14px; font-size: 0.95rem; }
+        ul { color: var(--muted2); font-size: 0.95rem; margin: 0 0 14px 20px; }
+        ul li { margin-bottom: 6px; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .highlight-box { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--green); border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .highlight-box p { margin: 0; color: var(--muted2); }
+        footer { border-top: 1px solid var(--border); padding: 32px 24px; text-align: center; color: var(--muted); font-size: 0.82rem; margin-top: 40px; }
+    </style>
+</head>
+<body>
+<nav>
+    <a href="/" class="nav-logo">NOVALIS</a>
+    <span style="color:var(--muted);">|</span>
+    <a href="/" class="nav-back">&#8592; Retour a l'accueil</a>
+</nav>
+<div class="container">
+    <h1>Politique de confidentialite</h1>
+    <p class="subtitle">Derniere mise a jour : 1er janvier 2026 — Conforme a la Loi 25 (Loi modernisant des dispositions legislatives en matiere de protection des renseignements personnels, Quebec)</p>
+    <h2>1. Responsable du traitement</h2>
+    <p>Novalis IA, exploitee par Elliot Pelletier (ci-apres &laquo; Novalis &raquo;), est responsable du traitement de vos renseignements personnels. Pour toute question : <a href="mailto:novalisproia@gmail.com">novalisproia@gmail.com</a>.</p>
+    <h2>2. Donnees collectees</h2>
+    <ul>
+        <li><strong>Identification :</strong> nom, prenom, courriel, telephone.</li>
+        <li><strong>Professionnelles :</strong> nom d'entreprise, poste, secteur.</li>
+        <li><strong>Navigation :</strong> adresse IP, navigateur, pages visitees (cookies analytiques).</li>
+        <li><strong>Communication :</strong> echanges via nos agents IA (SMS, WhatsApp, Messenger, voix).</li>
+        <li><strong>Facturation :</strong> informations de paiement via prestataire securise (aucune carte bancaire stockee).</li>
+    </ul>
+    <h2>3. Finalites du traitement</h2>
+    <ul>
+        <li>Fournir et ameliorer nos services d'automatisation IA.</li>
+        <li>Repondre aux demandes de consultation.</li>
+        <li>Gerer la relation commerciale et la facturation.</li>
+        <li>Envoyer des communications de service (avec consentement).</li>
+        <li>Respecter nos obligations legales.</li>
+    </ul>
+    <h2>4. Hebergement et transfert des donnees</h2>
+    <div class="highlight-box">
+        <p>Donnees hebergees au Canada sur des serveurs Railway. Vos renseignements personnels demeurent sur le territoire canadien et ne sont pas transferes a l'exterieur sans votre consentement explicite, sauf obligation legale.</p>
+    </div>
+    <h2>5. Duree de conservation</h2>
+    <ul>
+        <li><strong>Clients actifs :</strong> duree du contrat + 3 ans.</li>
+        <li><strong>Prospection :</strong> 2 ans apres la derniere interaction.</li>
+        <li><strong>Navigation et logs :</strong> 12 mois.</li>
+        <li><strong>Facturation :</strong> 7 ans (obligation fiscale).</li>
+    </ul>
+    <h2>6. Partage des donnees</h2>
+    <p>Nous ne vendons ni ne louons vos donnees. Partage uniquement avec sous-traitants techniques (Railway, Twilio, Anthropic) et autorites si la loi l'exige.</p>
+    <h2>7. Securite des donnees</h2>
+    <ul>
+        <li>Chiffrement TLS/HTTPS en transit et AES-256 au repos.</li>
+        <li>Isolation des donnees par client (multi-tenant securise).</li>
+        <li>Acces restreint aux personnes autorisees.</li>
+        <li>Surveillance continue et journalisation des acces.</li>
+    </ul>
+    <h2>8. Cookies</h2>
+    <p>Cookies essentiels (session) et analytiques (Google Analytics 4, donnees anonymisees). Desactivation possible dans votre navigateur sans affecter le fonctionnement du site.</p>
+    <h2>9. Vos droits (Loi 25)</h2>
+    <ul>
+        <li><strong>Acces :</strong> obtenir une copie de vos donnees.</li>
+        <li><strong>Rectification :</strong> corriger des informations inexactes.</li>
+        <li><strong>Effacement :</strong> demander la suppression (sous reserve des obligations legales).</li>
+        <li><strong>Portabilite :</strong> recevoir vos donnees en format structure.</li>
+        <li><strong>Opposition :</strong> refuser le traitement a des fins de prospection.</li>
+        <li><strong>Retrait du consentement :</strong> a tout moment, sans effet retroactif.</li>
+    </ul>
+    <p>Pour exercer ces droits : <a href="mailto:novalisproia@gmail.com">novalisproia@gmail.com</a>. Reponse sous 30 jours.</p>
+    <h2>10. Declaration d'incident</h2>
+    <p>En cas d'incident, nous aviserons la Commission d'acces a l'information du Quebec (CAI) et les personnes concernees, conformement a la Loi 25.</p>
+    <h2>11. Contact</h2>
+    <ul>
+        <li><strong>Courriel :</strong> <a href="mailto:novalisproia@gmail.com">novalisproia@gmail.com</a></li>
+        <li><strong>Entreprise :</strong> Novalis IA — Elliot Pelletier, Quebec, Canada</li>
+    </ul>
+    <p>Vous pouvez aussi deposer une plainte aupres de la <a href="https://www.cai.gouv.qc.ca" target="_blank" rel="noopener">Commission d'acces a l'information du Quebec</a>.</p>
+    <h2>12. Modifications</h2>
+    <p>Nous pouvons modifier cette politique. Les changements substantiels seront notifies par courriel. La date en haut du document sera mise a jour.</p>
+</div>
+<footer>&copy; 2026 Novalis IA — Elliot Pelletier &middot; <a href="/">Accueil</a> &middot; <a href="/conditions-utilisation">Conditions d'utilisation</a></footer>
+</body>
+</html>""")
+
+@app.get("/conditions-utilisation", response_class=HTMLResponse)
+async def terms_of_service():
+    return HTMLResponse(content="""<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conditions d'utilisation -- Novalis IA</title>
+    <meta name="description" content="Conditions d'utilisation des services Novalis IA.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #060a12;
+            --bg2: #0d1520;
+            --card: #111827;
+            --border: rgba(255,255,255,0.07);
+            --accent: #38bdf8;
+            --green: #34d399;
+            --text: #f1f5f9;
+            --muted: #64748b;
+            --muted2: #94a3b8;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+        nav { position: sticky; top: 0; width: 100%; z-index: 100; background: rgba(6,10,18,0.92); backdrop-filter: blur(24px); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+        .nav-logo { font-weight: 900; font-size: 1.1rem; color: var(--accent); letter-spacing: 1px; text-decoration: none; }
+        .nav-back { color: var(--muted2); text-decoration: none; font-size: 0.88rem; transition: color 0.2s; }
+        .nav-back:hover { color: var(--accent); }
+        .container { max-width: 760px; margin: 0 auto; padding: 56px 24px 80px; }
+        h1 { font-size: 2rem; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+        .subtitle { color: var(--muted2); font-size: 0.9rem; margin-bottom: 48px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+        h2 { font-size: 1.15rem; font-weight: 700; color: var(--accent); margin: 36px 0 12px; }
+        p { color: var(--muted2); margin-bottom: 14px; font-size: 0.95rem; }
+        ul { color: var(--muted2); font-size: 0.95rem; margin: 0 0 14px 20px; }
+        ul li { margin-bottom: 6px; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .highlight-box { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .highlight-box p { margin: 0; color: var(--muted2); }
+        footer { border-top: 1px solid var(--border); padding: 32px 24px; text-align: center; color: var(--muted); font-size: 0.82rem; margin-top: 40px; }
+    </style>
+</head>
+<body>
+<nav>
+    <a href="/" class="nav-logo">NOVALIS</a>
+    <span style="color:var(--muted);">|</span>
+    <a href="/" class="nav-back">&#8592; Retour a l'accueil</a>
+</nav>
+<div class="container">
+    <h1>Conditions d'utilisation</h1>
+    <p class="subtitle">Derniere mise a jour : 1er janvier 2026 — En utilisant les services Novalis IA, vous acceptez les presentes conditions.</p>
+    <h2>1. Description du service</h2>
+    <p>Novalis IA (exploitee par Elliot Pelletier) fournit des services d'automatisation IA pour entreprises : agents conversationnels (SMS, WhatsApp, Messenger, voix), automatisation de processus, integrations sur mesure et consultation strategique.</p>
+    <h2>2. Acces au service</h2>
+    <p>L'acces necessite un compte client. Vous etes responsable de la confidentialite de vos identifiants. Novalis peut suspendre un compte en cas de violation des presentes conditions.</p>
+    <h2>3. Tarification et paiement</h2>
+    <div class="highlight-box">
+        <p><strong>Forfait Starter : 497 $/mois</strong> (CAD, taxes en sus). Facturation mensuelle automatique. Premier paiement a la date de demarrage du service.</p>
+    </div>
+    <p>D'autres forfaits sont disponibles selon entente. Prix en CAD, hors TPS/TVQ. Tarifs modifiables avec 30 jours de preavis. Non-paiement : suspension apres 7 jours d'avis.</p>
+    <h2>4. Duree et annulation</h2>
+    <ul>
+        <li>Abonnement mensuel renouvelable automatiquement.</li>
+        <li><strong>Preavis de 30 jours</strong> requis avant le renouvellement.</li>
+        <li>Demande de resiliation par courriel a <a href="mailto:novalisproia@gmail.com">novalisproia@gmail.com</a>.</li>
+        <li>Aucun remboursement pour la periode en cours.</li>
+        <li>Donnees conservees 90 jours apres resiliation puis supprimees.</li>
+    </ul>
+    <h2>5. Utilisation acceptable</h2>
+    <p>Utilisation uniquement a des fins legales. Sont interdits : spam via nos agents IA, usages frauduleux ou illegaux, contournement des mesures de securite, revente sans autorisation ecrite.</p>
+    <h2>6. Propriete intellectuelle</h2>
+    <p>Novalis conserve les droits sur sa plateforme et ses algorithmes. Le client conserve la propriete de ses donnees. Novalis peut utiliser des donnees agregees anonymisees pour ameliorer ses services.</p>
+    <h2>7. Limitation de responsabilite</h2>
+    <ul>
+        <li>Novalis n'est pas responsable des dommages indirects ou consecutifs.</li>
+        <li>Responsabilite totale limitee aux sommes payees les 3 derniers mois.</li>
+        <li>Disponibilite visee : 99,5 % (non garantie contractuellement).</li>
+        <li>Novalis n'est pas responsable des decisions prises sur la base des sorties IA.</li>
+    </ul>
+    <h2>8. Confidentialite</h2>
+    <p>Le traitement de vos donnees est regi par notre <a href="/politique-confidentialite">Politique de confidentialite</a>, conforme a la Loi 25 du Quebec.</p>
+    <h2>9. Modifications des conditions</h2>
+    <p>Modifications notifiees 30 jours avant entree en vigueur. L'utilisation continue vaut acceptation.</p>
+    <h2>10. Droit applicable</h2>
+    <p>Lois du Quebec et du Canada. Juridiction exclusive des tribunaux du Quebec.</p>
+    <h2>11. Contact</h2>
+    <ul>
+        <li><strong>Courriel :</strong> <a href="mailto:novalisproia@gmail.com">novalisproia@gmail.com</a></li>
+        <li><strong>Entreprise :</strong> Novalis IA — Elliot Pelletier, Quebec, Canada</li>
+    </ul>
+</div>
+<footer>&copy; 2026 Novalis IA — Elliot Pelletier &middot; <a href="/">Accueil</a> &middot; <a href="/politique-confidentialite">Politique de confidentialite</a></footer>
+</body>
+</html>""")
+
 # ============================================================
-# SANTÉ DU SERVEUR
+# SANTE DU SERVEUR
 # ============================================================
 @app.get("/health")
 async def health():
