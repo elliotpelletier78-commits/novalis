@@ -9602,6 +9602,363 @@ async def terms_of_service():
 </html>""")
 
 # ============================================================
+# BLOG SEO — Trafic organique Québec PMEs
+# ============================================================
+
+_BLOG_NAV = """
+<nav aria-label="Navigation principale">
+    <div class="nav-inner">
+        <a href="/" class="logo" style="text-decoration:none;">NOVALIS</a>
+        <div class="nav-links">
+            <a href="/#services">Services</a>
+            <a href="/#demo">Démo</a>
+            <a href="/#pricing">Tarifs</a>
+            <a href="/blog">Blog</a>
+            <a href="https://novalisia.ca/#contact" class="btn-nav">Consultation gratuite</a>
+        </div>
+    </div>
+</nav>"""
+
+_BLOG_CSS = """
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --bg: #060a12; --bg2: #0d1520; --card: #111827;
+        --border: rgba(255,255,255,0.07); --border-glow: rgba(56,189,248,0.25);
+        --accent: #38bdf8; --accent2: #0ea5e9; --green: #34d399;
+        --text: #f1f5f9; --muted: #64748b; --muted2: #94a3b8;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; overflow-x: hidden; }
+    nav { position: sticky; top: 0; width: 100%; z-index: 100; background: rgba(6,10,18,0.92); backdrop-filter: blur(24px); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 16px 0; }
+    .nav-inner { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--accent), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .nav-links { display: flex; gap: 32px; align-items: center; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .btn-nav { background: var(--accent); color: #060a12 !important; padding: 10px 22px; border-radius: 8px; font-weight: 700 !important; font-size: 0.875rem; text-decoration: none; transition: all 0.2s; }
+    .btn-nav:hover { background: var(--green); transform: translateY(-1px); }
+    .container { max-width: 1200px; margin: 0 auto; padding: 56px 24px 80px; }
+    .article-container { max-width: 780px; margin: 0 auto; padding: 56px 24px 80px; }
+    h1 { font-size: 2.4rem; font-weight: 900; line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 20px; }
+    h2 { font-size: 1.4rem; font-weight: 700; color: var(--accent); margin: 40px 0 14px; }
+    h3 { font-size: 1.1rem; font-weight: 700; margin: 28px 0 10px; }
+    p { color: var(--muted2); margin-bottom: 16px; font-size: 0.97rem; line-height: 1.8; }
+    ul, ol { color: var(--muted2); font-size: 0.97rem; margin: 0 0 16px 22px; }
+    ul li, ol li { margin-bottom: 8px; line-height: 1.7; }
+    strong { color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .blog-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 28px; margin-top: 48px; }
+    .blog-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; transition: all 0.3s; text-decoration: none; display: block; }
+    .blog-card:hover { border-color: var(--border-glow); transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.3); text-decoration: none; }
+    .blog-card-tag { display: inline-block; background: rgba(56,189,248,0.1); color: var(--accent); border: 1px solid rgba(56,189,248,0.2); border-radius: 6px; padding: 3px 10px; font-size: 0.75rem; font-weight: 600; margin-bottom: 14px; }
+    .blog-card h2 { font-size: 1.15rem; font-weight: 700; color: var(--text); margin: 0 0 12px; }
+    .blog-card p { color: var(--muted); font-size: 0.88rem; margin: 0 0 16px; }
+    .blog-card-footer { color: var(--accent); font-size: 0.85rem; font-weight: 600; }
+    .article-meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 40px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
+    .article-meta span { margin-right: 20px; }
+    .cta-box { background: linear-gradient(135deg, rgba(56,189,248,0.1), rgba(52,211,153,0.08)); border: 1px solid rgba(56,189,248,0.25); border-radius: 16px; padding: 40px; margin-top: 56px; text-align: center; }
+    .cta-box h3 { font-size: 1.4rem; font-weight: 800; margin-bottom: 12px; }
+    .cta-box p { color: var(--muted2); margin-bottom: 24px; }
+    .btn-cta { display: inline-block; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 1rem; text-decoration: none; transition: all 0.3s; }
+    .btn-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(56,189,248,0.35); text-decoration: none; }
+    .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.875rem; text-decoration: none; margin-bottom: 40px; transition: color 0.2s; }
+    .back-link:hover { color: var(--accent); }
+    .hero-blog { background: linear-gradient(135deg, rgba(56,189,248,0.06), rgba(52,211,153,0.04)); border-bottom: 1px solid var(--border); padding: 64px 24px 48px; text-align: center; }
+    .hero-blog h1 { font-size: 2.8rem; max-width: 700px; margin: 0 auto 16px; }
+    .hero-blog p { max-width: 600px; margin: 0 auto; }
+    footer { border-top: 1px solid var(--border); padding: 40px 24px; text-align: center; color: var(--muted); font-size: 0.82rem; margin-top: 40px; }
+    footer a { color: var(--muted2); }
+    @media (max-width: 768px) {
+        .blog-grid { grid-template-columns: 1fr; }
+        h1 { font-size: 1.8rem; }
+        .hero-blog h1 { font-size: 2rem; }
+    }
+</style>"""
+
+_BLOG_FOOTER = """
+<footer>
+    <p>&copy; 2026 Novalis IA Inc. &mdash; Qu&eacute;bec, Canada &nbsp;&middot;&nbsp;
+    <a href="/">Accueil</a> &nbsp;&middot;&nbsp;
+    <a href="/blog">Blog</a> &nbsp;&middot;&nbsp;
+    <a href="/politique-confidentialite">Politique de confidentialit&eacute;</a></p>
+</footer>"""
+
+_ARTICLES = {
+    "agent-ia-pme-quebec": {
+        "title": "Comment un agent IA peut faire économiser 10h/semaine à votre PME québécoise",
+        "description": "Appels manqués, demandes hors heures, prise de RDV — découvrez comment un agent IA permet aux PMEs du Québec d'économiser 10h par semaine et d'augmenter leurs revenus.",
+        "tag": "Agent IA",
+        "intro": "Chaque semaine, votre PME perd des heures et des clients à cause de tâches répétitives. Découvrez comment l'automatisation par agent IA change la donne.",
+    },
+    "site-web-pme-desuet": {
+        "title": "Votre site web fait fuir vos clients : 5 signes que c'est le moment de le refaire",
+        "description": "Un site web désuét coûte des clients. Voici 5 signes concrets que votre site freine votre croissance et comment une refonte modernise votre présence en ligne au Québec.",
+        "tag": "Site Web",
+        "intro": "Votre site web est souvent le premier contact qu'un client potentiel a avec votre entreprise. S'il donne une mauvaise impression, il repart — sans jamais revenir.",
+    },
+    "automatisation-rendez-vous-quebec": {
+        "title": "Arrêtez de perdre des clients à cause des heures d'ouverture : l'automatisation des RDV au Québec",
+        "description": "Clients qui appellent le soir, no-shows, agenda difficile à gérer — l'automatisation de la prise de rendez-vous résout ces problèmes pour les PMEs québécoises.",
+        "tag": "Automatisation RDV",
+        "intro": "Au Québec, plus de 60 % des demandes de rendez-vous arrivent en dehors des heures d'ouverture. Et chaque appel manqué, c'est potentiellement un client qui appelle votre concurrent.",
+    },
+    "intelligence-artificielle-petite-entreprise": {
+        "title": "L'intelligence artificielle n'est plus réservée aux grandes entreprises — guide pour les PMEs",
+        "description": "Guide complet sur l'IA pour les petites entreprises au Québec. Ce que l'IA peut vraiment faire, les mythes à démystifier et combien ça coûte réellement (dès 497$/mois).",
+        "tag": "Guide IA",
+        "intro": "On pense souvent que l'intelligence artificielle est réservée aux Amazon, Google et grandes banques de ce monde. Mais depuis 2024, la réalité a radicalement changé pour les PMEs.",
+    },
+}
+
+
+def _article_body(slug: str) -> str:
+    if slug == "agent-ia-pme-quebec":
+        return """
+<h2>Le problème invisible qui coûte des milliers de dollars par an</h2>
+<p>Imaginez un client qui cherche un plombier d'urgence à 19h30. Il appelle. Personne ne répond. Il essaie le suivant dans Google. Ce client — et les centaines d'autres dans la même situation — représente un manque à gagner direct pour votre entreprise.</p>
+<p>Selon une étude récente, <strong>78 % des consommateurs choisissent le premier fournisseur qui répond à leur demande</strong>. Pour une PME au Québec, être disponible 24h/24 n'était autrefois possible qu'avec un employé dédié au service client. Ce n'est plus le cas.</p>
+<h2>Ce qu'un agent IA fait concrètement pour votre PME</h2>
+<p>Un agent IA conversationnel peut gérer, en temps réel et sans supervision humaine :</p>
+<ul>
+<li><strong>Les demandes de renseignements</strong> (prix, disponibilités, politiques)</li>
+<li><strong>La prise de rendez-vous</strong> directement dans votre agenda (Google Calendar, Calendly, etc.)</li>
+<li><strong>Les suivis après-vente</strong> et rappels automatiques</li>
+<li><strong>La qualification des prospects</strong> avant de les transférer à votre équipe</li>
+<li><strong>La réponse aux messages Facebook, Instagram et WhatsApp</strong> en quelques secondes</li>
+</ul>
+<p>Le résultat concret? Les PMEs qui déploient un agent Novalis récupèrent en moyenne <strong>8 à 12 heures de travail par semaine</strong> — des heures que vous ou votre équipe passiez à répondre aux mêmes questions répétitives.</p>
+<h2>Calcul ROI : combien vaut vraiment 10 heures par semaine?</h2>
+<p>Faisons le calcul ensemble. Si votre équipe répond à 25 messages ou appels par jour, et que chaque interaction prend 5 minutes :</p>
+<ul>
+<li>25 interactions x 5 min = 125 minutes par jour</li>
+<li>125 min x 22 jours ouvrables = <strong>2 750 minutes, soit ~46 heures par mois</strong></li>
+<li>À 25 $/h, c'est <strong>1 150 $ par mois en coût de main-d'oeuvre</strong> pour des tâches répétitives</li>
+</ul>
+<p>L'agent IA Novalis automatise jusqu'à 80 % de ces interactions. Vous économisez <strong>920 $ par mois</strong> tout en étant disponible 24h/24 — pour 497 $/mois. C'est un ROI positif dès le premier mois.</p>
+<h2>Les appels manqués hors heures : la pire fuite de revenus</h2>
+<p>Une clinique de physiothérapie à Laval nous a contactés après avoir réalisé que <strong>40 % de ses demandes de rendez-vous arrivaient entre 18h et 8h</strong>. Ces demandes étaient simplement ignorées jusqu'au lendemain matin — et souvent, le patient avait déjà pris RDV ailleurs.</p>
+<p>Depuis le déploiement de leur agent Novalis, tous ces appels et messages sont traités instantanément. L'agenda se remplit automatiquement. Le personnel arrive le matin avec une liste de rendez-vous confirmés, pas une boîte vocale pleine.</p>
+<h2>Automatisation et touche humaine : pas incompatibles</h2>
+<p>L'idée n'est pas de remplacer votre équipe, mais de la libérer. L'agent IA s'occupe de 80 % des demandes courantes. Pour les cas complexes — plaintes, négociations, situations délicates — il transfère automatiquement à un humain avec un résumé complet de la conversation.</p>
+<p>Votre client ne remarque même pas la transition. Il a l'impression d'être bien servi rapidement. C'est ça, l'automatisation intelligente.</p>
+<h2>Par où commencer?</h2>
+<p>Chez <strong>Novalis IA</strong>, on déploie des agents conversationnels sur mesure en 48 heures. On s'occupe de tout : configuration, intégration à vos outils existants, et formation de l'agent sur votre secteur d'activité. Dès 497 $/mois, sans engagement long terme.</p>
+<p>Si vous êtes propriétaire d'une PME au Québec et que vous en avez assez de manquer des appels ou de passer vos soirées à répondre à des messages, il est temps d'explorer ce que l'automatisation peut faire pour vous.</p>"""
+    elif slug == "site-web-pme-desuet":
+        return """
+<h2>Signe #1 : Votre site n'est pas adapté aux mobiles</h2>
+<p>Aujourd'hui, <strong>plus de 65 % du trafic web au Québec provient des téléphones intelligents</strong>. Si votre site nécessite de zoomer, de faire défiler horizontalement ou affiche des éléments qui se chevauchent sur un téléphone, vous perdez des clients à chaque visite mobile.</p>
+<p>Google pénalise également les sites non-responsive dans ses résultats de recherche. Un site qui ne s'adapte pas aux mobiles est invisible dans les recherches locales — exactement là où vos clients potentiels vous cherchent.</p>
+<h2>Signe #2 : Pas de HTTPS (le cadenas dans la barre d'adresse)</h2>
+<p>Si votre site affiche encore "HTTP" au lieu de "HTTPS", les navigateurs modernes affichent un avertissement de sécurité à vos visiteurs. Résultat : ils quittent immédiatement, même si votre site ne contient aucun danger réel.</p>
+<p>Un certificat SSL est <strong>gratuit et obligatoire</strong> en 2025. Son absence signale à Google et aux visiteurs que votre site est abandonné ou négligé — deux impressions catastrophiques pour une entreprise sérieuse.</p>
+<h2>Signe #3 : Votre site prend plus de 3 secondes à charger</h2>
+<p>Selon Google, <strong>53 % des visiteurs quittent un site mobile qui prend plus de 3 secondes à se charger</strong>. Chaque seconde supplémentaire réduit votre taux de conversion de 7 %. Si votre site est construit sur une vieille technologie avec des images non optimisées, vous perdez des clients avant même qu'ils aient vu votre offre.</p>
+<p>Les sites modernes construits avec les bonnes technologies chargent en moins d'une seconde. C'est la différence entre un client qui reste et un client qui rebondit vers votre concurrent.</p>
+<h2>Signe #4 : Aucun formulaire de contact ou prise de rendez-vous en ligne</h2>
+<p>Si vos clients ne peuvent contacter votre entreprise que par téléphone ou en se déplaçant, vous vous coupez d'une génération entière d'acheteurs qui préfèrent tout faire en ligne. Un formulaire de contact basique ne suffit plus en 2025.</p>
+<p>Les PMEs qui intègrent une prise de rendez-vous en ligne voient <strong>en moyenne 35 % plus de conversions</strong> qu'avec un simple numéro de téléphone. Les gens veulent réserver à minuit depuis leur lit — pas rappeler demain matin.</p>
+<h2>Signe #5 : Design et contenu datant de plus de 4 ans</h2>
+<p>Le design web évolue vite. Un site de 2018 ou 2019 ressemble aujourd'hui à un site de 1995 aux yeux de vos visiteurs. Les polices trop petites, les couleurs criardes, les photos génériques de banque d'images et les textes institutionnels inspirent une méfiance immédiate.</p>
+<p>Votre site web est votre vendeur #1. Il travaille 24h/24, 7j/7. S'il communique "cette entreprise ne s'investit pas dans sa présence professionnelle", vos prospects iront chez un concurrent qui leur inspire confiance.</p>
+<h2>La refonte de site web avec Novalis : rapide, moderne, efficace</h2>
+<p>Chez <strong>Novalis IA</strong>, on conçoit des sites web modernes pour les PMEs québécoises : rapides, sécurisés, optimisés pour le référencement local, et intégrés à vos outils d'automatisation. On ne construit pas que de beaux sites — on construit des outils de vente.</p>
+<p>Chaque site que nous livrons inclut : design responsive, HTTPS, optimisation de vitesse, SEO local, formulaires de contact intelligents et, si vous le souhaitez, un agent IA intégré pour répondre aux visiteurs 24h/24.</p>
+<p>Si votre site actuel vous fait honte ou que vous hésitez à le partager avec des clients, c'est le signal qu'il est temps de passer à autre chose.</p>"""
+    elif slug == "automatisation-rendez-vous-quebec":
+        return """
+<h2>Le problème des heures d'ouverture : une réalité québécoise</h2>
+<p>Au Québec, la grande majorité des PMEs opèrent de 9h à 17h, du lundi au vendredi. Mais vos clients, eux, ont des besoins à toutes heures. Le soir après le souper, la fin de semaine, entre deux réunions — c'est là qu'ils pensent à prendre leur rendez-vous chez le dentiste, le kyné, le salon de coiffure ou le consultant.</p>
+<p><strong>Résultat concret : vous perdez des rendez-vous chaque nuit.</strong> Ces clients ne rappellent pas nécessairement le lendemain matin. Certains trouvent un concurrent qui leur permet de réserver immédiatement en ligne. D'autres oublient simplement.</p>
+<h2>Les no-shows : un fléau qui coûte cher</h2>
+<p>Les absences sans préavis représentent entre <strong>10 % et 30 % des rendez-vous</strong> dans la plupart des secteurs de services. Pour une clinique, un garage ou un studio, chaque no-show, c'est un créneau vide qui aurait pu générer des revenus.</p>
+<p>L'automatisation des rappels règle ce problème directement. Un message texte automatique envoyé 24h avant le rendez-vous, avec un lien pour confirmer ou annuler, réduit les no-shows de <strong>60 à 80 %</strong> selon les données de nos clients Novalis.</p>
+<h2>Comment fonctionne l'automatisation de la prise de RDV</h2>
+<p>Voici ce qui se passe quand un client envoie un message à votre entreprise à 21h30 :</p>
+<ol>
+<li>L'agent IA Novalis détecte la demande de rendez-vous</li>
+<li>Il consulte votre agenda en temps réel (Google Calendar, Calendly, Jane App, etc.)</li>
+<li>Il propose 2-3 créneaux disponibles adaptés aux préférences du client</li>
+<li>Le client confirme. Le rendez-vous est inscrit automatiquement</li>
+<li>Une confirmation est envoyée par SMS ou courriel</li>
+<li>Un rappel automatique est planifié 24h à l'avance</li>
+</ol>
+<p>Tout ça sans que vous ou votre équipe n'ayez à intervenir. Le lendemain matin, votre agenda est à jour.</p>
+<h2>Cas réel : un salon de coiffure à Montréal</h2>
+<p>Une propriétaire de salon de coiffure dans le Plateau-Mont-Royal nous a contactés après avoir réalisé qu'elle passait <strong>2 heures par jour</strong> à répondre à des messages Facebook et Instagram pour confirmer des rendez-vous. Elle travaillait, en plus de couper des cheveux, comme secrétaire non rémunérée pour son propre commerce.</p>
+<p>Depuis le déploiement de l'agent Novalis, 100 % des demandes de RDV sont gérées automatiquement. Elle a récupéré 10 heures par semaine. Son taux de no-shows a chuté de 28 % à 6 %. Et son chiffre d'affaires a augmenté de 18 % grâce aux créneaux qui ne restaient plus vides.</p>
+<h2>ROI de l'automatisation des rendez-vous</h2>
+<p>Calculons pour un cabinet de physiothérapie avec 30 rendez-vous par semaine :</p>
+<ul>
+<li>Valeur moyenne d'un rendez-vous : 85 $</li>
+<li>Taux de no-show avant automatisation : 20 % = 6 rendez-vous perdus/semaine</li>
+<li>Valeur perdue : 6 x 85 $ x 4 semaines = <strong>2 040 $/mois</strong></li>
+<li>Réduction des no-shows avec Novalis : 70 % -&gt; récupération de ~1 400 $/mois</li>
+<li>Coût de la solution Novalis : 497 $/mois</li>
+</ul>
+<p><strong>Profit net dès le premier mois : ~900 $</strong> — sans compter les nouveaux RDV pris hors heures d'ouverture.</p>
+<h2>Prêt à arrêter de perdre des clients la nuit?</h2>
+<p>Chez <strong>Novalis IA</strong>, on déploie des solutions d'automatisation de rendez-vous pour les PMEs québécoises en 48 heures. On s'intègre à vos outils existants et on forme l'agent IA sur votre secteur. Dès 497 $/mois, sans contrat annuel.</p>"""
+    else:  # intelligence-artificielle-petite-entreprise
+        return """
+<h2>L'IA en 2025 : pas ce que vous croyez</h2>
+<p>Quand on parle d'intelligence artificielle, beaucoup de propriétaires de PMEs pensent à des projets de millions de dollars, à des équipes de data scientists et à une infrastructure technologique hors de portée. Cette image appartient au passé.</p>
+<p>Aujourd'hui, des outils d'IA puissants et abordables sont accessibles à n'importe quelle entreprise, peu importe sa taille. Un restaurant de quartier, un garage automobile, une clinique de santé ou un consultant indépendant peuvent tous bénéficier de l'automatisation intelligente — à partir de <strong>497 $/mois</strong>.</p>
+<h2>Les mythes les plus courants sur l'IA pour les PMEs</h2>
+<h3>Mythe #1 : "C'est trop cher pour nous"</h3>
+<p>La réalité : automatiser la réponse aux messages, la prise de rendez-vous et le suivi client coûte moins cher qu'un employé à temps partiel — et travaille 24h/24, 7j/7, sans congé maladie ni vacances.</p>
+<h3>Mythe #2 : "Nos clients préfèrent parler à un humain"</h3>
+<p>Les études montrent que <strong>68 % des consommateurs préfèrent une réponse instantanée à 3h du matin plutôt qu'une réponse humaine le lendemain</strong>. Ce que vos clients veulent, c'est être servis rapidement. L'IA excelle à ça.</p>
+<h3>Mythe #3 : "C'est trop compliqué à mettre en place"</h3>
+<p>Avec Novalis, le déploiement prend 48 heures. On s'occupe de tout : configuration, intégrations, tests. Vous n'avez pas besoin de comprendre comment ça marche pour en profiter.</p>
+<h2>Ce que l'IA peut concrètement faire pour votre type d'entreprise</h2>
+<h3>Restaurant ou café</h3>
+<p>Gérer les réservations automatiquement, répondre aux questions sur le menu et les allergènes, envoyer des promotions ciblées aux clients fidèles, rappeler les réservations pour réduire les no-shows.</p>
+<h3>Garage automobile</h3>
+<p>Prendre les rendez-vous d'entretien 24h/24, envoyer des rappels de vidange d'huile, répondre aux demandes d'estimation, relancer les clients inactifs depuis 6 mois.</p>
+<h3>Clinique ou cabinet de santé</h3>
+<p>Automatiser la prise de rendez-vous, envoyer des rappels pré-visite, gérer les listes d'attente, répondre aux questions fréquentes sur les services et les assurances.</p>
+<h2>Combien ça coûte vraiment?</h2>
+<p>Chez <strong>Novalis IA</strong>, notre forfait Starter est à <strong>497 $/mois</strong> (CAD, taxes en sus). Il inclut :</p>
+<ul>
+<li>Agent IA conversationnel déployé sur vos canaux (SMS, WhatsApp, Messenger, site web)</li>
+<li>Intégration à votre agenda et vos outils existants</li>
+<li>Rappels automatiques et suivi client</li>
+<li>Tableau de bord avec statistiques en temps réel</li>
+<li>Support technique québécois, en français</li>
+</ul>
+<p>Pour mettre ça en perspective : à 25 $/h, 497 $ représente environ 20 heures de travail. Nos clients récupèrent en moyenne 40 à 50 heures de tâches répétitives par mois — soit un retour sur investissement de 2x à 2,5x dès le premier mois.</p>
+<h2>Par où commencer?</h2>
+<p>La meilleure façon de commencer avec l'IA, c'est de cibler un seul processus répétitif et de l'automatiser. Quel est le problème qui vous prend le plus de temps chaque semaine? Les messages sans fin? Les appels manqués? Les no-shows?</p>
+<p>Chez <strong>Novalis IA</strong>, on commence par une consultation gratuite pour identifier votre plus grande douleur opérationnelle et proposer une solution concrète. Aucun engagement, aucune pression.</p>
+<p>L'intelligence artificielle n'est plus réservée aux grandes entreprises. Elle est là, disponible, abordable — et vos concurrents l'adoptent déjà. La question n'est plus "est-ce que l'IA est pour moi?" mais "est-ce que je peux me permettre de ne pas l'adopter?"</p>"""
+
+
+def _article_html(slug: str) -> str:
+    art = _ARTICLES[slug]
+    title = art["title"]
+    description = art["description"]
+    body = _article_body(slug)
+
+    schema = (
+        '<script type="application/ld+json">\n'
+        '{\n'
+        '  "@context": "https://schema.org",\n'
+        '  "@type": "Article",\n'
+        '  "headline": "' + title.replace('"', '\\"') + '",\n'
+        '  "description": "' + description.replace('"', '\\"') + '",\n'
+        '  "author": {"@type": "Organization", "name": "Novalis IA"},\n'
+        '  "publisher": {"@type": "Organization", "name": "Novalis IA", "url": "https://novalisia.ca"},\n'
+        '  "datePublished": "2025-05-01",\n'
+        '  "dateModified": "2025-05-01",\n'
+        '  "mainEntityOfPage": {"@type": "WebPage", "@id": "https://novalisia.ca/blog/' + slug + '"}\n'
+        '}\n'
+        '</script>'
+    )
+
+    escaped_title = title.replace('"', '&quot;')
+    escaped_desc = description.replace('"', '&quot;')
+
+    return (
+        '<!DOCTYPE html>\n'
+        '<html lang="fr">\n'
+        '<head>\n'
+        '    <meta charset="UTF-8">\n'
+        '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
+        '    <title>' + title + ' | Novalis IA</title>\n'
+        '    <meta name="description" content="' + escaped_desc + '">\n'
+        '    <meta property="og:title" content="' + escaped_title + '">\n'
+        '    <meta property="og:description" content="' + escaped_desc + '">\n'
+        '    <meta property="og:type" content="article">\n'
+        '    <meta property="og:url" content="https://novalisia.ca/blog/' + slug + '">\n'
+        '    <meta property="og:image" content="/og-image.svg">\n'
+        '    <meta name="twitter:card" content="summary_large_image">\n'
+        '    <meta name="twitter:title" content="' + escaped_title + '">\n'
+        '    <meta name="twitter:description" content="' + escaped_desc + '">\n'
+        '    ' + schema + '\n'
+        '    ' + _BLOG_CSS + '\n'
+        '</head>\n'
+        '<body>\n'
+        + _BLOG_NAV + '\n'
+        '<div class="article-container">\n'
+        '    <a href="/blog" class="back-link">&#8592; Retour au blog</a>\n'
+        '    <h1>' + title + '</h1>\n'
+        '    <div class="article-meta">\n'
+        '        <span>&#128197; Mai 2025</span>\n'
+        '        <span>&#128203; Novalis IA</span>\n'
+        '        <span>&#127758; Qu&eacute;bec, Canada</span>\n'
+        '    </div>\n'
+        + body + '\n'
+        '    <div class="cta-box">\n'
+        '        <h3>Prêt à automatiser votre entreprise?</h3>\n'
+        '        <p>Rejoignez les PMEs québécoises qui ont récupéré des heures chaque semaine grâce à Novalis IA.</p>\n'
+        '        <a href="https://novalisia.ca/#contact" class="btn-cta">Consultation gratuite &#8594;</a>\n'
+        '    </div>\n'
+        '</div>\n'
+        + _BLOG_FOOTER + '\n'
+        '</body>\n'
+        '</html>'
+    )
+
+
+@app.get("/blog", response_class=HTMLResponse)
+async def blog_index():
+    cards = ""
+    for slug, art in _ARTICLES.items():
+        cards += (
+            '\n        <a href="/blog/' + slug + '" class="blog-card">\n'
+            '            <div class="blog-card-tag">' + art["tag"] + '</div>\n'
+            '            <h2>' + art["title"] + '</h2>\n'
+            '            <p>' + art["intro"] + '</p>\n'
+            '            <div class="blog-card-footer">Lire l\'article &#8594;</div>\n'
+            '        </a>'
+        )
+
+    return HTMLResponse(
+        '<!DOCTYPE html>\n'
+        '<html lang="fr">\n'
+        '<head>\n'
+        '    <meta charset="UTF-8">\n'
+        '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
+        '    <title>Blog Novalis IA — Automatisation et IA pour les PMEs québécoises</title>\n'
+        '    <meta name="description" content="Conseils pratiques sur l\'automatisation IA pour les PMEs au Québec. Agents conversationnels, refonte de sites web, prise de RDV automatique.">\n'
+        '    <meta property="og:title" content="Blog Novalis IA — Automatisation et IA pour les PMEs québécoises">\n'
+        '    <meta property="og:description" content="Conseils pratiques sur l\'automatisation IA pour les PMEs au Québec. Agents conversationnels, refonte de sites web, prise de RDV automatique.">\n'
+        '    <meta property="og:type" content="website">\n'
+        '    <meta property="og:url" content="https://novalisia.ca/blog">\n'
+        '    <meta property="og:image" content="/og-image.svg">\n'
+        '    <meta name="twitter:card" content="summary_large_image">\n'
+        '    ' + _BLOG_CSS + '\n'
+        '</head>\n'
+        '<body>\n'
+        + _BLOG_NAV + '\n'
+        '<div class="hero-blog">\n'
+        '    <h1>Blog Novalis IA</h1>\n'
+        '    <p>Conseils pratiques sur l\'automatisation IA pour les PMEs au Québec. Agents conversationnels, refonte de sites web, prise de RDV automatique.</p>\n'
+        '</div>\n'
+        '<div class="container">\n'
+        '    <div class="blog-grid">\n'
+        + cards + '\n'
+        '    </div>\n'
+        '</div>\n'
+        + _BLOG_FOOTER + '\n'
+        '</body>\n'
+        '</html>'
+    )
+
+
+@app.get("/blog/{slug}", response_class=HTMLResponse)
+async def blog_article(slug: str):
+    if slug not in _ARTICLES:
+        raise HTTPException(status_code=404, detail="Article non trouvé")
+    return HTMLResponse(_article_html(slug))
+
+
+# ============================================================
 # SANTE DU SERVEUR
 # ============================================================
 @app.get("/health")
