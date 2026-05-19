@@ -1682,6 +1682,14 @@ async def init_db():
 
         await db.commit()
 
+        # Key-value settings table (persists across restarts)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
+
         # Add new columns to prospect_suggestions (safe — fails silently if already exist)
         try:
             await db.execute("ALTER TABLE prospect_suggestions ADD COLUMN email_sent_at TEXT DEFAULT ''")
@@ -1920,6 +1928,13 @@ async def startup():
         await db.execute("PRAGMA synchronous=NORMAL")
         await db.execute("PRAGMA temp_store=MEMORY")
     await init_db()
+    # Restore auto-outreach state from DB (survives restarts)
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT value FROM app_settings WHERE key='auto_outreach_enabled'")
+        row = await cursor.fetchone()
+        if row and row[0] == "1":
+            _auto_outreach["enabled"] = True
+            logger.info("Auto-outreach: état restauré → EN MARCHE")
     await seed_service_catalog()
     asyncio.create_task(appointment_reminder_task())
     asyncio.create_task(weekly_report_task())
@@ -5884,6 +5899,14 @@ async def toggle_auto_outreach(username: str = Depends(verify_admin)):
     _auto_outreach["enabled"] = not _auto_outreach["enabled"]
     state = "activé" if _auto_outreach["enabled"] else "désactivé"
     logging.info(f"Auto-outreach {state} par admin")
+    # Persist state to DB so it survives server restarts
+    val = "1" if _auto_outreach["enabled"] else "0"
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR REPLACE INTO app_settings (key, value) VALUES ('auto_outreach_enabled', ?)",
+            (val,)
+        )
+        await db.commit()
     return _auto_outreach
 
 @app.get("/api/admin/auto-outreach/status")
