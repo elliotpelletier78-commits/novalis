@@ -4522,11 +4522,11 @@ async def _generate_prospect_emails_claude(biz: dict) -> dict:
         refonte_instruction = '\n4. Génère aussi "email_refonte": un courriel proposant une refonte complète de leur site web pour ~1000$ (site moderne, mobile, SEO, livré en 2-3 semaines). Mentionne les problèmes spécifiques de leur site actuel.'
         refonte_json = ',\n  "email_refonte": {{"subject": "...", "body": "..."}}'
 
-    prompt = f"""Tu es un expert en vente B2B pour Novalis IA, startup québécoise d'automatisation IA.
+    prompt = f"""Tu es Elliot Pelletier, fondateur de Novalis IA, agence québécoise d'automatisation IA.
 
-PRODUITS:
-- Agent IA conversationnel: répond 24/7 par SMS/WhatsApp/web, prend des RDV, répond aux FAQ. Prix: 497$/mois.
-- Refonte de site web: site moderne, mobile-responsive, SEO, contact form. Prix: ~1000$ (livré en 2-3 semaines).
+CE QU'ON OFFRE:
+- Agent IA 24/7 : répond aux SMS/WhatsApp/web, prend des RDV automatiquement, répond aux FAQ. 497$/mois.
+- Refonte de site web : site rapide, mobile, SEO local. ~1000$, livré en 2-3 semaines.
 
 PME ANALYSÉE: {name} | {city} | {industry}
 Site: {website}
@@ -4539,19 +4539,26 @@ CONTENU DU SITE:
 AVIS ET MENTIONS EN LIGNE:
 {snippets or "(non disponible)"}
 
-TÂCHE — réponds UNIQUEMENT avec ce JSON (aucun autre texte):
+TÂCHE — réponds UNIQUEMENT avec ce JSON exact (zéro texte avant ou après):
 
 ÉTAPE 1 — Évalue le besoin réel (need_score 1-10):
-- 8-10: Problèmes évidents (avis se plaignent d'attentes/appels manqués, site médiocre, heures limitées)
+- 8-10: Problème évident (avis mentionnent attentes, appels manqués, heures limitées, site désuet)
 - 5-7: Besoin probable mais non confirmé
-- 1-4: Pas de problème clair, business déjà bien automatisé ou trop petit
+- 1-4: Business bien automatisé, déjà en ligne, ou trop petit
 
 Si need_score < 6, retourne SEULEMENT: {{"need_score": X, "skip": true, "reason": "..."}}
 
 Si need_score >= 6:
-1. Identifie 2-3 problèmes CONCRETS et SPÉCIFIQUES basés sur les avis et le site réel.
-2. Génère 3 courriels qui CITENT ces problèmes précis. Chaque email < 150 mots. Signature: Elliot Pelletier, Novalis IA, novalisia.ca
-3. Dans "insights": 1-2 phrases sur pourquoi Novalis IA est idéal pour EUX spécifiquement.{refonte_instruction}
+1. Identifie 2-3 problèmes CONCRETS et SPÉCIFIQUES basés sur les vraies données.
+2. Génère 3 courriels de prospection COURTS et PERCUTANTS selon ces règles strictes:
+   - OBJET: max 7 mots, spécifique, curiosité naturelle (ex: "Question rapide – {name}", "J'ai regardé votre site")
+   - CORPS: max 80 mots, ton humain et direct comme un courriel personnel (pas corporate)
+   - Structure: 1 phrase sur leur problème PRÉCIS → 1 phrase ce que Novalis fait → 1 chiffre concret → 1 question simple
+   - Finir par une question oui/non (ex: "Ça vous intéresserait?", "5 minutes cette semaine?")
+   - NE PAS commencer par "Bonjour", "J'espère que", "Je me permets de"
+   - Écrire comme un québécois, pas comme un vendeur corporatif
+   - Signature: — Elliot | Novalis IA | novalisia.ca
+3. Dans "insights": 1-2 phrases sur pourquoi Novalis est idéal pour EUX spécifiquement.{refonte_instruction}
 
 {{
   "need_score": X,
