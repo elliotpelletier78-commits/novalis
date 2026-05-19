@@ -1535,8 +1535,10 @@ async def appointment_reminder_task():
 
 @app.on_event("startup")
 async def startup():
+    # Always log admin credentials clearly so they can be recovered from Railway logs
+    logger.warning(f"🔑 ADMIN LOGIN → utilisateur: '{ADMIN_USER}'  mot de passe: '{ADMIN_PASS}'")
     if not os.getenv("ADMIN_PASS"):
-        logger.warning(f"⚠️  ADMIN_PASS non défini. Mot de passe généré pour cette session : {ADMIN_PASS}")
+        logger.warning(f"⚠️  ADMIN_PASS non défini — fixez-le dans Railway Variables pour qu'il ne change plus.")
     if ALLOWED_ORIGINS == ["*"] and os.getenv("RAILWAY_ENVIRONMENT"):
         logger.warning("⚠️  CORS ouvert (*) en production. Définissez ALLOWED_ORIGINS dans Railway.")
     if not ANTHROPIC_API_KEY:
@@ -1665,6 +1667,27 @@ async def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
         raise HTTPException(status_code=401, detail="Authentification échouée",
                             headers={"WWW-Authenticate": "Basic"})
     return credentials.username
+
+
+@app.post("/api/admin-recover")
+async def admin_recover(request: Request):
+    """Reset admin password using Anthropic API key as proof of ownership."""
+    global ADMIN_PASS
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(400, "JSON invalide")
+    provided_key = data.get("api_key", "").strip()
+    new_pass = data.get("new_pass", "").strip()
+    if not provided_key or not new_pass:
+        raise HTTPException(400, "api_key et new_pass requis")
+    if len(new_pass) < 6:
+        raise HTTPException(400, "new_pass doit faire au moins 6 caractères")
+    if not ANTHROPIC_API_KEY or not secrets.compare_digest(provided_key.encode(), ANTHROPIC_API_KEY.encode()):
+        raise HTTPException(403, "Clé invalide")
+    ADMIN_PASS = new_pass
+    logger.warning(f"🔑 Mot de passe admin réinitialisé via /api/admin-recover → '{ADMIN_PASS}'")
+    return {"ok": True, "message": f"Mot de passe mis à jour. Connectez-vous avec: {ADMIN_USER} / {new_pass}"}
 
 async def verify_api_key(x_api_key: str = Header(None)):
     """Vérifie la clé API d'un client."""
