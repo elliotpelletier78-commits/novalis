@@ -176,15 +176,21 @@ async function loadPlatformStats(){{
     el.textContent=nl;
     if(nl>0){{el.classList.add('has-leads');}}else{{el.classList.remove('has-leads');}}
     }}catch(e){{}}
-    // Show SMTP status warning if not configured
+    // Show SMTP status
     fetch('/api/admin/smtp-status').then(r=>r.json()).then(d=>{{
+        const dashView=document.getElementById('dashboard');
+        if(!dashView)return;
+        if(dashView.querySelector('.smtp-warn'))dashView.querySelector('.smtp-warn').remove();
+        const warn=document.createElement('div');
+        warn.className='smtp-warn';
         if(!d.configured){{
-            const warn=document.createElement('div');
             warn.style.cssText='background:#7c3aed22;border:1px solid #7c3aed55;border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:0.85rem;color:#a78bfa;';
-            warn.innerHTML='⚠️ <b>SMTP non configuré</b> — Le bouton "Envoyer" ouvrira votre client email (Gmail/Mail). Pour envoyer depuis Novalis, ajoutez <code>SMTP_HOST</code>, <code>SMTP_USER</code>, <code>SMTP_PASS</code> dans Railway Variables. <a href="https://support.google.com/mail/answer/185833" target="_blank" style="color:#c4b5fd;">Guide Gmail →</a>';
-            const dashView=document.getElementById('dashboard');
-            if(dashView&&!dashView.querySelector('.smtp-warn')){{warn.className='smtp-warn';dashView.prepend(warn);}}
+            warn.innerHTML='⚠️ <b>SMTP non configuré</b> — Ajoutez <code>SMTP_HOST=smtp.gmail.com</code>, <code>SMTP_USER</code>, <code>SMTP_PASS</code> dans Railway Variables. <a href="https://support.google.com/mail/answer/185833" target="_blank" style="color:#c4b5fd;">Guide Gmail →</a>';
+        }}else{{
+            warn.style.cssText='background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.2);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:0.85rem;color:#34d399;display:flex;align-items:center;justify-content:space-between;gap:12px;';
+            warn.innerHTML='✅ <b>SMTP configuré</b> — '+d.user+' <button onclick="testSmtp(this)" style="background:#065f46;color:#34d399;border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:0.82rem;margin-left:8px;">📧 Envoyer email test</button>';
         }}
+        dashView.prepend(warn);
     }}).catch(()=>{{}});
 }}
 
@@ -799,6 +805,17 @@ async function toggleAutoOutreach(){{
 
 // === DÉCOUVERTE AUTOMATIQUE DE PMEs ===
 let discProspects=[];
+async function testSmtp(btn){{
+    const orig=btn.textContent;
+    btn.textContent='⏳ Test en cours...';btn.disabled=true;
+    try{{
+        const r=await fetch('/api/admin/smtp-test',{{method:'POST'}});
+        const d=await r.json();
+        if(r.ok){{showNotice('✅ '+d.message,false);}}
+        else{{showNotice('❌ '+d.detail,true);}}
+    }}catch(e){{showNotice('❌ Erreur réseau: '+e.message,true);}}
+    btn.textContent=orig;btn.disabled=false;
+}}
 async function loadSuggestions(){{
     const stats=document.getElementById('sugg_stats');
     if(stats)stats.textContent='Chargement...';
@@ -5720,6 +5737,29 @@ async def discover_prospects_endpoint(request: Request, username: str = Depends(
 async def smtp_status_endpoint(username: str = Depends(verify_admin)):
     configured = bool(SMTP_HOST and SMTP_USER and SMTP_PASS)
     return {"configured": configured, "host": SMTP_HOST or "(non défini)", "user": SMTP_USER or "(non défini)"}
+
+
+@app.post("/api/admin/smtp-test")
+async def smtp_test_endpoint(username: str = Depends(verify_admin)):
+    """Send a real test email to SMTP_USER to verify config."""
+    if not SMTP_HOST or not SMTP_USER or not SMTP_PASS:
+        raise HTTPException(503, f"SMTP non configuré — SMTP_HOST='{SMTP_HOST}' SMTP_USER='{SMTP_USER}' SMTP_PASS={'***' if SMTP_PASS else '(vide)'}")
+    import smtplib as _smtplib
+    try:
+        def _test():
+            with _smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as s:
+                s.starttls()
+                s.login(SMTP_USER, SMTP_PASS)
+                from email.mime.text import MIMEText as _MIMEText
+                msg = _MIMEText("<h2>✅ Novalis SMTP fonctionne!</h2><p>Ce test confirme que les emails partent correctement.</p>", "html", "utf-8")
+                msg["Subject"] = "✅ Test SMTP Novalis — OK"
+                msg["From"] = SMTP_FROM or SMTP_USER
+                msg["To"] = SMTP_USER
+                s.sendmail(SMTP_FROM or SMTP_USER, [SMTP_USER], msg.as_string())
+        await asyncio.to_thread(_test)
+        return {"ok": True, "message": f"Email de test envoyé à {SMTP_USER} — vérifiez votre boîte!"}
+    except Exception as e:
+        raise HTTPException(500, f"Erreur SMTP: {str(e)}")
 
 
 @app.get("/api/admin/pipeline")
