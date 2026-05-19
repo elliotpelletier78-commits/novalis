@@ -5048,10 +5048,30 @@ Si need_score >= 6:
 
 
 _DDG_EXCLUDE = {
-    "yellowpages", "pagesjaunes", "yelp", "facebook", "instagram", "google",
-    "tripadvisor", "foursquare", "canada411", "kijiji", "linkedin", "twitter",
-    "youtube", "wikipedia", "reddit", "amazon", "ebay", "annuaire", "411.ca",
-    "trouve", "hotfrog", "cylex", "chambre"
+    # Annuaires & agrégateurs
+    "yellowpages", "pagesjaunes", "yelp", "tripadvisor", "foursquare",
+    "canada411", "411.ca", "hotfrog", "cylex", "annuaire", "trouve",
+    "restaurantguru", "zomato", "opentable", "restomonpays", "gaultmillau",
+    "threebestrated", "3bestrated", "bestinhood", "homestars", "houzz",
+    "checkatrade", "bark.com", "thumbtack", "angi", "homeadvisor",
+    "clutch.co", "goodfirms", "torontobest", "montrealbestrated",
+    # Réseaux sociaux
+    "facebook", "instagram", "twitter", "linkedin", "youtube",
+    "tiktok", "pinterest", "snapchat",
+    # Sites d'info / médias / actualités
+    "wikipedia", "reddit", "amazon", "ebay", "kijiji", "google",
+    "lapresse", "journaldemontreal", "ledevoir", "tvanouvelles",
+    "radio-canada", "cbc.ca", "journaldequebec", "beaucemedia",
+    "hebdos", "actualites", "nouvelles", "lemonde", "cyberpresse",
+    "20minutes", "huffpost", "buzzfeed", "medium.com",
+    # Guides & top-listes
+    "top7", "top10", "top5", "meilleurs", "guide-michelin", "michelin",
+    "lesguidesrestaurants", "resto", "guiderestos",
+    # Gouvernement / chambres
+    "chambre", "gouvernement", "gouv.qc", "ville.montreal", "revenuquebec",
+    "registraire", "ic.gc.ca", "cnesst", "csst",
+    # Générique
+    "site:google", "maps.google", "waze",
 }
 
 _DISCOVERY_TARGETS = [
@@ -5389,10 +5409,12 @@ _DISCOVERY_TARGETS = [
 async def _get_suggestions_from_db(limit: int = 15) -> list:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
+        # Prioritize PMEs with emails AND generated emails; fill rest with email-only
         cursor = await db.execute(
             """SELECT * FROM prospect_suggestions WHERE status='new'
+               AND email != '' AND email IS NOT NULL
                ORDER BY
-                 CASE WHEN email != '' AND email IS NOT NULL THEN 0 ELSE 1 END,
+                 CASE WHEN generated_emails IS NOT NULL AND generated_emails != '{}' THEN 0 ELSE 1 END,
                  web_score ASC,
                  created_at DESC
                LIMIT ?""",
@@ -5467,21 +5489,26 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
     filtered = []
     # Try primary query then fallback queries to guarantee results
     queries = [
-        f"{industry} {city} Quebec",
-        f"{industry} {city} site:.ca",
-        f"PME {industry} {city}",
+        f'"{industry}" "{city}" contact courriel site:.ca',
+        f"{industry} {city} Quebec \"nous contacter\" OR \"contactez-nous\"",
+        f"{industry} {city} Quebec -site:yelp.ca -site:tripadvisor.ca -site:restaurantguru.com",
     ]
     for query in queries:
         raw = await loop.run_in_executor(None, _ddg_search_sync, query, max_new * 4)
         for r in raw:
-            url = r.get("url", "")
-            if any(d in url.lower() for d in _DDG_EXCLUDE):
+            url = r.get("url", "").lower()
+            title = r.get("title", "").lower()
+            # Skip directories, aggregators, news articles
+            if any(d in url for d in _DDG_EXCLUDE):
+                continue
+            # Skip list/ranking titles
+            if any(kw in title for kw in ["top ", "meilleurs ", "best ", "guide ", "liste ", "les ", " à ", "#", " 2024", " 2025", " 2026"]):
                 continue
             if url in known_sites:
                 continue
-            if any(r2.get("url") == url for r2 in filtered):
+            if any(r2.get("url","").lower() == url for r2 in filtered):
                 continue
-            filtered.append(r)
+            filtered.append({**r, "url": r.get("url","")})
             if len(filtered) >= max_new * 2:
                 break
         if filtered:
