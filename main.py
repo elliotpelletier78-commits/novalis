@@ -2002,7 +2002,58 @@ async def startup():
     asyncio.create_task(_bank_builder_loop())
     asyncio.create_task(_followup_loop())
     asyncio.create_task(_auto_outreach_loop())
+    asyncio.create_task(_fix_missing_emails_on_startup())
     logger.info(f"Novalis V{VERSION} démarré — Agence IA")
+
+
+async def _fix_missing_emails_on_startup():
+    """Au démarrage: génère les emails template pour tous les prospects bloqués (generated_emails vide)."""
+    await asyncio.sleep(15)
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("""
+                SELECT * FROM prospect_suggestions
+                WHERE status='new' AND email != '' AND email IS NOT NULL
+                  AND (email_sent_at IS NULL OR email_sent_at = '')
+                  AND (generated_emails IS NULL OR generated_emails = '{}')
+                LIMIT 30
+            """)
+            stuck = [dict(r) for r in await cursor.fetchall()]
+        if not stuck:
+            return
+        logger.info(f"Startup fix: {len(stuck)} prospects bloqués sans email — génération template...")
+        fixed = 0
+        for p in stuck:
+            try:
+                biz = {
+                    "name": p["name"], "city": p["city"], "industry": p["industry"],
+                    "website": p.get("website", ""), "email": p["email"],
+                    "web_score": p.get("web_score", 5),
+                    "web_issues": json.loads(p.get("web_issues") or "[]"),
+                    "site_text": "", "research": {
+                        "rating": p.get("rating", ""),
+                        "review_count": p.get("review_count", ""),
+                        "snippets": p.get("insights", "")
+                    }
+                }
+                emails = await _generate_prospect_emails_claude(biz)
+                if emails and emails.get("email1") and not emails.get("skip"):
+                    now = datetime.now().isoformat()
+                    async with aiosqlite.connect(DB_PATH) as db:
+                        await db.execute(
+                            "UPDATE prospect_suggestions SET generated_emails=?, updated_at=? WHERE id=?",
+                            (json.dumps(emails, ensure_ascii=False), now, p["id"])
+                        )
+                        await db.commit()
+                    fixed += 1
+                    await asyncio.sleep(1)
+            except Exception as e:
+                logger.error(f"Startup fix error for {p.get('name')}: {e}")
+        logger.info(f"Startup fix: {fixed}/{len(stuck)} prospects corrigés")
+    except Exception as e:
+        logger.error(f"Startup fix error: {e}")
+
 
 # ============================================================
 # UTILITAIRES
