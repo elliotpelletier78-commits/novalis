@@ -127,7 +127,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "6.2"
+VERSION = "6.3"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -1896,7 +1896,7 @@ async def _auto_outreach_loop():
                                 }
                             }
                             emails = await _generate_prospect_emails_claude(biz)
-                            if emails and not emails.get("skip"):
+                            if emails and emails.get("email1") and not emails.get("skip"):
                                 now = datetime.now().isoformat()
                                 async with aiosqlite.connect(DB_PATH) as db:
                                     await db.execute(
@@ -1905,6 +1905,8 @@ async def _auto_outreach_loop():
                                     )
                                     await db.commit()
                                 logging.info(f"Auto-outreach: emails générés pour {p['name']}")
+                            else:
+                                logging.warning(f"Auto-outreach: skip/vide pour {p['name']} — skip={emails.get('skip')}")
                         except Exception as e:
                             logging.error(f"Auto-outreach generate error: {e}")
                     await asyncio.sleep(10)
@@ -4957,9 +4959,47 @@ def _research_business_sync(name: str, city: str) -> dict:
         logging.error(f"Research error for {name}: {e}")
         return {"snippets": "", "rating": "", "review_count": ""}
 
+def _make_template_email(biz: dict) -> dict:
+    name = biz.get("name", "votre entreprise")
+    city = biz.get("city", "Québec")
+    industry = biz.get("industry", "votre secteur")
+    web_issues = biz.get("web_issues", [])
+    issues_text = ", ".join(web_issues[:2]) if web_issues else ""
+    if issues_text:
+        s1 = f"J'ai regardé votre site — {name}"
+        b1 = (f"En regardant des {industry} à {city}, j'ai remarqué que votre site a des problèmes ({issues_text}).\n\n"
+              f"On aide les PMEs québécoises à automatiser les appels manqués et prises de RDV — 24h/7j, 497$/mois.\n\n"
+              f"Nos clients récupèrent en moyenne 10h/semaine. Ça vous intéresserait?\n\n"
+              f"— Elliot | Novalis IA | novalisia.ca")
+    else:
+        s1 = f"Question rapide — {name}"
+        b1 = (f"Je travaille avec des {industry} à {city} pour automatiser leur prise de RDV et service client.\n\n"
+              f"Notre agent IA répond 24h/7j par SMS et web — aucun appel manqué, aucun délai. 497$/mois, premier mois gratuit.\n\n"
+              f"Ça vous intéresse?\n\n"
+              f"— Elliot | Novalis IA | novalisia.ca")
+    s2 = f"Suivi — {name}"
+    b2 = (f"Je voulais m'assurer que vous avez reçu mon message de la semaine dernière.\n\n"
+          f"On aide les {industry} à ne plus manquer un seul client grâce à notre agent IA 24h/7j.\n\n"
+          f"15 minutes cette semaine pour vous montrer comment ça marche?\n\n"
+          f"— Elliot | Novalis IA | novalisia.ca")
+    s3 = f"Dernière tentative — {name}"
+    b3 = (f"Dernier message de ma part.\n\n"
+          f"Si les appels manqués ou la gestion des RDV vous causent des maux de tête, on a une solution simple.\n\n"
+          f"Un seul courriel pour répondre suffit.\n\n"
+          f"— Elliot | Novalis IA | novalisia.ca")
+    return {
+        "need_score": 6, "skip": False,
+        "insights": f"{name} pourrait bénéficier de l'automatisation IA pour sa prise de RDV et service client.",
+        "pain_points": ["Appels manqués", "Disponibilité limitée"],
+        "email1": {"subject": s1, "body": b1},
+        "email2": {"subject": s2, "body": b2},
+        "email3": {"subject": s3, "body": b3},
+    }
+
+
 async def _generate_prospect_emails_claude(biz: dict) -> dict:
     if not claude_client:
-        return {}
+        return _make_template_email(biz)
     name = biz.get("name", "")
     city = biz.get("city", "")
     industry = biz.get("industry", "")
@@ -5041,10 +5081,15 @@ Si need_score >= 6:
             raw = raw.split("```json")[1].split("```")[0].strip()
         elif "```" in raw:
             raw = raw.split("```")[1].split("```")[0].strip()
-        return json.loads(raw)
+        result = json.loads(raw)
+        # If Claude says skip but need_score is borderline (4-5), use template instead
+        if result.get("skip") and int(result.get("need_score", 0)) >= 4:
+            logging.info(f"Claude skip override (score {result.get('need_score')}): using template for {biz.get('name')}")
+            return _make_template_email(biz)
+        return result
     except Exception as e:
         logging.error(f"Claude email gen error: {e}")
-        return {}
+        return _make_template_email(biz)
 
 
 _DDG_EXCLUDE = {
@@ -5549,9 +5594,9 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
     async with aiosqlite.connect(DB_PATH) as db:
         for i, b in enumerate(biz_list):
             emails = email_results[i]
-            # Skip businesses Claude scored as low-need
-            if emails.get("skip") or int(emails.get("need_score", 6)) < 6:
-                logging.info(f"Skipped low-need PME: {b['name']} (score {emails.get('need_score','?')})")
+            # Skip businesses with no emails generated or truly low-need (score < 4)
+            if not emails.get("email1") or (emails.get("skip") and int(emails.get("need_score", 0)) < 4):
+                logging.info(f"Skipped PME (no email / low-need): {b['name']} (score {emails.get('need_score','?')})")
                 continue
             try:
                 row_status = "ready" if save_to_bank else "new"
@@ -6044,15 +6089,17 @@ async def outreach_send_now(username: str = Depends(verify_admin)):
                        "web_issues": json.loads(p.get("web_issues") or "[]"),
                        "site_text": "", "research": {"rating": p.get("rating",""), "review_count": p.get("review_count",""), "snippets": p.get("insights","")}}
                 emails = await _generate_prospect_emails_claude(biz)
-                if emails and not emails.get("skip"):
+                if emails and emails.get("email1") and not emails.get("skip"):
                     now = datetime.now().isoformat()
                     async with aiosqlite.connect(DB_PATH) as db:
                         await db.execute("UPDATE prospect_suggestions SET generated_emails=?, updated_at=? WHERE id=?",
                                         (json.dumps(emails, ensure_ascii=False), now, p["id"]))
                         await db.commit()
                     prospects.append({**p, "generated_emails": json.dumps(emails)})
+                elif emails and emails.get("skip"):
+                    debug["errors"].append(f"{p['name']}: Claude skip (score {emails.get('need_score','?')})")
             except Exception as e:
-                pass
+                debug["errors"].append(f"{p['name']}: {str(e)}")
     debug = {"total_new": total_new, "with_email": with_email, "not_yet_sent": not_sent, "ready_to_send": ready, "sent": [], "errors": []}
     for p in prospects:
         try:
