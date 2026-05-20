@@ -10,5 +10,4 @@ aiosqlite==0.20.0
 stripe==8.0.0
 pypdf==4.0.0
 pillow==10.4.0
-pillow-heif==0.18.0
 beautifulsoup4==4.12.3
