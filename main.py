@@ -794,9 +794,21 @@ async function loadAutoOutreachStatus(){{
             +'<div><div style="font-size:0.7rem;color:#64748b;">Total envoyés</div><div style="font-size:1.4rem;font-weight:800;color:#38bdf8;">'+d.total_sent+'</div></div>'
             +'<div><div style="font-size:0.7rem;color:#64748b;">Dernier envoi</div><div style="font-size:0.85rem;font-weight:600;color:#e2e8f0;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(d.last_prospect||'—')+'</div></div>'
             +'</div>'
-            +(on?'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span style="font-size:0.78rem;color:#34d399;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:6px;padding:6px 12px;">🤖 Envoie automatiquement toutes les '+d.interval_minutes+' min</span><button onclick="sendNow(this)" style="background:#1e40af;color:#93c5fd;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;">⚡ Envoyer maintenant</button></div>':'')
+            +(on?'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span style="font-size:0.78rem;color:#34d399;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:6px;padding:6px 12px;">🤖 Envoie automatiquement toutes les '+d.interval_minutes+' min</span><button onclick="sendNow(this)" style="background:#1e40af;color:#93c5fd;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;">⚡ Envoyer maintenant</button><button onclick="forceGenerate(this)" style="background:#7c3aed;color:#e9d5ff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;">🔧 Forcer génération</button></div>':'')
             +'</div>';
     }}catch(e){{}}
+}}
+async function forceGenerate(btn){{
+    const orig=btn.textContent;btn.textContent='⏳ Génération...';btn.disabled=true;
+    try{{
+        const r=await fetch('/api/admin/auto-outreach/force-generate',{{method:'POST'}});
+        const d=await r.json();
+        if(r.ok){{
+            showNotice('✅ '+d.fixed+' prospects prêts à envoyer ('+d.skipped+' ignorés). Cliquez ⚡ Envoyer maintenant.',false);
+            loadAutoOutreachStatus();loadSuggestions();
+        }}else{{showNotice('❌ '+(d.detail||'Erreur'),true);}}
+    }}catch(e){{showNotice('❌ '+e.message,true);}}
+    btn.textContent=orig;btn.disabled=false;
 }}
 async function sendNow(btn){{
     const orig=btn.textContent;btn.textContent='⏳...';btn.disabled=true;
@@ -6174,6 +6186,48 @@ async def outreach_send_now(username: str = Depends(verify_admin)):
         except Exception as e:
             debug["errors"].append(f"{p['name']}: {str(e)}")
     return debug
+
+
+@app.post("/api/admin/auto-outreach/force-generate")
+async def outreach_force_generate(username: str = Depends(verify_admin)):
+    """Force génération template pour tous les prospects bloqués (generated_emails vide). Pas besoin de Claude."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("""
+            SELECT * FROM prospect_suggestions
+            WHERE status='new' AND email != '' AND email IS NOT NULL
+              AND (email_sent_at IS NULL OR email_sent_at = '')
+              AND (generated_emails IS NULL OR generated_emails = '{}')
+            LIMIT 50
+        """)
+        stuck = [dict(r) for r in await cursor.fetchall()]
+    fixed = 0
+    skipped = 0
+    now = datetime.now().isoformat()
+    for p in stuck:
+        try:
+            biz = {
+                "name": p["name"], "city": p["city"], "industry": p["industry"],
+                "website": p.get("website", ""), "email": p["email"],
+                "web_score": p.get("web_score", 5),
+                "web_issues": json.loads(p.get("web_issues") or "[]"),
+                "site_text": "", "research": {
+                    "rating": p.get("rating", ""), "review_count": p.get("review_count", ""),
+                    "snippets": p.get("insights", "")
+                }
+            }
+            emails = _make_template_email(biz)
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute(
+                    "UPDATE prospect_suggestions SET generated_emails=?, updated_at=? WHERE id=?",
+                    (json.dumps(emails, ensure_ascii=False), now, p["id"])
+                )
+                await db.commit()
+            fixed += 1
+        except Exception as e:
+            skipped += 1
+            logging.error(f"force-generate error {p.get('name')}: {e}")
+    return {"fixed": fixed, "skipped": skipped, "total_stuck": len(stuck)}
 
 
 @app.get("/unsubscribe", response_class=HTMLResponse)
