@@ -2756,9 +2756,11 @@ async def send_email(to: str, subject: str, body: str):
     if RESEND_API_KEY:
         def _send_resend():
             import urllib.request, urllib.error
+            reply_to = os.getenv("REPLY_TO_EMAIL", "novalisproia@gmail.com")
             payload = json.dumps({
                 "from": f"{FROM_NAME} <{FROM_EMAIL}>",
                 "to": [to],
+                "reply_to": reply_to,
                 "subject": subject,
                 "html": body,
                 "tags": [{"name": "source", "value": "novalis-outreach"}],
