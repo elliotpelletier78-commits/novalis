@@ -5141,7 +5141,7 @@ def _make_template_email(biz: dict) -> dict:
             f"Cordialement,\n"
             f"Elliot Pelletier\n"
             f"Fondateur — Novalis IA\n"
-            f"novalisia.ca | elliot@novalisia.ca"
+            f"novalisia.ca"
         )
     else:
         s1 = f"Une question pour {name}"
@@ -5157,7 +5157,7 @@ def _make_template_email(biz: dict) -> dict:
             f"Cordialement,\n"
             f"Elliot Pelletier\n"
             f"Fondateur — Novalis IA\n"
-            f"novalisia.ca | elliot@novalisia.ca"
+            f"novalisia.ca"
         )
 
     # Email 2 — Suivi J+4
