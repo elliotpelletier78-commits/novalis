@@ -127,7 +127,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "6.4"
+VERSION = "6.5"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -5025,35 +5025,73 @@ def _research_business_sync(name: str, city: str) -> dict:
 def _make_template_email(biz: dict) -> dict:
     name = biz.get("name", "votre entreprise")
     city = biz.get("city", "Québec")
-    industry = biz.get("industry", "votre secteur")
+    industry = biz.get("industry", "votre domaine")
     web_issues = biz.get("web_issues", [])
-    issues_text = ", ".join(web_issues[:2]) if web_issues else ""
-    if issues_text:
-        s1 = f"J'ai regardé votre site — {name}"
-        b1 = (f"En regardant des {industry} à {city}, j'ai remarqué que votre site a des problèmes ({issues_text}).\n\n"
-              f"On aide les PMEs québécoises à automatiser les appels manqués et prises de RDV — 24h/7j, 497$/mois.\n\n"
-              f"Nos clients récupèrent en moyenne 10h/semaine. Ça vous intéresserait?\n\n"
-              f"— Elliot | Novalis IA | novalisia.ca")
+    web_score = biz.get("web_score", 5)
+
+    # Email 1 — Accroche principale
+    if web_issues and web_score <= 3:
+        issues_str = " et ".join(web_issues[:2]).lower()
+        s1 = f"Votre site — {name}"
+        b1 = (
+            f"Bonjour,\n\n"
+            f"En recherchant des {industry} à {city}, j'ai visité votre site et remarqué {issues_str}.\n\n"
+            f"Chez Novalis IA, on aide les PMEs québécoises à moderniser leur présence et à ne plus jamais manquer un client — "
+            f"notre agent répond aux messages et prend les rendez-vous 24h/7j, même quand vous êtes fermés.\n\n"
+            f"Est-ce que vous seriez ouverts à un appel de 15 minutes pour voir si on peut vous aider?\n\n"
+            f"Cordialement,\n"
+            f"Elliot Pelletier\n"
+            f"Fondateur — Novalis IA\n"
+            f"novalisia.ca | elliot@novalisia.ca"
+        )
     else:
-        s1 = f"Question rapide — {name}"
-        b1 = (f"Je travaille avec des {industry} à {city} pour automatiser leur prise de RDV et service client.\n\n"
-              f"Notre agent IA répond 24h/7j par SMS et web — aucun appel manqué, aucun délai. 497$/mois, premier mois gratuit.\n\n"
-              f"Ça vous intéresse?\n\n"
-              f"— Elliot | Novalis IA | novalisia.ca")
+        s1 = f"Une question pour {name}"
+        b1 = (
+            f"Bonjour,\n\n"
+            f"Je suis Elliot, fondateur de Novalis IA — une agence québécoise spécialisée en automatisation pour les PMEs.\n\n"
+            f"On travaille avec plusieurs {industry} à {city} pour automatiser leur prise de rendez-vous et leur service client. "
+            f"Concrètement, notre agent IA répond aux clients 24h/7j, réduit les appels manqués et libère des heures chaque semaine.\n\n"
+            f"Seriez-vous disponible 15 minutes cette semaine pour voir si c'est pertinent pour vous?\n\n"
+            f"Cordialement,\n"
+            f"Elliot Pelletier\n"
+            f"Fondateur — Novalis IA\n"
+            f"novalisia.ca | elliot@novalisia.ca"
+        )
+
+    # Email 2 — Suivi (J+4)
     s2 = f"Suivi — {name}"
-    b2 = (f"Je voulais m'assurer que vous avez reçu mon message de la semaine dernière.\n\n"
-          f"On aide les {industry} à ne plus manquer un seul client grâce à notre agent IA 24h/7j.\n\n"
-          f"15 minutes cette semaine pour vous montrer comment ça marche?\n\n"
-          f"— Elliot | Novalis IA | novalisia.ca")
+    b2 = (
+        f"Bonjour,\n\n"
+        f"Je voulais faire un suivi sur mon courriel de la semaine dernière.\n\n"
+        f"Pour être concret : notre agent IA permet aux {industry} comme vous de répondre automatiquement aux demandes "
+        f"de rendez-vous, aux questions fréquentes et aux messages reçus hors des heures d'ouverture. "
+        f"Nos clients gagnent en moyenne 8 à 10 heures par semaine.\n\n"
+        f"Premier mois entièrement gratuit, sans contrat. Si ça ne vous convient pas, pas de frais.\n\n"
+        f"Est-ce que ça vaut la peine qu'on jase 15 minutes?\n\n"
+        f"Cordialement,\n"
+        f"Elliot Pelletier\n"
+        f"Fondateur — Novalis IA\n"
+        f"novalisia.ca"
+    )
+
+    # Email 3 — Dernier suivi (J+10)
     s3 = f"Dernière tentative — {name}"
-    b3 = (f"Dernier message de ma part.\n\n"
-          f"Si les appels manqués ou la gestion des RDV vous causent des maux de tête, on a une solution simple.\n\n"
-          f"Un seul courriel pour répondre suffit.\n\n"
-          f"— Elliot | Novalis IA | novalisia.ca")
+    b3 = (
+        f"Bonjour,\n\n"
+        f"Je vous écris une dernière fois.\n\n"
+        f"Si la gestion des appels, des messages ou des rendez-vous vous prend du temps ou vous fait perdre des clients, "
+        f"Novalis IA peut probablement vous aider — et le premier mois est gratuit.\n\n"
+        f"Si ce n'est pas le bon moment ou que vous n'êtes pas intéressé, je comprends tout à fait.\n\n"
+        f"Bonne continuation,\n"
+        f"Elliot Pelletier\n"
+        f"Fondateur — Novalis IA\n"
+        f"novalisia.ca"
+    )
+
     return {
-        "need_score": 6, "skip": False,
-        "insights": f"{name} pourrait bénéficier de l'automatisation IA pour sa prise de RDV et service client.",
-        "pain_points": ["Appels manqués", "Disponibilité limitée"],
+        "need_score": 7, "skip": False,
+        "insights": f"{name} pourrait bénéficier de l'automatisation IA pour optimiser sa gestion des clients.",
+        "pain_points": ["Appels et messages manqués", "Gestion manuelle des rendez-vous"],
         "email1": {"subject": s1, "body": b1},
         "email2": {"subject": s2, "body": b2},
         "email3": {"subject": s3, "body": b3},
@@ -5085,8 +5123,8 @@ async def _generate_prospect_emails_claude(biz: dict) -> dict:
     prompt = f"""Tu es Elliot Pelletier, fondateur de Novalis IA, agence québécoise d'automatisation IA.
 
 CE QU'ON OFFRE:
-- Agent IA 24/7 : répond aux SMS/WhatsApp/web, prend des RDV automatiquement, répond aux FAQ. 497$/mois.
-- Refonte de site web : site rapide, mobile, SEO local. ~1000$, livré en 2-3 semaines.
+- Agent IA 24/7 : répond aux SMS/WhatsApp/web, prend des RDV automatiquement, répond aux FAQ. 497$/mois. Premier mois gratuit.
+- Refonte de site web : site moderne, mobile, SEO local. ~1000$, livré en 2-3 semaines.
 
 PME ANALYSÉE: {name} | {city} | {industry}
 Site: {website}
@@ -5102,23 +5140,36 @@ AVIS ET MENTIONS EN LIGNE:
 TÂCHE — réponds UNIQUEMENT avec ce JSON exact (zéro texte avant ou après):
 
 ÉTAPE 1 — Évalue le besoin réel (need_score 1-10):
-- 8-10: Problème évident (avis mentionnent attentes, appels manqués, heures limitées, site désuet)
-- 5-7: Besoin probable mais non confirmé
-- 1-4: Business bien automatisé, déjà en ligne, ou trop petit
+- 8-10: Problème évident (avis négatifs, appels manqués, heures limitées, site désuet, pas de réponse en ligne)
+- 5-7: Besoin probable
+- 1-4: Business déjà bien automatisé
 
-Si need_score < 6, retourne SEULEMENT: {{"need_score": X, "skip": true, "reason": "..."}}
+Si need_score < 5, retourne SEULEMENT: {{"need_score": X, "skip": true, "reason": "..."}}
 
-Si need_score >= 6:
-1. Identifie 2-3 problèmes CONCRETS et SPÉCIFIQUES basés sur les vraies données.
-2. Génère 3 courriels de prospection COURTS et PERCUTANTS selon ces règles strictes:
-   - OBJET: max 7 mots, spécifique, curiosité naturelle (ex: "Question rapide – {name}", "J'ai regardé votre site")
-   - CORPS: max 80 mots, ton humain et direct comme un courriel personnel (pas corporate)
-   - Structure: 1 phrase sur leur problème PRÉCIS → 1 phrase ce que Novalis fait → 1 chiffre concret → 1 question simple
-   - Finir par une question oui/non (ex: "Ça vous intéresserait?", "5 minutes cette semaine?")
-   - NE PAS commencer par "Bonjour", "J'espère que", "Je me permets de"
-   - Écrire comme un québécois, pas comme un vendeur corporatif
-   - Signature: — Elliot | Novalis IA | novalisia.ca
-3. Dans "insights": 1-2 phrases sur pourquoi Novalis est idéal pour EUX spécifiquement.{refonte_instruction}
+Si need_score >= 5:
+Génère 3 courriels de prospection professionnels et personnalisés selon ces règles:
+
+EMAIL 1 (premier contact):
+- Objet: court et accrocheur, max 8 mots (ex: "Une question pour {name}", "J'ai regardé votre site — {name}")
+- Corps: 80-120 mots, structure: Bonjour → présentation rapide d'Elliot → problème SPÉCIFIQUE de cette PME → ce que Novalis résout concrètement → invitation à un appel de 15 min
+- Ton: professionnel mais chaleureux, comme un consultant québécois, PAS un vendeur
+- Signature complète: Elliot Pelletier / Fondateur — Novalis IA / novalisia.ca
+
+EMAIL 2 (suivi J+4):
+- Objet: "Suivi — {name}" ou "Re: [reprend le sujet du premier]"
+- Corps: 60-80 mots, rappel bref du premier courriel, nouvel angle (ex: mentionner le mois gratuit ou un résultat client), question directe
+- Signature: Elliot Pelletier / Novalis IA
+
+EMAIL 3 (dernier suivi J+10):
+- Objet: sobre et respectueux (ex: "Dernière tentative — {name}")
+- Corps: 50-70 mots, ton respectueux, dernier essai sans pression, porte ouverte
+- Signature: Elliot Pelletier / Novalis IA
+
+RÈGLES STRICTES:
+- Écrire en français québécois professionnel (pas joual, pas corporatif)
+- Mentionner des détails SPÉCIFIQUES à cette PME (ville, industrie, problèmes détectés)
+- Jamais commencer par "J'espère que", "Je me permets de", "Suite à"
+- Toujours proposer un appel de 15 minutes ou une question simple en fin de courriel{refonte_instruction}
 
 {{
   "need_score": X,
