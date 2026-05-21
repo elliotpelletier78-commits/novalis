@@ -133,7 +133,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "7.6"
+VERSION = "7.7"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -2160,7 +2160,7 @@ async def _auto_outreach_loop():
     await asyncio.sleep(90)  # wait for server startup
     while True:
         try:
-            if not _auto_outreach["enabled"] or not SMTP_HOST or not SMTP_USER:
+            if not _auto_outreach["enabled"] or (not RESEND_API_KEY and (not SMTP_HOST or not SMTP_USER)):
                 await asyncio.sleep(60)
                 continue
 
@@ -6267,6 +6267,62 @@ async def _bank_builder_loop():
         await asyncio.sleep(sleep_time)
 
 
+async def _try_send_now(prospect_id: str, table: str, name: str, email: str, city: str, industry: str, emails: dict):
+    """Envoi immédiat dès la découverte — pas d'attente outreach loop."""
+    if not _auto_outreach["enabled"]:
+        return
+    if not (RESEND_API_KEY or (SMTP_HOST and SMTP_USER)):
+        return
+    today = datetime.now().strftime("%Y-%m-%d")
+    if _auto_outreach["last_reset"] != today:
+        _auto_outreach["sent_today"] = 0
+        _auto_outreach["last_reset"] = today
+    if _auto_outreach["sent_today"] >= _auto_outreach["daily_limit"]:
+        return
+    email_addr = email.strip().lower()
+    if email_addr in _sent_emails_session:
+        return
+    async with aiosqlite.connect(DB_PATH) as db:
+        chk = await db.execute(
+            "SELECT COUNT(*) FROM prospect_suggestions WHERE LOWER(email)=? AND email_sent_at != '' AND email_sent_at IS NOT NULL",
+            (email_addr,)
+        )
+        if (await chk.fetchone())[0] > 0:
+            return
+    email1 = emails.get("email1", {})
+    if not email1.get("subject") or not email1.get("body"):
+        return
+    unsubscribe_url = f"https://novalisia.ca/unsubscribe?id={prospect_id}"
+    body_text = email1["body"]
+    html_body = f"""<div style="font-family:sans-serif;font-size:15px;line-height:1.8;color:#222;max-width:600px;">
+{body_text.replace(chr(10), '<br>')}
+<br><br>
+<hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
+<p style="font-size:11px;color:#999;">
+Novalis IA — Québec, Canada | novalisproia@gmail.com<br>
+<a href="{unsubscribe_url}" style="color:#999;">Se désabonner</a>
+</p>
+</div>"""
+    try:
+        await send_email(email, email1["subject"], html_body)
+        _sent_emails_session.add(email_addr)
+        now_iso = datetime.now().isoformat()
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute(
+                f"UPDATE {table} SET email_sent_at=?, status='contacted', updated_at=? WHERE id=? AND (email_sent_at IS NULL OR email_sent_at='')",
+                (now_iso, now_iso, prospect_id)
+            )
+            await db.commit()
+        _auto_outreach["sent_today"] += 1
+        _auto_outreach["total_sent"] += 1
+        _auto_outreach["last_sent_at"] = now_iso
+        _auto_outreach["last_prospect"] = f"{name} ({city})"
+        _emit_discovery("sent", name=name[:50], email=email, city=city, industry=industry)
+        logging.info(f"Envoi immédiat ✓ {name} <{email}> — {_auto_outreach['sent_today']}/{_auto_outreach['daily_limit']} aujourd'hui")
+    except Exception as e:
+        logging.error(f"Envoi immédiat erreur {name} <{email}>: {e}")
+
+
 async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) -> int:
     import random as _random
     target_table = "prospect_bank" if save_to_bank else "prospect_suggestions"
@@ -6401,6 +6457,7 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
                         logging.info(f"Skip duplicate website {b['website']} in {target_table}")
                         continue
                 row_status = "ready" if save_to_bank else "new"
+                row_id = str(uuid.uuid4())
                 await db.execute(f"""
                     INSERT OR IGNORE INTO {target_table}
                     (id, name, website, city, industry, email, email_quality, phone,
@@ -6408,7 +6465,7 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
                      generated_emails, has_refonte, status, search_key, created_at, updated_at)
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
-                    str(uuid.uuid4()),
+                    row_id,
                     b["name"], b["website"], b["city"], b["industry"],
                     b["email"], b["email_quality"], b["phone"],
                     b["web_score"],
@@ -6422,6 +6479,8 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
                     row_status, search_key, now, now,
                 ))
                 saved += 1
+                if b["email"]:
+                    asyncio.create_task(_try_send_now(row_id, target_table, b["name"], b["email"], b["city"], b["industry"], emails))
                 _emit_discovery("saved",
                     name=b["name"][:50],
                     website=b["website"][:60],
