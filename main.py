@@ -127,7 +127,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "7.3"
+VERSION = "7.4"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -141,6 +141,10 @@ _discovery_listeners: list = []  # clients SSE connectés
 
 def _emit_discovery(event_type: str, **kwargs):
     """Enregistre un événement de découverte et notifie les clients SSE connectés."""
+    city = kwargs.get("city", "")
+    if city and city in _CITY_COORDS:
+        kwargs["lat"] = _CITY_COORDS[city][0]
+        kwargs["lng"] = _CITY_COORDS[city][1]
     evt = {"type": event_type, "ts": datetime.now().strftime("%H:%M:%S"), **kwargs}
     _discovery_events.appendleft(evt)
     dead = []
@@ -184,6 +188,7 @@ function showView(v){{
     if(v==='prospects')loadProspects();
     if(v==='decouverte'){{loadSuggestions();loadAutoOutreachStatus();initRadar();}}
     if(v==='v_pipeline')loadPipeline();
+    if(v==='v_carte'){{initCarteView();}}
 }}
 
 async function loadPlatformStats(){{
@@ -5490,6 +5495,23 @@ _DDG_EXCLUDE = {
     "site:google", "maps.google", "waze",
 }
 
+_CITY_COORDS = {
+    "Montréal": [45.5017, -73.5673],
+    "Laval": [45.6066, -73.7124],
+    "Longueuil": [45.5315, -73.5185],
+    "Brossard": [45.4604, -73.4727],
+    "Québec": [46.8139, -71.2080],
+    "Sherbrooke": [45.4042, -71.8929],
+    "Gatineau": [45.4765, -75.7013],
+    "Saguenay": [48.4284, -71.0618],
+    "Trois-Rivières": [46.3430, -72.5425],
+    "Lévis": [46.8035, -71.1783],
+    "Drummondville": [45.8836, -72.4839],
+    "Saint-Jérôme": [45.7858, -74.0034],
+    "Repentigny": [45.7395, -73.4590],
+    "Terrebonne": [45.7002, -73.6453],
+}
+
 _DISCOVERY_TARGETS = [
     # Montréal — all industries
     ("Montréal", "salon de coiffure"), ("Montréal", "clinique dentaire"),
@@ -6746,6 +6768,9 @@ async def dashboard(username: str = Depends(verify_admin)):
         @media(max-width:768px){{.sidebar{{width:56px;}}.main-content{{margin-left:56px;}}.stats-grid{{grid-template-columns:1fr;}}.form-grid{{grid-template-columns:1fr;}}}}
         @keyframes radarPulse{{0%,100%{{box-shadow:0 0 0 0 rgba(52,211,153,0.5);}} 50%{{box-shadow:0 0 0 5px rgba(52,211,153,0);}}}}
         @keyframes radarSlide{{from{{opacity:0;transform:translateY(-6px);}} to{{opacity:1;transform:translateY(0);}}}}
+        .carte-tooltip{{background:#0f1a2b!important;border:1px solid #1e3a5f!important;color:#e2e8f0!important;font-size:0.75rem!important;padding:4px 8px!important;}}
+        .leaflet-popup-content-wrapper{{background:#1a2332!important;border:1px solid #1e3a5f!important;color:#e2e8f0!important;border-radius:8px!important;}}
+        .leaflet-popup-tip{{background:#1a2332!important;}}
     </style>
 </head>
 <body>
@@ -6760,6 +6785,7 @@ async def dashboard(username: str = Depends(verify_admin)):
         <button type="button" class="nav-item" data-view="rdlog" title="Journal R&D" onclick="showView('rdlog')">🔬</button>
         <button type="button" class="nav-item" data-view="generateur" title="Générateur d'emails" onclick="showView('generateur')" style="font-size:1rem;">📧</button>
         <button type="button" class="nav-item" data-view="decouverte" title="Découverte PMEs" onclick="showView('decouverte')" style="font-size:1rem;">🔍</button>
+        <button type="button" class="nav-item" data-view="v_carte" title="Carte en direct" onclick="showView('v_carte')" style="font-size:1rem;">🗺️</button>
         <button type="button" class="nav-item" data-view="v_pipeline" title="Pipeline" onclick="showView('v_pipeline')" style="font-size:1rem;">📊</button>
         <button type="button" class="nav-item" data-view="api" title="API" onclick="showView('api')">🔗</button>
     </div>
@@ -6966,6 +6992,57 @@ async def dashboard(username: str = Depends(verify_admin)):
                 </div>
                 <div id="sugg_loading" style="display:none;color:#94a3b8;font-size:0.85rem;padding:16px;background:#0f1f2e;border-radius:8px;margin-bottom:12px;">⏳ Recherche de nouvelles PMEs à travers le Québec... (60-120 secondes)</div>
                 <div id="sugg_results" style="margin-top:8px;"></div>
+            </div>
+            <!-- CARTE EN DIRECT -->
+            <div class="view" id="v_carte">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+                    <div>
+                        <h2 style="color:#38bdf8;margin-bottom:4px;">🗺️ Carte en direct — Prospection Québec</h2>
+                        <p style="color:#64748b;font-size:0.8rem;margin:0;">Visualisation en temps réel des recherches de PMEs à travers le Québec.</p>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                        <span id="carte_dot" style="width:9px;height:9px;border-radius:50%;background:#64748b;display:inline-block;"></span>
+                        <span id="carte_status" style="color:#475569;font-size:0.78rem;">—</span>
+                        <button onclick="clearCarteMarkers()" style="background:transparent;border:1px solid #1e3a5f;color:#475569;border-radius:6px;padding:4px 12px;font-size:0.75rem;cursor:pointer;">Effacer pins</button>
+                    </div>
+                </div>
+                <!-- Stats row -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px;">
+                    <div style="background:#1a2332;border:1px solid #1e3a5f;border-radius:10px;padding:12px 16px;">
+                        <div style="color:#64748b;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.5px;">Scans</div>
+                        <div id="cs_searching" style="font-size:1.6rem;font-weight:800;color:#38bdf8;">0</div>
+                    </div>
+                    <div style="background:#1a2332;border:1px solid #1e3a5f;border-radius:10px;padding:12px 16px;">
+                        <div style="color:#64748b;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.5px;">Sites trouvés</div>
+                        <div id="cs_found" style="font-size:1.6rem;font-weight:800;color:#a78bfa;">0</div>
+                    </div>
+                    <div style="background:#1a2332;border:1px solid #1e3a5f;border-radius:10px;padding:12px 16px;">
+                        <div style="color:#64748b;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.5px;">Analysées</div>
+                        <div id="cs_scraped" style="font-size:1.6rem;font-weight:800;color:#fbbf24;">0</div>
+                    </div>
+                    <div style="background:#1a2332;border:1px solid #1e3a5f;border-radius:10px;padding:12px 16px;">
+                        <div style="color:#64748b;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.5px;">Ajoutées</div>
+                        <div id="cs_saved" style="font-size:1.6rem;font-weight:800;color:#34d399;">0</div>
+                    </div>
+                    <div style="background:#1a2332;border:1px solid #1e3a5f;border-radius:10px;padding:12px 16px;">
+                        <div style="color:#64748b;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.5px;">Avec email</div>
+                        <div id="cs_email" style="font-size:1.6rem;font-weight:800;color:#fb923c;">0</div>
+                    </div>
+                </div>
+                <!-- Map + side panel -->
+                <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start;">
+                    <!-- Leaflet map -->
+                    <div style="background:#0f1a2b;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;">
+                        <div id="qc_map" style="height:480px;width:100%;"></div>
+                    </div>
+                    <!-- Side panel: PME analysis cards -->
+                    <div style="background:#0f1a2b;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;max-height:496px;">
+                        <div style="padding:12px 16px;border-bottom:1px solid #1e3a5f;background:#0a1628;font-size:0.8rem;font-weight:700;color:#94a3b8;letter-spacing:0.5px;text-transform:uppercase;">PMEs récentes</div>
+                        <div id="pme_cards" style="flex:1;overflow-y:auto;padding:8px;">
+                            <div style="color:#334155;text-align:center;padding:24px;font-size:0.8rem;">En attente de découvertes...</div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <!-- PIPELINE / KANBAN -->
             <div class="view" id="v_pipeline">
