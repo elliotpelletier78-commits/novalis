@@ -127,7 +127,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "6.5"
+VERSION = "6.6"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -5028,17 +5028,20 @@ def _make_template_email(biz: dict) -> dict:
     industry = biz.get("industry", "votre domaine")
     web_issues = biz.get("web_issues", [])
     web_score = biz.get("web_score", 5)
+    has_bad_site = bool(web_issues) and web_score <= 3
 
-    # Email 1 — Accroche principale
-    if web_issues and web_score <= 3:
+    # Email 1 — Accroche principale (site désuet OU angle automation)
+    if has_bad_site:
         issues_str = " et ".join(web_issues[:2]).lower()
-        s1 = f"Votre site — {name}"
+        s1 = f"Votre site web — {name}"
         b1 = (
             f"Bonjour,\n\n"
-            f"En recherchant des {industry} à {city}, j'ai visité votre site et remarqué {issues_str}.\n\n"
-            f"Chez Novalis IA, on aide les PMEs québécoises à moderniser leur présence et à ne plus jamais manquer un client — "
-            f"notre agent répond aux messages et prend les rendez-vous 24h/7j, même quand vous êtes fermés.\n\n"
-            f"Est-ce que vous seriez ouverts à un appel de 15 minutes pour voir si on peut vous aider?\n\n"
+            f"En recherchant des {industry} à {city}, j'ai visité votre site et j'ai remarqué {issues_str}.\n\n"
+            f"Chez Novalis IA, on aide les PMEs québécoises sur deux fronts :\n"
+            f"• Refonte de site web moderne, mobile et rapide — livré en 2 à 3 semaines (~1 000 $)\n"
+            f"• Agent IA 24h/7j qui répond à vos clients, prend les rendez-vous et automatise vos tâches répétitives\n\n"
+            f"On peut aussi automatiser n'importe quel processus dans votre entreprise : factures, rappels, suivis, rapports — tout ce qui vous prend du temps inutilement.\n\n"
+            f"Seriez-vous disponible 15 minutes cette semaine pour qu'on regarde ensemble ce qu'on peut améliorer?\n\n"
             f"Cordialement,\n"
             f"Elliot Pelletier\n"
             f"Fondateur — Novalis IA\n"
@@ -5048,41 +5051,43 @@ def _make_template_email(biz: dict) -> dict:
         s1 = f"Une question pour {name}"
         b1 = (
             f"Bonjour,\n\n"
-            f"Je suis Elliot, fondateur de Novalis IA — une agence québécoise spécialisée en automatisation pour les PMEs.\n\n"
-            f"On travaille avec plusieurs {industry} à {city} pour automatiser leur prise de rendez-vous et leur service client. "
-            f"Concrètement, notre agent IA répond aux clients 24h/7j, réduit les appels manqués et libère des heures chaque semaine.\n\n"
-            f"Seriez-vous disponible 15 minutes cette semaine pour voir si c'est pertinent pour vous?\n\n"
+            f"Je suis Elliot, fondateur de Novalis IA — une agence québécoise spécialisée en automatisation IA pour les PMEs.\n\n"
+            f"On travaille avec des {industry} à {city} pour :\n"
+            f"• Automatiser la prise de rendez-vous et le service client (agent IA 24h/7j)\n"
+            f"• Éliminer les tâches répétitives : suivis, rappels, rapports, facturation\n"
+            f"• Moderniser leur site web si nécessaire\n\n"
+            f"En clair : si une tâche se répète dans votre entreprise, on peut l'automatiser.\n\n"
+            f"Seriez-vous disponible 15 minutes pour voir si on peut vous faire gagner du temps?\n\n"
             f"Cordialement,\n"
             f"Elliot Pelletier\n"
             f"Fondateur — Novalis IA\n"
             f"novalisia.ca | elliot@novalisia.ca"
         )
 
-    # Email 2 — Suivi (J+4)
+    # Email 2 — Suivi J+4
     s2 = f"Suivi — {name}"
     b2 = (
         f"Bonjour,\n\n"
-        f"Je voulais faire un suivi sur mon courriel de la semaine dernière.\n\n"
-        f"Pour être concret : notre agent IA permet aux {industry} comme vous de répondre automatiquement aux demandes "
-        f"de rendez-vous, aux questions fréquentes et aux messages reçus hors des heures d'ouverture. "
-        f"Nos clients gagnent en moyenne 8 à 10 heures par semaine.\n\n"
-        f"Premier mois entièrement gratuit, sans contrat. Si ça ne vous convient pas, pas de frais.\n\n"
-        f"Est-ce que ça vaut la peine qu'on jase 15 minutes?\n\n"
+        f"Je fais suite à mon courriel de la semaine dernière.\n\n"
+        f"Pour être concret sur ce qu'on fait chez Novalis IA : on automatise les processus qui vous volent du temps — "
+        f"réponses aux clients, prise de rendez-vous, rappels, suivis, rapports. "
+        f"Si votre site web est désuet, on le refait aussi. Nos clients gagnent en moyenne 8 à 10 heures par semaine.\n\n"
+        f"Premier mois entièrement gratuit, aucun contrat. Si ça ne vous convient pas après 30 jours, pas de frais.\n\n"
+        f"Ça vaudrait la peine qu'on jase 15 minutes?\n\n"
         f"Cordialement,\n"
         f"Elliot Pelletier\n"
         f"Fondateur — Novalis IA\n"
         f"novalisia.ca"
     )
 
-    # Email 3 — Dernier suivi (J+10)
+    # Email 3 — Dernier suivi J+10
     s3 = f"Dernière tentative — {name}"
     b3 = (
         f"Bonjour,\n\n"
         f"Je vous écris une dernière fois.\n\n"
-        f"Si la gestion des appels, des messages ou des rendez-vous vous prend du temps ou vous fait perdre des clients, "
-        f"Novalis IA peut probablement vous aider — et le premier mois est gratuit.\n\n"
-        f"Si ce n'est pas le bon moment ou que vous n'êtes pas intéressé, je comprends tout à fait.\n\n"
-        f"Bonne continuation,\n"
+        f"Que ce soit pour automatiser vos tâches répétitives, ne plus manquer d'appels ou moderniser votre site web, "
+        f"Novalis IA peut probablement vous faire gagner du temps et des clients — et le premier mois est gratuit.\n\n"
+        f"Si ce n'est pas le bon moment, je comprends tout à fait. Bonne continuation.\n\n"
         f"Elliot Pelletier\n"
         f"Fondateur — Novalis IA\n"
         f"novalisia.ca"
@@ -5090,8 +5095,8 @@ def _make_template_email(biz: dict) -> dict:
 
     return {
         "need_score": 7, "skip": False,
-        "insights": f"{name} pourrait bénéficier de l'automatisation IA pour optimiser sa gestion des clients.",
-        "pain_points": ["Appels et messages manqués", "Gestion manuelle des rendez-vous"],
+        "insights": f"{name} pourrait bénéficier de l'automatisation IA et d'une modernisation de sa présence en ligne.",
+        "pain_points": ["Tâches répétitives chronophages", "Appels et messages manqués", "Site web désuet" if has_bad_site else "Processus manuels"],
         "email1": {"subject": s1, "body": b1},
         "email2": {"subject": s2, "body": b2},
         "email3": {"subject": s3, "body": b3},
@@ -5123,7 +5128,8 @@ async def _generate_prospect_emails_claude(biz: dict) -> dict:
     prompt = f"""Tu es Elliot Pelletier, fondateur de Novalis IA, agence québécoise d'automatisation IA.
 
 CE QU'ON OFFRE:
-- Agent IA 24/7 : répond aux SMS/WhatsApp/web, prend des RDV automatiquement, répond aux FAQ. 497$/mois. Premier mois gratuit.
+- Agent IA 24/7 : répond aux SMS/WhatsApp/web, prend les RDV automatiquement, répond aux FAQ. 497$/mois. Premier mois gratuit.
+- Automatisation sur mesure : on automatise N'IMPORTE QUEL processus répétitif (suivis clients, rappels, rapports, facturation, saisie de données, etc.)
 - Refonte de site web : site moderne, mobile, SEO local. ~1000$, livré en 2-3 semaines.
 
 PME ANALYSÉE: {name} | {city} | {industry}
@@ -5169,7 +5175,9 @@ RÈGLES STRICTES:
 - Écrire en français québécois professionnel (pas joual, pas corporatif)
 - Mentionner des détails SPÉCIFIQUES à cette PME (ville, industrie, problèmes détectés)
 - Jamais commencer par "J'espère que", "Je me permets de", "Suite à"
-- Toujours proposer un appel de 15 minutes ou une question simple en fin de courriel{refonte_instruction}
+- Toujours proposer un appel de 15 minutes ou une question simple en fin de courriel
+- Si le site est désuet (web_score <= 2): mentionner la refonte de site ET l'automatisation
+- Toujours mentionner qu'on peut automatiser n'importe quel processus répétitif, pas seulement les RDV{refonte_instruction}
 
 {{
   "need_score": X,
