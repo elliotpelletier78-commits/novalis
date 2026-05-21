@@ -127,7 +127,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "6.7"
+VERSION = "6.8"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -2016,6 +2016,7 @@ async def startup():
     asyncio.create_task(_auto_outreach_loop())
     asyncio.create_task(_fix_missing_emails_on_startup())
     asyncio.create_task(_auto_suggestions_loop())
+    asyncio.create_task(_fast_bank_fill_on_startup())
     logger.info(f"Novalis V{VERSION} démarré — Agence IA")
 
 
@@ -2066,6 +2067,23 @@ async def _fix_missing_emails_on_startup():
         logger.info(f"Startup fix: {fixed}/{len(stuck)} prospects corrigés")
     except Exception as e:
         logger.error(f"Startup fix error: {e}")
+
+
+async def _fast_bank_fill_on_startup():
+    """Au démarrage: si la banque est vide, lance 8 découvertes en parallèle immédiatement."""
+    await asyncio.sleep(5)
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            cursor = await db.execute("SELECT COUNT(*) FROM prospect_bank WHERE status='ready'")
+            count = (await cursor.fetchone())[0]
+        if count < 20:
+            logger.info(f"Startup: banque critique ({count}) → 8 découvertes parallèles lancées")
+            tasks = [_auto_discover_batch(max_new=10, save_to_bank=True) for _ in range(8)]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            added = sum(r for r in results if isinstance(r, int))
+            logger.info(f"Startup fast fill: +{added} PMEs ajoutées à la banque")
+    except Exception as e:
+        logger.error(f"Fast bank fill error: {e}")
 
 
 async def _auto_suggestions_loop():
@@ -5639,7 +5657,7 @@ async def _suggestions_count_by_status() -> dict:
 
 async def _bank_builder_loop():
     """Runs forever, keeps prospect_bank filled to 200 ready entries."""
-    await asyncio.sleep(20)  # wait for server to finish starting
+    await asyncio.sleep(20)
     while True:
         try:
             async with aiosqlite.connect(DB_PATH) as db:
@@ -5648,13 +5666,22 @@ async def _bank_builder_loop():
                 )
                 count = (await cursor.fetchone())[0]
             if count < 200:
-                batch_size = 12 if count < 30 else 8
-                added = await _auto_discover_batch(max_new=batch_size, save_to_bank=True)
-                logging.info(f"Bank builder: {count} ready → +{added} (target 200)")
-                # Critically low → refill fast, no long wait
-                sleep_time = 10 if count < 15 else (30 if count < 50 else 90)
+                # Parallélisme: plus la banque est vide, plus on lance de batches en même temps
+                if count < 15:
+                    parallel = 5   # urgent: 5 recherches simultanées
+                    batch_size = 10
+                elif count < 50:
+                    parallel = 3   # rapide: 3 recherches simultanées
+                    batch_size = 8
+                else:
+                    parallel = 2
+                    batch_size = 6
+                tasks = [_auto_discover_batch(max_new=batch_size, save_to_bank=True) for _ in range(parallel)]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                added = sum(r for r in results if isinstance(r, int))
+                logging.info(f"Bank builder: {count} ready → +{added} ({parallel} batches parallèles, target 200)")
+                sleep_time = 8 if count < 15 else (20 if count < 50 else 60)
             else:
-                logging.info(f"Bank full: {count} ready entries")
                 sleep_time = 120
         except Exception as e:
             logging.error(f"Bank builder error: {e}")
