@@ -94,8 +94,8 @@ DB_PATH = os.getenv("DATABASE_PATH", "novalis.db")
 
 # Email — Resend (prioritaire) ou SMTP fallback
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-FROM_EMAIL = os.getenv("FROM_EMAIL", "ia@novalisia.ca")
-FROM_NAME = os.getenv("FROM_NAME", "Novalis IA")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "elliot@novalisia.ca")
+FROM_NAME = os.getenv("FROM_NAME", "Elliot Pelletier — Novalis IA")
 SMTP_HOST = os.getenv("SMTP_HOST", "")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
@@ -133,7 +133,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "7.7"
+VERSION = "7.6"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
