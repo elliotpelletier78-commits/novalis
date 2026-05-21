@@ -127,10 +127,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "6.8"
+VERSION = "6.9"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
+
+_sent_emails_session: set = set()  # emails envoyés depuis le dernier démarrage (anti-doublon)
 
 _auto_outreach = {
     "enabled": False,
@@ -1953,12 +1955,31 @@ Novalis IA — Québec, Canada | novalisproia@gmail.com<br>
 </p>
 </div>"""
 
+                    # Triple vérification anti-doublon
+                    email_addr = p["email"].strip().lower()
+                    if email_addr in _sent_emails_session:
+                        logging.warning(f"Auto-outreach: doublon session ignoré → {email_addr}")
+                        continue
+                    async with aiosqlite.connect(DB_PATH) as db:
+                        chk = await db.execute(
+                            "SELECT COUNT(*) FROM prospect_suggestions WHERE LOWER(email)=? AND email_sent_at != '' AND email_sent_at IS NOT NULL",
+                            (email_addr,)
+                        )
+                        already_sent = (await chk.fetchone())[0]
+                    if already_sent:
+                        logging.warning(f"Auto-outreach: déjà contacté en DB ignoré → {email_addr}")
+                        async with aiosqlite.connect(DB_PATH) as db:
+                            await db.execute("UPDATE prospect_suggestions SET status='contacted', updated_at=? WHERE id=?", (datetime.now().isoformat(), p["id"]))
+                            await db.commit()
+                        continue
+
                     await send_email(p["email"], email1["subject"], html_body)
+                    _sent_emails_session.add(email_addr)
 
                     now = datetime.now().isoformat()
                     async with aiosqlite.connect(DB_PATH) as db:
                         await db.execute(
-                            "UPDATE prospect_suggestions SET email_sent_at=?, status='contacted', updated_at=? WHERE id=?",
+                            "UPDATE prospect_suggestions SET email_sent_at=?, status='contacted', updated_at=? WHERE id=? AND (email_sent_at IS NULL OR email_sent_at='')",
                             (now, now, p["id"])
                         )
                         await db.commit()
@@ -2007,6 +2028,11 @@ async def startup():
         if row and row[0] == "1":
             _auto_outreach["enabled"] = True
             logger.info("Auto-outreach: état restauré → EN MARCHE")
+        # Charger tous les emails déjà contactés pour éviter les doublons
+        c = await db.execute("SELECT LOWER(email) FROM prospect_suggestions WHERE email_sent_at != '' AND email_sent_at IS NOT NULL AND email != ''")
+        for (em,) in await c.fetchall():
+            _sent_emails_session.add(em)
+        logger.info(f"Anti-doublon: {len(_sent_emails_session)} emails déjà contactés chargés")
     await seed_service_catalog()
     asyncio.create_task(appointment_reminder_task())
     asyncio.create_task(weekly_report_task())
@@ -6285,12 +6311,26 @@ async def outreach_send_now(username: str = Depends(verify_admin)):
             if not email1.get("subject") or not email1.get("body"):
                 debug["errors"].append(f"{p['name']}: email1 vide dans generated_emails")
                 continue
+            # Anti-doublon: vérifier si cet email a déjà été contacté
+            email_addr = p["email"].strip().lower()
+            if email_addr in _sent_emails_session:
+                debug["errors"].append(f"{p['name']}: doublon ignoré (déjà envoyé cette session)")
+                continue
+            async with aiosqlite.connect(DB_PATH) as db:
+                chk = await db.execute(
+                    "SELECT COUNT(*) FROM prospect_suggestions WHERE LOWER(email)=? AND email_sent_at != '' AND email_sent_at IS NOT NULL",
+                    (email_addr,)
+                )
+                if (await chk.fetchone())[0] > 0:
+                    debug["errors"].append(f"{p['name']}: déjà contacté — ignoré")
+                    continue
             unsubscribe_url = f"https://novalisia.ca/unsubscribe?id={p['id']}"
             html_body = f"<div style='font-family:sans-serif;font-size:15px;line-height:1.8;color:#222;max-width:600px;'>{email1['body'].replace(chr(10),'<br>')}<br><br><hr style='border:none;border-top:1px solid #eee;margin:24px 0;'><p style='font-size:11px;color:#999;'>Novalis IA — Québec | <a href='{unsubscribe_url}' style='color:#999;'>Se désabonner</a></p></div>"
             await send_email(p["email"], email1["subject"], html_body)
+            _sent_emails_session.add(email_addr)
             now = datetime.now().isoformat()
             async with aiosqlite.connect(DB_PATH) as db:
-                await db.execute("UPDATE prospect_suggestions SET email_sent_at=?, status='contacted', updated_at=? WHERE id=?", (now, now, p["id"]))
+                await db.execute("UPDATE prospect_suggestions SET email_sent_at=?, status='contacted', updated_at=? WHERE id=? AND (email_sent_at IS NULL OR email_sent_at='')", (now, now, p["id"]))
                 await db.commit()
             _auto_outreach["sent_today"] += 1
             _auto_outreach["total_sent"] += 1
