@@ -1159,12 +1159,16 @@
 </div>
 
 <script>
-// Force scroll to top — bypass smooth-scroll CSS and hash anchors
+// Force scroll to top — bypass smooth-scroll CSS, hash anchors and browser restore
 if ('scrollRestoration' in history) { history.scrollRestoration = 'manual'; }
 document.documentElement.style.scrollBehavior = 'auto';
 window.scrollTo(0, 0);
 if (location.hash) { history.replaceState('', document.title, location.pathname + location.search); }
 document.addEventListener('DOMContentLoaded', () => { window.scrollTo({top:0,behavior:'instant'}); });
+window.addEventListener('load', () => { window.scrollTo({top:0,behavior:'instant'}); });
+window.addEventListener('pageshow', () => { window.scrollTo({top:0,behavior:'instant'}); });
+setTimeout(() => { window.scrollTo({top:0,behavior:'instant'}); }, 50);
+setTimeout(() => { window.scrollTo({top:0,behavior:'instant'}); }, 200);
 
 // Scroll progress bar
 const scrollProgress = document.getElementById('scroll-progress');
