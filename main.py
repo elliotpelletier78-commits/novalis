@@ -127,7 +127,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "7.4"
+VERSION = "7.5"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
