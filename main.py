@@ -92,13 +92,19 @@ FB_APP_SECRET   = os.getenv("FB_APP_SECRET", "")
 # Base de données
 DB_PATH = os.getenv("DATABASE_PATH", "novalis.db")
 
-# Email (SMTP optionnel)
+# Email — Resend (prioritaire) ou SMTP fallback
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "elliot@novalisia.ca")
+FROM_NAME = os.getenv("FROM_NAME", "Elliot Pelletier — Novalis IA")
 SMTP_HOST = os.getenv("SMTP_HOST", "")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 SMTP_FROM = os.getenv("SMTP_FROM", "") or SMTP_USER
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "novalisproia@gmail.com")
+
+# Google Places API (découverte PMEs)
+GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
 
 # Stripe (facturation abonnements — optionnel)
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
@@ -127,7 +133,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "7.5"
+VERSION = "7.6"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -2032,6 +2038,7 @@ async def init_db():
         try:
             await db.execute("ALTER TABLE prospect_suggestions ADD COLUMN email_sent_at TEXT DEFAULT ''")
             await db.execute("ALTER TABLE prospect_suggestions ADD COLUMN followup_sent_at TEXT DEFAULT ''")
+            await db.execute("ALTER TABLE prospect_suggestions ADD COLUMN sms_sent_at TEXT DEFAULT ''")
             await db.commit()
         except Exception:
             pass  # columns already exist
@@ -2363,6 +2370,7 @@ async def startup():
     asyncio.create_task(_bank_builder_loop())
     asyncio.create_task(_followup_loop())
     asyncio.create_task(_auto_outreach_loop())
+    asyncio.create_task(_sms_outreach_loop())
     asyncio.create_task(_fix_missing_emails_on_startup())
     asyncio.create_task(_auto_suggestions_loop())
     asyncio.create_task(_fast_bank_fill_on_startup())
@@ -2447,6 +2455,78 @@ async def _outreach_watchdog():
                 asyncio.create_task(_run_refresh_job())
         except Exception as e:
             logger.error(f"Outreach watchdog error: {e}")
+
+
+async def _sms_outreach_loop():
+    """Envoie des SMS de prospection aux PMEs avec numéro de téléphone (via Twilio)."""
+    await asyncio.sleep(180)  # 3 min après démarrage
+    sms_sent_today = 0
+    last_reset = datetime.now().strftime("%Y-%m-%d")
+    SMS_DAILY_LIMIT = 20
+
+    while True:
+        try:
+            today = datetime.now().strftime("%Y-%m-%d")
+            if last_reset != today:
+                sms_sent_today = 0
+                last_reset = today
+
+            if not twilio_client or not TWILIO_PHONE:
+                await asyncio.sleep(3600)
+                continue
+            if sms_sent_today >= SMS_DAILY_LIMIT:
+                await asyncio.sleep(3600)
+                continue
+
+            async with aiosqlite.connect(DB_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute("""
+                    SELECT * FROM prospect_suggestions
+                    WHERE status='new'
+                      AND phone != '' AND phone IS NOT NULL
+                      AND (sms_sent_at IS NULL OR sms_sent_at = '')
+                      AND (email_sent_at IS NULL OR email_sent_at = '')
+                    ORDER BY web_score ASC
+                    LIMIT 3
+                """)
+                prospects = [dict(r) for r in await cursor.fetchall()]
+
+            for p in prospects:
+                if sms_sent_today >= SMS_DAILY_LIMIT:
+                    break
+                try:
+                    name = p.get("name", "votre entreprise")
+                    city = p.get("city", "Québec")
+                    industry = p.get("industry", "votre secteur")
+                    phone = p.get("phone", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+                    if not phone.startswith("+"):
+                        phone = "+1" + phone.lstrip("1")
+                    sms_body = (
+                        f"Bonjour! Je suis Elliot de Novalis IA. "
+                        f"J'aide les {industry} au Québec à automatiser leur service client et gagner 8-10h/semaine. "
+                        f"Premier mois gratuit. Ça vous intéresse? novalisia.ca"
+                    )
+                    await asyncio.to_thread(
+                        twilio_client.messages.create,
+                        body=sms_body, from_=TWILIO_PHONE, to=phone
+                    )
+                    now = datetime.now().isoformat()
+                    async with aiosqlite.connect(DB_PATH) as db:
+                        await db.execute(
+                            "UPDATE prospect_suggestions SET sms_sent_at=?, updated_at=? WHERE id=?",
+                            (now, now, p["id"])
+                        )
+                        await db.commit()
+                    sms_sent_today += 1
+                    logger.info(f"SMS ✓ {name} ({phone}) — {sms_sent_today}/{SMS_DAILY_LIMIT}")
+                    await asyncio.sleep(60)
+                except Exception as e:
+                    logger.error(f"SMS outreach error {p.get('name')}: {e}")
+
+        except Exception as e:
+            logger.error(f"SMS outreach loop error: {e}")
+
+        await asyncio.sleep(2 * 3600)  # toutes les 2 heures
 
 
 async def _cleanup_duplicate_prospects():
@@ -2671,10 +2751,37 @@ def validate_twilio_signature(request_url: str, params: dict, signature: str) ->
     return validator.validate(request_url, params, signature)
 
 async def send_email(to: str, subject: str, body: str):
-    """Envoie un email via SMTP si configuré (non-bloquant via asyncio.to_thread)."""
+    """Envoie via Resend (prioritaire) ou SMTP fallback."""
+    # === RESEND (inbox, tracking, domaine pro) ===
+    if RESEND_API_KEY:
+        def _send_resend():
+            import urllib.request, urllib.error
+            payload = json.dumps({
+                "from": f"{FROM_NAME} <{FROM_EMAIL}>",
+                "to": [to],
+                "subject": subject,
+                "html": body,
+                "tags": [{"name": "source", "value": "novalis-outreach"}],
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                "https://api.resend.com/emails",
+                data=payload,
+                headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                result = json.loads(resp.read())
+            logger.info(f"Resend ✓ {to} — id:{result.get('id','?')}")
+        try:
+            await asyncio.to_thread(_send_resend)
+            return
+        except Exception as e:
+            logger.error(f"Resend erreur: {e} — fallback SMTP")
+
+    # === SMTP fallback (Gmail, etc.) ===
     if not SMTP_HOST or not SMTP_USER:
         return
-    def _send():
+    def _send_smtp():
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = SMTP_FROM
@@ -2684,11 +2791,11 @@ async def send_email(to: str, subject: str, body: str):
             server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_FROM, [to], msg.as_string())
-        logger.info(f"Email envoyé à {to}")
+        logger.info(f"SMTP ✓ {to}")
     try:
-        await asyncio.to_thread(_send)
+        await asyncio.to_thread(_send_smtp)
     except Exception as e:
-        logger.error(f"Erreur email: {e}")
+        logger.error(f"Erreur email SMTP: {e}")
 
 async def provision_twilio_number(preferred_area_code: str = "819") -> Optional[str]:
     """Achète automatiquement un numéro Twilio local et configure les webhooks."""
@@ -5326,6 +5433,50 @@ async def list_leads(username: str = Depends(verify_admin)):
 # PME DISCOVERY — Scraping + IA prospecting engine
 # ============================================================
 
+def _google_places_search_sync(city: str, industry: str, max_results: int = 10) -> list:
+    """Cherche des PMEs via Google Places API — meilleure qualité que DDG."""
+    if not GOOGLE_PLACES_API_KEY:
+        return []
+    try:
+        import urllib.request as _ureq, urllib.parse as _uparse
+        results = []
+        query = f"{industry} {city} Québec"
+        url = ("https://maps.googleapis.com/maps/api/place/textsearch/json?"
+               f"query={_uparse.quote(query)}&language=fr&region=ca"
+               f"&key={GOOGLE_PLACES_API_KEY}")
+        with _ureq.urlopen(url, timeout=10) as r:
+            data = json.loads(r.read())
+        for place in data.get("results", [])[:max_results]:
+            name = place.get("name", "")
+            address = place.get("formatted_address", "")
+            rating = str(place.get("rating", ""))
+            reviews = str(place.get("user_ratings_total", ""))
+            place_id = place.get("place_id", "")
+            # Get details (website + phone)
+            website, phone = "", ""
+            if place_id:
+                det_url = ("https://maps.googleapis.com/maps/api/place/details/json?"
+                           f"place_id={place_id}&fields=website,formatted_phone_number"
+                           f"&key={GOOGLE_PLACES_API_KEY}")
+                try:
+                    with _ureq.urlopen(det_url, timeout=8) as r2:
+                        det = json.loads(r2.read()).get("result", {})
+                    website = det.get("website", "")
+                    phone = det.get("formatted_phone_number", "")
+                except Exception:
+                    pass
+            results.append({
+                "name": name, "url": website, "title": name,
+                "phone": phone, "rating": rating, "review_count": reviews,
+                "address": address, "source": "google_places",
+            })
+        logger.info(f"Google Places: {len(results)} résultats pour {industry} {city}")
+        return results
+    except Exception as e:
+        logger.error(f"Google Places error: {e}")
+        return []
+
+
 def _ddg_search_sync(query: str, max_results: int = 15) -> list:
     try:
         from bs4 import BeautifulSoup
@@ -6135,33 +6286,47 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
     _emit_discovery("searching", city=city, industry=industry)
     loop = asyncio.get_event_loop()
     filtered = []
-    # Try primary query then fallback queries to guarantee results
-    queries = [
-        f'"{industry}" "{city}" contact courriel site:.ca',
-        f"{industry} {city} Quebec \"nous contacter\" OR \"contactez-nous\"",
-        f"{industry} {city} Quebec -site:yelp.ca -site:tripadvisor.ca -site:restaurantguru.com",
-    ]
-    for query in queries:
-        raw = await loop.run_in_executor(None, _ddg_search_sync, query, max_new * 4)
-        for r in raw:
-            url = r.get("url", "").lower()
-            title = r.get("title", "").lower()
-            # Skip directories, aggregators, news articles
-            if any(d in url for d in _DDG_EXCLUDE):
+
+    # === GOOGLE PLACES (priorité si API key dispo) ===
+    if GOOGLE_PLACES_API_KEY:
+        places_raw = await loop.run_in_executor(None, _google_places_search_sync, city, industry, max_new * 2)
+        for r in places_raw:
+            url = (r.get("url") or "").lower()
+            if url and url in known_sites:
                 continue
-            # Skip list/ranking titles
-            if any(kw in title for kw in ["top ", "meilleurs ", "best ", "guide ", "liste ", "les ", " à ", "#", " 2024", " 2025", " 2026"]):
+            if url and any(r2.get("url","").lower() == url for r2 in filtered):
                 continue
-            if url in known_sites:
-                continue
-            if any(r2.get("url","").lower() == url for r2 in filtered):
-                continue
-            filtered.append({**r, "url": r.get("url","")})
-            _emit_discovery("found", url=r.get("url",""), title=r.get("title","")[:60], city=city, industry=industry)
+            filtered.append({**r, "url": r.get("url",""), "_places_phone": r.get("phone",""), "_places_rating": r.get("rating",""), "_places_reviews": r.get("review_count","")})
+            _emit_discovery("found", url=r.get("url",""), title=r.get("name","")[:60], city=city, industry=industry)
             if len(filtered) >= max_new * 2:
                 break
-        if filtered:
-            break
+
+    # === DDG fallback si pas de Places API ou résultats insuffisants ===
+    if len(filtered) < max_new:
+        queries = [
+            f'"{industry}" "{city}" contact courriel site:.ca',
+            f"{industry} {city} Quebec \"nous contacter\" OR \"contactez-nous\"",
+            f"{industry} {city} Quebec -site:yelp.ca -site:tripadvisor.ca -site:restaurantguru.com",
+        ]
+        for query in queries:
+            raw = await loop.run_in_executor(None, _ddg_search_sync, query, max_new * 4)
+            for r in raw:
+                url = r.get("url", "").lower()
+                title = r.get("title", "").lower()
+                if any(d in url for d in _DDG_EXCLUDE):
+                    continue
+                if any(kw in title for kw in ["top ", "meilleurs ", "best ", "guide ", "liste ", "les ", " à ", "#", " 2024", " 2025", " 2026"]):
+                    continue
+                if url in known_sites:
+                    continue
+                if any(r2.get("url","").lower() == url for r2 in filtered):
+                    continue
+                filtered.append({**r, "url": r.get("url","")})
+                _emit_discovery("found", url=r.get("url",""), title=r.get("title","")[:60], city=city, industry=industry)
+                if len(filtered) >= max_new * 2:
+                    break
+            if len(filtered) >= max_new:
+                break
     if not filtered:
         logging.warning(f"_auto_discover_batch: 0 résultats pour {city} / {industry}")
         _emit_discovery("no_result", city=city, industry=industry)
@@ -6181,13 +6346,13 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
         sc = scraped[i]
         res = researched[i]
         b_entry = {
-            "name": names[i],
+            "name": biz.get("name") or names[i],
             "website": biz.get("url", ""),
             "city": city,
             "industry": industry,
             "email": sc.get("email", ""),
             "email_quality": sc.get("email_quality", "none"),
-            "phone": sc.get("phone", ""),
+            "phone": biz.get("_places_phone") or sc.get("phone", ""),
             "site_text": sc.get("text", ""),
             "web_score": sc.get("web_score", 5),
             "web_issues": sc.get("web_issues", []),
