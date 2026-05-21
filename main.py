@@ -127,12 +127,33 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "7.0"
+VERSION = "7.1"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
 
 _sent_emails_session: set = set()  # emails envoyés depuis le dernier démarrage (anti-doublon)
+
+from collections import deque
+_discovery_events: deque = deque(maxlen=300)  # flux live des découvertes PME
+_discovery_listeners: list = []  # clients SSE connectés
+
+
+def _emit_discovery(event_type: str, **kwargs):
+    """Enregistre un événement de découverte et notifie les clients SSE connectés."""
+    evt = {"type": event_type, "ts": datetime.now().strftime("%H:%M:%S"), **kwargs}
+    _discovery_events.appendleft(evt)
+    dead = []
+    for q in _discovery_listeners:
+        try:
+            q.put_nowait(evt)
+        except Exception:
+            dead.append(q)
+    for q in dead:
+        try:
+            _discovery_listeners.remove(q)
+        except ValueError:
+            pass
 
 _auto_outreach = {
     "enabled": False,
@@ -161,7 +182,7 @@ function showView(v){{
     if(v==='clients')loadClients();
     if(v==='rdlog')loadRdLog();
     if(v==='prospects')loadProspects();
-    if(v==='decouverte'){{loadSuggestions();loadAutoOutreachStatus();}}
+    if(v==='decouverte'){{loadSuggestions();loadAutoOutreachStatus();initRadar();}}
     if(v==='v_pipeline')loadPipeline();
 }}
 
@@ -848,6 +869,86 @@ async function testSmtp(btn){{
     }}catch(e){{showNotice('❌ Erreur réseau: '+e.message,true);}}
     btn.textContent=orig;btn.disabled=false;
 }}
+// === RADAR EN DIRECT ===
+let _radarES=null;
+let _radarCount=0;
+
+function initRadar(){{
+    if(_radarES&&_radarES.readyState!==2)return; // already connected
+    const dot=document.getElementById('radar_dot');
+    const status=document.getElementById('radar_status');
+    if(dot)dot.style.background='#fbbf24';
+    if(status)status.textContent='— connexion...';
+    _radarES=new EventSource('/api/admin/discovery-stream');
+    _radarES.onopen=function(){{
+        if(dot)dot.style.background='#34d399';
+        if(dot){{dot.style.animation='radarPulse 1.5s ease-in-out infinite';}}
+        if(status)status.textContent='— en direct';
+    }};
+    _radarES.onerror=function(){{
+        if(dot){{dot.style.background='#ef4444';dot.style.animation='none';}}
+        if(status)status.textContent='— reconnexion...';
+        setTimeout(initRadar, 4000);
+    }};
+    _radarES.onmessage=function(e){{
+        try{{
+            const evt=JSON.parse(e.data);
+            appendRadarRow(evt);
+        }}catch(err){{}}
+    }};
+}}
+
+function appendRadarRow(evt){{
+    const feed=document.getElementById('radar_feed');
+    if(!feed)return;
+    // Remove placeholder
+    const ph=feed.querySelector('[data-placeholder]');
+    if(ph)ph.remove();
+    _radarCount++;
+    const row=document.createElement('div');
+    row.style.cssText='padding:5px 16px;border-bottom:1px solid #0f1e35;display:flex;gap:10px;align-items:flex-start;animation:radarSlide 0.3s ease;';
+    const typeColors={{
+        searching:'#38bdf8', found:'#a78bfa', scraped:'#94a3b8',
+        saved:'#34d399', no_result:'#475569', scraping:'#fbbf24'
+    }};
+    const typeLabels={{
+        searching:'SCAN', found:'SITE', scraped:'ANALYSE',
+        saved:'AJOUTÉ', no_result:'VIDE', scraping:'SCRAPING'
+    }};
+    const col=typeColors[evt.type]||'#64748b';
+    const lbl=typeLabels[evt.type]||evt.type.toUpperCase();
+    let detail='';
+    if(evt.type==='searching'){{
+        detail='<span style="color:#cbd5e1;">'+escH(evt.industry)+' — <span style="color:#38bdf8;">'+escH(evt.city)+'</span></span>';
+    }}else if(evt.type==='found'){{
+        detail='<span style="color:#a78bfa;">'+escH((evt.title||evt.url||'').substring(0,55))+'</span><span style="color:#334155;"> '+escH(evt.city)+'</span>';
+    }}else if(evt.type==='scraped'){{
+        const emailBadge=evt.has_email?'<span style="color:#fbbf24;">✉ '+escH(evt.email)+'</span>':'<span style="color:#334155;">sans email</span>';
+        detail='<span style="color:#e2e8f0;">'+escH((evt.name||'').substring(0,40))+'</span> '+emailBadge+' <span style="color:#475569;">score:'+evt.web_score+'</span>';
+    }}else if(evt.type==='saved'){{
+        const emailBadge=evt.has_email?'<span style="color:#fbbf24;">✉</span> ':'';
+        detail=emailBadge+'<span style="color:#34d399;font-weight:600;">'+escH((evt.name||'').substring(0,40))+'</span> <span style="color:#475569;">'+escH(evt.city)+' · '+escH(evt.industry)+'</span>';
+    }}else if(evt.type==='scraping'){{
+        detail='<span style="color:#fbbf24;">'+evt.count+' sites</span> <span style="color:#475569;">'+escH(evt.city)+' — '+escH(evt.industry)+'</span>';
+    }}else if(evt.type==='no_result'){{
+        detail='<span style="color:#475569;">Aucun résultat — '+escH(evt.city)+' / '+escH(evt.industry)+'</span>';
+    }}
+    row.innerHTML='<span style="color:#334155;min-width:52px;">'+escH(evt.ts||'')+'</span>'
+        +'<span style="color:'+col+';min-width:70px;font-weight:700;">'+lbl+'</span>'
+        +'<span>'+detail+'</span>';
+    feed.insertBefore(row, feed.firstChild);
+    // Keep max 120 rows
+    while(feed.children.length>120)feed.removeChild(feed.lastChild);
+}}
+
+function clearRadar(){{
+    const feed=document.getElementById('radar_feed');
+    if(feed){{feed.innerHTML='<div data-placeholder style="color:#334155;padding:8px 16px;text-align:center;">Effacé — en attente de la prochaine découverte...</div>';}}
+    _radarCount=0;
+}}
+
+function escH(s){{if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}}
+
 async function loadSuggestions(){{
     const stats=document.getElementById('sugg_stats');
     if(stats)stats.textContent='Chargement...';
@@ -5757,6 +5858,7 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
         targets = list(_DISCOVERY_TARGETS)
     city, industry = _random.choice(targets)
     search_key = f"{city}|{industry}"
+    _emit_discovery("searching", city=city, industry=industry)
     loop = asyncio.get_event_loop()
     filtered = []
     # Try primary query then fallback queries to guarantee results
@@ -5781,17 +5883,20 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
             if any(r2.get("url","").lower() == url for r2 in filtered):
                 continue
             filtered.append({**r, "url": r.get("url","")})
+            _emit_discovery("found", url=r.get("url",""), title=r.get("title","")[:60], city=city, industry=industry)
             if len(filtered) >= max_new * 2:
                 break
         if filtered:
             break
     if not filtered:
         logging.warning(f"_auto_discover_batch: 0 résultats pour {city} / {industry}")
+        _emit_discovery("no_result", city=city, industry=industry)
         return 0
     names = []
     for biz in filtered:
         title = biz.get("title", "")
         names.append((re.split(r"[|\-–—]", title)[0].strip() if title else biz.get("url", ""))[:80])
+    _emit_discovery("scraping", count=len(filtered), city=city, industry=industry)
     scrape_coros = [loop.run_in_executor(None, _scrape_business_website, b.get("url", "")) for b in filtered]
     research_coros = [loop.run_in_executor(None, _research_business_sync, names[i], city) for i in range(len(filtered))]
     all_results = await asyncio.gather(*scrape_coros, *research_coros)
@@ -5801,7 +5906,7 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
     for i, biz in enumerate(filtered):
         sc = scraped[i]
         res = researched[i]
-        biz_list.append({
+        b_entry = {
             "name": names[i],
             "website": biz.get("url", ""),
             "city": city,
@@ -5813,7 +5918,17 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
             "web_score": sc.get("web_score", 5),
             "web_issues": sc.get("web_issues", []),
             "research": res,
-        })
+        }
+        biz_list.append(b_entry)
+        _emit_discovery("scraped",
+            name=names[i][:50],
+            website=biz.get("url","")[:60],
+            city=city,
+            industry=industry,
+            email=sc.get("email",""),
+            web_score=sc.get("web_score", 5),
+            has_email=bool(sc.get("email")),
+        )
     gen_tasks = [_generate_prospect_emails_claude(b) for b in biz_list]
     email_results = await asyncio.gather(*gen_tasks)
     now = datetime.now().isoformat()
@@ -5866,6 +5981,17 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
                     row_status, search_key, now, now,
                 ))
                 saved += 1
+                _emit_discovery("saved",
+                    name=b["name"][:50],
+                    website=b["website"][:60],
+                    city=b["city"],
+                    industry=b["industry"],
+                    email=b["email"],
+                    has_email=bool(b["email"]),
+                    web_score=b["web_score"],
+                    need_score=emails.get("need_score", "?"),
+                    destination=target_table,
+                )
             except Exception as e:
                 logging.error(f"Save suggestion error: {e}")
         await db.commit()
@@ -6444,6 +6570,57 @@ async def unsubscribe(id: str = ""):
 
 
 # ============================================================
+# LIVE DISCOVERY STREAM (SSE)
+# ============================================================
+@app.get("/api/admin/discovery-stream")
+async def discovery_stream(username: str = Depends(verify_admin)):
+    """Server-Sent Events — flux live des découvertes PME."""
+    import asyncio as _aio
+    queue: asyncio.Queue = asyncio.Queue(maxsize=200)
+    _discovery_listeners.append(queue)
+    # Replay last 50 events immediately on connect
+    recent = list(_discovery_events)[:50]
+    recent.reverse()
+
+    async def event_generator():
+        try:
+            # Send cached events first
+            for evt in recent:
+                yield f"data: {json.dumps(evt, ensure_ascii=False)}\n\n"
+            # Stream live events
+            while True:
+                try:
+                    evt = await asyncio.wait_for(queue.get(), timeout=25)
+                    yield f"data: {json.dumps(evt, ensure_ascii=False)}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            try:
+                _discovery_listeners.remove(queue)
+            except ValueError:
+                pass
+
+    from starlette.responses import StreamingResponse
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        }
+    )
+
+
+@app.get("/api/admin/discovery-history")
+async def discovery_history(username: str = Depends(verify_admin)):
+    """Retourne les 100 derniers événements de découverte."""
+    return {"events": list(_discovery_events)[:100]}
+
+
+# ============================================================
 # DASHBOARD ADMIN (HTML)
 # ============================================================
 @app.get("/admin", response_class=HTMLResponse)
@@ -6515,6 +6692,8 @@ async def dashboard(username: str = Depends(verify_admin)):
         label{{color:#94a3b8;font-size:0.8rem;display:block;margin-bottom:4px;}}
         .form-grid{{display:grid;grid-template-columns:1fr 1fr;gap:12px;}}
         @media(max-width:768px){{.sidebar{{width:56px;}}.main-content{{margin-left:56px;}}.stats-grid{{grid-template-columns:1fr;}}.form-grid{{grid-template-columns:1fr;}}}}
+        @keyframes radarPulse{{0%,100%{{box-shadow:0 0 0 0 rgba(52,211,153,0.5);}} 50%{{box-shadow:0 0 0 5px rgba(52,211,153,0);}}}}
+        @keyframes radarSlide{{from{{opacity:0;transform:translateY(-6px);}} to{{opacity:1;transform:translateY(0);}}}}
     </style>
 </head>
 <body>
@@ -6713,6 +6892,21 @@ async def dashboard(username: str = Depends(verify_admin)):
                 <div id="outreach_panel" style="background:#0f1a2b;border:1px solid #1e3a5f;border-radius:12px;padding:20px 24px;margin-bottom:20px;"></div>
                 <h2 style="color:#38bdf8;margin-bottom:4px;">🔍 Découverte automatique de PMEs</h2>
                 <p style="color:#64748b;font-size:0.8rem;margin-bottom:16px;">Novalis cherche automatiquement des PMEs québécoises qui ont besoin de vous — sites désuets, mauvais avis, opportunités IA. Cliquez "Contacté" ou "Ignorer" pour chaque suggestion, puis Refresh pour en obtenir de nouvelles.</p>
+
+                <!-- RADAR EN DIRECT -->
+                <div style="background:#060d1a;border:1px solid #1e3a5f;border-radius:14px;margin-bottom:20px;overflow:hidden;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #1e3a5f;background:#0a1628;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <span id="radar_dot" style="width:9px;height:9px;border-radius:50%;background:#64748b;display:inline-block;transition:background 0.3s;"></span>
+                            <span style="color:#94a3b8;font-size:0.82rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Radar en direct</span>
+                            <span id="radar_status" style="color:#475569;font-size:0.75rem;">— connexion...</span>
+                        </div>
+                        <button onclick="clearRadar()" style="background:transparent;border:1px solid #1e3a5f;color:#475569;border-radius:6px;padding:3px 10px;font-size:0.72rem;cursor:pointer;">Effacer</button>
+                    </div>
+                    <div id="radar_feed" style="height:280px;overflow-y:auto;padding:8px 0;font-family:monospace;font-size:0.78rem;display:flex;flex-direction:column-reverse;">
+                        <div style="color:#334155;padding:8px 16px;text-align:center;">En attente de la prochaine découverte...</div>
+                    </div>
+                </div>
                 <div class="panel" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
                     <div id="sugg_stats" style="color:#94a3b8;font-size:0.85rem;">Chargement des suggestions...</div>
                     <button class="btn" onclick="refreshSuggestions()" id="sugg_refresh_btn" style="white-space:nowrap;">🔄 Refresh — nouvelles PMEs</button>
