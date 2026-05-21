@@ -127,7 +127,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "6.6"
+VERSION = "6.7"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -2015,6 +2015,7 @@ async def startup():
     asyncio.create_task(_followup_loop())
     asyncio.create_task(_auto_outreach_loop())
     asyncio.create_task(_fix_missing_emails_on_startup())
+    asyncio.create_task(_auto_suggestions_loop())
     logger.info(f"Novalis V{VERSION} démarré — Agence IA")
 
 
@@ -2065,6 +2066,33 @@ async def _fix_missing_emails_on_startup():
         logger.info(f"Startup fix: {fixed}/{len(stuck)} prospects corrigés")
     except Exception as e:
         logger.error(f"Startup fix error: {e}")
+
+
+async def _auto_suggestions_loop():
+    """Remplit automatiquement les suggestions depuis la banque — aucun clic requis."""
+    await asyncio.sleep(30)
+    while True:
+        try:
+            async with aiosqlite.connect(DB_PATH) as db:
+                c1 = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE status='new' AND email != ''")
+                suggestions_count = (await c1.fetchone())[0]
+                c2 = await db.execute("SELECT COUNT(*) FROM prospect_bank WHERE status='ready'")
+                bank_count = (await c2.fetchone())[0]
+
+            # Si moins de 10 suggestions disponibles et banque non vide → remplir auto
+            if suggestions_count < 10 and bank_count > 0:
+                logger.info(f"Auto-suggestions: {suggestions_count} suggestions, {bank_count} en banque → remplissage auto")
+                await _run_refresh_job()
+
+            # Si banque ET suggestions vides → lancer une découverte
+            elif suggestions_count < 5 and bank_count == 0:
+                logger.info("Auto-suggestions: banque et suggestions vides → découverte lancée")
+                asyncio.create_task(_auto_discover_batch(max_new=10, save_to_bank=True))
+
+        except Exception as e:
+            logger.error(f"Auto-suggestions loop error: {e}")
+
+        await asyncio.sleep(3 * 60)  # vérifie toutes les 3 minutes
 
 
 # ============================================================
