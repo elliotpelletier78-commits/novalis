@@ -127,7 +127,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "7.2"
+VERSION = "7.3"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -2026,10 +2026,12 @@ async def _auto_outreach_loop():
                             logging.error(f"Auto-outreach generate error: {e}")
                     await asyncio.sleep(10)
                     continue  # loop again to pick up newly generated emails
-                # Still nothing — trigger bank pull + discover
-                logging.info("Auto-outreach: no ready prospects, triggering discovery...")
+                # Still nothing — trigger PARALLEL discoveries to rebuild pipeline fast
+                logging.info("Auto-outreach: pipeline vide → 4 découvertes parallèles lancées")
+                tasks = [_auto_discover_batch(max_new=10, save_to_bank=True) for _ in range(4)]
+                asyncio.create_task(asyncio.gather(*tasks, return_exceptions=True))
                 asyncio.create_task(_run_refresh_job())
-                await asyncio.sleep(120)
+                await asyncio.sleep(30)
                 continue
 
             for p in prospects:
@@ -2100,6 +2102,21 @@ Novalis IA — Québec, Canada | novalisproia@gmail.com<br>
             logging.error(f"Auto-outreach loop error: {e}")
 
         # Wait interval_minutes before next batch
+        # If bank is getting low, trigger background refill proactively
+        try:
+            async with aiosqlite.connect(DB_PATH) as db:
+                c = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE status='new' AND email != '' AND (email_sent_at IS NULL OR email_sent_at='')")
+                remaining = (await c.fetchone())[0]
+                c2 = await db.execute("SELECT COUNT(*) FROM prospect_bank WHERE status='ready'")
+                bank_remaining = (await c2.fetchone())[0]
+            if remaining < 5 or bank_remaining < 10:
+                logging.info(f"Auto-outreach: pipeline bas ({remaining} prospects, {bank_remaining} banque) → refill proactif")
+                tasks = [_auto_discover_batch(max_new=10, save_to_bank=True) for _ in range(3)]
+                asyncio.create_task(asyncio.gather(*tasks, return_exceptions=True))
+                if bank_remaining > 0:
+                    asyncio.create_task(_run_refresh_job())
+        except Exception:
+            pass
         await asyncio.sleep(_auto_outreach["interval_minutes"] * 60)
 
 
@@ -2145,6 +2162,7 @@ async def startup():
     asyncio.create_task(_auto_suggestions_loop())
     asyncio.create_task(_fast_bank_fill_on_startup())
     asyncio.create_task(_cleanup_duplicate_prospects())
+    asyncio.create_task(_outreach_watchdog())
     logger.info(f"Novalis V{VERSION} démarré — Agence IA")
 
 
@@ -2197,6 +2215,35 @@ async def _fix_missing_emails_on_startup():
         logger.error(f"Startup fix error: {e}")
 
 
+async def _outreach_watchdog():
+    """Watchdog: si aucun email envoyé depuis 2h et outreach actif → rebuild complet du pipeline."""
+    await asyncio.sleep(120)
+    while True:
+        try:
+            await asyncio.sleep(30 * 60)  # vérifie toutes les 30 minutes
+            if not _auto_outreach["enabled"]:
+                continue
+            last_sent = _auto_outreach.get("last_sent_at", "")
+            if not last_sent:
+                idle_hours = 3
+            else:
+                try:
+                    last_dt = datetime.fromisoformat(last_sent)
+                    idle_hours = (datetime.now() - last_dt).total_seconds() / 3600
+                except Exception:
+                    idle_hours = 3
+
+            if idle_hours >= 2:
+                logger.warning(f"Watchdog: aucun email depuis {idle_hours:.1f}h → rebuild pipeline forcé")
+                tasks = [_auto_discover_batch(max_new=10, save_to_bank=True) for _ in range(6)]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                added = sum(r for r in results if isinstance(r, int))
+                logger.info(f"Watchdog: +{added} PMEs ajoutées")
+                asyncio.create_task(_run_refresh_job())
+        except Exception as e:
+            logger.error(f"Outreach watchdog error: {e}")
+
+
 async def _cleanup_duplicate_prospects():
     """Au démarrage: supprime les entrées en double (même email) causées par des insertions parallèles passées."""
     await asyncio.sleep(10)
@@ -2243,25 +2290,30 @@ async def _auto_suggestions_loop():
     while True:
         try:
             async with aiosqlite.connect(DB_PATH) as db:
-                c1 = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE status='new' AND email != ''")
+                c1 = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE status='new' AND email != '' AND (email_sent_at IS NULL OR email_sent_at='')")
                 suggestions_count = (await c1.fetchone())[0]
                 c2 = await db.execute("SELECT COUNT(*) FROM prospect_bank WHERE status='ready'")
                 bank_count = (await c2.fetchone())[0]
 
-            # Si moins de 10 suggestions disponibles et banque non vide → remplir auto
-            if suggestions_count < 10 and bank_count > 0:
-                logger.info(f"Auto-suggestions: {suggestions_count} suggestions, {bank_count} en banque → remplissage auto")
+            if suggestions_count < 15 and bank_count > 0:
+                logger.info(f"Auto-suggestions: {suggestions_count} prêts, {bank_count} en banque → remplissage")
                 await _run_refresh_job()
 
-            # Si banque ET suggestions vides → lancer une découverte
             elif suggestions_count < 5 and bank_count == 0:
-                logger.info("Auto-suggestions: banque et suggestions vides → découverte lancée")
-                asyncio.create_task(_auto_discover_batch(max_new=10, save_to_bank=True))
+                # Pipeline complètement vide → 5 découvertes parallèles
+                logger.info("Auto-suggestions: pipeline vide → 5 découvertes parallèles")
+                tasks = [_auto_discover_batch(max_new=10, save_to_bank=True) for _ in range(5)]
+                asyncio.create_task(asyncio.gather(*tasks, return_exceptions=True))
+
+            elif suggestions_count < 8 and bank_count < 5:
+                # Bas partout → 3 découvertes parallèles
+                tasks = [_auto_discover_batch(max_new=10, save_to_bank=True) for _ in range(3)]
+                asyncio.create_task(asyncio.gather(*tasks, return_exceptions=True))
 
         except Exception as e:
             logger.error(f"Auto-suggestions loop error: {e}")
 
-        await asyncio.sleep(3 * 60)  # vérifie toutes les 3 minutes
+        await asyncio.sleep(60)  # vérifie toutes les 60 secondes
 
 
 # ============================================================
