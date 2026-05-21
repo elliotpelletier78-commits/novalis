@@ -1298,6 +1298,206 @@ async function loadEmailStats(){{
             +'<div class="stat-card" style="border-color:#34d39944;"><div class="stat-label" style="color:#34d399;">🏆 Clients</div><div class="stat-value">'+d.clients+'</div></div>';
     }}catch(e){{}}
 }}
+
+// === CARTE EN DIRECT ===
+let _carteMap = null;
+let _carteES2 = null;
+let _carteMarkers = {{}};
+let _carteStats = {{searching:0,found:0,scraped:0,saved:0,email:0}};
+let _carteInitialized = false;
+
+function initCarteView() {{
+    if (_carteInitialized) {{ reconnectCarteES(); return; }}
+    _carteInitialized = true;
+    // Load Leaflet CSS + JS dynamically
+    if (!document.getElementById('leaflet-css')) {{
+        const lc = document.createElement('link');
+        lc.id = 'leaflet-css';
+        lc.rel = 'stylesheet';
+        lc.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(lc);
+    }}
+    if (!window.L) {{
+        const ls = document.createElement('script');
+        ls.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        ls.onload = () => {{ initLeafletMap(); initCarteES(); }};
+        document.body.appendChild(ls);
+    }} else {{
+        initLeafletMap();
+        initCarteES();
+    }}
+}}
+
+function initLeafletMap() {{
+    if (_carteMap) return;
+    _carteMap = L.map('qc_map', {{
+        center: [46.5, -72.5],
+        zoom: 6,
+        zoomControl: true,
+        attributionControl: false
+    }});
+    L.tileLayer('https://{{s}}.basemaps.cartocdn.com/dark_all/{{z}}/{{x}}/{{y}}{{r}}.png', {{
+        maxZoom: 14
+    }}).addTo(_carteMap);
+    // Add city base markers
+    const cities = {{
+        'Montréal':[45.5017,-73.5673],'Laval':[45.6066,-73.7124],
+        'Longueuil':[45.5315,-73.5185],'Brossard':[45.4604,-73.4727],
+        'Québec':[46.8139,-71.2080],'Sherbrooke':[45.4042,-71.8929],
+        'Gatineau':[45.4765,-75.7013],'Saguenay':[48.4284,-71.0618],
+        'Trois-Rivières':[46.3430,-72.5425],'Lévis':[46.8035,-71.1783],
+        'Drummondville':[45.8836,-72.4839],'Saint-Jérôme':[45.7858,-74.0034],
+        'Repentigny':[45.7395,-73.4590],'Terrebonne':[45.7002,-73.6453],
+    }};
+    Object.entries(cities).forEach(([city,[lat,lng]]) => {{
+        const m = L.circleMarker([lat,lng], {{
+            radius:8, fillColor:'#1e3a5f', color:'#38bdf8',
+            weight:1.5, fillOpacity:0.9
+        }}).addTo(_carteMap);
+        m.bindTooltip(`<b style="color:#38bdf8">${{city}}</b>`, {{permanent:false,className:'carte-tooltip'}});
+        _carteMarkers[city] = {{base:m, pins:[]}};
+    }});
+}}
+
+function initCarteES() {{
+    if (_carteES2 && _carteES2.readyState !== 2) return;
+    const dot = document.getElementById('carte_dot');
+    const status = document.getElementById('carte_status');
+    if (dot) dot.style.background = '#fbbf24';
+    if (status) status.textContent = '— connexion...';
+    _carteES2 = new EventSource('/api/admin/discovery-stream');
+    _carteES2.onopen = function() {{
+        if (dot) {{ dot.style.background = '#34d399'; dot.style.animation = 'radarPulse 1.5s infinite'; }}
+        if (status) status.textContent = '— en direct';
+    }};
+    _carteES2.onerror = function() {{
+        if (dot) {{ dot.style.background = '#ef4444'; dot.style.animation = 'none'; }}
+        if (status) status.textContent = '— reconnexion...';
+        setTimeout(initCarteES, 4000);
+    }};
+    _carteES2.onmessage = function(e) {{
+        try {{ handleCarteEvent(JSON.parse(e.data)); }} catch(err) {{}}
+    }};
+}}
+
+function reconnectCarteES() {{
+    if (!_carteES2 || _carteES2.readyState === 2) initCarteES();
+}}
+
+function handleCarteEvent(evt) {{
+    const lat = evt.lat, lng = evt.lng;
+    if (evt.type === 'searching') {{
+        _carteStats.searching++;
+        document.getElementById('cs_searching').textContent = _carteStats.searching;
+        if (lat && lng && _carteMap) {{
+            const pulse = L.circleMarker([lat,lng], {{
+                radius:18, fillColor:'#38bdf8', color:'#38bdf8',
+                weight:0, fillOpacity:0.15
+            }}).addTo(_carteMap);
+            const inner = L.circleMarker([lat,lng], {{
+                radius:6, fillColor:'#38bdf8', color:'#fff',
+                weight:1.5, fillOpacity:1
+            }}).addTo(_carteMap);
+            inner.bindPopup(`<div style="color:#0a0e17;font-size:12px;"><b>🔍 Scan en cours</b><br>${{escH(evt.city)}}<br><i>${{escH(evt.industry)}}</i></div>`);
+            const city = evt.city;
+            if (_carteMarkers[city]) _carteMarkers[city].pins.push(pulse, inner);
+            setTimeout(() => {{ try {{ _carteMap.removeLayer(pulse); }} catch(e){{}} }}, 15000);
+        }}
+    }} else if (evt.type === 'found') {{
+        _carteStats.found++;
+        document.getElementById('cs_found').textContent = _carteStats.found;
+        if (lat && lng && _carteMap) {{
+            const dot = L.circleMarker([lat,lng+Math.random()*0.05-0.025], {{
+                radius:4, fillColor:'#a78bfa', color:'transparent',
+                weight:0, fillOpacity:0.7
+            }}).addTo(_carteMap);
+            setTimeout(() => {{ try {{ _carteMap.removeLayer(dot); }} catch(e){{}} }}, 20000);
+        }}
+    }} else if (evt.type === 'scraped') {{
+        _carteStats.scraped++;
+        document.getElementById('cs_scraped').textContent = _carteStats.scraped;
+        if (evt.has_email) {{
+            _carteStats.email++;
+            document.getElementById('cs_email').textContent = _carteStats.email;
+        }}
+        if (lat && lng && _carteMap) {{
+            const col = evt.has_email ? '#fbbf24' : '#475569';
+            const dot = L.circleMarker([lat+Math.random()*0.04-0.02, lng+Math.random()*0.04-0.02], {{
+                radius:5, fillColor:col, color:'transparent',
+                weight:0, fillOpacity:0.8
+            }}).addTo(_carteMap);
+            dot.bindTooltip(`${{escH(evt.name||'')}}<br>${{evt.has_email?'✉ '+escH(evt.email):'sans email'}}`, {{className:'carte-tooltip'}});
+            setTimeout(() => {{ try {{ _carteMap.removeLayer(dot); }} catch(e){{}} }}, 60000);
+        }}
+    }} else if (evt.type === 'saved') {{
+        _carteStats.saved++;
+        document.getElementById('cs_saved').textContent = _carteStats.saved;
+        if (lat && lng && _carteMap) {{
+            const marker = L.circleMarker([lat+Math.random()*0.06-0.03, lng+Math.random()*0.06-0.03], {{
+                radius:7, fillColor:'#34d399', color:'#fff',
+                weight:1.5, fillOpacity:1
+            }}).addTo(_carteMap);
+            marker.bindPopup(`<div style="color:#0a0e17;font-size:12px;min-width:160px;">
+                <b style="color:#059669">${{escH(evt.name||'')}}</b><br>
+                ${{escH(evt.city)}} · ${{escH(evt.industry)}}<br>
+                ${{evt.has_email ? '<span style="color:#d97706">✉ '+escH(evt.email)+'</span>' : '<span style="color:#6b7280">sans email</span>'}}<br>
+                Score site: ${{evt.web_score}}/10 · Besoin: ${{evt.need_score}}/10
+            </div>`);
+        }}
+        addPmeCard(evt);
+    }}
+}}
+
+function addPmeCard(evt) {{
+    const container = document.getElementById('pme_cards');
+    if (!container) return;
+    const ph = container.querySelector('[data-placeholder]');
+    if (ph) ph.remove();
+    const scoreColor = (evt.web_score <= 3) ? '#ef4444' : (evt.web_score <= 6) ? '#fbbf24' : '#34d399';
+    const needColor = (evt.need_score >= 7) ? '#34d399' : (evt.need_score >= 5) ? '#fbbf24' : '#94a3b8';
+    const card = document.createElement('div');
+    card.style.cssText = 'background:#0a1628;border:1px solid #1e3a5f;border-radius:10px;padding:12px;margin-bottom:8px;animation:radarSlide 0.3s ease;border-left:3px solid #34d399;';
+    card.innerHTML = `
+        <div style="font-weight:700;color:#e2e8f0;font-size:0.85rem;margin-bottom:4px;">${{escH((evt.name||'').substring(0,35))}}</div>
+        <div style="font-size:0.72rem;color:#64748b;margin-bottom:8px;">${{escH(evt.city)}} · ${{escH(evt.industry)}}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+            ${{evt.has_email ? `<span style="background:rgba(251,191,36,0.15);color:#fbbf24;border-radius:4px;padding:2px 7px;font-size:0.68rem;">✉ email</span>` : `<span style="background:rgba(71,85,105,0.3);color:#475569;border-radius:4px;padding:2px 7px;font-size:0.68rem;">sans email</span>`}}
+            <span style="background:rgba(56,189,248,0.1);color:#38bdf8;border-radius:4px;padding:2px 7px;font-size:0.68rem;">${{escH(evt.destination==='prospect_bank'?'banque':'suggestions')}}</span>
+        </div>
+        <div style="display:flex;gap:12px;">
+            <div style="flex:1;">
+                <div style="font-size:0.65rem;color:#475569;margin-bottom:3px;">Site web</div>
+                <div style="background:#0f1f2e;border-radius:4px;height:6px;overflow:hidden;">
+                    <div style="height:100%;width:${{(evt.web_score||0)*10}}%;background:${{scoreColor}};border-radius:4px;transition:width 0.5s;"></div>
+                </div>
+                <div style="font-size:0.65rem;color:${{scoreColor}};margin-top:2px;">${{evt.web_score}}/10</div>
+            </div>
+            <div style="flex:1;">
+                <div style="font-size:0.65rem;color:#475569;margin-bottom:3px;">Besoin IA</div>
+                <div style="background:#0f1f2e;border-radius:4px;height:6px;overflow:hidden;">
+                    <div style="height:100%;width:${{(evt.need_score||0)*10}}%;background:${{needColor}};border-radius:4px;transition:width 0.5s;"></div>
+                </div>
+                <div style="font-size:0.65rem;color:${{needColor}};margin-top:2px;">${{evt.need_score}}/10</div>
+            </div>
+        </div>`;
+    container.insertBefore(card, container.firstChild);
+    while (container.children.length > 40) container.removeChild(container.lastChild);
+}}
+
+function clearCarteMarkers() {{
+    if (_carteMap) {{
+        Object.values(_carteMarkers).forEach(m => {{
+            (m.pins||[]).forEach(p => {{ try {{ _carteMap.removeLayer(p); }} catch(e){{}} }});
+            m.pins = [];
+        }});
+    }}
+    _carteStats = {{searching:0,found:0,scraped:0,saved:0,email:0}};
+    ['cs_searching','cs_found','cs_scraped','cs_saved','cs_email'].forEach(id => {{
+        const el = document.getElementById(id); if(el) el.textContent='0';
+    }});
+    const c = document.getElementById('pme_cards');
+    if(c) c.innerHTML = '<div data-placeholder style="color:#334155;text-align:center;padding:24px;font-size:0.8rem;">Effacé — en attente...</div>';
+}}
 """
 
 # Landing page HTML — lu depuis le fichier source pour éviter la duplication
