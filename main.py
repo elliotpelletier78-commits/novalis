@@ -127,7 +127,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "7.1"
+VERSION = "7.2"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -4925,7 +4925,7 @@ async def create_vapi_assistant(client_name: str, agent_name: str, system_prompt
                     "name": f"{agent_name} — {client_name}",
                     "firstMessage": first_message,
                     "firstMessageMode": "assistant-speaks-first",
-                    "transcriber": {"provider": "deepgram", "model": "nova-3", "language": "fr", "smartFormat": True},
+                    "transcriber": {"provider": "deepgram", "model": "nova-2", "language": "fr-CA", "smartFormat": True},
                     "model": {
                         "provider": "anthropic",
                         "model": "claude-haiku-4-5-20251001",
