@@ -127,7 +127,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "6.9"
+VERSION = "7.0"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -2043,6 +2043,7 @@ async def startup():
     asyncio.create_task(_fix_missing_emails_on_startup())
     asyncio.create_task(_auto_suggestions_loop())
     asyncio.create_task(_fast_bank_fill_on_startup())
+    asyncio.create_task(_cleanup_duplicate_prospects())
     logger.info(f"Novalis V{VERSION} démarré — Agence IA")
 
 
@@ -2093,6 +2094,29 @@ async def _fix_missing_emails_on_startup():
         logger.info(f"Startup fix: {fixed}/{len(stuck)} prospects corrigés")
     except Exception as e:
         logger.error(f"Startup fix error: {e}")
+
+
+async def _cleanup_duplicate_prospects():
+    """Au démarrage: supprime les entrées en double (même email) causées par des insertions parallèles passées."""
+    await asyncio.sleep(10)
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            for table in ("prospect_bank", "prospect_suggestions"):
+                # Keep only the oldest row per email, delete all others
+                await db.execute(f"""
+                    DELETE FROM {table}
+                    WHERE email != '' AND email IS NOT NULL
+                      AND id NOT IN (
+                          SELECT id FROM {table}
+                          WHERE email != '' AND email IS NOT NULL
+                          GROUP BY LOWER(email)
+                          HAVING id = MIN(id)
+                      )
+                """)
+            await db.commit()
+        logger.info("Cleanup: doublons d'email supprimés des tables prospects")
+    except Exception as e:
+        logger.error(f"Cleanup duplicate error: {e}")
 
 
 async def _fast_bank_fill_on_startup():
@@ -5802,6 +5826,24 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
                 logging.info(f"Skipped PME (no email / low-need): {b['name']} (score {emails.get('need_score','?')})")
                 continue
             try:
+                # Deduplicate by email address across parallel batches (root cause of duplicate sends)
+                if b["email"]:
+                    chk = await db.execute(
+                        f"SELECT COUNT(*) FROM {target_table} WHERE LOWER(email)=?",
+                        (b["email"].strip().lower(),)
+                    )
+                    if (await chk.fetchone())[0] > 0:
+                        logging.info(f"Skip duplicate email {b['email']} in {target_table}")
+                        continue
+                # Also deduplicate by website URL
+                if b["website"]:
+                    chk_site = await db.execute(
+                        f"SELECT COUNT(*) FROM {target_table} WHERE website=?",
+                        (b["website"],)
+                    )
+                    if (await chk_site.fetchone())[0] > 0:
+                        logging.info(f"Skip duplicate website {b['website']} in {target_table}")
+                        continue
                 row_status = "ready" if save_to_bank else "new"
                 await db.execute(f"""
                     INSERT OR IGNORE INTO {target_table}
