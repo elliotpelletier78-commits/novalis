@@ -133,7 +133,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "8.3"
+VERSION = "8.4"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -11636,15 +11636,39 @@ async def health():
 @app.get("/preview/{prospect_id}", response_class=HTMLResponse)
 async def preview_page(prospect_id: str, name_slug: str = ""):
     """Page d'audit + aperçu site impressionnant — envoyée dans les emails PME."""
-    prospect = None
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        for table in ("prospect_suggestions", "prospect_bank"):
-            cur = await db.execute(f"SELECT * FROM {table} WHERE id=?", (prospect_id,))
-            row = await cur.fetchone()
-            if row:
-                prospect = dict(row)
-                break
+    # Mode démo — données fictives pour tester le rendu
+    if prospect_id == "demo":
+        prospect = {
+            "name": "Salon Élégance Laval",
+            "city": "Laval",
+            "industry": "Salon de coiffure",
+            "website": "https://salonelegancelaval.ca",
+            "web_score": 2,
+            "web_issues": json.dumps(["Site non-mobile", "Pas de réservation en ligne", "Chargement lent", "Design désuet (circa 2015)"]),
+            "insights": "Le salon n'offre aucune option de réservation en ligne et son site n'est pas adapté aux téléphones mobiles — 80% de ses clientes cherchent pourtant sur mobile.",
+            "pain_points": json.dumps(["No-shows fréquents", "Appels manqués hors-heures", "Clients perdus sur mobile"]),
+            "rating": "4.2",
+            "review_count": "87 avis",
+            "brand_meta": json.dumps({"brand_color": "#c084fc", "accent_color": "#a855f7", "logo_url": "", "og_image": "", "favicon_url": ""}),
+            "generated_emails": json.dumps({"site_preview": {
+                "hero_title": "Le salon de coiffure haut de gamme à Laval — Réservez en 30 secondes",
+                "hero_subtitle": "Coupe, coloration et soins capillaires par des expertes certifiées. Disponible 7 jours sur 7.",
+                "services": ["Coupe & Coiffure", "Coloration & Mèches", "Soins Capillaires", "Réservation en ligne 24/7"],
+                "trust_line": "+87 clientes satisfaites à Laval · 4.2 ⭐ Google",
+                "cta": "Réserver maintenant",
+                "color_theme": "purple",
+            }}),
+        }
+    else:
+        prospect = None
+        async with aiosqlite.connect(DB_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            for table in ("prospect_suggestions", "prospect_bank"):
+                cur = await db.execute(f"SELECT * FROM {table} WHERE id=?", (prospect_id,))
+                row = await cur.fetchone()
+                if row:
+                    prospect = dict(row)
+                    break
     if not prospect:
         return HTMLResponse("<h2 style='font-family:sans-serif;text-align:center;margin-top:80px;color:#64748b'>Page introuvable</h2>", status_code=404)
 
