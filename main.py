@@ -133,7 +133,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "8.2"
+VERSION = "8.3"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -2040,6 +2040,8 @@ async def init_db():
             await db.execute("ALTER TABLE prospect_suggestions ADD COLUMN email_sent_at TEXT DEFAULT ''")
             await db.execute("ALTER TABLE prospect_suggestions ADD COLUMN followup_sent_at TEXT DEFAULT ''")
             await db.execute("ALTER TABLE prospect_suggestions ADD COLUMN sms_sent_at TEXT DEFAULT ''")
+            await db.execute("ALTER TABLE prospect_suggestions ADD COLUMN brand_meta TEXT DEFAULT '{}'")
+            await db.execute("ALTER TABLE prospect_bank ADD COLUMN brand_meta TEXT DEFAULT '{}'")
             await db.commit()
         except Exception:
             pass  # columns already exist
@@ -5555,6 +5557,89 @@ def _score_website_quality(html: str, url: str) -> dict:
     return {"score": max(1, min(5, score)), "issues": issues[:4]}
 
 
+def _extract_brand_meta(html: str, base_url: str) -> dict:
+    """Extrait couleurs, logo et image hero du site de la PME."""
+    meta = {"brand_color": "", "accent_color": "", "logo_url": "", "og_image": "", "favicon_url": ""}
+    try:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html, "html.parser")
+
+        # OG image (meilleure image hero disponible)
+        og = soup.find("meta", property="og:image") or soup.find("meta", attrs={"name": "og:image"})
+        if og and og.get("content"):
+            img_url = og["content"]
+            if img_url.startswith("//"):
+                img_url = "https:" + img_url
+            elif img_url.startswith("/"):
+                img_url = base_url.rstrip("/") + img_url
+            meta["og_image"] = img_url
+
+        # Favicon / apple-touch-icon
+        for rel in [["apple-touch-icon"], ["icon"], ["shortcut icon"]]:
+            icon = soup.find("link", rel=rel)
+            if icon and icon.get("href"):
+                href = icon["href"]
+                if href.startswith("//"):
+                    href = "https:" + href
+                elif not href.startswith("http"):
+                    href = base_url.rstrip("/") + "/" + href.lstrip("/")
+                meta["favicon_url"] = href
+                break
+
+        # Logo dans le HTML
+        for attr_val in ["logo", "Logo", "brand", "site-logo", "navbar-brand"]:
+            logo = (soup.find("img", {"class": lambda c: c and attr_val.lower() in c.lower() if c else False})
+                    or soup.find("img", {"id": lambda i: i and attr_val.lower() in i.lower() if i else False})
+                    or soup.find("img", {"alt": lambda a: a and attr_val.lower() in a.lower() if a else False}))
+            if logo and logo.get("src"):
+                src = logo["src"]
+                if src.startswith("//"):
+                    src = "https:" + src
+                elif not src.startswith("http"):
+                    src = base_url.rstrip("/") + "/" + src.lstrip("/")
+                if not src.endswith((".svg", ".png", ".jpg", ".webp", ".gif")):
+                    continue
+                meta["logo_url"] = src
+                break
+
+        # Couleurs depuis le CSS inline et les balises style
+        style_chunks = [s.string or "" for s in soup.find_all("style") if s.string]
+        # Aussi les styles inline du header/nav
+        for tag in soup.find_all(["header", "nav"], limit=3):
+            style_chunks.append(tag.get("style", ""))
+        style_text = " ".join(style_chunks)
+
+        # Variables CSS custom (--primary, --brand, --color-primary…)
+        css_vars = re.findall(
+            r'--(?:primary|brand|main|accent|color-primary|theme)[-\w]*\s*:\s*(#[0-9a-fA-F]{3,6})',
+            style_text, re.I
+        )
+        if css_vars:
+            meta["brand_color"] = css_vars[0] if len(css_vars[0]) == 7 else css_vars[0]
+            if len(css_vars) > 1:
+                meta["accent_color"] = css_vars[1]
+
+        # Si pas de vars CSS, chercher les hex colors saturées dans les styles
+        if not meta["brand_color"]:
+            hex_colors = re.findall(r'#([0-9a-fA-F]{6})\b', style_text)
+            valid = []
+            for h in dict.fromkeys(hex_colors):  # dédoublonnage ordre préservé
+                r_, g_, b_ = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+                brightness = (r_ + g_ + b_) / 3
+                saturation = max(r_, g_, b_) - min(r_, g_, b_)
+                if 20 < brightness < 220 and saturation > 40:
+                    valid.append("#" + h)
+                if len(valid) >= 2:
+                    break
+            if valid:
+                meta["brand_color"] = valid[0]
+                if len(valid) > 1:
+                    meta["accent_color"] = valid[1]
+    except Exception:
+        pass
+    return meta
+
+
 def _scrape_business_website(url: str) -> dict:
     if not url or not url.startswith("http"):
         return {"email": "", "email_quality": "none", "text": "", "phone": ""}
@@ -5594,10 +5679,12 @@ def _scrape_business_website(url: str) -> dict:
                     pass
         phones = re.findall(r"(?:\+?1[\s\-]?)?\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}", text)
         web_quality = _score_website_quality(html, url)
+        brand_meta = _extract_brand_meta(html, url)
         return {
             "email": email, "email_quality": eq, "text": text[:2500],
             "phone": phones[0].strip() if phones else "",
             "web_score": web_quality["score"], "web_issues": web_quality["issues"],
+            "brand_meta": brand_meta,
         }
     except Exception as e:
         return {"email": "", "email_quality": "error", "text": "", "phone": "",
@@ -6488,6 +6575,7 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
             "site_text": sc.get("text", ""),
             "web_score": sc.get("web_score", 5),
             "web_issues": sc.get("web_issues", []),
+            "brand_meta": sc.get("brand_meta", {}),
             "research": res,
         }
         biz_list.append(b_entry)
@@ -6536,8 +6624,8 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
                     INSERT OR IGNORE INTO {target_table}
                     (id, name, website, city, industry, email, email_quality, phone,
                      web_score, web_issues, insights, pain_points, rating, review_count,
-                     generated_emails, has_refonte, status, search_key, created_at, updated_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                     generated_emails, has_refonte, status, search_key, brand_meta, created_at, updated_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     row_id,
                     b["name"], b["website"], b["city"], b["industry"],
@@ -6550,7 +6638,9 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
                     b["research"].get("review_count", ""),
                     json.dumps(emails, ensure_ascii=False),
                     1 if bool(emails.get("email_refonte")) else 0,
-                    row_status, search_key, now, now,
+                    row_status, search_key,
+                    json.dumps(b.get("brand_meta", {}), ensure_ascii=False),
+                    now, now,
                 ))
                 saved += 1
                 if b["email"]:
@@ -11567,9 +11657,17 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     pain_points = json.loads(prospect.get("pain_points") or "[]")
     rating    = prospect.get("rating", "")
     review_count = prospect.get("review_count", "")
-    generated = json.loads(prospect.get("generated_emails") or "{}")
-    sp        = generated.get("site_preview", {})
+    generated  = json.loads(prospect.get("generated_emails") or "{}")
+    sp         = generated.get("site_preview", {})
+    bm         = json.loads(prospect.get("brand_meta") or "{}")
     industry_lower = industry.lower()
+
+    # ── Vraies données du site (logo, image, couleurs) ────────────────────────
+    real_logo    = bm.get("logo_url", "")
+    real_og      = bm.get("og_image", "")
+    real_favicon = bm.get("favicon_url", "")
+    real_color1  = bm.get("brand_color", "")
+    real_color2  = bm.get("accent_color", "")
 
     # ── site_preview content ──────────────────────────────────────────────────
     hero_title   = sp.get("hero_title")   or f"{name} — {city}"
@@ -11579,7 +11677,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     cta_text     = sp.get("cta")          or "Nous contacter"
     color_theme  = sp.get("color_theme",  "purple")
 
-    # ── Theme palette ─────────────────────────────────────────────────────────
+    # ── Theme palette (vraies couleurs si disponibles, sinon par industrie) ───
     palettes = {
         "blue":   {"bg":"#050d1f","grad1":"#0ea5e9","grad2":"#2563eb","accent":"#38bdf8","light":"#bae6fd","btn":"#0284c7"},
         "green":  {"bg":"#030f07","grad1":"#16a34a","grad2":"#059669","accent":"#4ade80","light":"#bbf7d0","btn":"#15803d"},
@@ -11590,6 +11688,15 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     }
     p = palettes.get(color_theme, palettes["purple"])
     bg,g1,g2,acc,lgt,btn = p["bg"],p["grad1"],p["grad2"],p["accent"],p["light"],p["btn"]
+
+    # ── Override avec les vraies couleurs du site si disponibles ─────────────
+    if real_color1:
+        g1 = real_color1
+        btn = real_color1
+        acc = real_color1
+        lgt = real_color2 or real_color1
+    if real_color2:
+        g2 = real_color2
 
     # ── Industry gradient backgrounds ─────────────────────────────────────────
     industry_gradients = {
@@ -11604,8 +11711,13 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         "immobilier": f"linear-gradient(135deg,#030f07 0%,#071a0d 40%,{g1}44 100%)",
         "avocat":     f"linear-gradient(135deg,#050510 0%,#0d0d25 40%,{g1}44 100%)",
     }
-    hero_bg = next((v for k,v in industry_gradients.items() if k in industry_lower),
+    _industry_hero_bg = next((v for k,v in industry_gradients.items() if k in industry_lower),
                    f"linear-gradient(135deg,{bg} 0%,#1a1040 40%,{g1}44 100%)")
+    # Si on a la vraie image du site → l'utiliser comme fond avec overlay sombre
+    if real_og:
+        hero_bg = f"linear-gradient(135deg,rgba(0,0,0,0.75) 0%,rgba(0,0,0,0.55) 100%),url('{real_og}') center/cover no-repeat"
+    else:
+        hero_bg = _industry_hero_bg
 
     # ── Industry pattern overlay (SVG) ────────────────────────────────────────
     pattern_svg = "data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"
@@ -11701,6 +11813,19 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
             <div><div class="incl-title">{title}</div><div class="incl-desc">{desc}</div></div>
           </div>"""
 
+    _favicon_tag = f'<link rel="icon" href="{real_favicon}">' if real_favicon else ""
+
+    # Logo HTML — image réelle ou texte fallback
+    if real_logo:
+        _nav_logo_html = (
+            f'<img src="{real_logo}" style="height:36px;max-width:140px;object-fit:contain;'
+            f'filter:brightness(0) invert(1)" '
+            f'onerror="this.style.display=\'none\';document.getElementById(\'nav-logo-text\').style.display=\'block\'">'
+            f'<span id="nav-logo-text" style="display:none">{name[:22]}</span>'
+        )
+    else:
+        _nav_logo_html = name[:22]
+
     stars_display = ("★" * round(float(rating)) + "☆" * (5 - round(float(rating)))) if rating else "★★★★★"
     rating_text = f"{stars_display} {rating}/5 · {review_count} avis" if rating else f"{stars_display} Avis clients vérifiés"
     nav_items = services_list[:2] + [cta_text]
@@ -11711,6 +11836,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{name} — Nouveau site par Novalis IA</title>
+{_favicon_tag}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -11965,7 +12091,7 @@ body{{font-family:'Inter',sans-serif;background:#0a0a14;color:#e2e8f0;overflow-x
 
   <!-- Sticky nav -->
   <div class="site-nav">
-    <div class="nav-logo">{name[:22]}</div>
+    <div class="nav-logo">{_nav_logo_html}</div>
     <div class="nav-links">
       {''.join(f'<span class="nav-link">{s}</span>' for s in services_list[:2])}
       <span class="nav-link">À propos</span>
