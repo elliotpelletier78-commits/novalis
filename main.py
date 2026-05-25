@@ -133,7 +133,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "8.0"
+VERSION = "8.1"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -2259,10 +2259,11 @@ async def _auto_outreach_loop():
 
                     # Add CASL-compliant unsubscribe link + preview personnalisé
                     unsubscribe_url = f"https://novalisia.ca/unsubscribe?id={p['id']}"
-                    preview_url = f"https://novalisia.ca/preview/{p['id']}"
-                    body_text = email1["body"].replace("{PROSPECT_ID}", p["id"])
+                    _slug = _slugify(p.get("name", "entreprise"))
+                    preview_url = f"https://novalisia.ca/preview/{_slug}/{p['id']}"
+                    body_text = email1["body"].replace("{PROSPECT_ID}", f"{_slug}/{p['id']}")
                     body_html = body_text.replace(
-                        f"novalisia.ca/preview/{p['id']}",
+                        f"novalisia.ca/preview/{_slug}/{p['id']}",
                         f'<a href="{preview_url}" style="color:#4f46e5;font-weight:600">{preview_url}</a>'
                     )
                     html_body = f"""<div style="font-family:sans-serif;font-size:15px;line-height:1.8;color:#222;max-width:600px;">
@@ -5634,6 +5635,14 @@ def _research_business_sync(name: str, city: str) -> dict:
         logging.error(f"Research error for {name}: {e}")
         return {"snippets": "", "rating": "", "review_count": ""}
 
+def _slugify(text: str) -> str:
+    import unicodedata
+    text = unicodedata.normalize("NFD", text.lower())
+    text = "".join(c for c in text if unicodedata.category(c) != "Mn")
+    text = re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+    return text[:40]
+
+
 def _make_template_email(biz: dict) -> dict:
     name = biz.get("name", "votre entreprise")
     city = biz.get("city", "Québec")
@@ -6350,11 +6359,11 @@ async def _try_send_now(prospect_id: str, table: str, name: str, email: str, cit
     if not email1.get("subject") or not email1.get("body"):
         return
     unsubscribe_url = f"https://novalisia.ca/unsubscribe?id={prospect_id}"
-    preview_url = f"https://novalisia.ca/preview/{prospect_id}"
-    body_text = email1["body"].replace("{PROSPECT_ID}", prospect_id)
-    # Remplacer le placeholder URL texte par un vrai lien cliquable
+    _slug = _slugify(name)
+    preview_url = f"https://novalisia.ca/preview/{_slug}/{prospect_id}"
+    body_text = email1["body"].replace("{PROSPECT_ID}", f"{_slug}/{prospect_id}")
     body_html = body_text.replace(
-        f"novalisia.ca/preview/{prospect_id}",
+        f"novalisia.ca/preview/{_slug}/{prospect_id}",
         f'<a href="{preview_url}" style="color:#4f46e5;font-weight:600">{preview_url}</a>'
     )
     html_body = f"""<div style="font-family:sans-serif;font-size:15px;line-height:1.8;color:#222;max-width:600px;">
@@ -11531,8 +11540,9 @@ async def health():
         "timestamp": datetime.now().isoformat()
     }
 
+@app.get("/preview/{name_slug}/{prospect_id}", response_class=HTMLResponse)
 @app.get("/preview/{prospect_id}", response_class=HTMLResponse)
-async def preview_page(prospect_id: str):
+async def preview_page(prospect_id: str, name_slug: str = ""):
     """Page d'audit + nouveau site personnalisé envoyée dans les emails de prospection."""
     prospect = None
     async with aiosqlite.connect(DB_PATH) as db:
