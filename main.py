@@ -2119,7 +2119,7 @@ Règles STRICTES:
 - Objet: court et naturel (ex: "Re: {p['name']}", "Toujours intéressé?")
 - Corps: MAX 40 mots, ton humain, rappel discret qu'on avait écrit, demande si intéressé
 - PAS de formules corporatives
-- Signature: — Elliot | Novalis IA | novalisia.ca
+- Signature: — L'équipe Novalis IA | novalisia.ca
 
 Réponds UNIQUEMENT avec ce JSON:
 {{"subject": "...", "body": "..."}}"""
@@ -2511,7 +2511,7 @@ async def _sms_outreach_loop():
                     if not phone.startswith("+"):
                         phone = "+1" + phone.lstrip("1")
                     sms_body = (
-                        f"Bonjour! Je suis Elliot de Novalis IA. "
+                        f"Bonjour! C'est l'équipe Novalis IA. "
                         f"J'aide les {industry} au Québec à automatiser leur service client et gagner 8-10h/semaine. "
                         f"Premier mois gratuit. Ça vous intéresse? novalisia.ca"
                     )
@@ -5772,8 +5772,7 @@ def _make_template_email(biz: dict) -> dict:
         f"J'ai préparé un rapport personnalisé — ce qu'on a trouvé et ce qu'on ferait concrètement pour vous :\n"
         f"👉 novalisia.ca/preview/{{PROSPECT_ID}}\n\n"
         f"Premier mois gratuit, aucun contrat.\n\n"
-        f"Elliot\n"
-        f"Novalis IA — novalisia.ca"
+        f"L'équipe Novalis IA\nnovalisia.ca"
     )
 
     s2 = f"Re: {name}"
@@ -5783,7 +5782,7 @@ def _make_template_email(biz: dict) -> dict:
         f"Juste pour être concret : nos clients récupèrent en moyenne 6 à 8 heures par semaine et ne manquent plus aucune demande — même la nuit ou le weekend.\n\n"
         f"Le premier mois est 100% gratuit. Si ça ne change rien pour vous, vous ne payez pas.\n\n"
         f"Ça vaut la peine d'essayer, non?\n\n"
-        f"Elliot\nNovalis IA"
+        f"L'équipe Novalis IA"
     )
 
     s3 = f"Dernière nouvelle — {name}"
@@ -5792,7 +5791,7 @@ def _make_template_email(biz: dict) -> dict:
         f"Je ne veux pas encombrer votre boîte — c'est mon dernier message.\n\n"
         f"Si jamais vous cherchez à automatiser quelque chose dans votre business ou à ne plus manquer de clients, on est là.\n\n"
         f"Bonne continuation!\n\n"
-        f"Elliot\nNovalis IA — novalisia.ca"
+        f"L'équipe Novalis IA\nnovalisia.ca"
     )
 
     color_by_industry = {
@@ -5863,7 +5862,7 @@ async def _generate_prospect_emails_claude(biz: dict) -> dict:
         refonte_instruction = '\n4. Génère aussi "email_refonte": un courriel proposant une refonte complète de leur site web pour ~1000$ (site moderne, mobile, SEO, livré en 2-3 semaines). Mentionne les problèmes spécifiques de leur site actuel.'
         refonte_json = ',\n  "email_refonte": {{"subject": "...", "body": "..."}}'
 
-    prompt = f"""Tu écris des courriels de prospection pour Elliot Pelletier, fondateur de Novalis IA (automatisation IA pour PMEs québécoises).
+    prompt = f"""Tu écris des courriels de prospection pour l'équipe de Novalis IA (automatisation IA pour PMEs québécoises).
 
 PME: {name} | {city} | {industry}
 Site: {website}
@@ -5888,8 +5887,8 @@ On a mis en place un système de rappels automatiques et de prise de RDV 24/7 po
 
 Ça vous parle?
 
-Elliot
-Novalis IA — novalisia.ca
+L'équipe Novalis IA
+novalisia.ca
 
 EXEMPLE B — Restaurant sans système de réservation en ligne:
 Objet: Question rapide — Le Bistro du Port
@@ -5902,8 +5901,7 @@ On automatise ça pour des restos québécois : réservations en ligne, confirma
 
 Intéressé qu'on en discute?
 
-Elliot
-Novalis IA
+L'équipe Novalis IA
 
 ---
 RÈGLES STRICTES — à respecter absolument:
@@ -5913,7 +5911,7 @@ RÈGLES STRICTES — à respecter absolument:
 4. JAMAIS "Cordialement", "Je me permets", "Suite à", "J'espère que"
 5. Commencer par une observation concrète sur CETTE PME spécifique
 6. Finir par UNE seule question courte (oui/non ou simple)
-7. Signature: juste "Elliot" ou "Elliot\\nNovalis IA" — rien d'autre
+7. Signature: juste "L'équipe Novalis IA" ou "L'équipe Novalis IA\\nnovalisia.ca" — rien d'autre
 8. Ton: comme un ami entrepreneur qui a trouvé quelque chose d'utile, pas un vendeur
 9. Si web_score <= 2: mentionner subtilement que le site pourrait être amélioré
 10. Mentionner "premier mois gratuit" naturellement dans le texte (pas comme une promo)
@@ -6677,7 +6675,7 @@ async def get_suggestions_endpoint(request: Request, username: str = Depends(ver
 async def _send_interested_email(p: dict):
     """Send warm response email when a PME is marked as interested."""
     try:
-        prompt = f"""Tu es Elliot Pelletier, fondateur de Novalis IA.
+        prompt = f"""Tu es l'équipe de Novalis IA.
 
 Une PME vient de montrer de l'intérêt pour nos services. Génère un courriel de réponse chaleureux.
 
@@ -6690,7 +6688,7 @@ Règles:
   2. Déploiement de l'agent IA en 48h
   3. 1er mois gratuit — aucun risque
 - Inclure: "Répondez à ce courriel pour qu'on planifie un appel"
-- Signature: — Elliot | Novalis IA | novalisia.ca | novalisproia@gmail.com
+- Signature: — L'équipe Novalis IA | novalisia.ca
 
 Réponds UNIQUEMENT avec JSON: {{"subject": "...", "body": "..."}}"""
 
@@ -12222,7 +12220,7 @@ body{{font-family:'Inter',sans-serif;background:#0a0a14;color:#e2e8f0;overflow-x
     <!-- CTA -->
     <div class="final-cta-box">
       <h2>Voulez-vous ce site pour de vrai?</h2>
-      <p>Appelez Elliot gratuitement — 15 minutes pour voir exactement ce que votre nouveau site et votre agent IA donneraient pour {name}. Aucun engagement, premier mois gratuit.</p>
+      <p>Parlez à notre équipe gratuitement — 15 minutes pour voir exactement ce que votre nouveau site et votre agent IA donneraient pour {name}. Aucun engagement, premier mois gratuit.</p>
       <a class="final-btn" href="tel:+15141234567">📞 Parler à notre équipe</a>
       <div class="final-pills">
         <span class="pill">✓ Premier mois gratuit</span>
