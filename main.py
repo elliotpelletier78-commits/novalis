@@ -133,7 +133,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "7.9"
+VERSION = "8.0"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -5698,6 +5698,34 @@ def _make_template_email(biz: dict) -> dict:
         f"Elliot\nNovalis IA — novalisia.ca"
     )
 
+    color_by_industry = {
+        "restaurant": "orange", "salon": "purple", "coiffure": "purple",
+        "clinique": "blue", "médecin": "blue", "dentiste": "blue",
+        "garage": "orange", "construction": "orange", "plombier": "blue",
+        "électricien": "yellow", "nettoyage": "green", "avocat": "blue",
+        "comptable": "blue", "immobilier": "green",
+    }
+    color_theme = next((v for k, v in color_by_industry.items() if k in industry_lower), "purple")
+    cta_by_industry = {
+        "restaurant": "Réserver une table", "salon": "Réserver maintenant",
+        "coiffure": "Prendre un rendez-vous", "clinique": "Prendre rendez-vous",
+        "garage": "Demander une soumission", "construction": "Demander une soumission",
+        "plombier": "Appeler maintenant", "électricien": "Appeler maintenant",
+        "immobilier": "Voir les propriétés", "avocat": "Consultation gratuite",
+    }
+    cta_text = next((v for k, v in cta_by_industry.items() if k in industry_lower), "Nous contacter")
+    services_by_industry = {
+        "restaurant": ["Menu du jour", "Réservation en ligne", "Commande à emporter", "Événements privés"],
+        "salon": ["Coupe & Coiffure", "Coloration", "Soins capillaires", "Réservation en ligne 24/7"],
+        "coiffure": ["Coupe femme & homme", "Coloration & mèches", "Traitement & soins", "Réservation en ligne"],
+        "clinique": ["Consultation médicale", "Suivi de dossier", "Prise de RDV en ligne", "Résultats d'analyses"],
+        "garage": ["Réparation & entretien", "Diagnostic électronique", "Changement de pneus", "Soumission gratuite"],
+        "construction": ["Rénovation résidentielle", "Construction neuve", "Soumission gratuite", "Suivi de chantier"],
+        "plombier": ["Urgence 24/7", "Installation & remplacement", "Débouchage", "Inspection de plomberie"],
+        "immobilier": ["Achat & vente", "Évaluation gratuite", "Courtiers certifiés", "Recherche personnalisée"],
+    }
+    services = next((v for k, v in services_by_industry.items() if k in industry_lower),
+                    ["Service professionnel", "Consultation", "Suivi personnalisé", "Disponible 24/7"])
     return {
         "need_score": 7, "skip": False,
         "insights": f"{name} pourrait bénéficier d'automatisation pour {pain}.",
@@ -5705,6 +5733,14 @@ def _make_template_email(biz: dict) -> dict:
         "email1": {"subject": s1, "body": b1},
         "email2": {"subject": s2, "body": b2},
         "email3": {"subject": s3, "body": b3},
+        "site_preview": {
+            "hero_title": f"Le meilleur {industry.lower()} à {city} — disponible 24h/7j",
+            "hero_subtitle": f"Service professionnel, réponse rapide et satisfaction garantie à {city}.",
+            "services": services,
+            "trust_line": f"Des centaines de clients satisfaits à {city} et environs",
+            "cta": cta_text,
+            "color_theme": color_theme,
+        },
     }
 
 
@@ -5806,7 +5842,15 @@ Si need_score < 5: retourne SEULEMENT {{"need_score": X, "skip": true, "reason":
   "pain_points": ["Problème précis 1", "Problème précis 2"],
   "email1": {{"subject": "...", "body": "..."}},
   "email2": {{"subject": "...", "body": "..."}},
-  "email3": {{"subject": "...", "body": "..."}}{refonte_json}
+  "email3": {{"subject": "...", "body": "..."}},
+  "site_preview": {{
+    "hero_title": "Accroche principale du nouveau site (ex: Urgence plomberie à Montréal? On arrive en 1h.)",
+    "hero_subtitle": "Sous-titre rassurant, 1 phrase (ex: Plombier certifié RBQ, disponible 7j/7.)",
+    "services": ["Service 1 exact de cette PME", "Service 2", "Service 3", "Service 4"],
+    "trust_line": "Phrase de confiance courte (ex: +200 clients satisfaits à Montréal depuis 2015)",
+    "cta": "Texte du bouton (ex: Réserver maintenant / Demander une soumission / Appeler)",
+    "color_theme": "blue|green|purple|orange|red (selon l'industrie et l'ambiance)"
+  }}{refonte_json}
 }}"""
     try:
         loop = asyncio.get_event_loop()
@@ -11489,7 +11533,7 @@ async def health():
 
 @app.get("/preview/{prospect_id}", response_class=HTMLResponse)
 async def preview_page(prospect_id: str):
-    """Page d'audit personnalisé envoyée dans les emails de prospection."""
+    """Page d'audit + nouveau site personnalisé envoyée dans les emails de prospection."""
     prospect = None
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -11512,208 +11556,198 @@ async def preview_page(prospect_id: str):
     pain_points = json.loads(prospect.get("pain_points") or "[]")
     rating = prospect.get("rating", "")
     review_count = prospect.get("review_count", "")
-
-    # Score couleur
-    score_color = "#22c55e" if web_score >= 4 else ("#f59e0b" if web_score == 3 else "#ef4444")
-    score_label = "Bon" if web_score >= 4 else ("Améliorable" if web_score == 3 else "Faible")
-
-    # Issues HTML
-    issues_html = ""
-    for issue in web_issues[:4]:
-        issues_html += f'<li style="margin-bottom:8px">⚠️ {issue}</li>'
-    if not web_issues:
-        issues_html = '<li>✅ Aucun problème majeur détecté</li>'
-
-    # Pain points HTML
-    pains_html = ""
-    for p in pain_points[:3]:
-        pains_html += f'<div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:12px 16px;margin-bottom:10px;border-radius:4px">⚡ {p}</div>'
-
-    # Améliorations par industrie
+    generated = json.loads(prospect.get("generated_emails") or "{}")
+    sp = generated.get("site_preview", {})
     industry_lower = industry.lower()
-    improvements = {
-        "restaurant": [
-            ("🗓️ Réservations en ligne 24/7", "Vos clients réservent sans appeler — même à 23h."),
-            ("💬 Réponses automatiques", "Chaque question reçoit une réponse en moins de 30 secondes."),
-            ("⭐ Gestion des avis", "Relances automatiques pour collecter plus d'avis 5 étoiles."),
-            ("📱 Site mobile optimisé", "80% de vos clients cherchent sur téléphone — votre site s'y adapte."),
-        ],
-        "salon": [
-            ("📅 Prise de RDV automatique", "Vos clients bookent en ligne, même à minuit."),
-            ("🔔 Rappels anti no-show", "SMS automatique 24h avant — jusqu'à 60% de no-shows en moins."),
-            ("💬 Agent IA 24/7", "Répond aux questions sur les services, prix et disponibilités."),
-            ("⭐ Collecte d'avis automatique", "Relance automatique après chaque visite pour booster vos étoiles."),
-        ],
-        "coiffure": [
-            ("📅 Prise de RDV automatique", "Vos clients bookent en ligne, même à minuit."),
-            ("🔔 Rappels anti no-show", "SMS automatique 24h avant — jusqu'à 60% de no-shows en moins."),
-            ("💬 Agent IA 24/7", "Répond aux questions sur les services, prix et disponibilités."),
-            ("⭐ Collecte d'avis automatique", "Relance automatique après chaque visite pour booster vos étoiles."),
-        ],
-        "clinique": [
-            ("📅 Confirmation de RDV automatique", "Rappels SMS/email — réduction drastique des no-shows."),
-            ("💬 Réponses automatiques", "FAQ médicales simples répondues 24/7 sans secrétaire."),
-            ("📋 Formulaires en ligne", "Patients remplissent leur dossier avant d'arriver."),
-            ("⭐ Collecte d'avis", "Relance automatique post-visite pour plus d'étoiles Google."),
-        ],
-        "garage": [
-            ("🔧 Suivi de soumission automatique", "Chaque devis envoyé reçoit un suivi automatique 48h après."),
-            ("📞 Réponse hors-heures", "Agent IA répond aux appels d'urgence même fermé."),
-            ("📅 Prise de RDV en ligne", "Vos clients bookent directement sans appeler."),
-            ("💬 Rappels de service", "Rappel automatique pour l'huile, inspection annuelle, etc."),
-        ],
-        "construction": [
-            ("📋 Suivi de soumission", "Relance automatique après chaque soumission envoyée."),
-            ("💬 Réponse rapide aux leads", "Premier contact en moins de 2 minutes, même le soir."),
-            ("📅 Planification automatisée", "Confirmation et rappels de chantier automatiques."),
-            ("⭐ Collecte d'avis chantier", "Relance automatique à la fin de chaque projet."),
-        ],
-    }
-    improv_list = next(
-        (v for k, v in improvements.items() if k in industry_lower),
-        [
-            ("💬 Agent IA 24/7", "Répond à vos clients instantanément, même hors-heures."),
-            ("📅 Prise de RDV automatique", "Vos clients réservent en ligne sans vous déranger."),
-            ("🔔 Suivis automatiques", "Rappels, confirmations et relances sans effort de votre part."),
-            ("⭐ Collecte d'avis Google", "Relance automatique post-service pour booster votre réputation."),
-        ]
-    )
 
-    improv_html = ""
-    for emoji_title, desc in improv_list:
-        improv_html += f"""
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:12px;display:flex;align-items:flex-start;gap:16px">
-            <div style="font-size:28px;line-height:1">{emoji_title.split(' ')[0]}</div>
-            <div>
-                <div style="font-weight:600;color:#1e293b;margin-bottom:4px">{' '.join(emoji_title.split(' ')[1:])}</div>
-                <div style="color:#64748b;font-size:14px">{desc}</div>
-            </div>
+    # site_preview content (Claude-generated or defaults)
+    hero_title = sp.get("hero_title") or f"Le meilleur {industry} à {city} — disponible 24h/7j"
+    hero_subtitle = sp.get("hero_subtitle") or f"Service professionnel et réponse rapide à {city}."
+    services = sp.get("services") or ["Service professionnel", "Disponible 24/7", "Réponse rapide", "Satisfaction garantie"]
+    trust_line = sp.get("trust_line") or f"Des clients satisfaits à {city} et environs"
+    cta_text = sp.get("cta") or "Nous contacter"
+    color_theme = sp.get("color_theme", "purple")
+
+    theme_colors = {
+        "blue":   ("#0c1445", "#3b82f6", "#60a5fa"),
+        "green":  ("#0a2e1a", "#22c55e", "#4ade80"),
+        "purple": ("#1a0a3d", "#7c3aed", "#a78bfa"),
+        "orange": ("#1f0a00", "#ea580c", "#fb923c"),
+        "red":    ("#1f0505", "#dc2626", "#f87171"),
+        "yellow": ("#1a1200", "#ca8a04", "#facc15"),
+    }
+    bg_col, accent_col, accent_light = theme_colors.get(color_theme, theme_colors["purple"])
+
+    score_color = "#22c55e" if web_score >= 4 else ("#f59e0b" if web_score == 3 else "#ef4444")
+    score_label = "Bon" if web_score >= 4 else ("Améliorable" if web_score == 3 else "À refaire")
+
+    issues_html = "".join(f'<li style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px"><span style="color:#ef4444;font-size:18px;line-height:1.4">✗</span><span>{i}</span></li>' for i in web_issues[:5]) or '<li>✓ Aucun problème majeur</li>'
+
+    services_nav = services[:3]
+    services_cards = services[:4]
+    stars_html = ("★" * round(float(rating)) + "☆" * (5 - round(float(rating)))) if rating else "★★★★★"
+    rating_line = f'{stars_html} {rating} ({review_count} avis)' if rating else "★★★★★ Avis clients vérifiés"
+
+    services_grid = ""
+    service_icons = ["✦", "◈", "◉", "◇"]
+    for idx, svc in enumerate(services_cards):
+        icon = service_icons[idx % len(service_icons)]
+        services_grid += f"""
+        <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:22px 18px">
+          <div style="font-size:22px;color:{accent_light};margin-bottom:10px">{icon}</div>
+          <div style="color:white;font-weight:600;font-size:15px;margin-bottom:6px">{svc}</div>
+          <div style="color:rgba(255,255,255,0.45);font-size:13px">Disponible en ligne, 24h/7j</div>
         </div>"""
 
-    # Mockup site web adapté à l'industrie
-    mockup_color = {
-        "restaurant": ("#1a1a2e", "#e94560"),
-        "salon": ("#2d1b69", "#c084fc"),
-        "coiffure": ("#2d1b69", "#c084fc"),
-        "clinique": ("#0f4c81", "#38bdf8"),
-        "médecin": ("#0f4c81", "#38bdf8"),
-        "dentiste": ("#0f4c81", "#38bdf8"),
-        "garage": ("#1a1a1a", "#f97316"),
-        "construction": ("#1c2435", "#f59e0b"),
-    }.get(industry_lower.split()[0] if industry_lower else "", ("#0f172a", "#6366f1"))
-    bg_col, accent_col = mockup_color
-
-    rating_html = ""
-    if rating:
-        stars = "★" * round(float(rating)) if rating else ""
-        rating_html = f'<span style="color:#fbbf24">{stars}</span> <span style="color:#64748b;font-size:13px">{rating} ({review_count} avis)</span>'
+    automation_features = [
+        ("💬", "Agent IA 24/7", "Répond à vos clients instantanément, même la nuit"),
+        ("📅", "Réservation en ligne", "Vos clients bookent sans vous appeler"),
+        ("🔔", "Rappels automatiques", "Fini les no-shows et les oublis"),
+        ("⭐", "Collecte d'avis", "Plus d'étoiles Google, automatiquement"),
+    ]
+    auto_html = ""
+    for icon, title, desc in automation_features:
+        auto_html += f"""
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;display:flex;gap:14px;align-items:flex-start">
+          <div style="font-size:26px;line-height:1.2">{icon}</div>
+          <div><div style="font-weight:700;color:#0f172a;margin-bottom:4px">{title}</div><div style="color:#64748b;font-size:14px">{desc}</div></div>
+        </div>"""
 
     html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Rapport personnalisé — {name}</title>
+<title>Votre nouveau site — {name}</title>
 <style>
 *{{box-sizing:border-box;margin:0;padding:0}}
-body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;color:#1e293b}}
-.hero{{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);color:white;padding:60px 24px;text-align:center}}
-.badge{{display:inline-block;background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#a5b4fc;padding:6px 16px;border-radius:999px;font-size:13px;margin-bottom:20px}}
-.hero h1{{font-size:clamp(22px,5vw,36px);font-weight:700;margin-bottom:12px;line-height:1.3}}
-.hero p{{color:#94a3b8;font-size:16px;max-width:500px;margin:0 auto}}
-.container{{max-width:680px;margin:0 auto;padding:32px 16px 80px}}
-.card{{background:white;border-radius:16px;padding:28px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}}
-.card h2{{font-size:18px;font-weight:700;margin-bottom:16px;color:#0f172a}}
-.score-badge{{display:inline-flex;align-items:center;gap:8px;background:{score_color}20;border:1px solid {score_color}40;color:{score_color};padding:6px 14px;border-radius:999px;font-weight:600;font-size:14px}}
-.cta-box{{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:16px;padding:36px 28px;text-align:center;color:white;margin-bottom:20px}}
-.cta-box h2{{font-size:22px;font-weight:700;margin-bottom:8px}}
-.cta-box p{{color:rgba(255,255,255,0.8);margin-bottom:24px;font-size:15px}}
-.cta-btn{{display:inline-block;background:white;color:#4f46e5;font-weight:700;padding:14px 32px;border-radius:999px;text-decoration:none;font-size:16px;box-shadow:0 4px 20px rgba(0,0,0,0.2)}}
-.mockup{{background:{bg_col};border-radius:12px;overflow:hidden;margin-top:20px}}
-.mockup-bar{{background:rgba(255,255,255,0.08);padding:10px 16px;display:flex;align-items:center;gap:8px}}
-.dot{{width:10px;height:10px;border-radius:50%}}
-.mockup-nav{{background:rgba(255,255,255,0.05);padding:14px 20px;display:flex;align-items:center;justify-content:space-between}}
-.mockup-logo{{color:white;font-weight:700;font-size:16px}}
-.mockup-navlinks{{display:flex;gap:16px}}
-.mockup-navlink{{color:rgba(255,255,255,0.6);font-size:13px;text-decoration:none}}
-.mockup-hero{{padding:48px 24px;text-align:center}}
-.mockup-h1{{color:white;font-size:clamp(20px,4vw,28px);font-weight:800;margin-bottom:12px;line-height:1.3}}
-.mockup-sub{{color:rgba(255,255,255,0.65);font-size:15px;margin-bottom:28px;max-width:360px;margin-left:auto;margin-right:auto}}
-.mockup-cta{{display:inline-block;background:{accent_col};color:white;font-weight:700;padding:12px 28px;border-radius:999px;font-size:15px;text-decoration:none;margin-bottom:8px}}
-.mockup-trust{{color:rgba(255,255,255,0.45);font-size:12px}}
-.mockup-features{{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 24px 32px}}
-.mockup-feature{{background:rgba(255,255,255,0.06);border-radius:10px;padding:14px;border:1px solid rgba(255,255,255,0.08)}}
-.mockup-feature-icon{{font-size:20px;margin-bottom:6px}}
-.mockup-feature-title{{color:white;font-size:13px;font-weight:600;margin-bottom:3px}}
-.mockup-feature-desc{{color:rgba(255,255,255,0.45);font-size:11px}}
-.watermark{{text-align:center;padding:16px;color:#94a3b8;font-size:12px}}
-.watermark strong{{color:#6366f1}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,sans-serif;background:#f1f5f9;color:#1e293b}}
+a{{text-decoration:none}}
+.top-bar{{background:#0f172a;color:#94a3b8;font-size:12px;text-align:center;padding:8px 16px;letter-spacing:0.02em}}
+.top-bar strong{{color:#a5b4fc}}
+.wrap{{max-width:700px;margin:0 auto;padding:24px 16px 80px}}
+.section-label{{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin-bottom:12px}}
+.card{{background:white;border-radius:18px;padding:28px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.07)}}
+.card h2{{font-size:19px;font-weight:800;margin-bottom:6px;color:#0f172a}}
+.card .sub{{color:#64748b;font-size:14px;margin-bottom:20px}}
+
+/* ---- SITE PREVIEW ---- */
+.site-frame{{border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.25);margin-top:4px}}
+.browser-bar{{background:#1e293b;padding:10px 16px;display:flex;align-items:center;gap:10px}}
+.b-dot{{width:11px;height:11px;border-radius:50%}}
+.url-bar{{flex:1;background:#0f172a;border-radius:6px;padding:5px 12px;color:#64748b;font-size:12px;font-family:monospace}}
+.site-nav{{background:{bg_col};padding:16px 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08)}}
+.site-logo{{color:white;font-weight:800;font-size:17px;letter-spacing:-0.02em}}
+.site-links{{display:flex;gap:24px}}
+.site-link{{color:rgba(255,255,255,0.55);font-size:13px;font-weight:500}}
+.site-link.active{{color:{accent_light}}}
+.site-hero{{background:linear-gradient(160deg,{bg_col} 0%,{accent_col}33 100%);padding:56px 32px 48px;text-align:center}}
+.site-h1{{color:white;font-size:clamp(20px,4.5vw,30px);font-weight:900;line-height:1.25;margin-bottom:14px;letter-spacing:-0.02em}}
+.site-sub{{color:rgba(255,255,255,0.65);font-size:15px;margin-bottom:32px;max-width:400px;margin-left:auto;margin-right:auto;line-height:1.6}}
+.site-cta{{display:inline-block;background:{accent_col};color:white;font-weight:800;font-size:15px;padding:14px 32px;border-radius:999px;box-shadow:0 4px 24px {accent_col}66;margin-bottom:14px}}
+.site-trust{{color:rgba(255,255,255,0.4);font-size:12px;letter-spacing:0.02em}}
+.site-rating{{color:{accent_light};font-size:13px;margin-bottom:8px}}
+.site-services{{background:{bg_col};padding:32px 24px;display:grid;grid-template-columns:1fr 1fr;gap:14px}}
+.site-footer{{background:rgba(0,0,0,0.4);padding:20px 28px;display:flex;justify-content:space-between;align-items:center}}
+.site-footer-logo{{color:rgba(255,255,255,0.5);font-size:13px;font-weight:600}}
+.site-footer-links{{display:flex;gap:16px}}
+.site-footer-link{{color:rgba(255,255,255,0.3);font-size:12px}}
+.ai-badge{{background:{accent_col}22;border:1px solid {accent_col}44;color:{accent_light};font-size:11px;padding:4px 10px;border-radius:999px;display:inline-block;margin-top:12px}}
+/* ---- CTA FINAL ---- */
+.final-cta{{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:18px;padding:40px 28px;text-align:center;color:white}}
+.final-cta h2{{font-size:23px;font-weight:800;margin-bottom:8px}}
+.final-cta p{{color:rgba(255,255,255,0.75);margin-bottom:28px;font-size:15px;line-height:1.6}}
+.final-btn{{display:inline-block;background:white;color:#4f46e5;font-weight:800;padding:16px 36px;border-radius:999px;font-size:16px;box-shadow:0 6px 24px rgba(0,0,0,0.2)}}
+.trust-pills{{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px}}
+.pill{{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);padding:6px 14px;border-radius:999px;font-size:12px}}
 </style>
 </head>
 <body>
-<div class="hero">
-    <div class="badge">Rapport personnalisé • Novalis IA</div>
-    <h1>Ce qu'on ferait pour<br><span style="color:#a5b4fc">{name}</span></h1>
-    <p>Analyse de votre site web, de vos avis et de votre présence en ligne à {city}.</p>
-</div>
 
-<div class="container">
+<div class="top-bar">Rapport personnalisé préparé par <strong>Novalis IA</strong> pour {name} · {city}</div>
 
-  <div class="card">
-    <h2>📊 Ce qu'on a trouvé</h2>
-    <div style="margin-bottom:16px">
-      <span class="score-badge">Site web : {web_score}/5 — {score_label}</span>
-      {'&nbsp;&nbsp;' + rating_html if rating_html else ''}
+<div class="wrap">
+
+  <!-- ANALYSE ACTUELLE -->
+  <div class="card" style="margin-top:20px">
+    <div class="section-label">Étape 1 — Ce qu'on a trouvé</div>
+    <h2>L'état actuel de {name}</h2>
+    <p class="sub">Analyse de votre site web{(' · ' + rating_line) if rating else ''}</p>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+      <div style="background:{score_color}18;border:1px solid {score_color}33;color:{score_color};padding:8px 18px;border-radius:999px;font-weight:700;font-size:14px">
+        Site web : {web_score}/5 — {score_label}
+      </div>
     </div>
-    {'<div style="color:#64748b;font-size:14px;margin-bottom:12px;font-style:italic">' + insights + '</div>' if insights else ''}
-    <ul style="list-style:none;padding:0;color:#475569;font-size:15px">
+    {'<div style="color:#475569;font-size:14px;font-style:italic;margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border-left:3px solid #e2e8f0">' + insights + '</div>' if insights else ''}
+    <ul style="list-style:none;padding:0;color:#475569;font-size:14px">
       {issues_html}
     </ul>
-    {('<div style="margin-top:16px">' + pains_html + '</div>') if pains_html else ''}
   </div>
 
+  <!-- NOUVEAU SITE -->
   <div class="card">
-    <h2>🚀 Ce qu'on ferait pour vous</h2>
-    <p style="color:#64748b;font-size:14px;margin-bottom:16px">Basé sur votre industrie ({industry}) et les points d'amélioration détectés :</p>
-    {improv_html}
-  </div>
+    <div class="section-label">Étape 2 — Votre nouveau site</div>
+    <h2>Voici ce qu'on ferait pour vous</h2>
+    <p class="sub">Aperçu réel de votre site modernisé — livré en 2 à 3 semaines</p>
 
-  <div class="card">
-    <h2>🖥️ Aperçu de votre site modernisé</h2>
-    <p style="color:#64748b;font-size:14px;margin-bottom:16px">Voici à quoi pourrait ressembler votre présence en ligne avec Novalis IA :</p>
-    <div class="mockup">
-      <div class="mockup-bar">
-        <div class="dot" style="background:#ff5f57"></div>
-        <div class="dot" style="background:#febc2e"></div>
-        <div class="dot" style="background:#28c840"></div>
-        <div style="flex:1;background:rgba(255,255,255,0.08);border-radius:4px;padding:4px 12px;color:rgba(255,255,255,0.4);font-size:12px;margin-left:8px">novalisia.ca/{name.lower().replace(' ','-')[:20]}</div>
+    <div class="site-frame">
+      <div class="browser-bar">
+        <div class="b-dot" style="background:#ff5f57"></div>
+        <div class="b-dot" style="background:#febc2e"></div>
+        <div class="b-dot" style="background:#28c840"></div>
+        <div class="url-bar">🔒 {name.lower().replace(' ','-')[:25]}.ca</div>
       </div>
-      <div class="mockup-nav">
-        <div class="mockup-logo">{name[:25]}</div>
-        <div class="mockup-navlinks">
-          <span class="mockup-navlink">Services</span>
-          <span class="mockup-navlink">À propos</span>
-          <span class="mockup-navlink" style="color:{accent_col}">Réserver</span>
+      <div class="site-nav">
+        <div class="site-logo">{name[:22]}</div>
+        <div class="site-links">
+          {''.join(f'<span class="site-link">{s}</span>' for s in services_nav[:2])}
+          <span class="site-link active">{cta_text}</span>
         </div>
       </div>
-      <div class="mockup-hero">
-        <div class="mockup-h1">Le meilleur {industry.lower()}<br>à {city} — disponible 24/7</div>
-        <div class="mockup-sub">Réservez en ligne, obtenez une réponse immédiate, ne manquez plus aucun client.</div>
-        <a class="mockup-cta" href="#">Réserver maintenant →</a><br>
-        <span class="mockup-trust">✓ Réponse en moins de 30 sec &nbsp;·&nbsp; ✓ Aucune attente</span>
+      <div class="site-hero">
+        <div class="site-rating">{stars_html}</div>
+        <div class="site-h1">{hero_title}</div>
+        <div class="site-sub">{hero_subtitle}</div>
+        <a class="site-cta" href="#">{cta_text} →</a><br>
+        <div class="site-trust">✓ {trust_line}</div>
+        <div class="ai-badge">⚡ Agent IA intégré — répond 24h/7j</div>
       </div>
-      <div class="mockup-features">
-        {''.join(f'<div class="mockup-feature"><div class="mockup-feature-icon">{e.split()[0]}</div><div class="mockup-feature-title">{" ".join(e.split()[1:])}</div><div class="mockup-feature-desc">{d}</div></div>' for e, d in improv_list[:4])}
+      <div class="site-services">
+        {services_grid}
+      </div>
+      <div class="site-footer">
+        <div class="site-footer-logo">{name[:18]}</div>
+        <div class="site-footer-links">
+          <span class="site-footer-link">Services</span>
+          <span class="site-footer-link">Contact</span>
+          <span class="site-footer-link" style="color:{accent_light}">Réserver</span>
+        </div>
       </div>
     </div>
-    <div class="watermark">Aperçu conceptuel créé par <strong>Novalis IA</strong> — résultat réel livré en 2-3 semaines</div>
+    <p style="text-align:center;color:#94a3b8;font-size:12px;margin-top:14px">✦ Aperçu du design final — personnalisé à 100% pour {name}</p>
   </div>
 
-  <div class="cta-box">
-    <h2>Prêt à voir ça pour de vrai?</h2>
-    <p>Appel gratuit de 15 minutes — on vous montre exactement ce qu'on peut faire pour {name}. Aucun engagement.</p>
-    <a class="cta-btn" href="tel:+15141234567">📞 Réserver un appel gratuit</a>
-    <div style="margin-top:16px;color:rgba(255,255,255,0.5);font-size:13px">Premier mois gratuit · Aucun contrat · Annulable en tout temps</div>
+  <!-- AUTOMATISATIONS -->
+  <div class="card">
+    <div class="section-label">Étape 3 — Ce qu'on automatise</div>
+    <h2>Inclus avec votre nouveau site</h2>
+    <p class="sub">Pas juste un beau site — un système complet qui travaille pour vous</p>
+    <div style="display:grid;gap:12px">
+      {auto_html}
+    </div>
+  </div>
+
+  <!-- CTA FINAL -->
+  <div class="final-cta">
+    <h2>Voir ça pour de vrai?</h2>
+    <p>Appel de 15 minutes gratuit — on vous montre exactement ce que votre nouveau site et vos automatisations donneraient pour {name}. Zéro engagement.</p>
+    <a class="final-btn" href="tel:+15141234567">📞 Parler à Elliot — gratuit</a>
+    <div class="trust-pills">
+      <span class="pill">✓ Premier mois gratuit</span>
+      <span class="pill">✓ Aucun contrat</span>
+      <span class="pill">✓ Livré en 2-3 semaines</span>
+      <span class="pill">✓ Support inclus</span>
+    </div>
   </div>
 
 </div>
