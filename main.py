@@ -133,7 +133,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "7.7"
+VERSION = "7.8"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -5633,77 +5633,70 @@ def _make_template_email(biz: dict) -> dict:
     name = biz.get("name", "votre entreprise")
     city = biz.get("city", "Québec")
     industry = biz.get("industry", "votre domaine")
-    web_issues = biz.get("web_issues", [])
     web_score = biz.get("web_score", 5)
-    has_bad_site = bool(web_issues) and web_score <= 3
+    web_issues = biz.get("web_issues", [])
 
-    # Email 1 — Accroche principale (site désuet OU angle automation)
-    if has_bad_site:
-        issues_str = " et ".join(web_issues[:2]).lower()
-        s1 = f"Votre site web — {name}"
-        b1 = (
-            f"Bonjour,\n\n"
-            f"En recherchant des {industry} à {city}, j'ai visité votre site et j'ai remarqué {issues_str}.\n\n"
-            f"Chez Novalis IA, on aide les PMEs québécoises sur deux fronts :\n"
-            f"• Refonte de site web moderne, mobile et rapide — livré en 2 à 3 semaines (~1 000 $)\n"
-            f"• Agent IA 24h/7j qui répond à vos clients, prend les rendez-vous et automatise vos tâches répétitives\n\n"
-            f"On peut aussi automatiser n'importe quel processus dans votre entreprise : factures, rappels, suivis, rapports — tout ce qui vous prend du temps inutilement.\n\n"
-            f"Seriez-vous disponible 15 minutes cette semaine pour qu'on regarde ensemble ce qu'on peut améliorer?\n\n"
-            f"Cordialement,\n"
-            f"Elliot Pelletier\n"
-            f"Fondateur — Novalis IA\n"
-            f"novalisia.ca"
-        )
-    else:
-        s1 = f"Une question pour {name}"
-        b1 = (
-            f"Bonjour,\n\n"
-            f"Je suis Elliot, fondateur de Novalis IA — une agence québécoise spécialisée en automatisation IA pour les PMEs.\n\n"
-            f"On travaille avec des {industry} à {city} pour :\n"
-            f"• Automatiser la prise de rendez-vous et le service client (agent IA 24h/7j)\n"
-            f"• Éliminer les tâches répétitives : suivis, rappels, rapports, facturation\n"
-            f"• Moderniser leur site web si nécessaire\n\n"
-            f"En clair : si une tâche se répète dans votre entreprise, on peut l'automatiser.\n\n"
-            f"Seriez-vous disponible 15 minutes pour voir si on peut vous faire gagner du temps?\n\n"
-            f"Cordialement,\n"
-            f"Elliot Pelletier\n"
-            f"Fondateur — Novalis IA\n"
-            f"novalisia.ca"
-        )
-
-    # Email 2 — Suivi J+4
-    s2 = f"Suivi — {name}"
-    b2 = (
-        f"Bonjour,\n\n"
-        f"Je fais suite à mon courriel de la semaine dernière.\n\n"
-        f"Pour être concret sur ce qu'on fait chez Novalis IA : on automatise les processus qui vous volent du temps — "
-        f"réponses aux clients, prise de rendez-vous, rappels, suivis, rapports. "
-        f"Si votre site web est désuet, on le refait aussi. Nos clients gagnent en moyenne 8 à 10 heures par semaine.\n\n"
-        f"Premier mois entièrement gratuit, aucun contrat. Si ça ne vous convient pas après 30 jours, pas de frais.\n\n"
-        f"Ça vaudrait la peine qu'on jase 15 minutes?\n\n"
-        f"Cordialement,\n"
-        f"Elliot Pelletier\n"
-        f"Fondateur — Novalis IA\n"
-        f"novalisia.ca"
+    # Angle par industrie pour personnaliser le pain point
+    pain_by_industry = {
+        "restaurant": ("des commandes ou réservations manquées le soir", "réservations et commandes automatisées 24/7"),
+        "salon": ("des rendez-vous manqués ou des no-shows", "prise de RDV automatique et rappels anti no-show"),
+        "coiffure": ("des rendez-vous manqués ou des no-shows", "prise de RDV automatique et rappels anti no-show"),
+        "clinique": ("des appels manqués et des no-shows", "rappels automatiques et confirmations de RDV"),
+        "médecin": ("des appels manqués et des no-shows", "rappels automatiques et confirmations de RDV"),
+        "dentiste": ("des rendez-vous oubliés et des no-shows", "rappels SMS automatiques avant chaque RDV"),
+        "garage": ("des estimations non suivies et des appels après fermeture", "suivis automatiques et réponses 24/7"),
+        "construction": ("des soumissions qui restent sans réponse", "suivis automatiques après chaque soumission"),
+        "plombier": ("des appels d'urgence manqués la nuit ou le weekend", "réponse automatique 24/7 même hors-heures"),
+        "électricien": ("des appels d'urgence manqués la nuit ou le weekend", "réponse automatique 24/7 même hors-heures"),
+        "nettoyage": ("des demandes de soumission sans suivi", "devis automatiques et suivis clients"),
+        "avocat": ("des clients qui n'ont pas de réponse rapide", "réponses automatiques et prise de consultation en ligne"),
+        "comptable": ("des clients qui attendent des réponses à des questions simples", "assistant IA qui répond aux questions courantes 24/7"),
+        "immobilier": ("des leads qui refroidissent avant le premier contact", "suivi automatique de chaque nouvelle demande en moins de 2 minutes"),
+    }
+    industry_lower = industry.lower()
+    pain, solution = next(
+        ((v[0], v[1]) for k, v in pain_by_industry.items() if k in industry_lower),
+        ("des clients qui n'obtiennent pas de réponse rapide", "réponses automatiques et suivi 24/7")
     )
 
-    # Email 3 — Dernier suivi J+10
-    s3 = f"Dernière tentative — {name}"
+    site_note = ""
+    if web_score <= 2 and web_issues:
+        site_note = f" (et votre site actuel a quelques points à améliorer aussi)"
+
+    s1 = f"Question rapide — {name}"
+    b1 = (
+        f"Bonjour,\n\n"
+        f"En cherchant des {industry} à {city}, je suis tombé sur {name}.\n\n"
+        f"Est-ce que vous perdez des clients à cause de {pain}{site_note}?\n\n"
+        f"On règle exactement ça pour des PMEs québécoises — {solution}. Premier mois gratuit, sans contrat.\n\n"
+        f"Ça vous intéresse qu'on en parle 10 minutes?\n\n"
+        f"Elliot Pelletier\n"
+        f"Novalis IA — novalisia.ca"
+    )
+
+    s2 = f"Re: {name}"
+    b2 = (
+        f"Bonjour,\n\n"
+        f"Je fais suite à mon message de la semaine dernière.\n\n"
+        f"Juste pour être concret : nos clients récupèrent en moyenne 6 à 8 heures par semaine et ne manquent plus aucune demande — même la nuit ou le weekend.\n\n"
+        f"Le premier mois est 100% gratuit. Si ça ne change rien pour vous, vous ne payez pas.\n\n"
+        f"Ça vaut la peine d'essayer, non?\n\n"
+        f"Elliot\nNovalis IA"
+    )
+
+    s3 = f"Dernière nouvelle — {name}"
     b3 = (
         f"Bonjour,\n\n"
-        f"Je vous écris une dernière fois.\n\n"
-        f"Que ce soit pour automatiser vos tâches répétitives, ne plus manquer d'appels ou moderniser votre site web, "
-        f"Novalis IA peut probablement vous faire gagner du temps et des clients — et le premier mois est gratuit.\n\n"
-        f"Si ce n'est pas le bon moment, je comprends tout à fait. Bonne continuation.\n\n"
-        f"Elliot Pelletier\n"
-        f"Fondateur — Novalis IA\n"
-        f"novalisia.ca"
+        f"Je ne veux pas encombrer votre boîte — c'est mon dernier message.\n\n"
+        f"Si jamais vous cherchez à automatiser quelque chose dans votre business ou à ne plus manquer de clients, on est là.\n\n"
+        f"Bonne continuation!\n\n"
+        f"Elliot\nNovalis IA — novalisia.ca"
     )
 
     return {
         "need_score": 7, "skip": False,
-        "insights": f"{name} pourrait bénéficier de l'automatisation IA et d'une modernisation de sa présence en ligne.",
-        "pain_points": ["Tâches répétitives chronophages", "Appels et messages manqués", "Site web désuet" if has_bad_site else "Processus manuels"],
+        "insights": f"{name} pourrait bénéficier d'automatisation pour {pain}.",
+        "pain_points": [pain, "Temps perdu sur tâches répétitives"],
         "email1": {"subject": s1, "body": b1},
         "email2": {"subject": s2, "body": b2},
         "email3": {"subject": s3, "body": b3},
@@ -5732,64 +5725,75 @@ async def _generate_prospect_emails_claude(biz: dict) -> dict:
         refonte_instruction = '\n4. Génère aussi "email_refonte": un courriel proposant une refonte complète de leur site web pour ~1000$ (site moderne, mobile, SEO, livré en 2-3 semaines). Mentionne les problèmes spécifiques de leur site actuel.'
         refonte_json = ',\n  "email_refonte": {{"subject": "...", "body": "..."}}'
 
-    prompt = f"""Tu es Elliot Pelletier, fondateur de Novalis IA, agence québécoise d'automatisation IA.
+    prompt = f"""Tu écris des courriels de prospection pour Elliot Pelletier, fondateur de Novalis IA (automatisation IA pour PMEs québécoises).
 
-CE QU'ON OFFRE:
-- Agent IA 24/7 : répond aux SMS/WhatsApp/web, prend les RDV automatiquement, répond aux FAQ. 497$/mois. Premier mois gratuit.
-- Automatisation sur mesure : on automatise N'IMPORTE QUEL processus répétitif (suivis clients, rappels, rapports, facturation, saisie de données, etc.)
-- Refonte de site web : site moderne, mobile, SEO local. ~1000$, livré en 2-3 semaines.
-
-PME ANALYSÉE: {name} | {city} | {industry}
+PME: {name} | {city} | {industry}
 Site: {website}
 {rating_line}
 {web_line}
+Contenu du site: {site_text[:800] if site_text else "(non disponible)"}
+Mentions en ligne: {snippets[:600] if snippets else "(non disponible)"}
 
-CONTENU DU SITE:
-{site_text or "(non disponible)"}
+---
+EXEMPLES D'EMAILS QUI CONVERTISSENT (imite ce style):
 
-AVIS ET MENTIONS EN LIGNE:
-{snippets or "(non disponible)"}
+EXEMPLE A — Salon de coiffure avec no-shows:
+Objet: Rendez-vous manqués?
+Corps:
+Bonjour,
 
-TÂCHE — réponds UNIQUEMENT avec ce JSON exact (zéro texte avant ou après):
+En cherchant des salons à Laval, je suis tombé sur le vôtre.
+
+Est-ce que les no-shows et les appels manqués en dehors des heures vous font perdre des revenus?
+
+On a mis en place un système de rappels automatiques et de prise de RDV 24/7 pour quelques salons québécois — ils ont réduit leurs no-shows de moitié. Premier mois gratuit.
+
+Ça vous parle?
+
+Elliot
+Novalis IA — novalisia.ca
+
+EXEMPLE B — Restaurant sans système de réservation en ligne:
+Objet: Question rapide — Le Bistro du Port
+Corps:
+Bonjour,
+
+J'ai remarqué que votre restaurant n'a pas de réservation en ligne — est-ce que vous recevez encore beaucoup d'appels pour des réservations pendant le service?
+
+On automatise ça pour des restos québécois : réservations en ligne, confirmations automatiques, liste d'attente. Le proprio arrête de décrocher le téléphone pendant le rush. Premier mois gratuit, aucun contrat.
+
+Intéressé qu'on en discute?
+
+Elliot
+Novalis IA
+
+---
+RÈGLES STRICTES — à respecter absolument:
+1. MAX 80 mots par email (compter les mots)
+2. AUCUNE liste à puces (•, -, *) — jamais
+3. JAMAIS "Je suis Elliot, fondateur de..." — pas de présentation formelle
+4. JAMAIS "Cordialement", "Je me permets", "Suite à", "J'espère que"
+5. Commencer par une observation concrète sur CETTE PME spécifique
+6. Finir par UNE seule question courte (oui/non ou simple)
+7. Signature: juste "Elliot" ou "Elliot\\nNovalis IA" — rien d'autre
+8. Ton: comme un ami entrepreneur qui a trouvé quelque chose d'utile, pas un vendeur
+9. Si web_score <= 2: mentionner subtilement que le site pourrait être amélioré
+10. Mentionner "premier mois gratuit" naturellement dans le texte (pas comme une promo)
+
+EMAIL 2 (suivi J+4): plus court encore, nouvel angle, rappel du bénéfice concret + "premier mois gratuit"
+EMAIL 3 (dernier J+10): 2-3 phrases max, pas de pression, porte ouverte, chaleureux
 
 ÉTAPE 1 — Évalue le besoin réel (need_score 1-10):
-- 8-10: Problème évident (avis négatifs, appels manqués, heures limitées, site désuet, pas de réponse en ligne)
-- 5-7: Besoin probable
-- 1-4: Business déjà bien automatisé
+- 8-10: PME avec problème évident (avis négatifs, site désuet, heures limitées, pas de présence en ligne)
+- 5-7: PME qui bénéficierait d'automatisation
+- 1-4: Business déjà bien digitalisé (skip)
 
-Si need_score < 5, retourne SEULEMENT: {{"need_score": X, "skip": true, "reason": "..."}}
-
-Si need_score >= 5:
-Génère 3 courriels de prospection professionnels et personnalisés selon ces règles:
-
-EMAIL 1 (premier contact):
-- Objet: court et accrocheur, max 8 mots (ex: "Une question pour {name}", "J'ai regardé votre site — {name}")
-- Corps: 80-120 mots, structure: Bonjour → présentation rapide d'Elliot → problème SPÉCIFIQUE de cette PME → ce que Novalis résout concrètement → invitation à un appel de 15 min
-- Ton: professionnel mais chaleureux, comme un consultant québécois, PAS un vendeur
-- Signature complète: Elliot Pelletier / Fondateur — Novalis IA / novalisia.ca
-
-EMAIL 2 (suivi J+4):
-- Objet: "Suivi — {name}" ou "Re: [reprend le sujet du premier]"
-- Corps: 60-80 mots, rappel bref du premier courriel, nouvel angle (ex: mentionner le mois gratuit ou un résultat client), question directe
-- Signature: Elliot Pelletier / Novalis IA
-
-EMAIL 3 (dernier suivi J+10):
-- Objet: sobre et respectueux (ex: "Dernière tentative — {name}")
-- Corps: 50-70 mots, ton respectueux, dernier essai sans pression, porte ouverte
-- Signature: Elliot Pelletier / Novalis IA
-
-RÈGLES STRICTES:
-- Écrire en français québécois professionnel (pas joual, pas corporatif)
-- Mentionner des détails SPÉCIFIQUES à cette PME (ville, industrie, problèmes détectés)
-- Jamais commencer par "J'espère que", "Je me permets de", "Suite à"
-- Toujours proposer un appel de 15 minutes ou une question simple en fin de courriel
-- Si le site est désuet (web_score <= 2): mentionner la refonte de site ET l'automatisation
-- Toujours mentionner qu'on peut automatiser n'importe quel processus répétitif, pas seulement les RDV{refonte_instruction}
+Si need_score < 5: retourne SEULEMENT {{"need_score": X, "skip": true, "reason": "..."}}{refonte_instruction}
 
 {{
   "need_score": X,
   "skip": false,
-  "insights": "...",
+  "insights": "observation clé sur cette PME en 1 phrase",
   "pain_points": ["Problème précis 1", "Problème précis 2"],
   "email1": {{"subject": "...", "body": "..."}},
   "email2": {{"subject": "...", "body": "..."}},
