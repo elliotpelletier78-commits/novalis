@@ -12223,7 +12223,7 @@ body{{font-family:'Inter',sans-serif;background:#0a0a14;color:#e2e8f0;overflow-x
     <div class="final-cta-box">
       <h2>Voulez-vous ce site pour de vrai?</h2>
       <p>Appelez Elliot gratuitement — 15 minutes pour voir exactement ce que votre nouveau site et votre agent IA donneraient pour {name}. Aucun engagement, premier mois gratuit.</p>
-      <a class="final-btn" href="tel:+15141234567">📞 Parler à Elliot maintenant</a>
+      <a class="final-btn" href="tel:+15141234567">📞 Parler à notre équipe</a>
       <div class="final-pills">
         <span class="pill">✓ Premier mois gratuit</span>
         <span class="pill">✓ Aucun contrat</span>
