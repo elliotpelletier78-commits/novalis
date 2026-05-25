@@ -133,7 +133,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("novalis")
 
 # Version
-VERSION = "8.1"
+VERSION = "8.2"
 
 # In-memory state for background refresh job
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
@@ -11545,7 +11545,7 @@ async def health():
 @app.get("/preview/{name_slug}/{prospect_id}", response_class=HTMLResponse)
 @app.get("/preview/{prospect_id}", response_class=HTMLResponse)
 async def preview_page(prospect_id: str, name_slug: str = ""):
-    """Page d'audit + nouveau site personnalisé envoyée dans les emails de prospection."""
+    """Page d'audit + aperçu site impressionnant — envoyée dans les emails PME."""
     prospect = None
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -11556,213 +11556,559 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
                 prospect = dict(row)
                 break
     if not prospect:
-        return HTMLResponse("<h2 style='font-family:sans-serif;text-align:center;margin-top:80px'>Page introuvable</h2>", status_code=404)
+        return HTMLResponse("<h2 style='font-family:sans-serif;text-align:center;margin-top:80px;color:#64748b'>Page introuvable</h2>", status_code=404)
 
-    name = prospect.get("name", "votre entreprise")
-    city = prospect.get("city", "Québec")
-    industry = prospect.get("industry", "votre secteur")
-    website = prospect.get("website", "")
+    name      = prospect.get("name", "votre entreprise")
+    city      = prospect.get("city", "Québec")
+    industry  = prospect.get("industry", "votre secteur")
     web_score = int(prospect.get("web_score") or 5)
-    web_issues = json.loads(prospect.get("web_issues") or "[]")
-    insights = prospect.get("insights", "")
+    web_issues= json.loads(prospect.get("web_issues") or "[]")
+    insights  = prospect.get("insights", "")
     pain_points = json.loads(prospect.get("pain_points") or "[]")
-    rating = prospect.get("rating", "")
+    rating    = prospect.get("rating", "")
     review_count = prospect.get("review_count", "")
     generated = json.loads(prospect.get("generated_emails") or "{}")
-    sp = generated.get("site_preview", {})
+    sp        = generated.get("site_preview", {})
     industry_lower = industry.lower()
 
-    # site_preview content (Claude-generated or defaults)
-    hero_title = sp.get("hero_title") or f"Le meilleur {industry} à {city} — disponible 24h/7j"
-    hero_subtitle = sp.get("hero_subtitle") or f"Service professionnel et réponse rapide à {city}."
-    services = sp.get("services") or ["Service professionnel", "Disponible 24/7", "Réponse rapide", "Satisfaction garantie"]
-    trust_line = sp.get("trust_line") or f"Des clients satisfaits à {city} et environs"
-    cta_text = sp.get("cta") or "Nous contacter"
-    color_theme = sp.get("color_theme", "purple")
+    # ── site_preview content ──────────────────────────────────────────────────
+    hero_title   = sp.get("hero_title")   or f"{name} — {city}"
+    hero_subtitle= sp.get("hero_subtitle") or f"Service professionnel à {city}. Réponse rapide, satisfaction garantie."
+    services_list= sp.get("services")     or ["Service professionnel", "Disponible 24/7", "Réponse rapide", "Satisfaction garantie"]
+    trust_line   = sp.get("trust_line")   or f"Des centaines de clients satisfaits à {city}"
+    cta_text     = sp.get("cta")          or "Nous contacter"
+    color_theme  = sp.get("color_theme",  "purple")
 
-    theme_colors = {
-        "blue":   ("#0c1445", "#3b82f6", "#60a5fa"),
-        "green":  ("#0a2e1a", "#22c55e", "#4ade80"),
-        "purple": ("#1a0a3d", "#7c3aed", "#a78bfa"),
-        "orange": ("#1f0a00", "#ea580c", "#fb923c"),
-        "red":    ("#1f0505", "#dc2626", "#f87171"),
-        "yellow": ("#1a1200", "#ca8a04", "#facc15"),
+    # ── Theme palette ─────────────────────────────────────────────────────────
+    palettes = {
+        "blue":   {"bg":"#050d1f","grad1":"#0ea5e9","grad2":"#2563eb","accent":"#38bdf8","light":"#bae6fd","btn":"#0284c7"},
+        "green":  {"bg":"#030f07","grad1":"#16a34a","grad2":"#059669","accent":"#4ade80","light":"#bbf7d0","btn":"#15803d"},
+        "purple": {"bg":"#0d0720","grad1":"#7c3aed","grad2":"#a21caf","accent":"#a78bfa","light":"#e9d5ff","btn":"#6d28d9"},
+        "orange": {"bg":"#120700","grad1":"#ea580c","grad2":"#dc2626","accent":"#fb923c","light":"#fed7aa","btn":"#c2410c"},
+        "red":    {"bg":"#0f0202","grad1":"#dc2626","grad2":"#9f1239","accent":"#f87171","light":"#fecaca","btn":"#b91c1c"},
+        "yellow": {"bg":"#0c0900","grad1":"#d97706","grad2":"#ca8a04","accent":"#fbbf24","light":"#fef08a","btn":"#b45309"},
     }
-    bg_col, accent_col, accent_light = theme_colors.get(color_theme, theme_colors["purple"])
+    p = palettes.get(color_theme, palettes["purple"])
+    bg,g1,g2,acc,lgt,btn = p["bg"],p["grad1"],p["grad2"],p["accent"],p["light"],p["btn"]
 
+    # ── Industry gradient backgrounds ─────────────────────────────────────────
+    industry_gradients = {
+        "restaurant": f"linear-gradient(135deg,#1a0a00 0%,#3d1505 40%,{g1}44 100%)",
+        "salon":      f"linear-gradient(135deg,#0d0020 0%,#2d0858 40%,{g1}44 100%)",
+        "coiffure":   f"linear-gradient(135deg,#0d0020 0%,#2d0858 40%,{g1}44 100%)",
+        "clinique":   f"linear-gradient(135deg,#000d1f 0%,#002244 40%,{g1}44 100%)",
+        "médecin":    f"linear-gradient(135deg,#000d1f 0%,#002244 40%,{g1}44 100%)",
+        "dentiste":   f"linear-gradient(135deg,#000d1f 0%,#002244 40%,{g1}44 100%)",
+        "garage":     f"linear-gradient(135deg,#0a0a0a 0%,#1a1a1a 40%,{g1}44 100%)",
+        "construction":f"linear-gradient(135deg,#0c0800 0%,#1f1500 40%,{g1}44 100%)",
+        "immobilier": f"linear-gradient(135deg,#030f07 0%,#071a0d 40%,{g1}44 100%)",
+        "avocat":     f"linear-gradient(135deg,#050510 0%,#0d0d25 40%,{g1}44 100%)",
+    }
+    hero_bg = next((v for k,v in industry_gradients.items() if k in industry_lower),
+                   f"linear-gradient(135deg,{bg} 0%,#1a1040 40%,{g1}44 100%)")
+
+    # ── Industry pattern overlay (SVG) ────────────────────────────────────────
+    pattern_svg = "data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"
+
+    # ── Services cards ────────────────────────────────────────────────────────
+    service_icons = ["◈", "◉", "◊", "✦"]
+    services_html = ""
+    for i, svc in enumerate(services_list[:4]):
+        services_html += f"""
+            <div class="svc-card">
+              <div class="svc-icon">{service_icons[i % 4]}</div>
+              <div class="svc-title">{svc}</div>
+              <div class="svc-desc">Disponible en ligne, 24h/7j</div>
+            </div>"""
+
+    # ── Testimonials by industry ──────────────────────────────────────────────
+    testimonials_map = {
+        "restaurant": [
+            ("Sophie L.", "Réservation ultra simple, table parfaite. Je recommande!","★★★★★"),
+            ("Marc T.",   "Réponse immédiate même à 22h. Impressionnant.","★★★★★"),
+            ("Julie R.",  "Super service, on revient chaque semaine.","★★★★★"),
+        ],
+        "salon": [
+            ("Amélie B.", "J'ai réservé en ligne à minuit et reçu une confirmation en 30 sec!","★★★★★"),
+            ("Kevin D.",  "Rappel SMS la veille — j'oublie plus jamais mon RDV.","★★★★★"),
+            ("Sarah M.",  "Service impeccable, coupe parfaite. Bravo!","★★★★★"),
+        ],
+        "coiffure": [
+            ("Amélie B.", "Réservation en ligne tellement pratique. Je reviendrai!","★★★★★"),
+            ("Kevin D.",  "Rappel automatique avant mon RDV — super idée.","★★★★★"),
+            ("Sarah M.",  "Coupe parfaite et service très professionnel.","★★★★★"),
+        ],
+        "clinique": [
+            ("Pierre G.",  "Rappel de RDV automatique, ça change tout.","★★★★★"),
+            ("Nathalie C.","Prise de RDV en ligne super simple. Merci!","★★★★★"),
+            ("André P.",   "Personnel attentionné et système moderne.","★★★★★"),
+        ],
+        "garage": [
+            ("François L.","Devis rapide, travail impeccable. Je recommande à tous.","★★★★★"),
+            ("Manon R.",   "Rappel pour l'inspection annuelle — très pratique!","★★★★★"),
+            ("Robert S.",  "Équipe sérieuse, prix honnêtes.","★★★★★"),
+        ],
+        "construction": [
+            ("Daniel M.", "Suivi de chantier parfait, livré à temps.","★★★★★"),
+            ("Lucie F.",  "Soumission rapide et travail excellent.","★★★★★"),
+            ("Thomas B.", "Professionnels du début à la fin.","★★★★★"),
+        ],
+    }
+    testimonials = next(
+        (v for k,v in testimonials_map.items() if k in industry_lower),
+        [
+            ("Marie L.", "Service exceptionnel, réponse en moins d'une minute!","★★★★★"),
+            ("Jean P.",  "Professionnel et efficace. Je recommande.","★★★★★"),
+            ("Claire B.","Exactement ce qu'on cherchait. Parfait.","★★★★★"),
+        ]
+    )
+    testimonials_html = ""
+    for author, text, stars in testimonials:
+        initials = "".join(w[0] for w in author.split()[:2]).upper()
+        testimonials_html += f"""
+          <div class="testi-card">
+            <div class="testi-stars">{stars}</div>
+            <div class="testi-text">"{text}"</div>
+            <div class="testi-author">
+              <div class="testi-avatar">{initials}</div>
+              <span>{author}</span>
+            </div>
+          </div>"""
+
+    # ── Audit issues ──────────────────────────────────────────────────────────
     score_color = "#22c55e" if web_score >= 4 else ("#f59e0b" if web_score == 3 else "#ef4444")
     score_label = "Bon" if web_score >= 4 else ("Améliorable" if web_score == 3 else "À refaire")
+    issues_html = ""
+    for issue in web_issues[:5]:
+        issues_html += f'<div class="issue-item"><span class="issue-x">✗</span><span>{issue}</span></div>'
+    if not issues_html:
+        issues_html = '<div class="issue-item"><span style="color:#22c55e">✓</span><span>Aucun problème majeur détecté</span></div>'
 
-    issues_html = "".join(f'<li style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px"><span style="color:#ef4444;font-size:18px;line-height:1.4">✗</span><span>{i}</span></li>' for i in web_issues[:5]) or '<li>✓ Aucun problème majeur</li>'
-
-    services_nav = services[:3]
-    services_cards = services[:4]
-    stars_html = ("★" * round(float(rating)) + "☆" * (5 - round(float(rating)))) if rating else "★★★★★"
-    rating_line = f'{stars_html} {rating} ({review_count} avis)' if rating else "★★★★★ Avis clients vérifiés"
-
-    services_grid = ""
-    service_icons = ["✦", "◈", "◉", "◇"]
-    for idx, svc in enumerate(services_cards):
-        icon = service_icons[idx % len(service_icons)]
-        services_grid += f"""
-        <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:22px 18px">
-          <div style="font-size:22px;color:{accent_light};margin-bottom:10px">{icon}</div>
-          <div style="color:white;font-weight:600;font-size:15px;margin-bottom:6px">{svc}</div>
-          <div style="color:rgba(255,255,255,0.45);font-size:13px">Disponible en ligne, 24h/7j</div>
-        </div>"""
-
-    automation_features = [
-        ("💬", "Agent IA 24/7", "Répond à vos clients instantanément, même la nuit"),
-        ("📅", "Réservation en ligne", "Vos clients bookent sans vous appeler"),
-        ("🔔", "Rappels automatiques", "Fini les no-shows et les oublis"),
-        ("⭐", "Collecte d'avis", "Plus d'étoiles Google, automatiquement"),
+    # ── What's included list ──────────────────────────────────────────────────
+    included = [
+        ("💬","Agent IA 24/7","Répond à vos clients instantanément, même à 3h du matin"),
+        ("📅","Réservation en ligne","Vos clients bookent sans appeler — disponible 24h/7j"),
+        ("🔔","Rappels automatiques","SMS avant chaque RDV — fini les no-shows"),
+        ("⭐","Collecte d'avis Google","Relance automatique après chaque service"),
+        ("📊","Tableau de bord","Suivez vos clients, RDV et revenus en temps réel"),
+        ("📱","Site mobile parfait","80% de vos clients cherchent sur téléphone"),
     ]
-    auto_html = ""
-    for icon, title, desc in automation_features:
-        auto_html += f"""
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;display:flex;gap:14px;align-items:flex-start">
-          <div style="font-size:26px;line-height:1.2">{icon}</div>
-          <div><div style="font-weight:700;color:#0f172a;margin-bottom:4px">{title}</div><div style="color:#64748b;font-size:14px">{desc}</div></div>
-        </div>"""
+    included_html = ""
+    for icon, title, desc in included:
+        included_html += f"""
+          <div class="incl-item">
+            <div class="incl-icon">{icon}</div>
+            <div><div class="incl-title">{title}</div><div class="incl-desc">{desc}</div></div>
+          </div>"""
+
+    stars_display = ("★" * round(float(rating)) + "☆" * (5 - round(float(rating)))) if rating else "★★★★★"
+    rating_text = f"{stars_display} {rating}/5 · {review_count} avis" if rating else f"{stars_display} Avis clients vérifiés"
+    nav_items = services_list[:2] + [cta_text]
 
     html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Votre nouveau site — {name}</title>
+<title>{name} — Nouveau site par Novalis IA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
+:root{{
+  --acc:{acc};--btn:{btn};--bg:{bg};--g1:{g1};--g2:{g2};--lgt:{lgt};
+  --white:#ffffff;--gray:#94a3b8;--dark:#0f172a;
+}}
 *{{box-sizing:border-box;margin:0;padding:0}}
-body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,sans-serif;background:#f1f5f9;color:#1e293b}}
-a{{text-decoration:none}}
-.top-bar{{background:#0f172a;color:#94a3b8;font-size:12px;text-align:center;padding:8px 16px;letter-spacing:0.02em}}
-.top-bar strong{{color:#a5b4fc}}
-.wrap{{max-width:700px;margin:0 auto;padding:24px 16px 80px}}
-.section-label{{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin-bottom:12px}}
-.card{{background:white;border-radius:18px;padding:28px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.07)}}
-.card h2{{font-size:19px;font-weight:800;margin-bottom:6px;color:#0f172a}}
-.card .sub{{color:#64748b;font-size:14px;margin-bottom:20px}}
+html{{scroll-behavior:smooth}}
+body{{font-family:'Inter',sans-serif;background:#0a0a14;color:#e2e8f0;overflow-x:hidden}}
 
-/* ---- SITE PREVIEW ---- */
-.site-frame{{border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.25);margin-top:4px}}
-.browser-bar{{background:#1e293b;padding:10px 16px;display:flex;align-items:center;gap:10px}}
-.b-dot{{width:11px;height:11px;border-radius:50%}}
-.url-bar{{flex:1;background:#0f172a;border-radius:6px;padding:5px 12px;color:#64748b;font-size:12px;font-family:monospace}}
-.site-nav{{background:{bg_col};padding:16px 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08)}}
-.site-logo{{color:white;font-weight:800;font-size:17px;letter-spacing:-0.02em}}
-.site-links{{display:flex;gap:24px}}
-.site-link{{color:rgba(255,255,255,0.55);font-size:13px;font-weight:500}}
-.site-link.active{{color:{accent_light}}}
-.site-hero{{background:linear-gradient(160deg,{bg_col} 0%,{accent_col}33 100%);padding:56px 32px 48px;text-align:center}}
-.site-h1{{color:white;font-size:clamp(20px,4.5vw,30px);font-weight:900;line-height:1.25;margin-bottom:14px;letter-spacing:-0.02em}}
-.site-sub{{color:rgba(255,255,255,0.65);font-size:15px;margin-bottom:32px;max-width:400px;margin-left:auto;margin-right:auto;line-height:1.6}}
-.site-cta{{display:inline-block;background:{accent_col};color:white;font-weight:800;font-size:15px;padding:14px 32px;border-radius:999px;box-shadow:0 4px 24px {accent_col}66;margin-bottom:14px}}
-.site-trust{{color:rgba(255,255,255,0.4);font-size:12px;letter-spacing:0.02em}}
-.site-rating{{color:{accent_light};font-size:13px;margin-bottom:8px}}
-.site-services{{background:{bg_col};padding:32px 24px;display:grid;grid-template-columns:1fr 1fr;gap:14px}}
-.site-footer{{background:rgba(0,0,0,0.4);padding:20px 28px;display:flex;justify-content:space-between;align-items:center}}
-.site-footer-logo{{color:rgba(255,255,255,0.5);font-size:13px;font-weight:600}}
-.site-footer-links{{display:flex;gap:16px}}
-.site-footer-link{{color:rgba(255,255,255,0.3);font-size:12px}}
-.ai-badge{{background:{accent_col}22;border:1px solid {accent_col}44;color:{accent_light};font-size:11px;padding:4px 10px;border-radius:999px;display:inline-block;margin-top:12px}}
-/* ---- CTA FINAL ---- */
-.final-cta{{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:18px;padding:40px 28px;text-align:center;color:white}}
-.final-cta h2{{font-size:23px;font-weight:800;margin-bottom:8px}}
-.final-cta p{{color:rgba(255,255,255,0.75);margin-bottom:28px;font-size:15px;line-height:1.6}}
-.final-btn{{display:inline-block;background:white;color:#4f46e5;font-weight:800;padding:16px 36px;border-radius:999px;font-size:16px;box-shadow:0 6px 24px rgba(0,0,0,0.2)}}
-.trust-pills{{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px}}
-.pill{{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);padding:6px 14px;border-radius:999px;font-size:12px}}
+/* TOP NOTIFICATION */
+.notif-bar{{
+  background:linear-gradient(90deg,var(--g1),var(--g2));
+  color:white;font-size:13px;font-weight:600;text-align:center;
+  padding:10px 16px;letter-spacing:0.01em;
+}}
+
+/* ===== WEBSITE PREVIEW ===== */
+.site-preview{{background:var(--bg);}}
+
+/* Browser chrome */
+.browser-chrome{{
+  background:#1e2433;padding:10px 16px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}}
+.bc-dot{{width:12px;height:12px;border-radius:50%;flex-shrink:0}}
+.bc-url{{
+  flex:1;background:#0d1117;border-radius:6px;padding:5px 14px;
+  color:#64748b;font-size:12px;font-family:monospace;
+  border:1px solid rgba(255,255,255,0.06);
+}}
+.bc-icons{{display:flex;gap:8px;color:#4a5568;font-size:14px}}
+
+/* Nav */
+.site-nav{{
+  background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);
+  padding:16px 32px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid rgba(255,255,255,0.07);
+  position:sticky;top:0;z-index:100;
+}}
+.nav-logo{{color:white;font-weight:900;font-size:18px;letter-spacing:-0.03em}}
+.nav-links{{display:flex;align-items:center;gap:28px}}
+.nav-link{{color:rgba(255,255,255,0.6);font-size:14px;font-weight:500;cursor:pointer}}
+.nav-cta{{
+  background:var(--btn);color:white;font-weight:700;
+  padding:9px 20px;border-radius:8px;font-size:14px;cursor:pointer;
+  box-shadow:0 0 20px var(--g1)55;
+}}
+
+/* Hero */
+.site-hero{{
+  background:{hero_bg},url('{pattern_svg}');
+  min-height:520px;display:flex;align-items:center;justify-content:center;
+  text-align:center;padding:80px 32px;position:relative;overflow:hidden;
+}}
+.hero-glow{{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:600px;height:600px;border-radius:50%;
+  background:radial-gradient(circle,var(--g1)22 0%,transparent 70%);
+  pointer-events:none;
+}}
+.hero-content{{position:relative;z-index:2;max-width:680px}}
+.hero-badge{{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);
+  color:var(--lgt);padding:7px 18px;border-radius:999px;
+  font-size:13px;font-weight:600;margin-bottom:24px;
+  backdrop-filter:blur(8px);
+}}
+.hero-badge-dot{{width:7px;height:7px;border-radius:50%;background:var(--acc);animation:pulse 2s infinite}}
+.hero-h1{{
+  font-size:clamp(26px,5vw,46px);font-weight:900;line-height:1.15;
+  color:white;margin-bottom:16px;letter-spacing:-0.03em;
+}}
+.hero-h1 span{{
+  background:linear-gradient(90deg,var(--acc),var(--lgt));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}}
+.hero-sub{{
+  color:rgba(255,255,255,0.65);font-size:17px;line-height:1.6;
+  margin-bottom:36px;max-width:500px;margin-left:auto;margin-right:auto;
+}}
+.hero-btns{{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:28px}}
+.hero-btn-primary{{
+  background:var(--btn);color:white;font-weight:800;font-size:16px;
+  padding:15px 32px;border-radius:12px;cursor:pointer;
+  box-shadow:0 8px 32px var(--g1)55;letter-spacing:0.01em;
+  transition:transform 0.2s;
+}}
+.hero-btn-secondary{{
+  background:rgba(255,255,255,0.08);color:white;font-weight:600;font-size:15px;
+  padding:15px 28px;border-radius:12px;cursor:pointer;
+  border:1px solid rgba(255,255,255,0.15);backdrop-filter:blur(8px);
+}}
+.hero-trust{{display:flex;align-items:center;gap:20px;justify-content:center;flex-wrap:wrap}}
+.trust-item{{color:rgba(255,255,255,0.45);font-size:13px;display:flex;align-items:center;gap:6px}}
+.trust-dot{{width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,0.25)}}
+.hero-rating{{color:var(--acc);font-size:14px;font-weight:600}}
+
+/* Services */
+.site-services{{padding:64px 32px;background:linear-gradient(180deg,var(--bg) 0%,#0d0d1a 100%)}}
+.section-head{{text-align:center;margin-bottom:40px}}
+.section-eyebrow{{color:var(--acc);font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px}}
+.section-title{{color:white;font-size:clamp(22px,3.5vw,32px);font-weight:800;letter-spacing:-0.02em}}
+.section-sub{{color:#64748b;font-size:15px;margin-top:8px}}
+.svc-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;max-width:900px;margin:0 auto}}
+.svc-card{{
+  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+  border-radius:16px;padding:28px 22px;transition:all 0.3s;cursor:default;
+  backdrop-filter:blur(8px);
+}}
+.svc-card:hover{{background:rgba(255,255,255,0.07);border-color:var(--acc)44;transform:translateY(-2px)}}
+.svc-icon{{font-size:26px;color:var(--acc);margin-bottom:14px}}
+.svc-title{{color:white;font-weight:700;font-size:16px;margin-bottom:6px}}
+.svc-desc{{color:#64748b;font-size:13px;line-height:1.5}}
+
+/* AI Widget */
+.chat-widget{{
+  position:fixed;bottom:24px;right:24px;z-index:1000;
+  display:flex;flex-direction:column;align-items:flex-end;gap:12px;
+}}
+.chat-bubble{{
+  background:white;border-radius:16px 16px 4px 16px;
+  padding:14px 18px;box-shadow:0 8px 32px rgba(0,0,0,0.35);
+  max-width:240px;color:#1e293b;font-size:14px;line-height:1.5;
+  animation:bubbleIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+  animation-delay:1.5s;opacity:0;
+}}
+.chat-bubble strong{{color:var(--btn);display:block;margin-bottom:4px;font-size:13px}}
+.chat-btn{{
+  background:linear-gradient(135deg,var(--g1),var(--g2));
+  width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:26px;cursor:pointer;box-shadow:0 8px 24px var(--g1)66;
+  animation:pulse 3s infinite;
+}}
+.chat-online{{
+  background:#22c55e;width:14px;height:14px;border-radius:50%;
+  position:absolute;bottom:2px;right:2px;border:2px solid white;
+}}
+
+/* Testimonials */
+.site-testimonials{{padding:64px 32px;background:#050508}}
+.testi-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;max-width:900px;margin:0 auto}}
+.testi-card{{
+  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+  border-radius:16px;padding:24px;
+}}
+.testi-stars{{color:#fbbf24;font-size:16px;margin-bottom:12px}}
+.testi-text{{color:#cbd5e1;font-size:14px;line-height:1.6;margin-bottom:16px;font-style:italic}}
+.testi-author{{display:flex;align-items:center;gap:10px;color:#94a3b8;font-size:13px;font-weight:500}}
+.testi-avatar{{
+  width:34px;height:34px;border-radius:50%;
+  background:linear-gradient(135deg,var(--g1),var(--g2));
+  display:flex;align-items:center;justify-content:center;
+  color:white;font-weight:700;font-size:12px;flex-shrink:0;
+}}
+
+/* Site footer */
+.site-footer{{
+  background:rgba(0,0,0,0.5);border-top:1px solid rgba(255,255,255,0.06);
+  padding:24px 32px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+}}
+.footer-logo{{color:rgba(255,255,255,0.6);font-weight:700;font-size:15px}}
+.footer-links{{display:flex;gap:20px}}
+.footer-link{{color:rgba(255,255,255,0.3);font-size:13px}}
+.footer-badge{{
+  background:var(--g1)22;border:1px solid var(--acc)44;
+  color:var(--acc);font-size:11px;font-weight:700;
+  padding:5px 12px;border-radius:999px;
+}}
+
+/* ===== NOVALIS SECTION ===== */
+.novalis-section{{background:#f1f5f9;color:#1e293b;padding:0}}
+.audit-wrap{{max-width:680px;margin:0 auto;padding:40px 20px 20px}}
+.audit-card{{background:white;border-radius:18px;padding:28px;margin-bottom:20px;box-shadow:0 2px 12px rgba(0,0,0,0.07)}}
+.audit-label{{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin-bottom:10px}}
+.audit-title{{font-size:19px;font-weight:800;color:#0f172a;margin-bottom:6px}}
+.audit-sub{{color:#64748b;font-size:14px;margin-bottom:20px}}
+.score-pill{{
+  display:inline-flex;align-items:center;gap:8px;
+  background:{score_color}18;border:1px solid {score_color}33;
+  color:{score_color};padding:7px 16px;border-radius:999px;
+  font-weight:700;font-size:14px;margin-bottom:16px;
+}}
+.issue-item{{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;color:#475569;font-size:14px}}
+.issue-x{{color:#ef4444;font-size:16px;line-height:1.4;flex-shrink:0}}
+.incl-grid{{display:grid;gap:12px}}
+.incl-item{{display:flex;align-items:flex-start;gap:14px;padding:14px;background:#f8fafc;border-radius:12px}}
+.incl-icon{{font-size:24px;line-height:1.3;flex-shrink:0}}
+.incl-title{{font-weight:700;color:#0f172a;font-size:14px;margin-bottom:3px}}
+.incl-desc{{color:#64748b;font-size:13px;line-height:1.4}}
+.final-cta-box{{
+  background:linear-gradient(135deg,#1e1b4b,#312e81,#4c1d95);
+  border-radius:20px;padding:44px 32px;text-align:center;color:white;margin-bottom:40px;
+  box-shadow:0 20px 60px rgba(79,70,229,0.3);
+}}
+.final-cta-box h2{{font-size:26px;font-weight:900;margin-bottom:10px;letter-spacing:-0.02em}}
+.final-cta-box p{{color:rgba(255,255,255,0.7);font-size:15px;line-height:1.7;margin-bottom:30px}}
+.final-btn{{
+  display:inline-block;background:white;color:#4f46e5;
+  font-weight:800;font-size:17px;padding:17px 40px;
+  border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.25);
+  letter-spacing:-0.01em;
+}}
+.final-pills{{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px}}
+.pill{{
+  background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);
+  color:rgba(255,255,255,0.75);padding:6px 16px;border-radius:999px;font-size:12px;font-weight:500;
+}}
+
+/* ===== ANIMATIONS ===== */
+@keyframes pulse{{0%,100%{{box-shadow:0 0 0 0 var(--g1)66}}50%{{box-shadow:0 0 0 12px transparent}}}}
+@keyframes bubbleIn{{from{{opacity:0;transform:translateY(10px) scale(0.95)}}to{{opacity:1;transform:none}}}}
+@keyframes fadeUp{{from{{opacity:0;transform:translateY(24px)}}to{{opacity:1;transform:none}}}}
+.fade-up{{animation:fadeUp 0.7s ease both}}
+.fade-up:nth-child(1){{animation-delay:.1s}}
+.fade-up:nth-child(2){{animation-delay:.2s}}
+.fade-up:nth-child(3){{animation-delay:.3s}}
+.fade-up:nth-child(4){{animation-delay:.4s}}
+
+@media(max-width:600px){{
+  .site-nav{{padding:12px 16px}}
+  .nav-links{{display:none}}
+  .site-hero{{padding:56px 20px;min-height:400px}}
+  .hero-btns{{flex-direction:column;align-items:center}}
+  .site-services,.site-testimonials{{padding:40px 16px}}
+  .site-footer{{padding:16px}}
+  .chat-bubble{{max-width:200px}}
+}}
 </style>
 </head>
 <body>
 
-<div class="top-bar">Rapport personnalisé préparé par <strong>Novalis IA</strong> pour {name} · {city}</div>
+<!-- TOP BAR -->
+<div class="notif-bar">
+  ✦ Rapport personnalisé préparé par Novalis IA pour <strong>{name}</strong> à {city}
+</div>
 
-<div class="wrap">
+<!-- ===== WEBSITE PREVIEW ===== -->
+<div class="site-preview">
 
-  <!-- ANALYSE ACTUELLE -->
-  <div class="card" style="margin-top:20px">
-    <div class="section-label">Étape 1 — Ce qu'on a trouvé</div>
-    <h2>L'état actuel de {name}</h2>
-    <p class="sub">Analyse de votre site web{(' · ' + rating_line) if rating else ''}</p>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
-      <div style="background:{score_color}18;border:1px solid {score_color}33;color:{score_color};padding:8px 18px;border-radius:999px;font-weight:700;font-size:14px">
-        Site web : {web_score}/5 — {score_label}
-      </div>
-    </div>
-    {'<div style="color:#475569;font-size:14px;font-style:italic;margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border-left:3px solid #e2e8f0">' + insights + '</div>' if insights else ''}
-    <ul style="list-style:none;padding:0;color:#475569;font-size:14px">
-      {issues_html}
-    </ul>
+  <!-- Browser chrome -->
+  <div class="browser-chrome">
+    <div class="bc-dot" style="background:#ff5f57"></div>
+    <div class="bc-dot" style="background:#febc2e"></div>
+    <div class="bc-dot" style="background:#28c840"></div>
+    <div class="bc-url">🔒 &nbsp;{_slugify(name)}.ca &nbsp;—&nbsp; Votre nouveau site</div>
+    <div class="bc-icons">↺ ⤡</div>
   </div>
 
-  <!-- NOUVEAU SITE -->
-  <div class="card">
-    <div class="section-label">Étape 2 — Votre nouveau site</div>
-    <h2>Voici ce qu'on ferait pour vous</h2>
-    <p class="sub">Aperçu réel de votre site modernisé — livré en 2 à 3 semaines</p>
-
-    <div class="site-frame">
-      <div class="browser-bar">
-        <div class="b-dot" style="background:#ff5f57"></div>
-        <div class="b-dot" style="background:#febc2e"></div>
-        <div class="b-dot" style="background:#28c840"></div>
-        <div class="url-bar">🔒 {name.lower().replace(' ','-')[:25]}.ca</div>
-      </div>
-      <div class="site-nav">
-        <div class="site-logo">{name[:22]}</div>
-        <div class="site-links">
-          {''.join(f'<span class="site-link">{s}</span>' for s in services_nav[:2])}
-          <span class="site-link active">{cta_text}</span>
-        </div>
-      </div>
-      <div class="site-hero">
-        <div class="site-rating">{stars_html}</div>
-        <div class="site-h1">{hero_title}</div>
-        <div class="site-sub">{hero_subtitle}</div>
-        <a class="site-cta" href="#">{cta_text} →</a><br>
-        <div class="site-trust">✓ {trust_line}</div>
-        <div class="ai-badge">⚡ Agent IA intégré — répond 24h/7j</div>
-      </div>
-      <div class="site-services">
-        {services_grid}
-      </div>
-      <div class="site-footer">
-        <div class="site-footer-logo">{name[:18]}</div>
-        <div class="site-footer-links">
-          <span class="site-footer-link">Services</span>
-          <span class="site-footer-link">Contact</span>
-          <span class="site-footer-link" style="color:{accent_light}">Réserver</span>
-        </div>
-      </div>
-    </div>
-    <p style="text-align:center;color:#94a3b8;font-size:12px;margin-top:14px">✦ Aperçu du design final — personnalisé à 100% pour {name}</p>
-  </div>
-
-  <!-- AUTOMATISATIONS -->
-  <div class="card">
-    <div class="section-label">Étape 3 — Ce qu'on automatise</div>
-    <h2>Inclus avec votre nouveau site</h2>
-    <p class="sub">Pas juste un beau site — un système complet qui travaille pour vous</p>
-    <div style="display:grid;gap:12px">
-      {auto_html}
+  <!-- Sticky nav -->
+  <div class="site-nav">
+    <div class="nav-logo">{name[:22]}</div>
+    <div class="nav-links">
+      {''.join(f'<span class="nav-link">{s}</span>' for s in services_list[:2])}
+      <span class="nav-link">À propos</span>
+      <span class="nav-cta">{cta_text}</span>
     </div>
   </div>
 
-  <!-- CTA FINAL -->
-  <div class="final-cta">
-    <h2>Voir ça pour de vrai?</h2>
-    <p>Appel de 15 minutes gratuit — on vous montre exactement ce que votre nouveau site et vos automatisations donneraient pour {name}. Zéro engagement.</p>
-    <a class="final-btn" href="tel:+15141234567">📞 Parler à Elliot — gratuit</a>
-    <div class="trust-pills">
-      <span class="pill">✓ Premier mois gratuit</span>
-      <span class="pill">✓ Aucun contrat</span>
-      <span class="pill">✓ Livré en 2-3 semaines</span>
-      <span class="pill">✓ Support inclus</span>
+  <!-- Hero -->
+  <div class="site-hero">
+    <div class="hero-glow"></div>
+    <div class="hero-content">
+      <div class="hero-badge">
+        <div class="hero-badge-dot"></div>
+        <span>Disponible 24h/7j — Réponse en 30 secondes</span>
+      </div>
+      <div class="hero-h1">{hero_title}</div>
+      <div class="hero-sub">{hero_subtitle}</div>
+      <div class="hero-btns">
+        <div class="hero-btn-primary">{cta_text} →</div>
+        <div class="hero-btn-secondary">En savoir plus</div>
+      </div>
+      <div class="hero-trust">
+        <div class="trust-item"><span>✓</span> Réponse immédiate</div>
+        <div class="trust-dot"></div>
+        <div class="trust-item"><span>✓</span> {city}</div>
+        <div class="trust-dot"></div>
+        <div class="trust-item hero-rating">{rating_text}</div>
+      </div>
     </div>
+  </div>
+
+  <!-- Services -->
+  <div class="site-services">
+    <div class="section-head">
+      <div class="section-eyebrow">Nos services</div>
+      <div class="section-title">Tout ce dont vous avez besoin</div>
+      <div class="section-sub">{trust_line}</div>
+    </div>
+    <div class="svc-grid">
+      {services_html}
+    </div>
+  </div>
+
+  <!-- Testimonials -->
+  <div class="site-testimonials">
+    <div class="section-head">
+      <div class="section-eyebrow">Témoignages</div>
+      <div class="section-title">Ce que disent nos clients</div>
+    </div>
+    <div class="testi-grid">
+      {testimonials_html}
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="site-footer">
+    <div class="footer-logo">{name[:20]}</div>
+    <div class="footer-links">
+      <span class="footer-link">Services</span>
+      <span class="footer-link">Contact</span>
+      <span class="footer-link">Réserver</span>
+    </div>
+    <div class="footer-badge">⚡ IA Intégrée</div>
   </div>
 
 </div>
+
+<!-- AI Chat Widget -->
+<div class="chat-widget">
+  <div class="chat-bubble">
+    <strong>Agent IA — {name[:18]}</strong>
+    Bonjour! Comment puis-je vous aider aujourd'hui? Je réponds 24h/7j 😊
+  </div>
+  <div class="chat-btn" style="position:relative">
+    💬
+    <div class="chat-online"></div>
+  </div>
+</div>
+
+<!-- ===== NOVALIS IA SECTION ===== -->
+<div class="novalis-section">
+  <div class="audit-wrap">
+
+    <!-- Audit -->
+    <div class="audit-card">
+      <div class="audit-label">Ce qu'on a analysé</div>
+      <div class="audit-title">L'état actuel de {name}</div>
+      <div class="audit-sub">Analyse automatique de votre site web et de vos avis en ligne</div>
+      <div class="score-pill">Site actuel : {web_score}/5 — {score_label}</div>
+      {'<div style="color:#64748b;font-size:14px;font-style:italic;margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border-left:3px solid #e2e8f0">' + insights + '</div>' if insights else ''}
+      {issues_html}
+    </div>
+
+    <!-- Inclus -->
+    <div class="audit-card">
+      <div class="audit-label">Ce qui est inclus</div>
+      <div class="audit-title">Votre système complet</div>
+      <div class="audit-sub">Pas juste un site — un vrai moteur de croissance automatisé</div>
+      <div class="incl-grid">
+        {included_html}
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="final-cta-box">
+      <h2>Voulez-vous ce site pour de vrai?</h2>
+      <p>Appelez Elliot gratuitement — 15 minutes pour voir exactement ce que votre nouveau site et votre agent IA donneraient pour {name}. Aucun engagement, premier mois gratuit.</p>
+      <a class="final-btn" href="tel:+15141234567">📞 Parler à Elliot maintenant</a>
+      <div class="final-pills">
+        <span class="pill">✓ Premier mois gratuit</span>
+        <span class="pill">✓ Aucun contrat</span>
+        <span class="pill">✓ Livré en 2-3 semaines</span>
+        <span class="pill">✓ Support inclus</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// Fade-up on scroll
+const observer = new IntersectionObserver((entries) => {{
+  entries.forEach(e => {{ if(e.isIntersecting) e.target.classList.add('visible'); }});
+}}, {{threshold:0.1}});
+document.querySelectorAll('.svc-card,.testi-card,.incl-item').forEach(el => {{
+  el.style.opacity='0';el.style.transform='translateY(20px)';el.style.transition='all 0.5s ease';
+  observer.observe(el);
+}});
+document.addEventListener('DOMContentLoaded',()=>{{
+  document.querySelectorAll('.svc-card,.testi-card,.incl-item').forEach(el=>{{
+    const io=new IntersectionObserver(entries=>{{
+      entries.forEach(e=>{{
+        if(e.isIntersecting){{
+          e.target.style.opacity='1';e.target.style.transform='none';
+          io.unobserve(e.target);
+        }}
+      }});
+    }},{{threshold:0.1}});
+    io.observe(el);
+  }});
+}});
+</script>
+
 </body>
 </html>"""
     return HTMLResponse(html)
