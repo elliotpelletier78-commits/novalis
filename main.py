@@ -139,6 +139,7 @@ VERSION = "8.1"
 _refresh_job = {"running": False, "saved": 0, "done": False, "error": "", "started_at": ""}
 
 _sent_emails_session: set = set()  # emails envoyés depuis le dernier démarrage (anti-doublon)
+_claude_semaphore: asyncio.Semaphore = asyncio.Semaphore(20)  # max 20 appels Claude simultanés
 
 from collections import deque
 _discovery_events: deque = deque(maxlen=300)  # flux live des découvertes PME
@@ -5863,14 +5864,15 @@ Si need_score < 5: retourne SEULEMENT {{"need_score": X, "skip": true, "reason":
 }}"""
     try:
         loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(
-            None,
-            lambda: claude_client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=2400,
-                messages=[{"role": "user", "content": prompt}]
+        async with _claude_semaphore:
+            response = await loop.run_in_executor(
+                None,
+                lambda: claude_client.messages.create(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=2400,
+                    messages=[{"role": "user", "content": prompt}]
+                )
             )
-        )
         raw = response.content[0].text.strip()
         if "```json" in raw:
             raw = raw.split("```json")[1].split("```")[0].strip()
