@@ -7848,6 +7848,7 @@ async def outreach_send_now(username: str = Depends(verify_admin)):
             LIMIT 3
         """)
         prospects = [dict(r) for r in await cursor.fetchall()]
+    debug = {"total_new": total_new, "with_email": with_email, "not_yet_sent": not_sent, "ready_to_send": ready, "sent": [], "errors": []}
     # If no prospects with generated emails, generate them now
     if not prospects:
         async with aiosqlite.connect(DB_PATH) as db:
@@ -7879,7 +7880,6 @@ async def outreach_send_now(username: str = Depends(verify_admin)):
                     debug["errors"].append(f"{p['name']}: Claude skip (score {emails.get('need_score','?')})")
             except Exception as e:
                 debug["errors"].append(f"{p['name']}: {str(e)}")
-    debug = {"total_new": total_new, "with_email": with_email, "not_yet_sent": not_sent, "ready_to_send": ready, "sent": [], "errors": []}
     for p in prospects:
         try:
             emails = json.loads(p.get("generated_emails") or "{}")
@@ -7921,7 +7921,11 @@ async def outreach_send_now(username: str = Depends(verify_admin)):
             _auto_outreach["last_prospect"] = f"{p['name']} ({p['city']})"
             debug["sent"].append(f"{p['name']} → {p['email']}")
         except Exception as e:
-            debug["errors"].append(f"{p['name']}: {str(e)}")
+            err_msg = str(e)
+            debug["errors"].append(f"{p['name']}: {err_msg}")
+            logging.error(f"send-now erreur {p.get('name','?')} <{p.get('email','?')}>: {err_msg}")
+    debug["resend_from"] = FROM_EMAIL
+    debug["smtp_host"] = SMTP_HOST or "non configuré"
     return debug
 
 
