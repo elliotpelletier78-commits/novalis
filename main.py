@@ -874,6 +874,19 @@ async function sendNow(btn){{
     }}catch(e){{showNotice('❌ '+e.message,true);}}
     btn.textContent=orig;btn.disabled=false;
 }}
+async function debugBatch(btn){{
+    const orig=btn.textContent; btn.textContent='⏳ Diagnostic...'; btn.disabled=true;
+    const el=document.getElementById('disc_test_result');
+    try{{
+        const r=await fetch('/api/admin/debug-batch',{{method:'POST'}});
+        const d=await r.json();
+        const steps=d.steps||[];
+        el.innerHTML='<br>'+steps.map(s=>'<div style="font-family:monospace;font-size:0.78rem;color:'+(s.includes('ERREUR')?'#ef4444':s.includes('OK')?'#34d399':'#94a3b8')+';">'+escH(s)+'</div>').join('')+(d.error?'<div style="color:#ef4444;font-weight:600;">❌ '+escH(d.error)+'</div>':'');
+        el.style.color='#94a3b8';
+        loadAutoOutreachStatus();
+    }}catch(e){{el.textContent='❌ '+e.message;}}
+    btn.textContent=orig; btn.disabled=false;
+}}
 async function toggleAutoOutreach(){{
     await fetch('/api/admin/auto-outreach/toggle',{{method:'POST'}});
     await loadAutoOutreachStatus();
@@ -7189,7 +7202,83 @@ async def test_discovery(username: str = Depends(verify_admin)):
     return results
 
 
-@app.post("/api/admin/auto-outreach/send-now")
+@app.post("/api/admin/debug-batch")
+async def debug_batch(username: str = Depends(verify_admin)):
+    """Lance UN batch de découverte et retourne les résultats détaillés + erreurs."""
+    import traceback as _tb
+    report = {"steps": [], "saved": 0, "error": ""}
+    try:
+        import random as _r2
+        city, industry = _r2.choice(_DISCOVERY_TARGETS)
+        report["steps"].append(f"1. Cible: {city} / {industry}")
+
+        # Google Places
+        loop = asyncio.get_event_loop()
+        gp = await loop.run_in_executor(None, _google_places_search_sync, city, industry, 5)
+        report["steps"].append(f"2. Google Places: {len(gp)} résultats")
+        if not gp:
+            report["error"] = "0 résultats Google Places"
+            return report
+
+        # Scraping
+        biz0 = gp[0]
+        website = biz0.get("url", "")
+        report["steps"].append(f"3. Test scraping: {website or '(pas de site)'}")
+        sc = await loop.run_in_executor(None, _scrape_business_website, website)
+        report["steps"].append(f"4. Scraping: email={sc.get('email','')!r} score={sc.get('web_score','?')} err={sc.get('error','')}")
+
+        # Email generation
+        b = {"name": biz0.get("name","?"), "website": website, "city": city, "industry": industry,
+             "email": sc.get("email",""), "email_quality": sc.get("email_quality","none"),
+             "phone": biz0.get("phone","") or sc.get("phone",""),
+             "site_text": sc.get("text",""), "web_score": sc.get("web_score",5),
+             "web_issues": sc.get("web_issues",[]), "brand_meta": sc.get("brand_meta",{}),
+             "research": {"snippets":"","rating":"","review_count":""}}
+        try:
+            emails = await _generate_prospect_emails_claude(b)
+            report["steps"].append(f"5. Claude: skip={emails.get('skip')} need_score={emails.get('need_score','?')} has_email1={bool(emails.get('email1'))}")
+        except Exception as e:
+            report["steps"].append(f"5. Claude ERREUR: {e}")
+            emails = _make_template_email(b)
+
+        if emails.get("skip") or not emails.get("email1"):
+            emails = _make_template_email(b)
+            report["steps"].append("5b. Fallback template email utilisé")
+
+        # DB save
+        try:
+            rid = str(uuid.uuid4())
+            now = datetime.now().isoformat()
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute("""
+                    INSERT OR IGNORE INTO prospect_bank
+                    (id, name, website, city, industry, email, email_quality, phone,
+                     web_score, web_issues, insights, pain_points, rating, review_count,
+                     generated_emails, has_refonte, status, search_key, brand_meta, created_at, updated_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """, (rid, b["name"], b["website"], b["city"], b["industry"],
+                      b["email"], b["email_quality"], b["phone"], b["web_score"],
+                      json.dumps(b["web_issues"]), emails.get("insights",""),
+                      json.dumps(emails.get("pain_points",[])), b["research"].get("rating",""),
+                      b["research"].get("review_count",""), json.dumps(emails),
+                      1 if emails.get("email_refonte") else 0,
+                      "ready", f"{city}|{industry}",
+                      json.dumps(b.get("brand_meta",{})), now, now))
+                await db.commit()
+                c = await db.execute("SELECT COUNT(*) FROM prospect_bank WHERE status='ready'")
+                cnt = (await c.fetchone())[0]
+            report["steps"].append(f"6. DB save OK → banque maintenant: {cnt}")
+            report["saved"] = 1
+        except Exception as e:
+            report["steps"].append(f"6. DB ERREUR: {e}\n{_tb.format_exc()[-400:]}")
+            report["error"] = str(e)
+    except Exception as e:
+        report["error"] = str(e)
+        report["steps"].append(f"ERREUR GLOBALE: {_tb.format_exc()[-400:]}")
+    return report
+
+
+
 async def outreach_send_now(username: str = Depends(verify_admin)):
     """Force immediate send of up to 3 emails — bypasses the 20-min timer. Returns debug info."""
     if not RESEND_API_KEY and (not SMTP_HOST or not SMTP_USER):
@@ -7668,7 +7757,10 @@ async def dashboard(username: str = Depends(verify_admin)):
             <!-- DÉCOUVERTE DE PMEs -->
             <div class="view" id="decouverte">
                 <div id="outreach_panel" style="background:#0f1a2b;border:1px solid #1e3a5f;border-radius:12px;padding:20px 24px;margin-bottom:20px;"></div>
-                <div style="margin-bottom:16px;"><button onclick="testDiscovery(this)" style="background:#0f2d4a;color:#38bdf8;border:1px solid #1e3a5f;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:0.85rem;font-weight:600;">🧪 Tester la découverte Google Places</button> <span id="disc_test_result" style="font-size:0.82rem;color:#94a3b8;margin-left:10px;"></span></div>
+                <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                <button onclick="testDiscovery(this)" style="background:#0f2d4a;color:#38bdf8;border:1px solid #1e3a5f;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:0.85rem;font-weight:600;">🧪 Tester Google Places</button>
+                <button onclick="debugBatch(this)" style="background:#1a1040;color:#c084fc;border:1px solid #4c1d95;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:0.85rem;font-weight:600;">🔬 Diagnostic complet</button>
+                <span id="disc_test_result" style="font-size:0.82rem;color:#94a3b8;"></span></div>
                 <h2 style="color:#38bdf8;margin-bottom:4px;">🔍 Découverte automatique de PMEs</h2>
                 <p style="color:#64748b;font-size:0.8rem;margin-bottom:16px;">Novalis cherche automatiquement des PMEs québécoises qui ont besoin de vous — sites désuets, mauvais avis, opportunités IA. Cliquez "Contacté" ou "Ignorer" pour chaque suggestion, puis Refresh pour en obtenir de nouvelles.</p>
 
