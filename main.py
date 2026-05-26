@@ -2086,6 +2086,7 @@ async def init_db():
             "ALTER TABLE prospect_suggestions ADD COLUMN sms_sent_at TEXT DEFAULT ''",
             "ALTER TABLE prospect_suggestions ADD COLUMN brand_meta TEXT DEFAULT '{}'",
             "ALTER TABLE prospect_bank ADD COLUMN brand_meta TEXT DEFAULT '{}'",
+            "ALTER TABLE prospect_bank ADD COLUMN email_sent_at TEXT DEFAULT ''",
         ]:
             try:
                 await db.execute(_col_sql)
@@ -2414,6 +2415,12 @@ async def startup():
         if row and row[0] == "1":
             _auto_outreach["enabled"] = True
             logger.info("Auto-outreach: état restauré → EN MARCHE")
+        elif row is None and (RESEND_API_KEY or (SMTP_HOST and SMTP_USER)):
+            # First boot with email configured — auto-enable
+            _auto_outreach["enabled"] = True
+            await db.execute("INSERT OR REPLACE INTO app_settings (key,value) VALUES ('auto_outreach_enabled','1')")
+            await db.commit()
+            logger.info("Auto-outreach: activé automatiquement (email configuré)")
         # Charger tous les emails déjà contactés pour éviter les doublons
         c = await db.execute("SELECT LOWER(email) FROM prospect_suggestions WHERE email_sent_at != '' AND email_sent_at IS NOT NULL AND email != ''")
         for (em,) in await c.fetchall():
@@ -7310,6 +7317,7 @@ async def _run_refresh_job():
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 """SELECT * FROM prospect_bank WHERE status='ready'
+                     AND (email_sent_at IS NULL OR email_sent_at = '')
                    ORDER BY
                      CASE WHEN email != '' AND email IS NOT NULL THEN 0 ELSE 1 END,
                      web_score ASC, created_at DESC
@@ -7325,15 +7333,17 @@ async def _run_refresh_job():
                         INSERT OR IGNORE INTO prospect_suggestions
                         (id, name, website, city, industry, email, email_quality, phone,
                          web_score, web_issues, insights, pain_points, rating, review_count,
-                         generated_emails, has_refonte, status, search_key, created_at, updated_at)
-                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                         generated_emails, has_refonte, status, search_key, brand_meta,
+                         email_sent_at, created_at, updated_at)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                     """, (
                         d["id"], d["name"], d["website"], d["city"], d["industry"],
                         d["email"], d["email_quality"], d["phone"],
                         d["web_score"], d["web_issues"], d["insights"],
                         d["pain_points"], d["rating"], d["review_count"],
                         d["generated_emails"], d["has_refonte"],
-                        "new", d["search_key"], now, now,
+                        "new", d["search_key"], d.get("brand_meta", "{}"),
+                        d.get("email_sent_at", ""), now, now,
                     ))
                     await db.execute(
                         "UPDATE prospect_bank SET status='used', updated_at=? WHERE id=?",
@@ -7780,6 +7790,7 @@ async def debug_batch(username: str = Depends(verify_admin)):
 
 
 
+@app.post("/api/admin/auto-outreach/send-now")
 async def outreach_send_now(username: str = Depends(verify_admin)):
     """Force immediate send of up to 3 emails — bypasses the 20-min timer. Returns debug info."""
     if not RESEND_API_KEY and (not SMTP_HOST or not SMTP_USER):
@@ -7857,7 +7868,14 @@ async def outreach_send_now(username: str = Depends(verify_admin)):
                     debug["errors"].append(f"{p['name']}: déjà contacté — ignoré")
                     continue
             unsubscribe_url = f"https://novalisia.ca/unsubscribe?id={p['id']}"
-            html_body = f"<div style='font-family:sans-serif;font-size:15px;line-height:1.8;color:#222;max-width:600px;'>{email1['body'].replace(chr(10),'<br>')}<br><br><hr style='border:none;border-top:1px solid #eee;margin:24px 0;'><p style='font-size:11px;color:#999;'>Novalis IA — Québec | <a href='{unsubscribe_url}' style='color:#999;'>Se désabonner</a></p></div>"
+            _slug2 = _slugify(p.get("name", "entreprise"))
+            _preview_url2 = f"https://novalisia.ca/preview/{_slug2}/{p['id']}"
+            _body2 = email1["body"].replace("{PROSPECT_ID}", f"{_slug2}/{p['id']}")
+            _body2_html = _body2.replace(
+                f"novalisia.ca/preview/{_slug2}/{p['id']}",
+                f'<a href="{_preview_url2}" style="color:#4f46e5;font-weight:600">{_preview_url2}</a>'
+            )
+            html_body = f"<div style='font-family:sans-serif;font-size:15px;line-height:1.8;color:#222;max-width:600px;'>{_body2_html.replace(chr(10),'<br>')}<br><br><hr style='border:none;border-top:1px solid #eee;margin:24px 0;'><p style='font-size:11px;color:#999;'>Novalis IA — Québec | <a href='{unsubscribe_url}' style='color:#999;'>Se désabonner</a></p></div>"
             await send_email(p["email"], email1["subject"], html_body)
             _sent_emails_session.add(email_addr)
             now = datetime.now().isoformat()
