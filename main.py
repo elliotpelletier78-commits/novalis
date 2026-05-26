@@ -2325,19 +2325,7 @@ async def _auto_outreach_loop():
                     _slug = _slugify(p.get("name", "entreprise"))
                     preview_url = f"https://novalisia.ca/preview/{_slug}/{p['id']}"
                     body_text = email1["body"].replace("{PROSPECT_ID}", f"{_slug}/{p['id']}")
-                    body_html = body_text.replace(
-                        f"novalisia.ca/preview/{_slug}/{p['id']}",
-                        f'<a href="{preview_url}" style="color:#4f46e5;font-weight:600">{preview_url}</a>'
-                    )
-                    html_body = f"""<div style="font-family:sans-serif;font-size:15px;line-height:1.8;color:#222;max-width:600px;">
-{body_html.replace(chr(10), '<br>')}
-<br><br>
-<hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
-<p style="font-size:11px;color:#999;">
-Novalis IA — Québec, Canada | novalisproia@gmail.com<br>
-<a href="{unsubscribe_url}" style="color:#999;">Se désabonner</a>
-</p>
-</div>"""
+                    html_body = _build_prospect_email_html(body_text, preview_url, unsubscribe_url, p.get("name", ""))
 
                     # Triple vérification anti-doublon
                     email_addr = p["email"].strip().lower()
@@ -6194,6 +6182,48 @@ def _slugify(text: str) -> str:
     return text[:40]
 
 
+def _build_prospect_email_html(plain_body: str, preview_url: str, unsubscribe_url: str, biz_name: str) -> str:
+    """Construit un email HTML professionnel depuis le corps texte généré par Claude."""
+    import re as _re
+    # Retire la ligne du lien brut (👉 novalisia.ca/preview/...)
+    clean = _re.sub(r'👉\s*\S*novalisia\.ca/preview/\S+', '', plain_body)
+    # Retire la signature Claude (L'équipe Novalis IA...)
+    clean = _re.sub(r"\n?L['']équipe Novalis.*", "", clean, flags=_re.S | _re.I).strip()
+    # Convertit en paragraphes HTML
+    paragraphs = [p.strip() for p in _re.split(r'\n{2,}', clean) if p.strip()]
+    paras_html = "\n".join(
+        f'<p style="margin:0 0 16px 0;color:#374151;font-size:15px;line-height:1.75;">{p.replace(chr(10), "<br>")}</p>'
+        for p in paragraphs
+    )
+    safe_name = biz_name.replace("<", "&lt;").replace(">", "&gt;")
+    return f"""<div style="max-width:580px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <div style="background:#0f172a;padding:18px 28px;border-radius:8px 8px 0 0;">
+    <span style="color:#f1f5f9;font-size:1rem;font-weight:700;letter-spacing:0.5px;">Novalis IA</span>
+    <span style="color:#475569;font-size:0.78rem;margin-left:10px;">Design web · Québec</span>
+  </div>
+  <div style="padding:30px 28px 20px;background:#ffffff;border:1px solid #e2e8f0;border-top:none;">
+    {paras_html}
+    <div style="margin:28px 0 8px;text-align:center;">
+      <a href="{preview_url}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:7px;font-size:0.95rem;font-weight:600;letter-spacing:0.2px;">
+        Voir votre nouveau site &rarr;
+      </a>
+      <div style="margin-top:10px;font-size:0.73rem;color:#94a3b8;">Aperçu conçu spécialement pour <strong>{safe_name}</strong></div>
+    </div>
+  </div>
+  <div style="padding:20px 28px;background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;">
+    <div style="font-size:0.85rem;color:#475569;line-height:1.8;">
+      <strong style="color:#1e293b;">Elliot Pelletier</strong><br>
+      Fondateur — Novalis IA<br>
+      <a href="https://novalisia.ca" style="color:#2563eb;text-decoration:none;">novalisia.ca</a>&nbsp;&nbsp;·&nbsp;&nbsp;novalisproia@gmail.com
+    </div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:0.68rem;color:#94a3b8;line-height:1.6;">
+      Vous recevez ce message car votre entreprise est publiquement accessible en ligne. Nous avons analysé votre site spécifiquement — ce n'est pas un envoi générique.<br>
+      <a href="{unsubscribe_url}" style="color:#94a3b8;">Se désabonner</a>
+    </div>
+  </div>
+</div>"""
+
+
 def _make_template_email(biz: dict) -> dict:
     name = biz.get("name", "votre entreprise")
     city = biz.get("city", "Québec")
@@ -7055,19 +7085,7 @@ async def _try_send_now(prospect_id: str, table: str, name: str, email: str, cit
     _slug = _slugify(name)
     preview_url = f"https://novalisia.ca/preview/{_slug}/{prospect_id}"
     body_text = email1["body"].replace("{PROSPECT_ID}", f"{_slug}/{prospect_id}")
-    body_html = body_text.replace(
-        f"novalisia.ca/preview/{_slug}/{prospect_id}",
-        f'<a href="{preview_url}" style="color:#4f46e5;font-weight:600">{preview_url}</a>'
-    )
-    html_body = f"""<div style="font-family:sans-serif;font-size:15px;line-height:1.8;color:#222;max-width:600px;">
-{body_html.replace(chr(10), '<br>')}
-<br><br>
-<hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
-<p style="font-size:11px;color:#999;">
-Novalis IA — Québec, Canada | novalisproia@gmail.com<br>
-<a href="{unsubscribe_url}" style="color:#999;">Se désabonner</a>
-</p>
-</div>"""
+    html_body = _build_prospect_email_html(body_text, preview_url, unsubscribe_url, name)
     try:
         await send_email(email, email1["subject"], html_body)
         _sent_emails_session.add(email_addr)
@@ -7921,11 +7939,7 @@ async def outreach_send_now(username: str = Depends(verify_admin)):
             _slug2 = _slugify(p.get("name", "entreprise"))
             _preview_url2 = f"https://novalisia.ca/preview/{_slug2}/{p['id']}"
             _body2 = email1["body"].replace("{PROSPECT_ID}", f"{_slug2}/{p['id']}")
-            _body2_html = _body2.replace(
-                f"novalisia.ca/preview/{_slug2}/{p['id']}",
-                f'<a href="{_preview_url2}" style="color:#4f46e5;font-weight:600">{_preview_url2}</a>'
-            )
-            html_body = f"<div style='font-family:sans-serif;font-size:15px;line-height:1.8;color:#222;max-width:600px;'>{_body2_html.replace(chr(10),'<br>')}<br><br><hr style='border:none;border-top:1px solid #eee;margin:24px 0;'><p style='font-size:11px;color:#999;'>Novalis IA — Québec | <a href='{unsubscribe_url}' style='color:#999;'>Se désabonner</a></p></div>"
+            html_body = _build_prospect_email_html(_body2, _preview_url2, unsubscribe_url, p.get("name", ""))
             await send_email(p["email"], email1["subject"], html_body)
             _sent_emails_session.add(email_addr)
             now = datetime.now().isoformat()
