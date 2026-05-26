@@ -5575,7 +5575,7 @@ def _ddg_search_sync(query: str, max_results: int = 15) -> list:
 
 
 def _score_website_quality(html: str, url: str) -> dict:
-    """Heuristic quality score 1-5 for a business website. Lower = better rebuild opportunity."""
+    """Score 1-5 for website quality. Lower = worse = better rebuild opportunity."""
     score = 5
     issues = []
     try:
@@ -5583,33 +5583,77 @@ def _score_website_quality(html: str, url: str) -> dict:
         soup = BeautifulSoup(html, "html.parser")
         hl = html.lower()
 
+        # HTTPS — critique en 2026
         if not url.startswith("https://"):
-            score -= 1; issues.append("Pas de HTTPS")
+            score -= 2; issues.append("Site non sécurisé (pas HTTPS)")
 
+        # Mobile — 80% des clients sont sur mobile
         if not soup.find("meta", attrs={"name": re.compile(r"viewport", re.I)}):
-            score -= 1; issues.append("Pas mobile-friendly")
+            score -= 2; issues.append("Non adapté aux téléphones mobiles")
 
+        # HTML sémantique moderne
         modern = sum(1 for t in ["<nav", "<header", "<footer", "<section", "<article", "<main"] if t in hl)
         if modern < 2:
-            score -= 1; issues.append("HTML ancien (pré-2015)")
+            score -= 1; issues.append("Structure HTML désuète (avant 2015)")
 
-        if hl.count("<table") > 4:
-            score -= 1; issues.append("Mise en page avec tableaux")
+        # Mise en page avec tableaux — signe d'un site très vieux
+        if hl.count("<table") > 3:
+            score -= 2; issues.append("Mise en page avec tableaux HTML")
+        elif hl.count("<table") > 1:
+            score -= 1; issues.append("Utilise des tableaux pour la mise en page")
 
+        # Contenu insuffisant
         text_len = len(soup.get_text(strip=True))
-        if text_len < 400:
-            score -= 1; issues.append("Contenu très limité")
+        if text_len < 300:
+            score -= 2; issues.append("Site presque vide (contenu très limité)")
+        elif text_len < 700:
+            score -= 1; issues.append("Contenu insuffisant pour le SEO")
 
+        # Année du copyright
         m = re.search(r"©\s*(\d{4})", html)
-        if m and int(m.group(1)) < 2019:
-            score = min(score, 3); issues.append(f"Pas mis à jour depuis {m.group(1)}")
+        if m:
+            yr = int(m.group(1))
+            if yr < 2018:
+                score -= 2; issues.append(f"Site non mis à jour depuis {yr}")
+            elif yr < 2022:
+                score -= 1; issues.append(f"Design vieillissant (dernière MAJ {yr})")
 
-        if any(fw in hl for fw in ["bootstrap", "tailwind", "react", "vue.js", "next.js", "elementor"]):
+        # Vieux WordPress / CMS obsolètes
+        wp_gen = soup.find("meta", attrs={"name": "generator"})
+        if wp_gen:
+            gen_c = wp_gen.get("content", "").lower()
+            if "wordpress" in gen_c:
+                mv = re.search(r"wordpress (\d+)\.(\d+)", gen_c)
+                if mv and int(mv.group(1)) < 6:
+                    score -= 1; issues.append("WordPress non mis à jour")
+            elif any(b in gen_c for b in ["joomla", "drupal 7", "drupal 8", "weebly"]):
+                score -= 1; issues.append("CMS obsolète")
+
+        # jQuery 1.x — technologie désuète
+        if re.search(r'jquery[./_-]1\.[0-8][\._-]', hl):
+            score -= 1; issues.append("Technologie obsolète (jQuery 1.x)")
+
+        # Flash (mort depuis 2020)
+        if "swfobject" in hl or ".swf" in hl or "flashplayer" in hl:
+            score -= 2; issues.append("Utilise Flash (technologie morte)")
+
+        # Pas de formulaire ni lien tel: — difficile de contacter le commerce
+        has_form = bool(soup.find("form"))
+        has_tel = "tel:" in hl
+        if not has_form and not has_tel:
+            score -= 1; issues.append("Aucun moyen de contact en ligne")
+
+        # Très peu d'images — site dénudé
+        if len(soup.find_all("img")) < 2:
+            score -= 1; issues.append("Aucune image / présence visuelle nulle")
+
+        # Frameworks modernes = bonus
+        if any(fw in hl for fw in ["tailwind", "react", "vue.js", "next.js", "nuxt", "gatsby", "astro"]):
             score = min(5, score + 1)
 
     except Exception:
         pass
-    return {"score": max(1, min(5, score)), "issues": issues[:4]}
+    return {"score": max(1, min(5, score)), "issues": issues[:5]}
 
 
 def _extract_brand_meta(html: str, base_url: str) -> dict:
@@ -6483,6 +6527,91 @@ _DISCOVERY_TARGETS = [
     ("Saint-Georges", "garderie"), ("Saint-Georges", "gym"),
     ("Saint-Georges", "esthéticienne"), ("Saint-Georges", "vétérinaire"),
     ("Saint-Georges", "mécanicien"), ("Saint-Georges", "toiture"),
+    # ── Métiers (très haute proportion de sites désuets) ──────────────────────
+    # Ces industries ont les sites les plus vieux du Québec
+    ("Montréal", "menuisier"), ("Laval", "menuisier"), ("Longueuil", "menuisier"),
+    ("Québec", "menuisier"), ("Sherbrooke", "menuisier"), ("Trois-Rivières", "menuisier"),
+    ("Montréal", "couvreur"), ("Laval", "couvreur"), ("Longueuil", "couvreur"),
+    ("Québec", "couvreur"), ("Sherbrooke", "couvreur"), ("Gatineau", "couvreur"),
+    ("Montréal", "excavation"), ("Laval", "excavation"), ("Longueuil", "excavation"),
+    ("Québec", "excavation"), ("Sherbrooke", "excavation"),
+    ("Montréal", "paysagiste"), ("Laval", "paysagiste"), ("Longueuil", "paysagiste"),
+    ("Québec", "paysagiste"), ("Sherbrooke", "paysagiste"), ("Gatineau", "paysagiste"),
+    ("Montréal", "vitrier"), ("Laval", "vitrier"), ("Québec", "vitrier"),
+    ("Montréal", "ferblantier"), ("Laval", "ferblantier"), ("Québec", "ferblantier"),
+    ("Montréal", "maçon"), ("Laval", "maçon"), ("Québec", "maçon"),
+    ("Montréal", "carrossier"), ("Laval", "carrossier"), ("Québec", "carrossier"),
+    ("Montréal", "entrepreneur général"), ("Laval", "entrepreneur général"),
+    ("Québec", "entrepreneur général"), ("Sherbrooke", "entrepreneur général"),
+    ("Montréal", "réfrigération HVAC"), ("Laval", "réfrigération HVAC"),
+    ("Québec", "réfrigération HVAC"), ("Sherbrooke", "réfrigération HVAC"),
+    ("Montréal", "soudeur"), ("Laval", "soudeur"), ("Québec", "soudeur"),
+    ("Montréal", "terrassement"), ("Laval", "terrassement"), ("Québec", "terrassement"),
+    ("Montréal", "rénovation"), ("Laval", "rénovation"), ("Longueuil", "rénovation"),
+    ("Québec", "rénovation"), ("Sherbrooke", "rénovation"), ("Gatineau", "rénovation"),
+    # ── Petites villes (sites souvent vieux de 10+ ans) ───────────────────────
+    ("Joliette", "garage automobile"), ("Joliette", "plombier"), ("Joliette", "électricien"),
+    ("Joliette", "salon de coiffure"), ("Joliette", "restaurant"), ("Joliette", "toiture"),
+    ("Joliette", "peintre"), ("Joliette", "nettoyage"), ("Joliette", "menuisier"),
+    ("Sorel-Tracy", "garage automobile"), ("Sorel-Tracy", "plombier"), ("Sorel-Tracy", "électricien"),
+    ("Sorel-Tracy", "salon de coiffure"), ("Sorel-Tracy", "restaurant"), ("Sorel-Tracy", "toiture"),
+    ("Sorel-Tracy", "peintre"), ("Sorel-Tracy", "nettoyage"), ("Sorel-Tracy", "menuisier"),
+    ("Saint-Hyacinthe", "garage automobile"), ("Saint-Hyacinthe", "plombier"),
+    ("Saint-Hyacinthe", "salon de coiffure"), ("Saint-Hyacinthe", "restaurant"),
+    ("Saint-Hyacinthe", "toiture"), ("Saint-Hyacinthe", "peintre"),
+    ("Saint-Hyacinthe", "nettoyage"), ("Saint-Hyacinthe", "clinique dentaire"),
+    ("Rimouski", "garage automobile"), ("Rimouski", "plombier"), ("Rimouski", "électricien"),
+    ("Rimouski", "salon de coiffure"), ("Rimouski", "restaurant"), ("Rimouski", "toiture"),
+    ("Rimouski", "peintre"), ("Rimouski", "nettoyage"), ("Rimouski", "menuisier"),
+    ("Baie-Comeau", "garage automobile"), ("Baie-Comeau", "plombier"),
+    ("Baie-Comeau", "salon de coiffure"), ("Baie-Comeau", "restaurant"),
+    ("Baie-Comeau", "toiture"), ("Baie-Comeau", "électricien"),
+    ("Alma", "garage automobile"), ("Alma", "plombier"), ("Alma", "électricien"),
+    ("Alma", "salon de coiffure"), ("Alma", "restaurant"), ("Alma", "toiture"),
+    ("Sept-Îles", "garage automobile"), ("Sept-Îles", "plombier"),
+    ("Sept-Îles", "salon de coiffure"), ("Sept-Îles", "restaurant"), ("Sept-Îles", "toiture"),
+    ("Shawinigan", "garage automobile"), ("Shawinigan", "plombier"), ("Shawinigan", "électricien"),
+    ("Shawinigan", "salon de coiffure"), ("Shawinigan", "restaurant"), ("Shawinigan", "toiture"),
+    ("Shawinigan", "peintre"), ("Shawinigan", "nettoyage"), ("Shawinigan", "menuisier"),
+    ("Thetford Mines", "garage automobile"), ("Thetford Mines", "plombier"),
+    ("Thetford Mines", "salon de coiffure"), ("Thetford Mines", "restaurant"),
+    ("Thetford Mines", "toiture"), ("Thetford Mines", "peintre"),
+    ("Cowansville", "garage automobile"), ("Cowansville", "plombier"),
+    ("Cowansville", "salon de coiffure"), ("Cowansville", "restaurant"), ("Cowansville", "toiture"),
+    ("Vaudreuil-Dorion", "garage automobile"), ("Vaudreuil-Dorion", "plombier"),
+    ("Vaudreuil-Dorion", "salon de coiffure"), ("Vaudreuil-Dorion", "restaurant"),
+    ("Vaudreuil-Dorion", "toiture"), ("Vaudreuil-Dorion", "clinique dentaire"),
+    ("Châteauguay", "garage automobile"), ("Châteauguay", "plombier"),
+    ("Châteauguay", "salon de coiffure"), ("Châteauguay", "restaurant"),
+    ("Châteauguay", "toiture"), ("Châteauguay", "nettoyage"),
+    ("Repentigny", "garage automobile"), ("Repentigny", "plombier"),
+    ("Repentigny", "salon de coiffure"), ("Repentigny", "restaurant"),
+    ("Repentigny", "toiture"), ("Repentigny", "clinique dentaire"),
+    ("Terrebonne", "garage automobile"), ("Terrebonne", "plombier"),
+    ("Terrebonne", "salon de coiffure"), ("Terrebonne", "restaurant"),
+    ("Terrebonne", "toiture"), ("Terrebonne", "nettoyage"),
+    ("Mascouche", "garage automobile"), ("Mascouche", "plombier"),
+    ("Mascouche", "salon de coiffure"), ("Mascouche", "restaurant"), ("Mascouche", "toiture"),
+    ("Saint-Eustache", "garage automobile"), ("Saint-Eustache", "plombier"),
+    ("Saint-Eustache", "salon de coiffure"), ("Saint-Eustache", "restaurant"),
+    ("Saint-Eustache", "toiture"), ("Saint-Eustache", "peintre"),
+    ("Sainte-Thérèse", "garage automobile"), ("Sainte-Thérèse", "plombier"),
+    ("Sainte-Thérèse", "salon de coiffure"), ("Sainte-Thérèse", "restaurant"),
+    ("Candiac", "garage automobile"), ("Candiac", "plombier"), ("Candiac", "restaurant"),
+    ("Boucherville", "garage automobile"), ("Boucherville", "plombier"),
+    ("Boucherville", "salon de coiffure"), ("Boucherville", "restaurant"),
+    ("Varennes", "garage automobile"), ("Varennes", "plombier"), ("Varennes", "restaurant"),
+    ("Sainte-Julie", "garage automobile"), ("Sainte-Julie", "plombier"),
+    ("Sainte-Julie", "salon de coiffure"), ("Sainte-Julie", "restaurant"),
+    ("Beloeil", "garage automobile"), ("Beloeil", "plombier"), ("Beloeil", "restaurant"),
+    ("Saint-Bruno-de-Montarville", "garage automobile"), ("Saint-Bruno-de-Montarville", "salon de coiffure"),
+    ("Matane", "garage automobile"), ("Matane", "plombier"), ("Matane", "restaurant"),
+    ("Rivière-du-Loup", "garage automobile"), ("Rivière-du-Loup", "plombier"),
+    ("Rivière-du-Loup", "salon de coiffure"), ("Rivière-du-Loup", "restaurant"),
+    ("Mont-Laurier", "garage automobile"), ("Mont-Laurier", "plombier"), ("Mont-Laurier", "restaurant"),
+    ("Lachute", "garage automobile"), ("Lachute", "plombier"), ("Lachute", "restaurant"),
+    ("L'Assomption", "garage automobile"), ("L'Assomption", "plombier"),
+    ("Sainte-Marie", "garage automobile"), ("Sainte-Marie", "plombier"), ("Sainte-Marie", "restaurant"),
 ]
 
 
@@ -6729,11 +6858,17 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
     async with aiosqlite.connect(DB_PATH) as db:
         for i, b in enumerate(biz_list):
             emails = email_results[i]
-            # Fallback vers template si Claude dit skip — on contacte toutes les PMEs
+            # Cibler seulement les PMEs avec site désuet ou sans site — skip les bons sites
+            has_real_site = bool(b.get("website"))
+            web_score_val = b.get("web_score", 5)
+            if has_real_site and web_score_val >= 4:
+                logging.info(f"Skip PME (bon site score {web_score_val}): {b['name']}")
+                continue
+            # Fallback vers template si Claude dit skip — on contacte toutes les PMEs ciblées
             if emails.get("skip") or not emails.get("email1"):
                 emails = _make_template_email(b)
             if not emails.get("email1"):
-                logging.info(f"Skipped PME (no email / low-need): {b['name']} (score {emails.get('need_score','?')})")
+                logging.info(f"Skipped PME (no email): {b['name']}")
                 continue
             try:
                 # Deduplicate by email address across parallel batches (root cause of duplicate sends)
