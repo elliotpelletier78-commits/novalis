@@ -8005,6 +8005,35 @@ async def test_email_send(username: str = Depends(verify_admin)):
     raise HTTPException(500, detail=summary)
 
 
+@app.get("/api/admin/resend-check")
+async def resend_check(username: str = Depends(verify_admin)):
+    """Test Resend rapidement — retourne la réponse brute en 5s max."""
+    import urllib.request, urllib.error
+    if not RESEND_API_KEY:
+        return {"error": "RESEND_API_KEY non configuré", "key_prefix": "MANQUANT"}
+    key_prefix = RESEND_API_KEY[:12] + "..."
+    payload = json.dumps({
+        "from": f"Novalis IA <{FROM_EMAIL}>",
+        "to": [ADMIN_EMAIL or "novalisproia@gmail.com"],
+        "subject": "Test Novalis",
+        "html": "<p>Test</p>",
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=payload,
+        headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read())
+            return {"ok": True, "id": data.get("id"), "key_prefix": key_prefix, "from": FROM_EMAIL}
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="ignore")
+        return {"ok": False, "http_status": e.code, "error": body, "key_prefix": key_prefix, "from": FROM_EMAIL}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "key_prefix": key_prefix, "from": FROM_EMAIL}
+
 @app.get("/api/admin/email-pipeline-debug")
 async def email_pipeline_debug(username: str = Depends(verify_admin)):
     """Diagnostique complet du pipeline email — montre pourquoi les courriels n'envoient pas."""
