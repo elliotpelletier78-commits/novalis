@@ -6325,22 +6325,34 @@ async def _generate_prospect_emails_claude(biz: dict) -> dict:
     bm_data = biz.get("brand_meta", {}) if isinstance(biz.get("brand_meta"), dict) else {}
     hours_str = "; ".join(bm_data.get("hours", [])[:3])
     address_str = bm_data.get("address", "")
-    about_str = bm_data.get("about", "")[:300]
+    about_str = bm_data.get("about", "")[:400]
     services_data = bm_data.get("services_data", [])
-    services_str = ", ".join(s["name"] for s in services_data[:6] if isinstance(s, dict) and s.get("name")) if services_data else ""
+    services_str = ", ".join(s["name"] for s in services_data[:8] if isinstance(s, dict) and s.get("name")) if services_data else ""
+    brand_color_str = bm_data.get("brand_color", "")
+    gallery_count = len(bm_data.get("gallery", []))
+    has_logo = bool(bm_data.get("logo_url", ""))
+    has_og_image = bool(bm_data.get("og_image", ""))
 
-    prompt = f"""Tu écris des courriels de prospection pour l'équipe de Novalis IA (automatisation IA pour PMEs québécoises).
+    prompt = f"""Tu es un expert en design web québécois. Tu analyses des sites PME et crées des aperçus personnalisés pour les convaincre d'acheter une refonte.
 
-PME: {name} | {city} | {industry}
-Site: {website}
+═══ DONNÉES DE LA PME ═══
+Nom: {name}
+Ville: {city} | Secteur: {industry}
+Site actuel: {website}
 {rating_line}
 {web_line}
+
+═══ CE QU'ON A TROUVÉ SUR LEUR SITE ═══
+{f"Description/À propos: {about_str}" if about_str else "Aucune description trouvée"}
+{f"Services identifiés: {services_str}" if services_str else "Services non structurés sur le site"}
 {f"Adresse: {address_str}" if address_str else ""}
-{f"Heures d'ouverture: {hours_str}" if hours_str else ""}
-{f"Description du site existant: {about_str}" if about_str else ""}
-{f"Services trouvés sur le site: {services_str}" if services_str else ""}
-Contenu du site: {site_text[:800] if site_text else "(non disponible)"}
-Mentions en ligne: {snippets[:600] if snippets else "(non disponible)"}
+{f"Heures: {hours_str}" if hours_str else ""}
+{f"Couleur de marque extraite: {brand_color_str}" if brand_color_str else "Aucune couleur de marque détectée"}
+Photos trouvées: {gallery_count} image(s) récupérées du site
+Logo trouvé: {"Oui" if has_logo else "Non"}
+Image principale (og:image): {"Oui" if has_og_image else "Non"}
+Texte du site: {site_text[:1200] if site_text else "(site vide ou inaccessible)"}
+Mentions/avis en ligne: {snippets[:600] if snippets else "(aucune)"}
 
 ---
 EXEMPLES D'EMAILS QUI CONVERTISSENT (imite ce style):
@@ -6411,25 +6423,33 @@ Si need_score < 5: retourne SEULEMENT {{"need_score": X, "skip": true, "reason":
   "email2": {{"subject": "...", "body": "..."}},
   "email3": {{"subject": "...", "body": "..."}},
   "site_preview": {{
-    "hero_title": "Accroche principale percutante basée sur CE QUE FAIT VRAIMENT cette PME (ex: Urgence plomberie à Montréal? On arrive en 1h.)",
-    "hero_subtitle": "Sous-titre rassurant extrait des infos réelles du site, 1 phrase (ex: Plombier certifié RBQ depuis 2008, disponible 7j/7.)",
-    "services": ["Service RÉEL 1 offert par cette PME (tiré du site)", "Service RÉEL 2", "Service RÉEL 3", "Service RÉEL 4"],
-    "trust_line": "Phrase de confiance utilisant les vraies stats si disponibles (ex: +200 clients satisfaits à Montréal depuis 2015 · 4.7 ⭐)",
-    "cta": "Texte du bouton adapté à leur secteur (ex: Réserver / Demander une soumission / Appeler)",
-    "color_theme": "blue|green|purple|orange|red (selon l'industrie et l'ambiance du site)",
-    "phone": "Vrai numéro de téléphone extrait du contenu du site (format: 514 555-1234) — laisser vide si non trouvé"
+    "hero_title": "Accroche ULTRA-SPÉCIFIQUE à CE business — utilise leur vrai nom de spécialité, ville, ou signature unique. Ex pour plombier Sorel: 'Urgence plomberie à Sorel-Tracy — on arrive en 1h' ou pour coiffeur: 'Couleurs balayage naturel — Salon {name[:20]}'",
+    "hero_subtitle": "1 phrase qui reprend leur vraie valeur ajoutée trouvée sur le site — utilise les vrais mots du site si possible. Max 15 mots.",
+    "services": [
+      "Service RÉEL et SPÉCIFIQUE #1 — exactement comme ils le nomment sur leur site",
+      "Service RÉEL #2 — avec leur terminologie",
+      "Service RÉEL #3",
+      "Service RÉEL #4 (optionnel)"
+    ],
+    "trust_line": "Utilise leurs vraies stats: rating {rating}, {review_count} avis, années d'expérience si mentionnées, certifications RBQ/etc. Ex: '4.8 ⭐ · 127 avis Google · Certifié RBQ depuis 2011'",
+    "cta": "Bouton CTA adapté à leur secteur — max 3 mots. Ex: 'Appeler', 'Réserver', 'Soumission gratuite', 'Prendre rendez-vous'",
+    "color_theme": "Choisis parmi: blue|green|purple|orange|red|yellow — selon la couleur de marque détectée ({brand_color_str or 'inconnue'}) et l'ambiance de leur industrie",
+    "phone": "Numéro de téléphone exact trouvé dans le texte du site ou les données — format: 450 555-1234. Laisser vide si introuvable."
   }}{refonte_json}
 }}
 
-IMPORTANT: Les services doivent être RÉELS et SPÉCIFIQUES à cette PME. Lis attentivement le contenu du site pour trouver ce qu'ils offrent vraiment. Ne pas inventer de services génériques.
-Utilise les vraies heures/adresse/services ci-dessus si disponibles — ils ont été extraits directement du site."""
+CRITIQUE — Qualité du site_preview:
+- Les services DOIVENT être ceux de CETTE PME spécifique, pas des services génériques
+- Le hero_title doit être si spécifique qu'un concurrent ne pourrait pas l'utiliser
+- Si le site est vide/inaccessible, base-toi sur le nom de l'entreprise et le secteur pour deviner les services locaux typiques
+- La couleur doit refléter l'ambiance réelle du secteur (ex: construction=orange/gris, salon=rose/violet, plomberie=bleu)"""
     try:
         loop = asyncio.get_event_loop()
         async with _claude_semaphore:
             response = await loop.run_in_executor(
                 None,
                 lambda: claude_client.messages.create(
-                    model="claude-haiku-4-5-20251001",
+                    model="claude-sonnet-4-6",
                     max_tokens=2400,
                     messages=[{"role": "user", "content": prompt}]
                 )
@@ -7159,8 +7179,12 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
             # Cibler seulement les PMEs avec site désuet ou sans site — skip les bons sites
             has_real_site = bool(b.get("website"))
             web_score_val = b.get("web_score", 5)
-            if has_real_site and web_score_val >= 5:
-                logging.info(f"Skip PME (site parfait score {web_score_val}): {b['name']}")
+            if has_real_site and web_score_val >= 4:
+                logging.info(f"Skip PME (bon site score {web_score_val}): {b['name']}")
+                continue
+            # Skip if no email found — quality approach: only send to reachable PMEs
+            if not b.get("email"):
+                logging.info(f"Skip PME (sans email): {b['name']}")
                 continue
             # Fallback vers template si Claude dit skip — on contacte toutes les PMEs ciblées
             if emails.get("skip") or not emails.get("email1"):
