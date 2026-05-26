@@ -7006,17 +7006,21 @@ async def _bank_builder_loop():
 async def _try_send_now(prospect_id: str, table: str, name: str, email: str, city: str, industry: str, emails: dict):
     """Envoi immédiat dès la découverte — pas d'attente outreach loop."""
     if not _auto_outreach["enabled"]:
+        logging.info(f"_try_send_now skip {name}: auto-outreach disabled")
         return
     if not (RESEND_API_KEY or (SMTP_HOST and SMTP_USER)):
+        logging.warning(f"_try_send_now skip {name}: no email provider configured")
         return
     today = datetime.now().strftime("%Y-%m-%d")
     if _auto_outreach["last_reset"] != today:
         _auto_outreach["sent_today"] = 0
         _auto_outreach["last_reset"] = today
     if _auto_outreach["sent_today"] >= _auto_outreach["daily_limit"]:
+        logging.info(f"_try_send_now skip {name}: daily limit {_auto_outreach['daily_limit']} reached")
         return
     email_addr = email.strip().lower()
     if email_addr in _sent_emails_session:
+        logging.info(f"_try_send_now skip {name}: already sent this session to {email_addr}")
         return
     async with aiosqlite.connect(DB_PATH) as db:
         chk = await db.execute(
@@ -7024,9 +7028,11 @@ async def _try_send_now(prospect_id: str, table: str, name: str, email: str, cit
             (email_addr,)
         )
         if (await chk.fetchone())[0] > 0:
+            logging.info(f"_try_send_now skip {name}: already sent previously to {email_addr}")
             return
     email1 = emails.get("email1", {})
     if not email1.get("subject") or not email1.get("body"):
+        logging.warning(f"_try_send_now skip {name}: no email1 subject/body in generated emails")
         return
     unsubscribe_url = f"https://novalisia.ca/unsubscribe?id={prospect_id}"
     _slug = _slugify(name)
@@ -7181,10 +7187,6 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
             web_score_val = b.get("web_score", 5)
             if has_real_site and web_score_val >= 4:
                 logging.info(f"Skip PME (bon site score {web_score_val}): {b['name']}")
-                continue
-            # Skip if no email found — quality approach: only send to reachable PMEs
-            if not b.get("email"):
-                logging.info(f"Skip PME (sans email): {b['name']}")
                 continue
             # Fallback vers template si Claude dit skip — on contacte toutes les PMEs ciblées
             if emails.get("skip") or not emails.get("email1"):
@@ -7923,7 +7925,79 @@ async def outreach_send_now(username: str = Depends(verify_admin)):
     return debug
 
 
-@app.post("/api/admin/auto-outreach/force-generate")
+@app.get("/api/admin/email-pipeline-debug")
+async def email_pipeline_debug(username: str = Depends(verify_admin)):
+    """Diagnostique complet du pipeline email — montre pourquoi les courriels n'envoient pas."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+
+        # Counts in suggestions
+        c = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE status='new'")
+        sugg_new = (await c.fetchone())[0]
+        c = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE status='new' AND email != ''")
+        sugg_with_email = (await c.fetchone())[0]
+        c = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE status='new' AND email != '' AND (email_sent_at IS NULL OR email_sent_at='')")
+        sugg_unsent = (await c.fetchone())[0]
+        c = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE status='new' AND email != '' AND (email_sent_at IS NULL OR email_sent_at='') AND generated_emails IS NOT NULL AND generated_emails != '{}'")
+        sugg_ready = (await c.fetchone())[0]
+
+        # Counts in bank
+        c = await db.execute("SELECT COUNT(*) FROM prospect_bank WHERE status='ready'")
+        bank_total = (await c.fetchone())[0]
+        c = await db.execute("SELECT COUNT(*) FROM prospect_bank WHERE status='ready' AND email != ''")
+        bank_with_email = (await c.fetchone())[0]
+        try:
+            c = await db.execute("SELECT COUNT(*) FROM prospect_bank WHERE status='ready' AND email != '' AND (email_sent_at IS NULL OR email_sent_at='')")
+            bank_unsent = (await c.fetchone())[0]
+        except Exception:
+            bank_unsent = "colonne email_sent_at manquante dans prospect_bank"
+
+        # Sample prospects from bank with email
+        try:
+            cur = await db.execute("SELECT name, email, web_score, generated_emails FROM prospect_bank WHERE email != '' LIMIT 5")
+            bank_samples = []
+            for r in await cur.fetchall():
+                ge = json.loads(r["generated_emails"] or "{}")
+                bank_samples.append({
+                    "name": r["name"], "email": r["email"], "web_score": r["web_score"],
+                    "has_email1": bool(ge.get("email1", {}).get("subject")),
+                    "has_site_preview": bool(ge.get("site_preview")),
+                })
+        except Exception as e:
+            bank_samples = [{"error": str(e)}]
+
+        # Sample prospects from suggestions with email
+        try:
+            cur = await db.execute("SELECT name, email, web_score, status, email_sent_at, generated_emails FROM prospect_suggestions WHERE email != '' ORDER BY created_at DESC LIMIT 5")
+            sugg_samples = []
+            for r in await cur.fetchall():
+                ge = json.loads(r["generated_emails"] or "{}")
+                sugg_samples.append({
+                    "name": r["name"], "email": r["email"], "web_score": r["web_score"],
+                    "status": r["status"], "email_sent_at": r["email_sent_at"] or "(non envoyé)",
+                    "has_email1": bool(ge.get("email1", {}).get("subject")),
+                })
+        except Exception as e:
+            sugg_samples = [{"error": str(e)}]
+
+    return {
+        "outreach_state": _auto_outreach,
+        "email_providers": {"resend": bool(RESEND_API_KEY), "smtp": bool(SMTP_HOST and SMTP_USER), "from": FROM_EMAIL},
+        "suggestions": {"total_new": sugg_new, "with_email": sugg_with_email, "unsent": sugg_unsent, "ready_to_send": sugg_ready},
+        "bank": {"total_ready": bank_total, "with_email": bank_with_email, "unsent_with_email": bank_unsent},
+        "session_blocked_emails": len(_sent_emails_session),
+        "bank_samples_with_email": bank_samples,
+        "suggestions_samples_with_email": sugg_samples,
+        "diagnosis": (
+            "✅ Pipeline OK — les courriels devraient partir" if sugg_ready > 0
+            else "⚠ suggestions vides — vérifier bank_samples ci-dessus"
+            if bank_with_email == 0
+            else "⚠ prospects dans bank mais pas encore copiés vers suggestions — cliquer Refresh"
+        ),
+    }
+
+
+
 async def outreach_force_generate(username: str = Depends(verify_admin)):
     """Force génération template pour tous les prospects bloqués (generated_emails vide). Pas besoin de Claude."""
     async with aiosqlite.connect(DB_PATH) as db:
