@@ -6016,10 +6016,13 @@ def _scrape_business_website(url: str) -> dict:
         eq = "site" if email else "none"
 
         base = url.rstrip("/")
+        web_quality = _score_website_quality(html, url)
+        brand_meta = _extract_brand_meta(html, url)
 
-        # Multi-page scraping: try subpages for more data + images
+        # Single-pass multi-page scraping: structured content + gallery in one loop
         subpages = ["/a-propos", "/about", "/services", "/notre-equipe",
                     "/nous-joindre", "/contact", "/coordonnees"]
+        existing_gallery = set(brand_meta.get("gallery", []))
         for path in subpages:
             try:
                 sr = http_requests.get(base + path, headers=headers, timeout=3)
@@ -6027,8 +6030,8 @@ def _scrape_business_website(url: str) -> dict:
                     continue
                 sub_html = sr.text
                 sub_soup = BeautifulSoup(sub_html, "html.parser")
+                # Structured content
                 sub_struct = _extract_structured_content(sub_html, sub_soup)
-                # Fill in missing fields
                 if not structured["hours"] and sub_struct["hours"]:
                     structured["hours"] = sub_struct["hours"]
                 if not structured["address"] and sub_struct["address"]:
@@ -6037,16 +6040,24 @@ def _scrape_business_website(url: str) -> dict:
                     structured["about"] = sub_struct["about"]
                 if not structured["services_data"] and sub_struct["services_data"]:
                     structured["services_data"] = sub_struct["services_data"]
-                # Extract additional images from subpage
+                # Gallery images — même passe, pas de 2e requête
                 sub_bm = _extract_brand_meta(sub_html, base)
-                # Merge gallery URLs (dedupe)
-                if "gallery" not in structured:
-                    structured["gallery"] = []
+                for img_url in sub_bm.get("gallery", []):
+                    if img_url not in existing_gallery and len(brand_meta["gallery"]) < 12:
+                        brand_meta["gallery"].append(img_url)
+                        existing_gallery.add(img_url)
+                # Email from contact pages
+                if not email and path in ("/contact", "/nous-joindre", "/coordonnees", "/about"):
+                    ce = _extract_emails(sub_html)
+                    if ce:
+                        email = ce[0]
+                        eq = "contact-page"
             except Exception:
                 pass
 
+        # Email fallback on paths not already fetched
         if not email:
-            for path in ["/contact", "/nous-joindre", "/contactez-nous", "/coordonnees", "/about"]:
+            for path in ["/contactez-nous"]:
                 try:
                     cr = http_requests.get(base + path, headers=headers, timeout=3)
                     ce = _extract_emails(cr.text)
@@ -6056,30 +6067,14 @@ def _scrape_business_website(url: str) -> dict:
                         break
                 except Exception:
                     pass
+
         phones = re.findall(r"(?:\+?1[\s\-]?)?\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}", text)
-        web_quality = _score_website_quality(html, url)
-        brand_meta = _extract_brand_meta(html, url)
 
         # Merge structured data into brand_meta
         brand_meta["hours"] = structured.get("hours", [])
         brand_meta["address"] = structured.get("address", "")
         brand_meta["about"] = structured.get("about", "")
         brand_meta["services_data"] = structured.get("services_data", [])
-
-        # Merge subpage gallery images (dedupe, up to 12 total)
-        existing_gallery = set(brand_meta.get("gallery", []))
-        for path in subpages:
-            try:
-                sr = http_requests.get(base + path, headers=headers, timeout=3)
-                if sr.status_code != 200:
-                    continue
-                sub_bm2 = _extract_brand_meta(sr.text, base)
-                for img_url in sub_bm2.get("gallery", []):
-                    if img_url not in existing_gallery and len(brand_meta["gallery"]) < 12:
-                        brand_meta["gallery"].append(img_url)
-                        existing_gallery.add(img_url)
-            except Exception:
-                pass
 
         return {
             "email": email, "email_quality": eq, "text": text[:2500],
