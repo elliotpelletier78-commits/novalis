@@ -888,11 +888,11 @@ async function testDiscovery(btn){{
         const gp=d.google_places||[];
         const ddg=d.ddg||[];
         let msg='';
-        if(gp.length)msg+='✅ Google Places: '+gp.length+' résultats ('+d.city+' / '+d.industry+'). Ex: '+gp[0].name+' — '+gp[0].url;
-        else if(d.google_places_configured===false||!gp.length)msg+='❌ Google Places: 0 résultats';
-        if(d.ddg_error)msg+=' | DDG erreur: '+d.ddg_error;
-        else if(ddg.length)msg+=' | DDG: '+ddg.length+' résultats';
-        else msg+=' | DDG: 0 résultats';
+        if(gp.length)msg+='✅ Google Places: '+gp.length+' résultats ('+d.city+' / '+d.industry+'). Ex: '+gp[0].name;
+        else msg+='❌ Google Places: 0 résultats — '+d.gp_raw_status;
+        if(d.ddg_error)msg+=' | DDG: '+d.ddg_error;
+        else if(ddg.length)msg+=' | DDG: '+ddg.length+' ok';
+        else msg+=' | DDG: 0';
         if(d.error)msg='❌ Erreur: '+d.error;
         el.textContent=msg; el.style.color=gp.length?'#34d399':'#ef4444';
     }}catch(e){{el.textContent='❌ '+e.message; el.style.color='#ef4444';}}
@@ -7130,12 +7130,27 @@ async def auto_outreach_status(username: str = Depends(verify_admin)):
 @app.post("/api/admin/test-discovery")
 async def test_discovery(username: str = Depends(verify_admin)):
     """Lance une découverte test et retourne les résultats bruts."""
-    import random as _rand
+    import random as _rand, urllib.request as _ureq3, urllib.parse as _uparse3
     city, industry = _rand.choice(_DISCOVERY_TARGETS)
-    results = {"city": city, "industry": industry, "google_places": [], "ddg": [], "error": ""}
+    results = {"city": city, "industry": industry, "google_places": [], "ddg": [], "error": "", "gp_raw_status": ""}
     try:
         loop = asyncio.get_event_loop()
         if GOOGLE_PLACES_API_KEY:
+            # Test brut de l'API pour voir le vrai message d'erreur
+            def _test_gp_raw():
+                query = f"{industry} {city} Québec"
+                url = ("https://maps.googleapis.com/maps/api/place/textsearch/json?"
+                       f"query={_uparse3.quote(query)}&language=fr&region=ca&key={GOOGLE_PLACES_API_KEY}")
+                try:
+                    with _ureq3.urlopen(url, timeout=10) as r:
+                        data = json.loads(r.read())
+                    status = data.get("status", "UNKNOWN")
+                    error_msg = data.get("error_message", "")
+                    count = len(data.get("results", []))
+                    return f"status={status} count={count} err={error_msg}"
+                except Exception as e:
+                    return f"exception: {e}"
+            results["gp_raw_status"] = await loop.run_in_executor(None, _test_gp_raw)
             gp = await loop.run_in_executor(None, _google_places_search_sync, city, industry, 5)
             results["google_places"] = [{"name": r.get("name",""), "url": r.get("url",""), "phone": r.get("phone","")} for r in gp]
         from urllib import parse as _uparse2
