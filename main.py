@@ -6208,6 +6208,7 @@ def _build_prospect_email_html(plain_body: str, preview_url: str, unsubscribe_ur
         Voir votre nouveau site &rarr;
       </a>
       <div style="margin-top:10px;font-size:0.73rem;color:#94a3b8;">Aperçu conçu spécialement pour <strong>{safe_name}</strong></div>
+      <div style="margin-top:8px;font-size:0.73rem;color:#6b7280;font-style:italic;">Ceci est un prototype — nous le personnalisons à votre goût par la suite.</div>
     </div>
   </div>
   <div style="padding:20px 28px;background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;">
