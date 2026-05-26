@@ -5929,18 +5929,31 @@ def _extract_brand_meta(html: str, base_url: str) -> dict:
         _priority_med  = ["team","equipe","staff","membre","about","propos","service","before"]
         _seen = {meta["og_image"], meta["logo_url"], ""}
         _candidates = []
+        _origin = re.sub(r'(https?://[^/]+).*', r'\1', base_url)
+        def _norm(u):
+            u = u.strip()
+            if u.startswith("//"): return "https:" + u
+            if u.startswith("/"): return _origin + u
+            if not u.startswith("http"): return _origin + "/" + u.lstrip("/")
+            return u
+
         for img in soup.find_all("img"):
-            src = (img.get("src") or img.get("data-src") or
-                   img.get("data-lazy-src") or img.get("data-original") or "").strip()
+            # Collect src from all known lazy-load patterns
+            src = ""
+            for attr in ["src","data-src","data-lazy-src","data-original","data-bg",
+                         "data-background","data-image","data-thumb","data-url","data-imgurl"]:
+                val = img.get(attr, "").strip()
+                if val and not val.startswith("data:"):
+                    src = val; break
+            # Fallback: srcset — take the largest candidate (last entry)
+            if not src:
+                srcset = img.get("srcset","").strip()
+                if srcset:
+                    parts = [s.strip().split()[0] for s in srcset.split(",") if s.strip()]
+                    if parts: src = parts[-1]
             if not src or src.startswith("data:") or src in _seen:
                 continue
-            # Normalize URL
-            if src.startswith("//"):
-                src = "https:" + src
-            elif src.startswith("/"):
-                src = base_url.rstrip("/") + src
-            elif not src.startswith("http"):
-                src = base_url.rstrip("/") + "/" + src.lstrip("/")
+            src = _norm(src)
             if src in _seen:
                 continue
             src_low = src.lower().split("?")[0]
@@ -5948,11 +5961,12 @@ def _extract_brand_meta(html: str, base_url: str) -> dict:
                 continue
             if any(p in src_low for p in _skip):
                 continue
-            # Skip explicit small icons
+            # Skip explicit small icons (only when both w & h are set and small)
             try:
                 w = img.get("width", ""); h = img.get("height", "")
-                if (w and int(str(w).replace("px","")) < 150) or (h and int(str(h).replace("px","")) < 150):
-                    continue
+                if w and h:
+                    if int(str(w).replace("px","")) < 150 and int(str(h).replace("px","")) < 150:
+                        continue
             except (ValueError, TypeError):
                 pass
             alt_low = (img.get("alt") or "").lower()
@@ -5976,8 +5990,26 @@ def _extract_brand_meta(html: str, base_url: str) -> dict:
                 p_el = getattr(p_el, "parent", None)
             _seen.add(src)
             _candidates.append((score, src))
+
+        # Also scan CSS background-image: url(...) — catches hero/slider images missed by img tags
+        _bg_re = re.compile(
+            r'background(?:-image)?\s*:\s*url\(\s*["\']?((?:https?:)?//[^"\')\s,]+|/[^"\')\s,]+)["\']?\s*\)',
+            re.I
+        )
+        for m in _bg_re.finditer(html):
+            bg = _norm(m.group(1))
+            if bg in _seen: continue
+            bg_low = bg.lower().split("?")[0]
+            if bg_low.endswith((".svg",".ico",".woff",".css",".js")): continue
+            if any(p in bg_low for p in _skip): continue
+            _seen.add(bg)
+            _candidates.append((1, bg))  # medium priority
+
         _candidates.sort(reverse=True)
-        meta["gallery"] = [url for _, url in _candidates[:8]]
+        meta["gallery"] = [url for _, url in _candidates[:10]]
+        # Fallback: if still no gallery, promote og_image
+        if not meta["gallery"] and meta["og_image"]:
+            meta["gallery"] = [meta["og_image"]]
     except Exception:
         pass
     return meta
@@ -6015,7 +6047,10 @@ def _scrape_business_website(url: str) -> dict:
         email = emails[0] if emails else ""
         eq = "site" if email else "none"
 
-        base = url.rstrip("/")
+        # Use origin only so subpage paths work correctly (e.g. https://ex.com/en/ + /about → https://ex.com/about)
+        from urllib.parse import urlparse as _uparse
+        _up = _uparse(url)
+        base = f"{_up.scheme}://{_up.netloc}"
         web_quality = _score_website_quality(html, url)
         brand_meta = _extract_brand_meta(html, url)
 
@@ -12541,42 +12576,77 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     # Logo HTML — image réelle ou texte fallback
     if real_logo:
         _nav_logo_html = (
-            f'<img src="{real_logo}" style="height:36px;max-width:140px;object-fit:contain;'
-            f'filter:brightness(0) invert(1)" '
+            f'<img src="{real_logo}" style="height:38px;max-width:160px;object-fit:contain" '
             f'onerror="this.style.display=\'none\';document.getElementById(\'nav-logo-text\').style.display=\'block\'">'
-            f'<span id="nav-logo-text" style="display:none">{name[:22]}</span>'
+            f'<span id="nav-logo-text" style="display:none;font-family:var(--serif);font-weight:700">{name[:22]}</span>'
         )
     else:
-        _nav_logo_html = name[:22]
+        _nav_logo_html = f'<span style="font-family:var(--serif);font-weight:700">{name[:22]}</span>'
 
     stars_display = ("★" * round(float(rating)) + "☆" * (5 - round(float(rating)))) if rating else "★★★★★"
     rating_text = f"{stars_display} {rating}/5 · {review_count} avis" if rating else f"{stars_display} Avis clients vérifiés"
-    nav_items = services_list[:2] + [cta_text]
 
+    # ── Photo strip (horizontal scroll — their real photos, right after hero) ──
+    if gallery_images:
+        strip_items = ""
+        for img_url in gallery_images[:8]:
+            strip_items += (
+                f'<div class="ps-item">'
+                f'<img src="{img_url}" loading="lazy" alt="" '
+                f'onerror="this.closest(\'.ps-item\').style.display=\'none\'">'
+                f'</div>'
+            )
+        photo_strip_section = (
+            f'<div class="photo-strip" aria-label="Photos de {name}">'
+            f'<div class="ps-inner">{strip_items}</div>'
+            f'</div>'
+        )
+    else:
+        photo_strip_section = ""
+
+    # ── Gallery section ───────────────────────────────────────────────────────
     if gallery_html:
         gallery_section = (
             '<section class="sec gal-sec" id="galerie">'
             '<div class="sec-in">'
             '<div class="sec-label reveal">En images</div>'
-            f'<h2 class="sec-h reveal d1">Notre travail</h2>'
+            f'<h2 class="sec-h reveal d1">Nos réalisations</h2>'
             f'<div class="gal-grid">{gallery_html}</div>'
             '</div></section>'
         )
     else:
         gallery_section = ""
 
-    # ── About section ─────────────────────────────────────────────────────────
+    # ── About section with photo ──────────────────────────────────────────────
     if real_about and len(real_about) > 60:
         _addr_html = (f'<p class="about-addr reveal d3">&#128205; {real_address}</p>' if real_address else "")
-        about_section = (
-            '<section class="sec about-sec" id="apropos">'
-            '<div class="sec-in about-grid">'
-            '<div><div class="sec-label reveal">À propos</div>'
-            f'<h2 class="sec-h reveal d1">{name}</h2>'
-            f'<p class="about-text reveal d2">{real_about[:500]}</p>'
-            f'{_addr_html}'
-            '</div></div></section>'
-        )
+        _phone_html = (f'<p class="about-phone reveal d4"><a href="{_tel_href}" style="color:var(--brand);font-weight:600">{phone_display}</a></p>' if phone_display else "")
+        if real_og:
+            about_section = (
+                '<section class="sec about-sec" id="apropos">'
+                '<div class="sec-in about-grid">'
+                '<div class="about-text-col">'
+                '<div class="sec-label reveal">À propos</div>'
+                f'<h2 class="sec-h reveal d1">{name}</h2>'
+                f'<p class="about-text reveal d2">{real_about[:480]}</p>'
+                f'{_addr_html}{_phone_html}'
+                '</div>'
+                '<div class="about-img-col reveal d2">'
+                f'<img src="{real_og}" alt="{name}" loading="lazy" '
+                f'onerror="this.closest(\'.about-img-col\').style.display=\'none\'">'
+                '</div>'
+                '</div></section>'
+            )
+        else:
+            about_section = (
+                '<section class="sec about-sec" id="apropos">'
+                '<div class="sec-in">'
+                '<div class="sec-label reveal">À propos</div>'
+                f'<h2 class="sec-h reveal d1">{name}</h2>'
+                f'<p class="about-text reveal d2">{real_about[:480]}</p>'
+                f'{_addr_html}{_phone_html}'
+                '</div></section>'
+            )
     else:
         about_section = ""
 
@@ -12662,9 +12732,15 @@ nav{{position:sticky;top:0;z-index:200;background:rgba(247,244,239,0.95);backdro
 .svc-title{{font-family:var(--serif);font-size:1.2rem;font-weight:700;color:var(--ink);transition:color 0.2s;line-height:1.3}}
 .svc-desc{{font-size:0.83rem;color:var(--ink2);font-weight:300;margin-top:4px;line-height:1.6}}
 .about-sec{{background:var(--paper2)}}
-.about-grid{{display:grid;grid-template-columns:1fr;gap:0}}
+.about-grid{{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}}
+.about-text-col{{}}
+.about-img-col{{border-radius:8px;overflow:hidden;aspect-ratio:4/3;background:var(--paper)}}
+.about-img-col img{{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.6s}}
+.about-img-col:hover img{{transform:scale(1.04)}}
 .about-text{{font-size:0.98rem;color:var(--ink2);font-weight:300;line-height:1.85;max-width:680px;margin-top:14px}}
 .about-addr{{font-size:0.85rem;color:var(--ink2);margin-top:18px;font-style:italic}}
+.about-phone{{margin-top:10px;font-size:0.9rem}}
+@media(max-width:768px){{.about-grid{{grid-template-columns:1fr;gap:32px}}.about-img-col{{order:-1}}}}
 .hrs-sec{{background:#fff;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}}
 .hrs-inner{{display:flex;align-items:flex-start;gap:64px;flex-wrap:wrap}}
 .hr-grid{{display:grid;grid-template-columns:1fr;gap:0;min-width:240px}}
@@ -12672,12 +12748,19 @@ nav{{position:sticky;top:0;z-index:200;background:rgba(247,244,239,0.95);backdro
 .hr-row:last-child{{border-bottom:none}}
 .hr-day{{font-weight:600;color:var(--ink)}}
 .hr-time{{color:var(--ink2);font-weight:300}}
+.photo-strip{{overflow-x:auto;display:block;background:#0d0a07;scrollbar-width:none;padding:4px 0}}
+.photo-strip::-webkit-scrollbar{{display:none}}
+.ps-inner{{display:flex;gap:4px;min-width:100%}}
+.ps-item{{flex-shrink:0;width:min(340px,80vw);height:240px;overflow:hidden;background:#1a1510;position:relative}}
+.ps-item img{{width:100%;height:100%;object-fit:cover;transition:transform 0.6s ease;display:block}}
+.ps-item:hover img{{transform:scale(1.06)}}
 .gal-sec{{background:#fff;padding:88px 5vw}}
-.gal-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:44px}}
-.gal-item{{aspect-ratio:4/3;overflow:hidden;border-radius:6px;background:var(--paper2)}}
+.gal-grid{{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:44px}}
+.gal-item{{aspect-ratio:16/10;overflow:hidden;border-radius:6px;background:var(--paper2)}}
 .gal-item img{{width:100%;height:100%;object-fit:cover;transition:transform 0.5s ease;display:block}}
 .gal-item:hover img{{transform:scale(1.05)}}
-@media(max-width:600px){{.gal-grid{{grid-template-columns:repeat(2,1fr)}}}}
+@media(min-width:768px){{.gal-grid{{grid-template-columns:repeat(3,1fr)}}}}
+@media(max-width:600px){{.gal-grid{{grid-template-columns:1fr}}}}
 .testi-sec{{background:#131009;padding:88px 5vw}}
 .testi-sec .sec-label{{color:{acc}}}
 .testi-sec .sec-h{{color:#fff}}
@@ -12767,11 +12850,13 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
   </div>
 </div>
 
+{photo_strip_section}
+
 <section class="sec" id="services">
   <div class="sec-in">
     <div class="sec-label reveal">Services</div>
     <h2 class="sec-h reveal d1">Ce que nous offrons</h2>
-    <p class="sec-lead reveal d2">Des solutions pensées pour votre réalité, disponibles quand vous en avez besoin.</p>
+    <p class="sec-lead reveal d2">Des solutions conçues pour votre clientèle, disponibles quand vous en avez besoin.</p>
     <div class="svc-list">
       {services_html}
     </div>
