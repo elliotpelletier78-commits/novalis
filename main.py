@@ -2079,16 +2079,19 @@ async def init_db():
             )
         """)
 
-        # Add new columns to prospect_suggestions (safe — fails silently if already exist)
-        try:
-            await db.execute("ALTER TABLE prospect_suggestions ADD COLUMN email_sent_at TEXT DEFAULT ''")
-            await db.execute("ALTER TABLE prospect_suggestions ADD COLUMN followup_sent_at TEXT DEFAULT ''")
-            await db.execute("ALTER TABLE prospect_suggestions ADD COLUMN sms_sent_at TEXT DEFAULT ''")
-            await db.execute("ALTER TABLE prospect_suggestions ADD COLUMN brand_meta TEXT DEFAULT '{}'")
-            await db.execute("ALTER TABLE prospect_bank ADD COLUMN brand_meta TEXT DEFAULT '{}'")
-            await db.commit()
-        except Exception:
-            pass  # columns already exist
+        # Add new columns (each in its own try so one failure doesn't skip the rest)
+        for _col_sql in [
+            "ALTER TABLE prospect_suggestions ADD COLUMN email_sent_at TEXT DEFAULT ''",
+            "ALTER TABLE prospect_suggestions ADD COLUMN followup_sent_at TEXT DEFAULT ''",
+            "ALTER TABLE prospect_suggestions ADD COLUMN sms_sent_at TEXT DEFAULT ''",
+            "ALTER TABLE prospect_suggestions ADD COLUMN brand_meta TEXT DEFAULT '{}'",
+            "ALTER TABLE prospect_bank ADD COLUMN brand_meta TEXT DEFAULT '{}'",
+        ]:
+            try:
+                await db.execute(_col_sql)
+                await db.commit()
+            except Exception:
+                pass  # column already exists
 
         logger.info("Base de données V6.0 (agence IA premium) initialisée")
 
