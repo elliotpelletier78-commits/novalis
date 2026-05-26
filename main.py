@@ -5993,11 +5993,13 @@ def _extract_brand_meta(html: str, base_url: str) -> dict:
 
         # Also scan CSS background-image: url(...) — catches hero/slider images missed by img tags
         _bg_re = re.compile(
-            r'background(?:-image)?\s*:\s*url\(\s*["\']?((?:https?:)?//[^"\')\s,]+|/[^"\')\s,]+)["\']?\s*\)',
+            r'background(?:-image)?\s*:\s*url\(\s*["\']?([^"\')\s,]+)["\']?\s*\)',
             re.I
         )
         for m in _bg_re.finditer(html):
-            bg = _norm(m.group(1))
+            raw_bg = m.group(1).strip()
+            if not raw_bg or raw_bg.startswith("data:"): continue
+            bg = _norm(raw_bg)
             if bg in _seen: continue
             bg_low = bg.lower().split("?")[0]
             if bg_low.endswith((".svg",".ico",".woff",".css",".js")): continue
@@ -12464,6 +12466,11 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         hero_bg = f"url('{real_og}') center/cover no-repeat"
     else:
         hero_bg = _industry_hero_bg
+    # When we have their brand color, tint the overlay with it (makes hero feel like THEIR brand)
+    if real_color1 and real_og:
+        hero_overlay_css = f"linear-gradient(to top,{real_color1}f0 0%,{real_color1}99 45%,{real_color1}33 100%)"
+    else:
+        hero_overlay_css = "linear-gradient(to top right,rgba(12,7,4,0.88) 0%,rgba(12,7,4,0.50) 55%,rgba(12,7,4,0.64) 100%)"
 
     # ── Industry pattern overlay (SVG) ────────────────────────────────────────
     pattern_svg = "data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"
@@ -12540,19 +12547,49 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         for img_url in gallery_images[:6]:
             gallery_html += (
                 f'<div class="gal-item reveal">'
-                f'<img src="{img_url}" alt="" loading="lazy" '
+                f'<img src="{img_url}" alt="" loading="lazy" referrerpolicy="no-referrer" '
                 f'onerror="this.closest(\'.gal-item\').style.display=\'none\'">'
                 f'</div>'
             )
 
-    # ── Audit issues ──────────────────────────────────────────────────────────
+    # ── Audit section — "Votre site analysé" ──────────────────────────────────
     score_color = "#22c55e" if web_score >= 4 else ("#f59e0b" if web_score == 3 else "#ef4444")
     score_label = "Bon" if web_score >= 4 else ("Améliorable" if web_score == 3 else "À refaire")
-    issues_html = ""
+    before_items_html = ""
     for issue in web_issues[:5]:
-        issues_html += f'<div class="issue-item"><span class="issue-x">✗</span><span>{issue}</span></div>'
-    if not issues_html:
-        issues_html = '<div class="issue-item"><span style="color:#22c55e">✓</span><span>Aucun problème majeur détecté</span></div>'
+        before_items_html += f'<div class="audit-row"><span class="audit-x">✗</span><span>{issue}</span></div>'
+    if not before_items_html:
+        before_items_html = '<div class="audit-row"><span class="audit-x">·</span><span>Présence en ligne à améliorer</span></div>'
+    fixes = [
+        "Site mobile rapide et moderne",
+        "Photos et contenu mis en valeur",
+        "Appel à l'action clair et visible",
+        "Référencement Google amélioré (SEO)",
+        "Chargement instantané (performance)",
+    ]
+    after_items_html = ""
+    for fix in fixes[:max(len(web_issues[:5]), 3)]:
+        after_items_html += f'<div class="audit-row"><span class="audit-check">✓</span><span>{fix}</span></div>'
+
+    if web_issues:
+        audit_section = (
+            '<section class="sec audit-sec">'
+            '<div class="sec-in audit-grid">'
+            '<div class="audit-col audit-before">'
+            f'<div class="audit-label">Site actuel · {biz_website or "analysé"}</div>'
+            f'<div class="audit-score" style="color:{score_color}">{score_label}</div>'
+            f'{before_items_html}'
+            '</div>'
+            '<div class="audit-arrow">→</div>'
+            '<div class="audit-col audit-after">'
+            '<div class="audit-label">Nouveau site · Novalis IA</div>'
+            '<div class="audit-score" style="color:#22c55e">Professionnel</div>'
+            f'{after_items_html}'
+            '</div>'
+            '</div></section>'
+        )
+    else:
+        audit_section = ""
 
     # ── What's included list ──────────────────────────────────────────────────
     included = [
@@ -12576,7 +12613,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     # Logo HTML — image réelle ou texte fallback
     if real_logo:
         _nav_logo_html = (
-            f'<img src="{real_logo}" style="height:38px;max-width:160px;object-fit:contain" '
+            f'<img src="{real_logo}" style="height:38px;max-width:160px;object-fit:contain" referrerpolicy="no-referrer" '
             f'onerror="this.style.display=\'none\';document.getElementById(\'nav-logo-text\').style.display=\'block\'">'
             f'<span id="nav-logo-text" style="display:none;font-family:var(--serif);font-weight:700">{name[:22]}</span>'
         )
@@ -12592,7 +12629,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         for img_url in gallery_images[:8]:
             strip_items += (
                 f'<div class="ps-item">'
-                f'<img src="{img_url}" loading="lazy" alt="" '
+                f'<img src="{img_url}" loading="lazy" alt="" referrerpolicy="no-referrer" '
                 f'onerror="this.closest(\'.ps-item\').style.display=\'none\'">'
                 f'</div>'
             )
@@ -12632,7 +12669,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
                 f'{_addr_html}{_phone_html}'
                 '</div>'
                 '<div class="about-img-col reveal d2">'
-                f'<img src="{real_og}" alt="{name}" loading="lazy" '
+                f'<img src="{real_og}" alt="{name}" loading="lazy" referrerpolicy="no-referrer" '
                 f'onerror="this.closest(\'.about-img-col\').style.display=\'none\'">'
                 '</div>'
                 '</div></section>'
@@ -12672,6 +12709,13 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     else:
         hours_section = ""
 
+    _hero_logo_html = (
+        f'<div class="hero-logo-wrap">'
+        f'<img src="{real_logo}" alt="{name}" loading="eager" referrerpolicy="no-referrer" '
+        f'onerror="this.closest(\'.hero-logo-wrap\').style.display=\'none\'">'
+        f'</div>'
+    ) if real_logo else ""
+
     html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -12700,8 +12744,10 @@ nav{{position:sticky;top:0;z-index:200;background:rgba(247,244,239,0.95);backdro
 .nav-cta:hover{{opacity:0.88}}
 .hero{{position:relative;min-height:580px;display:flex;align-items:flex-end;overflow:hidden}}
 .hero-bg{{position:absolute;inset:0;background:{hero_bg};background-size:cover;background-position:center}}
-.hero-veil{{position:absolute;inset:0;background:linear-gradient(to top right,rgba(12,7,4,0.88) 0%,rgba(12,7,4,0.50) 55%,rgba(12,7,4,0.64) 100%)}}
+.hero-veil{{position:absolute;inset:0;background:{hero_overlay_css}}}
 .hero-body{{position:relative;z-index:2;width:100%;max-width:1160px;margin:0 auto;padding:80px 5vw 72px}}
+.hero-logo-wrap{{margin-bottom:22px}}
+.hero-logo-wrap img{{height:52px;max-width:200px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.9}}
 .hero-chip{{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,0.2);border-radius:3px;padding:5px 12px;font-size:0.7rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.75);margin-bottom:24px}}
 .hero-chip i{{width:6px;height:6px;border-radius:50%;background:var(--brand);display:inline-block;box-shadow:0 0 8px {btn}bb;flex-shrink:0}}
 .hero h1{{font-family:var(--serif);font-size:clamp(2rem,5.2vw,3.8rem);font-weight:900;line-height:1.08;letter-spacing:-0.03em;color:#fff;max-width:660px;margin-bottom:18px}}
@@ -12761,6 +12807,18 @@ nav{{position:sticky;top:0;z-index:200;background:rgba(247,244,239,0.95);backdro
 .gal-item:hover img{{transform:scale(1.05)}}
 @media(min-width:768px){{.gal-grid{{grid-template-columns:repeat(3,1fr)}}}}
 @media(max-width:600px){{.gal-grid{{grid-template-columns:1fr}}}}
+.audit-sec{{background:var(--paper);padding:72px 5vw;border-top:1px solid var(--rule)}}
+.audit-grid{{display:grid;grid-template-columns:1fr auto 1fr;gap:24px;align-items:start;max-width:800px;margin:0 auto}}
+.audit-col{{padding:28px 24px;border-radius:8px}}
+.audit-before{{background:#fff;border:1px solid var(--rule)}}
+.audit-after{{background:{btn}12;border:1px solid {btn}44}}
+.audit-label{{font-size:0.68rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink2);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+.audit-score{{font-family:var(--serif);font-size:1.3rem;font-weight:700;margin-bottom:16px}}
+.audit-row{{display:flex;align-items:flex-start;gap:10px;font-size:0.82rem;color:var(--ink2);margin-bottom:8px;line-height:1.4}}
+.audit-x{{color:#ef4444;font-weight:700;flex-shrink:0;margin-top:1px}}
+.audit-check{{color:#22c55e;font-weight:700;flex-shrink:0;margin-top:1px}}
+.audit-arrow{{font-size:1.6rem;color:var(--brand);align-self:center;font-weight:300;padding-top:60px}}
+@media(max-width:600px){{.audit-grid{{grid-template-columns:1fr}}.audit-arrow{{display:none}}}}
 .testi-sec{{background:#131009;padding:88px 5vw}}
 .testi-sec .sec-label{{color:{acc}}}
 .testi-sec .sec-h{{color:#fff}}
@@ -12830,6 +12888,7 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
   <div class="hero-bg"></div>
   <div class="hero-veil"></div>
   <div class="hero-body">
+    {_hero_logo_html}
     <div class="hero-chip"><i></i>{city} &nbsp;·&nbsp; {industry}</div>
     <h1>{hero_title}</h1>
     <p class="hero-sub">{hero_subtitle}</p>
@@ -12862,6 +12921,8 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
     </div>
   </div>
 </section>
+
+{audit_section}
 
 {about_section}
 
@@ -12920,6 +12981,57 @@ document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
 </body>
 </html>"""
     return HTMLResponse(html)
+
+
+@app.post("/api/admin/rescrape-brand-meta")
+async def admin_rescrape_brand_meta(credentials: HTTPBasicCredentials = Depends(verify_admin)):
+    """Re-scrape brand_meta (images, colors, logo) for prospects that have a website but no gallery."""
+    loop = asyncio.get_event_loop()
+    updated = 0
+    errors = 0
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute("""
+            SELECT id, website, brand_meta FROM prospect_bank
+            WHERE website IS NOT NULL AND website != ''
+            UNION ALL
+            SELECT id, website, brand_meta FROM prospect_suggestions
+            WHERE website IS NOT NULL AND website != ''
+        """)
+        rows = await cur.fetchall()
+
+    targets = []
+    for row in rows:
+        bm = json.loads(row["brand_meta"] or "{}")
+        gallery = bm.get("gallery", [])
+        og = bm.get("og_image", "")
+        if not gallery and not og:
+            targets.append((row["id"], row["website"]))
+
+    logging.info(f"Rescrape brand_meta: {len(targets)} prospects to refresh")
+
+    for pid, site_url in targets:
+        try:
+            result = await loop.run_in_executor(None, _scrape_business_website, site_url)
+            new_bm = result.get("brand_meta", {})
+            if new_bm.get("gallery") or new_bm.get("og_image"):
+                async with aiosqlite.connect(DB_PATH) as db:
+                    # Update in both tables
+                    await db.execute(
+                        "UPDATE prospect_bank SET brand_meta=?, updated_at=? WHERE id=?",
+                        (json.dumps(new_bm), datetime.now().isoformat(), pid)
+                    )
+                    await db.execute(
+                        "UPDATE prospect_suggestions SET brand_meta=?, updated_at=? WHERE id=?",
+                        (json.dumps(new_bm), datetime.now().isoformat(), pid)
+                    )
+                    await db.commit()
+                updated += 1
+        except Exception as e:
+            errors += 1
+            logging.error(f"Rescrape error for {site_url}: {e}")
+
+    return {"updated": updated, "errors": errors, "total_checked": len(targets)}
 
 
 if __name__ == "__main__":
