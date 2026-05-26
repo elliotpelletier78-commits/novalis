@@ -5973,8 +5973,8 @@ RÈGLES STRICTES — à respecter absolument:
 9. Si web_score <= 2: mentionner subtilement que le site pourrait être amélioré
 10. Mentionner "premier mois gratuit" naturellement dans le texte (pas comme une promo)
 
-IMPORTANT pour EMAIL 1: inclure EXACTEMENT ce texte dans le body (le système remplacera {PROSPECT_ID} par le vrai ID):
-"J'ai préparé un rapport personnalisé — ce qu'on a trouvé et ce qu'on ferait concrètement pour vous :\n👉 novalisia.ca/preview/{PROSPECT_ID}"
+IMPORTANT pour EMAIL 1: inclure EXACTEMENT ce texte dans le body (le système remplacera {{PROSPECT_ID}} par le vrai ID):
+"J'ai préparé un rapport personnalisé — ce qu'on a trouvé et ce qu'on ferait concrètement pour vous :\n👉 novalisia.ca/preview/{{PROSPECT_ID}}"
 Adapte la phrase d'accroche avant ce lien selon les données de la PME.
 
 EMAIL 2 (suivi J+4): plus court encore, nouvel angle, rappel du bénéfice concret + "premier mois gratuit"
