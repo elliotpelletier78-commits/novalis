@@ -5690,7 +5690,9 @@ def _scrape_business_website(url: str) -> dict:
     def _extract_emails(html_text):
         found = re.findall(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", html_text)
         bad = ["example", "sentry", "noreply", "no-reply", "jquery", "schema.org",
-               "test.", "wp-", "wordpress", "plugin", "woocommerce", "example.com", ".png", ".jpg"]
+               "test.", "wp-", "wordpress", "plugin", "woocommerce", "example.com", ".png", ".jpg",
+               "user@domain", "your@email", "email@email", "name@domain", "info@domain",
+               "votre@", "votrenom@", "monadresse@", "@domain.com", "@example.", "yourname@"]
         return [e for e in found if not any(b in e.lower() for b in bad)]
 
     try:
@@ -6632,8 +6634,10 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
     async with aiosqlite.connect(DB_PATH) as db:
         for i, b in enumerate(biz_list):
             emails = email_results[i]
-            # Skip businesses with no emails generated or truly low-need (score < 4)
-            if not emails.get("email1") or (emails.get("skip") and int(emails.get("need_score", 0)) < 4):
+            # Fallback vers template si Claude dit skip — on contacte toutes les PMEs
+            if emails.get("skip") or not emails.get("email1"):
+                emails = _make_template_email(b)
+            if not emails.get("email1"):
                 logging.info(f"Skipped PME (no email / low-need): {b['name']} (score {emails.get('need_score','?')})")
                 continue
             try:
