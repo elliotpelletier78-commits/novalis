@@ -557,7 +557,9 @@ function showNotice(msg,isErr){{
     const d=document.getElementById('admin-notice');
     d.textContent=msg;d.style.display='block';
     d.style.borderColor=isErr?'#ef4444':'#34d399';d.style.color=isErr?'#ef4444':'#34d399';
-    setTimeout(()=>{{d.style.display='none';}},4000);
+    d.style.fontSize='0.92rem';d.style.padding='14px 22px';
+    clearTimeout(d._timer);
+    d._timer=setTimeout(()=>{{d.style.display='none';}},15000);
 }}
 
 async function loadClients(){{
@@ -840,7 +842,7 @@ async function loadAutoOutreachStatus(){{
             +(d.google_places_configured?'<span style="color:#34d399;">✓ Google Places</span>':'<span style="color:#ef4444;">✗ Google Places manquant — AUCUNE DÉCOUVERTE</span>')
             +' &nbsp;|&nbsp; <span style="color:#94a3b8;">From: '+d.from_email+'</span>'
             +'</div>'
-            +(on?'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span style="font-size:0.78rem;color:#34d399;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:6px;padding:6px 12px;">🤖 Envoie automatiquement toutes les '+d.interval_minutes+' min</span><button onclick="sendNow(this)" style="background:#1e40af;color:#93c5fd;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;">⚡ Envoyer maintenant</button><button onclick="forceGenerate(this)" style="background:#7c3aed;color:#e9d5ff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;">🔧 Forcer génération</button></div>':'')
+            +(on?'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span style="font-size:0.78rem;color:#34d399;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:6px;padding:6px 12px;">🤖 Envoie automatiquement toutes les '+d.interval_minutes+' min</span><button onclick="sendNow(this)" style="background:#1e40af;color:#93c5fd;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;">⚡ Envoyer maintenant</button><button onclick="forceGenerate(this)" style="background:#7c3aed;color:#e9d5ff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;">🔧 Forcer génération</button><button onclick="testEmail(this)" style="background:#065f46;color:#6ee7b7;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;">📧 Test Email</button></div>':'')
             +'</div>';
     }}catch(e){{}}
 }}
@@ -871,6 +873,16 @@ async function sendNow(btn){{
             loadAutoOutreachStatus();
             loadSuggestions();
         }}else{{showNotice('❌ '+(d.detail||'Erreur'),true);}}
+    }}catch(e){{showNotice('❌ '+e.message,true);}}
+    btn.textContent=orig;btn.disabled=false;
+}}
+async function testEmail(btn){{
+    const orig=btn.textContent;btn.textContent='⏳...';btn.disabled=true;
+    try{{
+        const r=await fetch('/api/admin/test-email',{{method:'POST'}});
+        const d=await r.json();
+        if(r.ok){{showNotice('✅ Test envoyé! '+d.detail,false);}}
+        else{{showNotice('❌ Erreur: '+(d.detail||JSON.stringify(d)),true);}}
     }}catch(e){{showNotice('❌ '+e.message,true);}}
     btn.textContent=orig;btn.disabled=false;
 }}
@@ -7927,6 +7939,28 @@ async def outreach_send_now(username: str = Depends(verify_admin)):
     debug["resend_from"] = FROM_EMAIL
     debug["smtp_host"] = SMTP_HOST or "non configuré"
     return debug
+
+
+@app.post("/api/admin/test-email")
+async def test_email_send(username: str = Depends(verify_admin)):
+    """Envoie un email de test à l'adresse admin pour vérifier que Resend/SMTP fonctionne."""
+    test_to = ADMIN_EMAIL or os.getenv("SMTP_USER", "") or "novalisproia@gmail.com"
+    subject = "✅ Test Novalis — Email fonctionne"
+    body = f"""<div style="font-family:sans-serif;padding:20px;color:#222;">
+<h2>Test envoi Novalis IA</h2>
+<p>Cet email confirme que votre configuration d'envoi fonctionne correctement.</p>
+<ul>
+<li>FROM: {FROM_EMAIL}</li>
+<li>TO: {test_to}</li>
+<li>Provider: {'Resend' if RESEND_API_KEY else 'SMTP'}</li>
+<li>Heure: {datetime.now().isoformat()}</li>
+</ul>
+</div>"""
+    try:
+        await send_email(test_to, subject, body)
+        return {"detail": f"Envoyé à {test_to} via {'Resend' if RESEND_API_KEY else 'SMTP'}"}
+    except Exception as e:
+        raise HTTPException(500, detail=f"Échec: {str(e)}")
 
 
 @app.get("/api/admin/email-pipeline-debug")
