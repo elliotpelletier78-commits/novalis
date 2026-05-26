@@ -5826,19 +5826,17 @@ def _make_template_email(biz: dict) -> dict:
     b1 = (
         f"Bonjour,\n\n"
         f"En cherchant des {industry} à {city}, je suis tombé sur votre site.\n\n"
-        f"J'ai préparé un rapport personnalisé — ce qu'on a trouvé et ce qu'on ferait concrètement pour vous :\n"
+        f"On a préparé quelque chose pour vous — une version améliorée de votre présence en ligne, "
+        f"basée sur ce qu'on a analysé :\n"
         f"👉 novalisia.ca/preview/{{PROSPECT_ID}}\n\n"
-        f"Premier mois gratuit, aucun contrat.\n\n"
         f"L'équipe Novalis IA\nnovalisia.ca"
     )
 
     s2 = f"Re: {name}"
     b2 = (
         f"Bonjour,\n\n"
-        f"Je fais suite à mon message de la semaine dernière.\n\n"
-        f"Juste pour être concret : nos clients récupèrent en moyenne 6 à 8 heures par semaine et ne manquent plus aucune demande — même la nuit ou le weekend.\n\n"
-        f"Le premier mois est 100% gratuit. Si ça ne change rien pour vous, vous ne payez pas.\n\n"
-        f"Ça vaut la peine d'essayer, non?\n\n"
+        f"Je fais suite à mon message — avez-vous eu la chance de voir ce qu'on a préparé pour vous ?\n\n"
+        f"👉 novalisia.ca/preview/{{PROSPECT_ID}}\n\n"
         f"L'équipe Novalis IA"
     )
 
@@ -5940,7 +5938,7 @@ En cherchant des salons à Laval, je suis tombé sur le vôtre.
 
 Est-ce que les no-shows et les appels manqués en dehors des heures vous font perdre des revenus?
 
-On a mis en place un système de rappels automatiques et de prise de RDV 24/7 pour quelques salons québécois — ils ont réduit leurs no-shows de moitié. Premier mois gratuit.
+On a mis en place un système de rappels automatiques et de prise de RDV 24/7 pour quelques salons québécois — ils ont réduit leurs no-shows de moitié.
 
 Ça vous parle?
 
@@ -5954,7 +5952,7 @@ Bonjour,
 
 J'ai remarqué que votre restaurant n'a pas de réservation en ligne — est-ce que vous recevez encore beaucoup d'appels pour des réservations pendant le service?
 
-On automatise ça pour des restos québécois : réservations en ligne, confirmations automatiques, liste d'attente. Le proprio arrête de décrocher le téléphone pendant le rush. Premier mois gratuit, aucun contrat.
+On automatise ça pour des restos québécois : réservations en ligne, confirmations automatiques, liste d'attente. Le proprio arrête de décrocher le téléphone pendant le rush.
 
 Intéressé qu'on en discute?
 
@@ -5971,13 +5969,12 @@ RÈGLES STRICTES — à respecter absolument:
 7. Signature: juste "L'équipe Novalis IA" ou "L'équipe Novalis IA\\nnovalisia.ca" — rien d'autre
 8. Ton: comme un ami entrepreneur qui a trouvé quelque chose d'utile, pas un vendeur
 9. Si web_score <= 2: mentionner subtilement que le site pourrait être amélioré
-10. Mentionner "premier mois gratuit" naturellement dans le texte (pas comme une promo)
 
 IMPORTANT pour EMAIL 1: inclure EXACTEMENT ce texte dans le body (le système remplacera {{PROSPECT_ID}} par le vrai ID):
 "J'ai préparé un rapport personnalisé — ce qu'on a trouvé et ce qu'on ferait concrètement pour vous :\n👉 novalisia.ca/preview/{{PROSPECT_ID}}"
 Adapte la phrase d'accroche avant ce lien selon les données de la PME.
 
-EMAIL 2 (suivi J+4): plus court encore, nouvel angle, rappel du bénéfice concret + "premier mois gratuit"
+EMAIL 2 (suivi J+4): plus court encore, nouvel angle, rappel du bénéfice concret
 EMAIL 3 (dernier J+10): 2-3 phrases max, pas de pression, porte ouverte, chaleureux
 
 ÉTAPE 1 — Évalue le besoin réel (need_score 1-10):
@@ -11953,15 +11950,9 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     pattern_svg = "data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"
 
     # ── Services cards ────────────────────────────────────────────────────────
-    service_icons = ["◈", "◉", "◊", "✦"]
     services_html = ""
-    for i, svc in enumerate(services_list[:4]):
-        services_html += f"""
-            <div class="svc-card">
-              <div class="svc-icon">{service_icons[i % 4]}</div>
-              <div class="svc-title">{svc}</div>
-              <div class="svc-desc">Disponible en ligne, 24h/7j</div>
-            </div>"""
+    for svc in services_list[:4]:
+        services_html += f'<div class="svc-card fade-up"><div class="svc-dot"></div><div class="svc-name">{svc}</div></div>'
 
     # ── Testimonials by industry ──────────────────────────────────────────────
     testimonials_map = {
@@ -12004,18 +11995,19 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
             ("Claire B.","Exactement ce qu'on cherchait. Parfait.","★★★★★"),
         ]
     )
-    testimonials_html = ""
-    for author, text, stars in testimonials:
-        initials = "".join(w[0] for w in author.split()[:2]).upper()
-        testimonials_html += f"""
-          <div class="testi-card">
-            <div class="testi-stars">{stars}</div>
-            <div class="testi-text">"{text}"</div>
-            <div class="testi-author">
-              <div class="testi-avatar">{initials}</div>
-              <span>{author}</span>
-            </div>
-          </div>"""
+    testi_html_parts = []
+    for (author, text, stars) in testimonials[:3]:
+        initials = "".join(w[0].upper() for w in author.split()[:2])
+        testi_html_parts.append(
+            f'<div class="testi-card fade-up">'
+            f'<div class="testi-stars">{stars}</div>'
+            f'<p class="testi-text">"{text}"</p>'
+            f'<div class="testi-author">'
+            f'<div class="testi-avatar">{initials}</div>'
+            f'<div><div class="testi-name">{author}</div><div class="testi-location">{city}, QC</div></div>'
+            f'</div></div>'
+        )
+    testimonials_html = "".join(testi_html_parts)
 
     # ── Audit issues ──────────────────────────────────────────────────────────
     score_color = "#22c55e" if web_score >= 4 else ("#f59e0b" if web_score == 3 else "#ef4444")
@@ -12065,406 +12057,176 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{name} — Nouveau site par Novalis IA</title>
+<title>{name}</title>
 {_favicon_tag}
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{{
-  --acc:{acc};--btn:{btn};--bg:{bg};--g1:{g1};--g2:{g2};--lgt:{lgt};
-  --white:#ffffff;--gray:#94a3b8;--dark:#0f172a;
-}}
-*{{box-sizing:border-box;margin:0;padding:0}}
-html{{scroll-behavior:smooth}}
-body{{font-family:'Inter',sans-serif;background:#0a0a14;color:#e2e8f0;overflow-x:hidden}}
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{font-family:'Inter',sans-serif;background:#fff;color:#111;line-height:1.6}}
+a{{color:inherit;text-decoration:none}}
 
-/* TOP NOTIFICATION */
-.notif-bar{{
-  background:linear-gradient(90deg,var(--g1),var(--g2));
-  color:white;font-size:13px;font-weight:600;text-align:center;
-  padding:10px 16px;letter-spacing:0.01em;
-}}
+/* ── Banner ── */
+.banner{{background:{btn};color:#fff;text-align:center;padding:10px 20px;font-size:0.8rem;font-weight:600;letter-spacing:0.03em}}
 
-/* ===== WEBSITE PREVIEW ===== */
-.site-preview{{background:var(--bg);}}
+/* ── Nav ── */
+nav{{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);border-bottom:1px solid #f0f0f0;padding:0 5vw}}
+.nav-inner{{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}}
+.nav-logo{{font-size:1.1rem;font-weight:800;color:#111;letter-spacing:-0.02em}}
+.nav-cta{{background:{btn};color:#fff;padding:10px 22px;border-radius:8px;font-weight:700;font-size:0.88rem;transition:opacity 0.2s}}
+.nav-cta:hover{{opacity:0.9}}
 
-/* Browser chrome */
-.browser-chrome{{
-  background:#1e2433;padding:10px 16px;display:flex;align-items:center;gap:10px;
-  border-bottom:1px solid rgba(255,255,255,0.06);
-}}
-.bc-dot{{width:12px;height:12px;border-radius:50%;flex-shrink:0}}
-.bc-url{{
-  flex:1;background:#0d1117;border-radius:6px;padding:5px 14px;
-  color:#64748b;font-size:12px;font-family:monospace;
-  border:1px solid rgba(255,255,255,0.06);
-}}
-.bc-icons{{display:flex;gap:8px;color:#4a5568;font-size:14px}}
+/* ── Hero ── */
+.hero{{position:relative;min-height:520px;display:flex;align-items:center;background:{hero_bg};color:#fff;overflow:hidden}}
+.hero-overlay{{position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,0,0,0.72) 0%,rgba(0,0,0,0.38) 100%);pointer-events:none}}
+.hero-content{{position:relative;z-index:2;max-width:1100px;margin:0 auto;padding:80px 5vw}}
+.hero-eyebrow{{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:5px 14px;font-size:0.78rem;font-weight:600;letter-spacing:0.04em;margin-bottom:22px;backdrop-filter:blur(8px)}}
+.hero h1{{font-size:clamp(1.8rem,4vw,3.2rem);font-weight:800;line-height:1.15;letter-spacing:-0.03em;margin-bottom:18px;max-width:700px}}
+.hero-sub{{font-size:1.05rem;color:rgba(255,255,255,0.85);max-width:560px;margin-bottom:32px;font-weight:400}}
+.hero-rating{{display:flex;align-items:center;gap:8px;font-size:0.88rem;color:rgba(255,255,255,0.75);margin-bottom:36px}}
+.hero-rating .stars{{color:#fbbf24;letter-spacing:1px}}
+.hero-btns{{display:flex;gap:12px;flex-wrap:wrap}}
+.btn-primary{{background:{btn};color:#fff;padding:14px 30px;border-radius:10px;font-weight:700;font-size:1rem;border:none;cursor:pointer;transition:opacity 0.2s;display:inline-block}}
+.btn-primary:hover{{opacity:0.9}}
+.btn-secondary{{background:rgba(255,255,255,0.12);color:#fff;padding:14px 24px;border-radius:10px;font-weight:600;font-size:0.95rem;border:1px solid rgba(255,255,255,0.25);cursor:pointer;transition:all 0.2s;display:inline-block}}
+.btn-secondary:hover{{background:rgba(255,255,255,0.22)}}
 
-/* Nav */
-.site-nav{{
-  background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);
-  padding:16px 32px;display:flex;align-items:center;justify-content:space-between;
-  border-bottom:1px solid rgba(255,255,255,0.07);
-  position:sticky;top:0;z-index:100;
-}}
-.nav-logo{{color:white;font-weight:900;font-size:18px;letter-spacing:-0.03em}}
-.nav-links{{display:flex;align-items:center;gap:28px}}
-.nav-link{{color:rgba(255,255,255,0.6);font-size:14px;font-weight:500;cursor:pointer}}
-.nav-cta{{
-  background:var(--btn);color:white;font-weight:700;
-  padding:9px 20px;border-radius:8px;font-size:14px;cursor:pointer;
-  box-shadow:0 0 20px var(--g1)55;
-}}
+/* ── Section ── */
+section{{padding:72px 5vw}}
+.section-inner{{max-width:1100px;margin:0 auto}}
+.section-tag{{display:inline-block;background:{acc}18;color:{btn};font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:4px 12px;border-radius:20px;margin-bottom:14px}}
+.section-title{{font-size:clamp(1.5rem,3vw,2.4rem);font-weight:800;letter-spacing:-0.02em;color:#111;margin-bottom:10px}}
+.section-sub{{color:#666;font-size:1rem;max-width:520px;margin-bottom:44px}}
 
-/* Hero */
-.site-hero{{
-  background:{hero_bg},url('{pattern_svg}');
-  min-height:520px;display:flex;align-items:center;justify-content:center;
-  text-align:center;padding:80px 32px;position:relative;overflow:hidden;
-}}
-.hero-glow{{
-  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  width:600px;height:600px;border-radius:50%;
-  background:radial-gradient(circle,var(--g1)22 0%,transparent 70%);
-  pointer-events:none;
-}}
-.hero-content{{position:relative;z-index:2;max-width:680px}}
-.hero-badge{{
-  display:inline-flex;align-items:center;gap:8px;
-  background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);
-  color:var(--lgt);padding:7px 18px;border-radius:999px;
-  font-size:13px;font-weight:600;margin-bottom:24px;
-  backdrop-filter:blur(8px);
-}}
-.hero-badge-dot{{width:7px;height:7px;border-radius:50%;background:var(--acc);animation:pulse 2s infinite}}
-.hero-h1{{
-  font-size:clamp(26px,5vw,46px);font-weight:900;line-height:1.15;
-  color:white;margin-bottom:16px;letter-spacing:-0.03em;
-}}
-.hero-h1 span{{
-  background:linear-gradient(90deg,var(--acc),var(--lgt));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-}}
-.hero-sub{{
-  color:rgba(255,255,255,0.65);font-size:17px;line-height:1.6;
-  margin-bottom:36px;max-width:500px;margin-left:auto;margin-right:auto;
-}}
-.hero-btns{{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:28px}}
-.hero-btn-primary{{
-  background:var(--btn);color:white;font-weight:800;font-size:16px;
-  padding:15px 32px;border-radius:12px;cursor:pointer;
-  box-shadow:0 8px 32px var(--g1)55;letter-spacing:0.01em;
-  transition:transform 0.2s;
-}}
-.hero-btn-secondary{{
-  background:rgba(255,255,255,0.08);color:white;font-weight:600;font-size:15px;
-  padding:15px 28px;border-radius:12px;cursor:pointer;
-  border:1px solid rgba(255,255,255,0.15);backdrop-filter:blur(8px);
-}}
-.hero-trust{{display:flex;align-items:center;gap:20px;justify-content:center;flex-wrap:wrap}}
-.trust-item{{color:rgba(255,255,255,0.45);font-size:13px;display:flex;align-items:center;gap:6px}}
-.trust-dot{{width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,0.25)}}
-.hero-rating{{color:var(--acc);font-size:14px;font-weight:600}}
+/* ── Services grid ── */
+.services-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}}
+.svc-card{{background:#fafafa;border:1px solid #efefef;border-radius:14px;padding:28px 24px;transition:all 0.25s}}
+.svc-card:hover{{border-color:{btn};transform:translateY(-3px);box-shadow:0 8px 32px {btn}18}}
+.svc-dot{{width:10px;height:10px;border-radius:50%;background:{btn};margin-bottom:16px}}
+.svc-name{{font-size:1.02rem;font-weight:700;color:#111;margin-bottom:6px}}
+.svc-desc{{font-size:0.85rem;color:#888;line-height:1.5}}
 
-/* Services */
-.site-services{{padding:64px 32px;background:linear-gradient(180deg,var(--bg) 0%,#0d0d1a 100%)}}
-.section-head{{text-align:center;margin-bottom:40px}}
-.section-eyebrow{{color:var(--acc);font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px}}
-.section-title{{color:white;font-size:clamp(22px,3.5vw,32px);font-weight:800;letter-spacing:-0.02em}}
-.section-sub{{color:#64748b;font-size:15px;margin-top:8px}}
-.svc-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;max-width:900px;margin:0 auto}}
-.svc-card{{
-  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
-  border-radius:16px;padding:28px 22px;transition:all 0.3s;cursor:default;
-  backdrop-filter:blur(8px);
-}}
-.svc-card:hover{{background:rgba(255,255,255,0.07);border-color:var(--acc)44;transform:translateY(-2px)}}
-.svc-icon{{font-size:26px;color:var(--acc);margin-bottom:14px}}
-.svc-title{{color:white;font-weight:700;font-size:16px;margin-bottom:6px}}
-.svc-desc{{color:#64748b;font-size:13px;line-height:1.5}}
+/* ── Testimonials ── */
+.testi-section{{background:#f9fafb}}
+.testi-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}}
+.testi-card{{background:#fff;border:1px solid #efefef;border-radius:14px;padding:24px;transition:all 0.25s}}
+.testi-stars{{color:#fbbf24;font-size:0.95rem;margin-bottom:12px}}
+.testi-text{{font-size:0.92rem;color:#333;line-height:1.6;margin-bottom:16px;font-style:italic}}
+.testi-author{{display:flex;align-items:center;gap:10px}}
+.testi-avatar{{width:36px;height:36px;border-radius:50%;background:{btn};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.88rem;flex-shrink:0}}
+.testi-name{{font-size:0.85rem;font-weight:600;color:#111}}
+.testi-location{{font-size:0.75rem;color:#999}}
 
-/* AI Widget */
-.chat-widget{{
-  position:fixed;bottom:24px;right:24px;z-index:1000;
-  display:flex;flex-direction:column;align-items:flex-end;gap:12px;
-}}
-.chat-bubble{{
-  background:white;border-radius:16px 16px 4px 16px;
-  padding:14px 18px;box-shadow:0 8px 32px rgba(0,0,0,0.35);
-  max-width:240px;color:#1e293b;font-size:14px;line-height:1.5;
-  animation:bubbleIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
-  animation-delay:1.5s;opacity:0;
-}}
-.chat-bubble strong{{color:var(--btn);display:block;margin-bottom:4px;font-size:13px}}
-.chat-btn{{
-  background:linear-gradient(135deg,var(--g1),var(--g2));
-  width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  font-size:26px;cursor:pointer;box-shadow:0 8px 24px var(--g1)66;
-  animation:pulse 3s infinite;
-}}
-.chat-online{{
-  background:#22c55e;width:14px;height:14px;border-radius:50%;
-  position:absolute;bottom:2px;right:2px;border:2px solid white;
-}}
+/* ── CTA section ── */
+.cta-section{{background:{btn};color:#fff;text-align:center;padding:80px 5vw}}
+.cta-title{{font-size:clamp(1.5rem,3vw,2.2rem);font-weight:800;margin-bottom:12px;letter-spacing:-0.02em}}
+.cta-sub{{color:rgba(255,255,255,0.8);font-size:1rem;margin-bottom:32px}}
+.cta-box{{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}}
+.cta-tel{{background:#fff;color:{btn};padding:15px 32px;border-radius:10px;font-weight:800;font-size:1rem}}
+.cta-msg{{background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.4);color:#fff;padding:15px 28px;border-radius:10px;font-weight:600;font-size:0.95rem}}
 
-/* Testimonials */
-.site-testimonials{{padding:64px 32px;background:#050508}}
-.testi-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;max-width:900px;margin:0 auto}}
-.testi-card{{
-  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
-  border-radius:16px;padding:24px;
-}}
-.testi-stars{{color:#fbbf24;font-size:16px;margin-bottom:12px}}
-.testi-text{{color:#cbd5e1;font-size:14px;line-height:1.6;margin-bottom:16px;font-style:italic}}
-.testi-author{{display:flex;align-items:center;gap:10px;color:#94a3b8;font-size:13px;font-weight:500}}
-.testi-avatar{{
-  width:34px;height:34px;border-radius:50%;
-  background:linear-gradient(135deg,var(--g1),var(--g2));
-  display:flex;align-items:center;justify-content:center;
-  color:white;font-weight:700;font-size:12px;flex-shrink:0;
-}}
+/* ── Footer ── */
+footer{{background:#f9fafb;border-top:1px solid #efefef;padding:32px 5vw;text-align:center}}
+.footer-inner{{max-width:1100px;margin:0 auto}}
+.footer-name{{font-weight:700;font-size:1rem;color:#111;margin-bottom:4px}}
+.footer-sub{{font-size:0.8rem;color:#999}}
+.novalis-bar{{margin-top:24px;padding-top:20px;border-top:1px solid #efefef;font-size:0.75rem;color:#bbb}}
+.novalis-bar a{{color:{btn};font-weight:600}}
 
-/* Site footer */
-.site-footer{{
-  background:rgba(0,0,0,0.5);border-top:1px solid rgba(255,255,255,0.06);
-  padding:24px 32px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
-}}
-.footer-logo{{color:rgba(255,255,255,0.6);font-weight:700;font-size:15px}}
-.footer-links{{display:flex;gap:20px}}
-.footer-link{{color:rgba(255,255,255,0.3);font-size:13px}}
-.footer-badge{{
-  background:var(--g1)22;border:1px solid var(--acc)44;
-  color:var(--acc);font-size:11px;font-weight:700;
-  padding:5px 12px;border-radius:999px;
-}}
+/* ── Chat widget ── */
+.chat-widget{{position:fixed;bottom:24px;right:24px;z-index:999}}
+.chat-btn{{width:56px;height:56px;border-radius:50%;background:{btn};border:none;cursor:pointer;box-shadow:0 4px 20px {btn}55;display:flex;align-items:center;justify-content:center;font-size:1.4rem;animation:pulse 2.5s infinite}}
+@keyframes pulse{{0%,100%{{box-shadow:0 4px 20px {btn}55}}50%{{box-shadow:0 4px 30px {btn}88,0 0 0 8px {btn}18}}}}
+.chat-badge{{position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;border-radius:50%;width:18px;height:18px;font-size:0.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #fff}}
 
-/* ===== NOVALIS SECTION ===== */
-.novalis-section{{background:#f1f5f9;color:#1e293b;padding:0}}
-.audit-wrap{{max-width:680px;margin:0 auto;padding:40px 20px 20px}}
-.audit-card{{background:white;border-radius:18px;padding:28px;margin-bottom:20px;box-shadow:0 2px 12px rgba(0,0,0,0.07)}}
-.audit-label{{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin-bottom:10px}}
-.audit-title{{font-size:19px;font-weight:800;color:#0f172a;margin-bottom:6px}}
-.audit-sub{{color:#64748b;font-size:14px;margin-bottom:20px}}
-.score-pill{{
-  display:inline-flex;align-items:center;gap:8px;
-  background:{score_color}18;border:1px solid {score_color}33;
-  color:{score_color};padding:7px 16px;border-radius:999px;
-  font-weight:700;font-size:14px;margin-bottom:16px;
-}}
-.issue-item{{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;color:#475569;font-size:14px}}
-.issue-x{{color:#ef4444;font-size:16px;line-height:1.4;flex-shrink:0}}
-.incl-grid{{display:grid;gap:12px}}
-.incl-item{{display:flex;align-items:flex-start;gap:14px;padding:14px;background:#f8fafc;border-radius:12px}}
-.incl-icon{{font-size:24px;line-height:1.3;flex-shrink:0}}
-.incl-title{{font-weight:700;color:#0f172a;font-size:14px;margin-bottom:3px}}
-.incl-desc{{color:#64748b;font-size:13px;line-height:1.4}}
-.final-cta-box{{
-  background:linear-gradient(135deg,#1e1b4b,#312e81,#4c1d95);
-  border-radius:20px;padding:44px 32px;text-align:center;color:white;margin-bottom:40px;
-  box-shadow:0 20px 60px rgba(79,70,229,0.3);
-}}
-.final-cta-box h2{{font-size:26px;font-weight:900;margin-bottom:10px;letter-spacing:-0.02em}}
-.final-cta-box p{{color:rgba(255,255,255,0.7);font-size:15px;line-height:1.7;margin-bottom:30px}}
-.final-btn{{
-  display:inline-block;background:white;color:#4f46e5;
-  font-weight:800;font-size:17px;padding:17px 40px;
-  border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.25);
-  letter-spacing:-0.01em;
-}}
-.final-pills{{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px}}
-.pill{{
-  background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);
-  color:rgba(255,255,255,0.75);padding:6px 16px;border-radius:999px;font-size:12px;font-weight:500;
-}}
-
-/* ===== ANIMATIONS ===== */
-@keyframes pulse{{0%,100%{{box-shadow:0 0 0 0 var(--g1)66}}50%{{box-shadow:0 0 0 12px transparent}}}}
-@keyframes bubbleIn{{from{{opacity:0;transform:translateY(10px) scale(0.95)}}to{{opacity:1;transform:none}}}}
-@keyframes fadeUp{{from{{opacity:0;transform:translateY(24px)}}to{{opacity:1;transform:none}}}}
-.fade-up{{animation:fadeUp 0.7s ease both}}
-.fade-up:nth-child(1){{animation-delay:.1s}}
-.fade-up:nth-child(2){{animation-delay:.2s}}
-.fade-up:nth-child(3){{animation-delay:.3s}}
-.fade-up:nth-child(4){{animation-delay:.4s}}
+/* ── Animations ── */
+.fade-up{{opacity:0;transform:translateY(24px);transition:all 0.5s ease}}
+.fade-up.visible{{opacity:1;transform:none}}
 
 @media(max-width:600px){{
-  .site-nav{{padding:12px 16px}}
-  .nav-links{{display:none}}
-  .site-hero{{padding:56px 20px;min-height:400px}}
-  .hero-btns{{flex-direction:column;align-items:center}}
-  .site-services,.site-testimonials{{padding:40px 16px}}
-  .site-footer{{padding:16px}}
-  .chat-bubble{{max-width:200px}}
+  .hero{{min-height:420px}}
+  .hero h1{{font-size:1.7rem}}
+  nav .nav-logo{{font-size:0.95rem}}
+  .nav-cta{{padding:8px 16px;font-size:0.82rem}}
 }}
 </style>
 </head>
 <body>
 
-<!-- TOP BAR -->
-<div class="notif-bar">
-  ✦ Rapport personnalisé préparé par Novalis IA pour <strong>{name}</strong> à {city}
+<div class="banner">Aperçu exclusif préparé pour {name} — {city}</div>
+
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo">{_nav_logo_html}</div>
+    <a class="nav-cta" href="tel:+15141234567">{cta_text}</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <div class="hero-eyebrow">✦ {city} · {industry}</div>
+    <h1>{hero_title}</h1>
+    <p class="hero-sub">{hero_subtitle}</p>
+    <div class="hero-rating"><span class="stars">{stars_display}</span><span>{rating_text}</span></div>
+    <div class="hero-btns">
+      <a class="btn-primary" href="tel:+15141234567">{cta_text}</a>
+      <a class="btn-secondary" href="#services">Nos services →</a>
+    </div>
+  </div>
 </div>
 
-<!-- ===== WEBSITE PREVIEW ===== -->
-<div class="site-preview">
-
-  <!-- Browser chrome -->
-  <div class="browser-chrome">
-    <div class="bc-dot" style="background:#ff5f57"></div>
-    <div class="bc-dot" style="background:#febc2e"></div>
-    <div class="bc-dot" style="background:#28c840"></div>
-    <div class="bc-url">🔒 &nbsp;{_slugify(name)}.ca &nbsp;—&nbsp; Votre nouveau site</div>
-    <div class="bc-icons">↺ ⤡</div>
-  </div>
-
-  <!-- Sticky nav -->
-  <div class="site-nav">
-    <div class="nav-logo">{_nav_logo_html}</div>
-    <div class="nav-links">
-      {''.join(f'<span class="nav-link">{s}</span>' for s in services_list[:2])}
-      <span class="nav-link">À propos</span>
-      <span class="nav-cta">{cta_text}</span>
-    </div>
-  </div>
-
-  <!-- Hero -->
-  <div class="site-hero">
-    <div class="hero-glow"></div>
-    <div class="hero-content">
-      <div class="hero-badge">
-        <div class="hero-badge-dot"></div>
-        <span>Disponible 24h/7j — Réponse en 30 secondes</span>
-      </div>
-      <div class="hero-h1">{hero_title}</div>
-      <div class="hero-sub">{hero_subtitle}</div>
-      <div class="hero-btns">
-        <div class="hero-btn-primary">{cta_text} →</div>
-        <div class="hero-btn-secondary">En savoir plus</div>
-      </div>
-      <div class="hero-trust">
-        <div class="trust-item"><span>✓</span> Réponse immédiate</div>
-        <div class="trust-dot"></div>
-        <div class="trust-item"><span>✓</span> {city}</div>
-        <div class="trust-dot"></div>
-        <div class="trust-item hero-rating">{rating_text}</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Services -->
-  <div class="site-services">
-    <div class="section-head">
-      <div class="section-eyebrow">Nos services</div>
-      <div class="section-title">Tout ce dont vous avez besoin</div>
-      <div class="section-sub">{trust_line}</div>
-    </div>
-    <div class="svc-grid">
+<section id="services">
+  <div class="section-inner">
+    <span class="section-tag">Ce qu'on offre</span>
+    <h2 class="section-title">Nos services</h2>
+    <p class="section-sub">Tout ce dont vous avez besoin, disponible quand vous en avez besoin.</p>
+    <div class="services-grid">
       {services_html}
     </div>
   </div>
+</section>
 
-  <!-- Testimonials -->
-  <div class="site-testimonials">
-    <div class="section-head">
-      <div class="section-eyebrow">Témoignages</div>
-      <div class="section-title">Ce que disent nos clients</div>
-    </div>
+<section class="testi-section">
+  <div class="section-inner">
+    <span class="section-tag">Témoignages</span>
+    <h2 class="section-title">Ce que disent nos clients</h2>
+    <p class="section-sub">{trust_line}</p>
     <div class="testi-grid">
       {testimonials_html}
     </div>
   </div>
+</section>
 
-  <!-- Footer -->
-  <div class="site-footer">
-    <div class="footer-logo">{name[:20]}</div>
-    <div class="footer-links">
-      <span class="footer-link">Services</span>
-      <span class="footer-link">Contact</span>
-      <span class="footer-link">Réserver</span>
-    </div>
-    <div class="footer-badge">⚡ IA Intégrée</div>
+<div class="cta-section">
+  <h2 class="cta-title">Prêt à passer à l'étape suivante ?</h2>
+  <p class="cta-sub">Parlez à notre équipe — sans engagement, sans pression.</p>
+  <div class="cta-box">
+    <a class="cta-tel" href="tel:+15141234567">📞 Parler à notre équipe</a>
+    <a class="cta-msg" href="mailto:elliot@novalisia.ca">✉ Nous écrire</a>
   </div>
-
 </div>
 
-<!-- AI Chat Widget -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-name">{name}</div>
+    <div class="footer-sub">{city}, Québec</div>
+    <div class="novalis-bar">Site conçu par <a href="https://novalisia.ca" target="_blank">Novalis IA</a> · <a href="https://novalisia.ca/unsubscribe?id={prospect_id}">Se désabonner</a></div>
+  </div>
+</footer>
+
 <div class="chat-widget">
-  <div class="chat-bubble">
-    <strong>Agent IA — {name[:18]}</strong>
-    Bonjour! Comment puis-je vous aider aujourd'hui? Je réponds 24h/7j 😊
-  </div>
-  <div class="chat-btn" style="position:relative">
-    💬
-    <div class="chat-online"></div>
-  </div>
-</div>
-
-<!-- ===== NOVALIS IA SECTION ===== -->
-<div class="novalis-section">
-  <div class="audit-wrap">
-
-    <!-- Audit -->
-    <div class="audit-card">
-      <div class="audit-label">Ce qu'on a analysé</div>
-      <div class="audit-title">L'état actuel de {name}</div>
-      <div class="audit-sub">Analyse automatique de votre site web et de vos avis en ligne</div>
-      <div class="score-pill">Site actuel : {web_score}/5 — {score_label}</div>
-      {'<div style="color:#64748b;font-size:14px;font-style:italic;margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border-left:3px solid #e2e8f0">' + insights + '</div>' if insights else ''}
-      {issues_html}
-    </div>
-
-    <!-- Inclus -->
-    <div class="audit-card">
-      <div class="audit-label">Ce qui est inclus</div>
-      <div class="audit-title">Votre système complet</div>
-      <div class="audit-sub">Pas juste un site — un vrai moteur de croissance automatisé</div>
-      <div class="incl-grid">
-        {included_html}
-      </div>
-    </div>
-
-    <!-- CTA -->
-    <div class="final-cta-box">
-      <h2>Voulez-vous ce site pour de vrai?</h2>
-      <p>Parlez à notre équipe gratuitement — 15 minutes pour voir exactement ce que votre nouveau site et votre agent IA donneraient pour {name}. Aucun engagement, premier mois gratuit.</p>
-      <a class="final-btn" href="tel:+15141234567">📞 Parler à notre équipe</a>
-      <div class="final-pills">
-        <span class="pill">✓ Premier mois gratuit</span>
-        <span class="pill">✓ Aucun contrat</span>
-        <span class="pill">✓ Livré en 2-3 semaines</span>
-        <span class="pill">✓ Support inclus</span>
-      </div>
-    </div>
-
-  </div>
+  <button class="chat-btn" onclick="alert('Pour parler à notre équipe : elliot@novalisia.ca')">💬<span class="chat-badge">1</span></button>
 </div>
 
 <script>
-// Fade-up on scroll
-const observer = new IntersectionObserver((entries) => {{
-  entries.forEach(e => {{ if(e.isIntersecting) e.target.classList.add('visible'); }});
-}}, {{threshold:0.1}});
-document.querySelectorAll('.svc-card,.testi-card,.incl-item').forEach(el => {{
-  el.style.opacity='0';el.style.transform='translateY(20px)';el.style.transition='all 0.5s ease';
-  observer.observe(el);
-}});
-document.addEventListener('DOMContentLoaded',()=>{{
-  document.querySelectorAll('.svc-card,.testi-card,.incl-item').forEach(el=>{{
-    const io=new IntersectionObserver(entries=>{{
-      entries.forEach(e=>{{
-        if(e.isIntersecting){{
-          e.target.style.opacity='1';e.target.style.transform='none';
-          io.unobserve(e.target);
-        }}
-      }});
-    }},{{threshold:0.1}});
-    io.observe(el);
-  }});
+const io = new IntersectionObserver((entries) => {{
+  entries.forEach(e => {{ if(e.isIntersecting) {{ e.target.classList.add('visible'); io.unobserve(e.target); }} }});
+}}, {{threshold:0.12}});
+document.querySelectorAll('.svc-card,.testi-card,.fade-up').forEach(el => {{
+  el.classList.add('fade-up'); io.observe(el);
 }});
 </script>
-
 </body>
 </html>"""
     return HTMLResponse(html)
