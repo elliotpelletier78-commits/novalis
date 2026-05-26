@@ -5613,8 +5613,9 @@ def _score_website_quality(html: str, url: str) -> dict:
 
 
 def _extract_brand_meta(html: str, base_url: str) -> dict:
-    """Extrait couleurs, logo et image hero du site de la PME."""
-    meta = {"brand_color": "", "accent_color": "", "logo_url": "", "og_image": "", "favicon_url": ""}
+    """Extrait couleurs, logo, images et galerie du site de la PME."""
+    meta = {"brand_color": "", "accent_color": "", "logo_url": "", "og_image": "",
+            "favicon_url": "", "gallery": []}
     try:
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(html, "html.parser")
@@ -5690,6 +5691,67 @@ def _extract_brand_meta(html: str, base_url: str) -> dict:
                 meta["brand_color"] = valid[0]
                 if len(valid) > 1:
                     meta["accent_color"] = valid[1]
+
+        # ── Galerie d'images du site ──────────────────────────────────────────
+        _skip = ["logo","icon","badge","payment","visa","mastercard","paypal","facebook",
+                 "instagram","twitter","youtube","linkedin","pinterest","yelp","google",
+                 "apple","android","sprite","arrow","btn-","star-","rating","map-",
+                 "flag","seal","cert","award","loading","spinner","placeholder","blank",
+                 "default","noimage","no-image","pixel","tracking","1x1","spacer","separator"]
+        _priority_high = ["gallery","galerie","portfolio","slider","carousel","lightbox",
+                          "realisations","realisation","projet","photo","work","folio"]
+        _priority_med  = ["team","equipe","staff","membre","about","propos","service","before"]
+        _seen = {meta["og_image"], meta["logo_url"], ""}
+        _candidates = []
+        for img in soup.find_all("img"):
+            src = (img.get("src") or img.get("data-src") or
+                   img.get("data-lazy-src") or img.get("data-original") or "").strip()
+            if not src or src.startswith("data:") or src in _seen:
+                continue
+            # Normalize URL
+            if src.startswith("//"):
+                src = "https:" + src
+            elif src.startswith("/"):
+                src = base_url.rstrip("/") + src
+            elif not src.startswith("http"):
+                src = base_url.rstrip("/") + "/" + src.lstrip("/")
+            if src in _seen:
+                continue
+            src_low = src.lower().split("?")[0]
+            if src_low.endswith((".svg", ".ico", ".woff", ".woff2", ".css", ".js")):
+                continue
+            if any(p in src_low for p in _skip):
+                continue
+            # Skip explicit small icons
+            try:
+                w = img.get("width", ""); h = img.get("height", "")
+                if (w and int(str(w).replace("px","")) < 150) or (h and int(str(h).replace("px","")) < 150):
+                    continue
+            except (ValueError, TypeError):
+                pass
+            alt_low = (img.get("alt") or "").lower()
+            if any(p in alt_low for p in ["logo","icon","badge","flag"]):
+                continue
+            # Score by parent container context
+            score = 0
+            p_el = img.parent
+            for _ in range(7):
+                if p_el is None or not hasattr(p_el, "get"):
+                    break
+                ctx = " ".join([
+                    " ".join(p_el.get("class", []) if isinstance(p_el.get("class"), list) else [p_el.get("class","") or ""]),
+                    p_el.get("id", ""), p_el.name or ""
+                ]).lower()
+                if any(k in ctx for k in _priority_high):
+                    score += 3
+                    break
+                elif any(k in ctx for k in _priority_med):
+                    score += 1
+                p_el = getattr(p_el, "parent", None)
+            _seen.add(src)
+            _candidates.append((score, src))
+        _candidates.sort(reverse=True)
+        meta["gallery"] = [url for _, url in _candidates[:8]]
     except Exception:
         pass
     return meta
@@ -12044,6 +12106,18 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         )
     testimonials_html = "".join(testi_html_parts)
 
+    # ── Galerie d'images réelles du site ─────────────────────────────────────
+    gallery_images = bm.get("gallery", [])
+    gallery_html = ""
+    if gallery_images:
+        for img_url in gallery_images[:6]:
+            gallery_html += (
+                f'<div class="gal-item reveal">'
+                f'<img src="{img_url}" alt="" loading="lazy" '
+                f'onerror="this.closest(\'.gal-item\').style.display=\'none\'">'
+                f'</div>'
+            )
+
     # ── Audit issues ──────────────────────────────────────────────────────────
     score_color = "#22c55e" if web_score >= 4 else ("#f59e0b" if web_score == 3 else "#ef4444")
     score_label = "Bon" if web_score >= 4 else ("Améliorable" if web_score == 3 else "À refaire")
@@ -12086,6 +12160,18 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     stars_display = ("★" * round(float(rating)) + "☆" * (5 - round(float(rating)))) if rating else "★★★★★"
     rating_text = f"{stars_display} {rating}/5 · {review_count} avis" if rating else f"{stars_display} Avis clients vérifiés"
     nav_items = services_list[:2] + [cta_text]
+
+    if gallery_html:
+        gallery_section = (
+            '<section class="sec gal-sec" id="galerie">'
+            '<div class="sec-in">'
+            '<div class="sec-label reveal">En images</div>'
+            f'<h2 class="sec-h reveal d1">Notre travail</h2>'
+            f'<div class="gal-grid">{gallery_html}</div>'
+            '</div></section>'
+        )
+    else:
+        gallery_section = ""
 
     html = f"""<!DOCTYPE html>
 <html lang="fr">
@@ -12145,6 +12231,12 @@ nav{{position:sticky;top:0;z-index:200;background:rgba(247,244,239,0.95);backdro
 .svc-row:hover .svc-title{{color:var(--brand)}}
 .svc-num{{font-family:var(--serif);font-size:0.78rem;color:var(--ink2);letter-spacing:0.04em;padding-top:4px}}
 .svc-title{{font-family:var(--serif);font-size:1.2rem;font-weight:700;color:var(--ink);transition:color 0.2s;line-height:1.3}}
+.gal-sec{{background:#fff;padding:88px 5vw}}
+.gal-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:44px}}
+.gal-item{{aspect-ratio:4/3;overflow:hidden;border-radius:6px;background:var(--paper2)}}
+.gal-item img{{width:100%;height:100%;object-fit:cover;transition:transform 0.5s ease;display:block}}
+.gal-item:hover img{{transform:scale(1.05)}}
+@media(max-width:600px){{.gal-grid{{grid-template-columns:repeat(2,1fr)}}}}
 .testi-sec{{background:#131009;padding:88px 5vw}}
 .testi-sec .sec-label{{color:{acc}}}
 .testi-sec .sec-h{{color:#fff}}
@@ -12244,6 +12336,8 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
     </div>
   </div>
 </section>
+
+{gallery_section}
 
 <section class="testi-sec" id="avis">
   <div class="sec-in">
