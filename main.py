@@ -12620,13 +12620,55 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     for fix in fixes[:max(len(web_issues[:5]), 3)]:
         after_items_html += f'<div class="audit-row"><span class="audit-check">✓</span><span>{fix}</span></div>'
 
+    # ── Section "Ce que votre site actuel vous coûte" (shock + loss aversion) ──
+    _pain_points_map = {
+        "mobile":    ("📱", "Invisible sur mobile", f"68% des recherches {industry.lower()} à {city} se font sur téléphone. Votre site ne s'affiche pas correctement."),
+        "https":     ("🔒", "Pas sécurisé (HTTP)", "Google pénalise les sites non-HTTPS — vous êtes moins bien classé que vos concurrents."),
+        "lent":      ("⏱", "Chargement lent", "Un visiteur qui attend plus de 3 secondes part. Et ne revient pas."),
+        "contact":   ("📞", "Aucun appel à l'action", "Vos visiteurs ne savent pas comment vous rejoindre — ils vont ailleurs."),
+        "images":    ("🖼", "Aucune photo de qualité", "Un site sans images perd 60% de ses visiteurs dès la première seconde."),
+        "ancien":    ("📅", "Site désuet", "Vos concurrents ont refait leur site. Vous semblez fermé ou peu professionnel."),
+        "contenu":   ("📝", "Contenu insuffisant", "Google ne vous trouve pas — votre site n'a pas assez de contenu indexable."),
+    }
+    shock_rows_html = ""
+    used_pains = set()
+    for issue in web_issues[:4]:
+        for key, (icon, title, desc) in _pain_points_map.items():
+            if key in issue.lower() and key not in used_pains:
+                shock_rows_html += (
+                    f'<div class="shock-row reveal">'
+                    f'<div class="shock-icon">{icon}</div>'
+                    f'<div><div class="shock-title">{title}</div>'
+                    f'<div class="shock-desc">{desc}</div></div>'
+                    f'</div>'
+                )
+                used_pains.add(key)
+                break
+    # Always add the "clients perdus" row
+    shock_rows_html += (
+        f'<div class="shock-row reveal shock-conclusion">'
+        f'<div class="shock-icon">💸</div>'
+        f'<div><div class="shock-title">Des clients partent chez vos concurrents</div>'
+        f'<div class="shock-desc">Chaque semaine, des gens cherchent <em>{industry.lower()} à {city}</em> — et choisissent quelqu\'un avec un meilleur site.</div></div>'
+        f'</div>'
+    )
+    shock_section = (
+        '<section class="shock-sec">'
+        '<div class="sec-in">'
+        '<div class="sec-label reveal" style="color:#ef4444">Votre situation actuelle</div>'
+        f'<h2 class="sec-h reveal d1">Ce que votre site actuel vous coûte</h2>'
+        f'<div class="shock-grid">{shock_rows_html}</div>'
+        '</div></section>'
+    )
+
+    # ── Audit avant/après ─────────────────────────────────────────────────────
     if web_issues:
         audit_section = (
             '<section class="sec audit-sec">'
             '<div class="sec-in audit-grid">'
             '<div class="audit-col audit-before">'
-            f'<div class="audit-label">Site actuel · {biz_website or "analysé"}</div>'
-            f'<div class="audit-score" style="color:{score_color}">{score_label}</div>'
+            f'<div class="audit-label">Votre site · {score_label}</div>'
+            f'<div class="audit-score" style="color:{score_color}">{web_score}/5</div>'
             f'{before_items_html}'
             '</div>'
             '<div class="audit-arrow">→</div>'
@@ -12640,22 +12682,23 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     else:
         audit_section = ""
 
-    # ── What's included list ──────────────────────────────────────────────────
+    # ── Ce que vous obtenez (valeur perçue) ───────────────────────────────────
     included = [
-        ("💬","Agent IA 24/7","Répond à vos clients instantanément, même à 3h du matin"),
-        ("📅","Réservation en ligne","Vos clients bookent sans appeler — disponible 24h/7j"),
-        ("🔔","Rappels automatiques","SMS avant chaque RDV — fini les no-shows"),
-        ("⭐","Collecte d'avis Google","Relance automatique après chaque service"),
-        ("📊","Tableau de bord","Suivez vos clients, RDV et revenus en temps réel"),
-        ("📱","Site mobile parfait","80% de vos clients cherchent sur téléphone"),
+        ("📱","Site mobile parfait","Vos clients vous trouvent et réservent depuis leur téléphone — à toute heure"),
+        ("🔍","Référencement Google","Apparaître dans les 3 premiers résultats quand on cherche votre service à {city}".format(city=city)),
+        ("⚡","Chargement en 1 seconde","Performance optimisée — aucun visiteur ne repart à cause d'un temps d'attente"),
+        ("📞","Appel direct en 1 clic","Votre numéro en évidence sur mobile — les clients appellent sans chercher"),
+        ("📸","Vos vraies photos","Vos réalisations et votre équipe mis en valeur — pas des photos génériques"),
+        ("🔒","Sécurisé HTTPS","Certificat SSL inclus — Google et vos clients vous font confiance"),
     ]
     included_html = ""
     for icon, title, desc in included:
-        included_html += f"""
-          <div class="incl-item">
-            <div class="incl-icon">{icon}</div>
-            <div><div class="incl-title">{title}</div><div class="incl-desc">{desc}</div></div>
-          </div>"""
+        included_html += (
+            f'<div class="incl-item reveal">'
+            f'<div class="incl-icon">{icon}</div>'
+            f'<div><div class="incl-title">{title}</div><div class="incl-desc">{desc}</div></div>'
+            f'</div>'
+        )
 
     _favicon_tag = f'<link rel="icon" href="{real_favicon}">' if real_favicon else ""
 
@@ -12856,6 +12899,17 @@ nav{{position:sticky;top:0;z-index:200;background:rgba(247,244,239,0.95);backdro
 .gal-item:hover img{{transform:scale(1.05)}}
 @media(min-width:768px){{.gal-grid{{grid-template-columns:repeat(3,1fr)}}}}
 @media(max-width:600px){{.gal-grid{{grid-template-columns:1fr}}}}
+.shock-sec{{background:#0f0404;padding:80px 5vw}}
+.shock-sec .sec-label{{color:#ef4444!important}}
+.shock-sec .sec-h{{color:#fff}}
+.shock-grid{{margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:16px}}
+.shock-row{{display:flex;align-items:flex-start;gap:18px;background:#1a0808;border:1px solid #3a1010;border-radius:8px;padding:22px 20px}}
+.shock-row.shock-conclusion{{grid-column:1/-1;border-color:#7f1d1d;background:#1f0c0c}}
+.shock-icon{{font-size:1.5rem;flex-shrink:0;margin-top:2px}}
+.shock-title{{font-family:var(--serif);font-size:1rem;font-weight:700;color:#fff;margin-bottom:4px}}
+.shock-desc{{font-size:0.82rem;color:rgba(255,255,255,0.55);line-height:1.6}}
+.shock-desc em{{color:rgba(255,255,255,0.75);font-style:normal;font-weight:500}}
+@media(max-width:600px){{.shock-grid{{grid-template-columns:1fr}}.shock-row.shock-conclusion{{grid-column:auto}}}}
 .audit-sec{{background:var(--paper);padding:72px 5vw;border-top:1px solid var(--rule)}}
 .audit-grid{{display:grid;grid-template-columns:1fr auto 1fr;gap:24px;align-items:start;max-width:800px;margin:0 auto}}
 .audit-col{{padding:28px 24px;border-radius:8px}}
@@ -12881,15 +12935,26 @@ nav{{position:sticky;top:0;z-index:200;background:rgba(247,244,239,0.95);backdro
 .testi-avatar{{width:36px;height:36px;border-radius:50%;background:{btn};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;flex-shrink:0;font-family:var(--serif)}}
 .testi-name{{font-size:0.82rem;font-weight:600;color:#fff}}
 .testi-loc{{font-size:0.72rem;color:rgba(255,255,255,0.32)}}
-.cta-sec{{position:relative;overflow:hidden;padding:96px 5vw;text-align:center;background:var(--paper2)}}
-.cta-glow{{position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:500px;height:500px;border-radius:50%;background:var(--brand);opacity:0.06;filter:blur(80px);pointer-events:none}}
-.cta-h{{font-family:var(--serif);font-size:clamp(1.8rem,4vw,3rem);font-weight:900;letter-spacing:-0.03em;color:var(--ink);margin-bottom:14px;line-height:1.1}}
-.cta-sub{{color:var(--ink2);font-size:0.95rem;font-weight:300;margin-bottom:36px;line-height:1.75}}
-.cta-btns{{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}}
-.cta-a{{background:var(--brand);color:#fff;padding:15px 34px;border-radius:5px;font-weight:600;font-size:0.92rem;transition:opacity 0.2s,transform 0.2s;display:inline-block}}
-.cta-a:hover{{opacity:0.88;transform:translateY(-1px)}}
-.cta-b{{background:transparent;color:var(--ink);padding:15px 26px;border-radius:5px;font-weight:400;font-size:0.9rem;border:1px solid var(--rule);transition:all 0.2s;display:inline-block}}
-.cta-b:hover{{border-color:var(--ink);background:var(--ink);color:#fff}}
+.incl-sec{{background:var(--paper);padding:80px 5vw;border-top:1px solid var(--rule)}}
+.incl-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:44px}}
+.incl-item{{display:flex;align-items:flex-start;gap:16px;padding:22px 20px;background:#fff;border:1px solid var(--rule);border-radius:8px}}
+.incl-icon{{font-size:1.4rem;flex-shrink:0}}
+.incl-title{{font-weight:600;font-size:0.92rem;color:var(--ink);margin-bottom:3px}}
+.incl-desc{{font-size:0.8rem;color:var(--ink2);line-height:1.55}}
+.cta-final{{position:relative;overflow:hidden;padding:100px 5vw;text-align:center;background:var(--ink)}}
+.cta-final-glow{{position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:600px;height:400px;background:var(--brand);opacity:0.15;filter:blur(100px);pointer-events:none;border-radius:50%}}
+.cta-badge{{display:inline-block;background:var(--brand);color:#fff;font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:6px 16px;border-radius:3px;margin-bottom:28px}}
+.cta-h{{font-family:var(--serif);font-size:clamp(2rem,5vw,3.6rem);font-weight:900;letter-spacing:-0.03em;color:#fff;margin-bottom:16px;line-height:1.05}}
+.cta-sub{{color:rgba(255,255,255,0.55);font-size:0.95rem;font-weight:300;margin-bottom:40px;line-height:1.8;max-width:480px;margin-left:auto;margin-right:auto}}
+.cta-price{{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:20px 28px;display:inline-block;margin-bottom:32px}}
+.cta-price-main{{font-family:var(--serif);font-size:2rem;font-weight:700;color:#fff}}
+.cta-price-note{{display:block;font-size:0.78rem;color:rgba(255,255,255,0.4);margin-top:4px}}
+.cta-btns{{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}}
+.cta-a{{background:var(--brand);color:#fff;padding:17px 38px;border-radius:5px;font-weight:700;font-size:0.95rem;transition:opacity 0.2s,transform 0.2s;display:inline-block;letter-spacing:0.01em}}
+.cta-a:hover{{opacity:0.88;transform:translateY(-2px)}}
+.cta-b{{background:rgba(255,255,255,0.08);color:#fff;padding:17px 28px;border-radius:5px;font-weight:400;font-size:0.9rem;border:1px solid rgba(255,255,255,0.2);transition:all 0.2s;display:inline-block}}
+.cta-b:hover{{background:rgba(255,255,255,0.16)}}
+.cta-reassure{{margin-top:24px;font-size:0.76rem;color:rgba(255,255,255,0.28);letter-spacing:0.04em}}
 footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 .foot-in{{max-width:1160px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}}
 .foot-name{{font-family:var(--serif);font-weight:700;font-size:0.98rem;color:var(--ink)}}
@@ -12960,11 +13025,13 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 
 {photo_strip_section}
 
+{shock_section}
+
 <section class="sec" id="services">
   <div class="sec-in">
-    <div class="sec-label reveal">Services</div>
-    <h2 class="sec-h reveal d1">Ce que nous offrons</h2>
-    <p class="sec-lead reveal d2">Des solutions conçues pour votre clientèle, disponibles quand vous en avez besoin.</p>
+    <div class="sec-label reveal">Vos services</div>
+    <h2 class="sec-h reveal d1">Ce que vous offrez — mis en valeur</h2>
+    <p class="sec-lead reveal d2">Vos services présentés comme ils méritent de l'être, pour que vos clients comprennent exactement ce que vous faites.</p>
     <div class="svc-list">
       {services_html}
     </div>
@@ -12979,24 +13046,30 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 
 {hours_section}
 
-<section class="testi-sec" id="avis">
+<section class="incl-sec" id="inclus">
   <div class="sec-in">
-    <div class="sec-label reveal">Témoignages</div>
-    <h2 class="sec-h reveal d1">{trust_line}</h2>
-    <div class="testi-grid">
-      {testimonials_html}
+    <div class="sec-label reveal">Ce que vous obtenez</div>
+    <h2 class="sec-h reveal d1">Tout ce qu'il faut pour dominer votre marché local</h2>
+    <div class="incl-grid">
+      {included_html}
     </div>
   </div>
 </section>
 
-<section class="sec cta-sec" id="contact">
-  <div class="cta-glow"></div>
-  <h2 class="cta-h reveal">Prêts à passer à l'étape suivante ?</h2>
-  <p class="cta-sub reveal d1">Parlez à notre équipe — sans engagement, sans pression.</p>
-  <div class="cta-btns reveal d2">
-    <a class="cta-a" href="{_tel_href}">{_tel_label}</a>
+<section class="cta-final" id="contact">
+  <div class="cta-final-glow"></div>
+  <div class="cta-badge">Votre site est prêt</div>
+  <h2 class="cta-h reveal">Il ne manque que votre accord.</h2>
+  <p class="cta-sub reveal d1">Ce site a été conçu spécifiquement pour {name}.<br>Livraison en 2–3 semaines. Satisfait ou remboursé.</p>
+  <div class="cta-price reveal d2">
+    <div class="cta-price-main">À partir de 1 000 $</div>
+    <span class="cta-price-note">Moins qu'un mois de clients perdus à cause d'un mauvais site</span>
+  </div>
+  <div class="cta-btns reveal d3">
+    <a class="cta-a" href="{_tel_href}">{_tel_label or "Nous appeler"}</a>
     <a class="cta-b" href="{_mail_href}">Nous écrire</a>
   </div>
+  <p class="cta-reassure">Sans engagement · Aucune carte requise · Livré clé en main</p>
 </section>
 
 <footer>
