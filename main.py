@@ -879,6 +879,26 @@ async function toggleAutoOutreach(){{
     await loadAutoOutreachStatus();
 }}
 
+async function testDiscovery(btn){{
+    const orig=btn.textContent; btn.textContent='⏳ Test en cours...'; btn.disabled=true;
+    const el=document.getElementById('disc_test_result');
+    try{{
+        const r=await fetch('/api/admin/test-discovery',{{method:'POST'}});
+        const d=await r.json();
+        const gp=d.google_places||[];
+        const ddg=d.ddg||[];
+        let msg='';
+        if(gp.length)msg+='✅ Google Places: '+gp.length+' résultats ('+d.city+' / '+d.industry+'). Ex: '+gp[0].name+' — '+gp[0].url;
+        else if(d.google_places_configured===false||!gp.length)msg+='❌ Google Places: 0 résultats';
+        if(d.ddg_error)msg+=' | DDG erreur: '+d.ddg_error;
+        else if(ddg.length)msg+=' | DDG: '+ddg.length+' résultats';
+        else msg+=' | DDG: 0 résultats';
+        if(d.error)msg='❌ Erreur: '+d.error;
+        el.textContent=msg; el.style.color=gp.length?'#34d399':'#ef4444';
+    }}catch(e){{el.textContent='❌ '+e.message; el.style.color='#ef4444';}}
+    btn.textContent=orig; btn.disabled=false;
+}}
+
 // === DÉCOUVERTE AUTOMATIQUE DE PMEs ===
 let discProspects=[];
 async function testSmtp(btn){{
@@ -7623,6 +7643,7 @@ async def dashboard(username: str = Depends(verify_admin)):
             <!-- DÉCOUVERTE DE PMEs -->
             <div class="view" id="decouverte">
                 <div id="outreach_panel" style="background:#0f1a2b;border:1px solid #1e3a5f;border-radius:12px;padding:20px 24px;margin-bottom:20px;"></div>
+                <div style="margin-bottom:16px;"><button onclick="testDiscovery(this)" style="background:#0f2d4a;color:#38bdf8;border:1px solid #1e3a5f;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:0.85rem;font-weight:600;">🧪 Tester la découverte Google Places</button> <span id="disc_test_result" style="font-size:0.82rem;color:#94a3b8;margin-left:10px;"></span></div>
                 <h2 style="color:#38bdf8;margin-bottom:4px;">🔍 Découverte automatique de PMEs</h2>
                 <p style="color:#64748b;font-size:0.8rem;margin-bottom:16px;">Novalis cherche automatiquement des PMEs québécoises qui ont besoin de vous — sites désuets, mauvais avis, opportunités IA. Cliquez "Contacté" ou "Ignorer" pour chaque suggestion, puis Refresh pour en obtenir de nouvelles.</p>
 
