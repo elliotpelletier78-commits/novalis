@@ -7943,24 +7943,66 @@ async def outreach_send_now(username: str = Depends(verify_admin)):
 
 @app.post("/api/admin/test-email")
 async def test_email_send(username: str = Depends(verify_admin)):
-    """Envoie un email de test à l'adresse admin pour vérifier que Resend/SMTP fonctionne."""
+    """Teste Resend et SMTP séparément — montre l'erreur exacte de chacun."""
     test_to = ADMIN_EMAIL or os.getenv("SMTP_USER", "") or "novalisproia@gmail.com"
-    subject = "✅ Test Novalis — Email fonctionne"
-    body = f"""<div style="font-family:sans-serif;padding:20px;color:#222;">
-<h2>Test envoi Novalis IA</h2>
-<p>Cet email confirme que votre configuration d'envoi fonctionne correctement.</p>
-<ul>
-<li>FROM: {FROM_EMAIL}</li>
-<li>TO: {test_to}</li>
-<li>Provider: {'Resend' if RESEND_API_KEY else 'SMTP'}</li>
-<li>Heure: {datetime.now().isoformat()}</li>
-</ul>
-</div>"""
-    try:
-        await send_email(test_to, subject, body)
-        return {"detail": f"Envoyé à {test_to} via {'Resend' if RESEND_API_KEY else 'SMTP'}"}
-    except Exception as e:
-        raise HTTPException(500, detail=f"Échec: {str(e)}")
+    subject = "✅ Test Novalis"
+    body = f"<p>Test envoi — {datetime.now().isoformat()} — FROM: {FROM_EMAIL}</p>"
+    results = {}
+
+    # Test Resend seul
+    if RESEND_API_KEY:
+        def _test_resend():
+            import urllib.request, urllib.error
+            payload = json.dumps({
+                "from": f"{FROM_NAME} <{FROM_EMAIL}>",
+                "to": [test_to],
+                "subject": subject,
+                "html": body,
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                "https://api.resend.com/emails",
+                data=payload,
+                headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    return json.loads(resp.read())
+            except urllib.error.HTTPError as e:
+                raise RuntimeError(f"HTTP {e.code}: {e.read().decode('utf-8','ignore')}") from e
+        try:
+            r = await asyncio.to_thread(_test_resend)
+            results["resend"] = f"✅ OK — id:{r.get('id','?')} — envoyé à {test_to}"
+        except Exception as e:
+            results["resend"] = f"❌ {str(e)}"
+    else:
+        results["resend"] = "⚠️ RESEND_API_KEY non configuré"
+
+    # Test SMTP seul
+    if SMTP_HOST and SMTP_USER:
+        def _test_smtp():
+            from email.mime.text import MIMEText
+            msg = MIMEText(body, "html", "utf-8")
+            msg["Subject"] = subject + " (SMTP)"
+            msg["From"] = SMTP_FROM or SMTP_USER
+            msg["To"] = test_to
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as s:
+                s.starttls()
+                s.login(SMTP_USER, SMTP_PASS)
+                s.sendmail(SMTP_FROM or SMTP_USER, [test_to], msg.as_string())
+        try:
+            await asyncio.to_thread(_test_smtp)
+            results["smtp"] = f"✅ OK — envoyé à {test_to}"
+        except Exception as e:
+            results["smtp"] = f"❌ {str(e)}"
+    else:
+        results["smtp"] = "⚠️ SMTP non configuré"
+
+    summary = " | ".join(f"{k}: {v}" for k, v in results.items())
+    ok = any("✅" in v for v in results.values())
+    if ok:
+        return {"detail": summary}
+    raise HTTPException(500, detail=summary)
 
 
 @app.get("/api/admin/email-pipeline-debug")
