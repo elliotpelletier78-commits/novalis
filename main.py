@@ -5656,6 +5656,188 @@ def _score_website_quality(html: str, url: str) -> dict:
     return {"score": max(1, min(5, score)), "issues": issues[:5]}
 
 
+def _extract_structured_content(html: str, soup) -> dict:
+    """Extrait heures, adresse, description et services depuis le HTML d'une page."""
+    result = {"hours": [], "address": "", "about": "", "services_data": []}
+    try:
+        import json as _json
+
+        # 1. JSON-LD
+        for script_tag in soup.find_all("script", type="application/ld+json"):
+            try:
+                data = _json.loads(script_tag.string or "")
+                # Handle @graph arrays
+                entries = data if isinstance(data, list) else [data]
+                for entry in entries:
+                    if isinstance(entry, dict) and "@graph" in entry:
+                        entries = list(entry["@graph"])
+                for entry in entries:
+                    if not isinstance(entry, dict):
+                        continue
+                    # Address
+                    if not result["address"]:
+                        addr_obj = entry.get("address", {})
+                        if isinstance(addr_obj, dict):
+                            parts = [
+                                addr_obj.get("streetAddress", ""),
+                                addr_obj.get("addressLocality", ""),
+                                addr_obj.get("addressRegion", ""),
+                                addr_obj.get("postalCode", ""),
+                            ]
+                            addr_str = ", ".join(p for p in parts if p)
+                            if addr_str:
+                                result["address"] = addr_str
+                        elif isinstance(addr_obj, str) and addr_obj:
+                            result["address"] = addr_obj
+                    # Opening hours
+                    if not result["hours"]:
+                        oh = entry.get("openingHours") or entry.get("openingHoursSpecification", [])
+                        if isinstance(oh, str):
+                            result["hours"] = [oh]
+                        elif isinstance(oh, list):
+                            flat = []
+                            for item in oh:
+                                if isinstance(item, str):
+                                    flat.append(item)
+                                elif isinstance(item, dict):
+                                    days = item.get("dayOfWeek", [])
+                                    if isinstance(days, str):
+                                        days = [days]
+                                    opens = item.get("opens", "")
+                                    closes = item.get("closes", "")
+                                    if days and opens and closes:
+                                        day_names = [d.replace("https://schema.org/", "").replace("http://schema.org/", "") for d in days]
+                                        flat.append(f"{', '.join(day_names)}: {opens}–{closes}")
+                            result["hours"] = flat[:7]
+                    # Description
+                    if not result["about"]:
+                        desc = entry.get("description", "") or entry.get("disambiguatingDescription", "")
+                        if desc and len(desc) > 40:
+                            result["about"] = desc[:500]
+            except Exception:
+                pass
+
+        # 2. Schema.org itemprop meta tags
+        if not result["address"]:
+            addr_tag = soup.find(attrs={"itemprop": "address"})
+            if addr_tag:
+                street = soup.find(attrs={"itemprop": "streetAddress"})
+                locality = soup.find(attrs={"itemprop": "addressLocality"})
+                region = soup.find(attrs={"itemprop": "addressRegion"})
+                postal = soup.find(attrs={"itemprop": "postalCode"})
+                parts = [
+                    (street.get_text(strip=True) if street else ""),
+                    (locality.get_text(strip=True) if locality else ""),
+                    (region.get_text(strip=True) if region else ""),
+                    (postal.get_text(strip=True) if postal else ""),
+                ]
+                addr_str = ", ".join(p for p in parts if p)
+                if addr_str:
+                    result["address"] = addr_str
+                else:
+                    result["address"] = addr_tag.get_text(strip=True)[:200]
+
+        if not result["hours"]:
+            oh_tags = soup.find_all(attrs={"itemprop": "openingHours"})
+            for tag in oh_tags[:7]:
+                val = tag.get("content", "") or tag.get_text(strip=True)
+                if val:
+                    result["hours"].append(val)
+
+        # 3. Hours regex patterns
+        if not result["hours"]:
+            text_full = soup.get_text(separator=" ", strip=True)
+            hour_patterns = [
+                r'(?:Lun|Lundi|Mon|Monday|Mar|Mardi|Tue|Tuesday|Mer|Mercredi|Wed|Wednesday|'
+                r'Jeu|Jeudi|Thu|Thursday|Ven|Vendredi|Fri|Friday|Sam|Samedi|Sat|Saturday|'
+                r'Dim|Dimanche|Sun|Sunday)[^.;\n]{3,50}(?:\d{1,2}h\d{0,2}|\d{1,2}:\d{2})[^.;\n]{0,30}',
+                r'(?:Ouvert|Open)[^.;\n]{5,60}(?:\d{1,2}h|\d{1,2}:\d{2})[^.;\n]{0,40}',
+                r'\d{1,2}h(?:\d{2})?\s*[–\-à]\s*\d{1,2}h(?:\d{2})?',
+            ]
+            found_hours = []
+            for pat in hour_patterns:
+                matches = re.findall(pat, text_full, re.IGNORECASE)
+                for m in matches:
+                    m_clean = re.sub(r'\s+', ' ', m).strip()
+                    if m_clean and len(m_clean) > 5 and m_clean not in found_hours:
+                        found_hours.append(m_clean)
+                if found_hours:
+                    break
+            result["hours"] = found_hours[:7]
+
+        # 4. Address regex
+        if not result["address"]:
+            text_full = soup.get_text(separator=" ", strip=True)
+            addr_pat = (
+                r'\d+[\w\-]*\s+(?:rue|avenue|ave|boul(?:evard)?|blvd|chemin|route|rte|'
+                r'place|pl|côte|rang|montée|impasse|allée|allee|croissant|carré|square|'
+                r'street|st|road|rd|drive|dr|court|ct|way|ln|lane|terrace)'
+                r'[^,\n]{2,40},?\s+[A-Za-zÀ-ÿ\s\-]{2,30},?\s*(?:QC|Québec|Quebec|ON|BC|AB)?'
+                r'\s*[A-Z]\d[A-Z]\s*\d[A-Z]\d'
+            )
+            m = re.search(addr_pat, text_full, re.IGNORECASE)
+            if m:
+                result["address"] = re.sub(r'\s+', ' ', m.group(0)).strip()
+
+        # 5 & 6. About from meta description / og:description
+        if not result["about"]:
+            meta_desc = soup.find("meta", attrs={"name": "description"})
+            if meta_desc and meta_desc.get("content"):
+                desc = meta_desc["content"].strip()
+                if len(desc) > 40:
+                    result["about"] = desc[:500]
+        if not result["about"]:
+            og_desc = (soup.find("meta", property="og:description") or
+                       soup.find("meta", attrs={"name": "og:description"}))
+            if og_desc and og_desc.get("content"):
+                desc = og_desc["content"].strip()
+                if len(desc) > 40:
+                    result["about"] = desc[:500]
+
+        # 7. Services from service-related sections
+        if not result["services_data"]:
+            service_keywords = ["service", "offre", "prestation", "product", "menu", "soin", "traitement"]
+            candidates = []
+            # Look for sections/divs with service-related classes/ids
+            for tag in soup.find_all(["section", "div", "article"]):
+                tag_classes = " ".join(tag.get("class", [])).lower()
+                tag_id = (tag.get("id", "") or "").lower()
+                ctx = tag_classes + " " + tag_id
+                if any(kw in ctx for kw in service_keywords):
+                    # Grab h2/h3/h4 inside as service names
+                    for heading in tag.find_all(["h2", "h3", "h4", "li"], limit=10):
+                        h_text = heading.get_text(strip=True)
+                        if 3 < len(h_text) < 80 and h_text not in [c["name"] for c in candidates]:
+                            # Try to find a description in the next sibling <p>
+                            desc_p = heading.find_next_sibling("p")
+                            if not desc_p:
+                                parent = heading.parent
+                                if parent:
+                                    desc_p = parent.find("p")
+                            desc_text = desc_p.get_text(strip=True)[:200] if desc_p else ""
+                            candidates.append({"name": h_text, "desc": desc_text})
+                        if len(candidates) >= 6:
+                            break
+                if len(candidates) >= 6:
+                    break
+            # Fallback: bare h3 tags anywhere on page
+            if not candidates:
+                for h3 in soup.find_all("h3", limit=12):
+                    h_text = h3.get_text(strip=True)
+                    if 3 < len(h_text) < 80:
+                        desc_p = h3.find_next_sibling("p")
+                        desc_text = desc_p.get_text(strip=True)[:200] if desc_p else ""
+                        if h_text not in [c["name"] for c in candidates]:
+                            candidates.append({"name": h_text, "desc": desc_text})
+                    if len(candidates) >= 6:
+                        break
+            result["services_data"] = candidates[:6]
+
+    except Exception:
+        pass
+    return result
+
+
 def _extract_brand_meta(html: str, base_url: str) -> dict:
     """Extrait couleurs, logo, images et galerie du site de la PME."""
     meta = {"brand_color": "", "accent_color": "", "logo_url": "", "og_image": "",
@@ -5822,14 +6004,48 @@ def _scrape_business_website(url: str) -> dict:
         r = http_requests.get(url, headers=headers, timeout=5, allow_redirects=True)
         html = r.text
         soup = BeautifulSoup(html, "html.parser")
+
+        # Extract structured content BEFORE decomposing nav/footer (they may have hours/address)
+        structured = _extract_structured_content(html, soup)
+
         for tag in soup(["script", "style", "nav", "footer"]):
             tag.decompose()
         text = re.sub(r"\s+", " ", soup.get_text(separator=" ", strip=True)).strip()[:3000]
         emails = _extract_emails(html)
         email = emails[0] if emails else ""
         eq = "site" if email else "none"
+
+        base = url.rstrip("/")
+
+        # Multi-page scraping: try subpages for more data + images
+        subpages = ["/a-propos", "/about", "/services", "/notre-equipe",
+                    "/nous-joindre", "/contact", "/coordonnees"]
+        for path in subpages:
+            try:
+                sr = http_requests.get(base + path, headers=headers, timeout=3)
+                if sr.status_code != 200:
+                    continue
+                sub_html = sr.text
+                sub_soup = BeautifulSoup(sub_html, "html.parser")
+                sub_struct = _extract_structured_content(sub_html, sub_soup)
+                # Fill in missing fields
+                if not structured["hours"] and sub_struct["hours"]:
+                    structured["hours"] = sub_struct["hours"]
+                if not structured["address"] and sub_struct["address"]:
+                    structured["address"] = sub_struct["address"]
+                if not structured["about"] and sub_struct["about"]:
+                    structured["about"] = sub_struct["about"]
+                if not structured["services_data"] and sub_struct["services_data"]:
+                    structured["services_data"] = sub_struct["services_data"]
+                # Extract additional images from subpage
+                sub_bm = _extract_brand_meta(sub_html, base)
+                # Merge gallery URLs (dedupe)
+                if "gallery" not in structured:
+                    structured["gallery"] = []
+            except Exception:
+                pass
+
         if not email:
-            base = url.rstrip("/")
             for path in ["/contact", "/nous-joindre", "/contactez-nous", "/coordonnees", "/about"]:
                 try:
                     cr = http_requests.get(base + path, headers=headers, timeout=3)
@@ -5843,11 +6059,34 @@ def _scrape_business_website(url: str) -> dict:
         phones = re.findall(r"(?:\+?1[\s\-]?)?\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}", text)
         web_quality = _score_website_quality(html, url)
         brand_meta = _extract_brand_meta(html, url)
+
+        # Merge structured data into brand_meta
+        brand_meta["hours"] = structured.get("hours", [])
+        brand_meta["address"] = structured.get("address", "")
+        brand_meta["about"] = structured.get("about", "")
+        brand_meta["services_data"] = structured.get("services_data", [])
+
+        # Merge subpage gallery images (dedupe, up to 12 total)
+        existing_gallery = set(brand_meta.get("gallery", []))
+        for path in subpages:
+            try:
+                sr = http_requests.get(base + path, headers=headers, timeout=3)
+                if sr.status_code != 200:
+                    continue
+                sub_bm2 = _extract_brand_meta(sr.text, base)
+                for img_url in sub_bm2.get("gallery", []):
+                    if img_url not in existing_gallery and len(brand_meta["gallery"]) < 12:
+                        brand_meta["gallery"].append(img_url)
+                        existing_gallery.add(img_url)
+            except Exception:
+                pass
+
         return {
             "email": email, "email_quality": eq, "text": text[:2500],
             "phone": phones[0].strip() if phones else "",
             "web_score": web_quality["score"], "web_issues": web_quality["issues"],
             "brand_meta": brand_meta,
+            "structured": structured,
         }
     except Exception as e:
         return {"email": "", "email_quality": "error", "text": "", "phone": "",
@@ -6038,12 +6277,24 @@ async def _generate_prospect_emails_claude(biz: dict) -> dict:
         refonte_instruction = '\n4. Génère aussi "email_refonte": un courriel proposant une refonte complète de leur site web pour ~1000$ (site moderne, mobile, SEO, livré en 2-3 semaines). Mentionne les problèmes spécifiques de leur site actuel.'
         refonte_json = ',\n  "email_refonte": {{"subject": "...", "body": "..."}}'
 
+    # Extract real structured data from brand_meta
+    bm_data = biz.get("brand_meta", {}) if isinstance(biz.get("brand_meta"), dict) else {}
+    hours_str = "; ".join(bm_data.get("hours", [])[:3])
+    address_str = bm_data.get("address", "")
+    about_str = bm_data.get("about", "")[:300]
+    services_data = bm_data.get("services_data", [])
+    services_str = ", ".join(s["name"] for s in services_data[:6] if isinstance(s, dict) and s.get("name")) if services_data else ""
+
     prompt = f"""Tu écris des courriels de prospection pour l'équipe de Novalis IA (automatisation IA pour PMEs québécoises).
 
 PME: {name} | {city} | {industry}
 Site: {website}
 {rating_line}
 {web_line}
+{f"Adresse: {address_str}" if address_str else ""}
+{f"Heures d'ouverture: {hours_str}" if hours_str else ""}
+{f"Description du site existant: {about_str}" if about_str else ""}
+{f"Services trouvés sur le site: {services_str}" if services_str else ""}
 Contenu du site: {site_text[:800] if site_text else "(non disponible)"}
 Mentions en ligne: {snippets[:600] if snippets else "(non disponible)"}
 
@@ -6126,7 +6377,8 @@ Si need_score < 5: retourne SEULEMENT {{"need_score": X, "skip": true, "reason":
   }}{refonte_json}
 }}
 
-IMPORTANT: Les services doivent être RÉELS et SPÉCIFIQUES à cette PME. Lis attentivement le contenu du site pour trouver ce qu'ils offrent vraiment. Ne pas inventer de services génériques."""
+IMPORTANT: Les services doivent être RÉELS et SPÉCIFIQUES à cette PME. Lis attentivement le contenu du site pour trouver ce qu'ils offrent vraiment. Ne pas inventer de services génériques.
+Utilise les vraies heures/adresse/services ci-dessus si disponibles — ils ont été extraits directement du site."""
     try:
         loop = asyncio.get_event_loop()
         async with _claude_semaphore:
@@ -12106,6 +12358,12 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     bm         = json.loads(prospect.get("brand_meta") or "{}")
     industry_lower = industry.lower()
 
+    # ── Real structured data from scraping ───────────────────────────────────
+    real_hours   = bm.get("hours", [])
+    real_address = bm.get("address", "")
+    real_about   = bm.get("about", "")
+    real_svcs    = bm.get("services_data", [])
+
     # ── Contact réel (Google Places + scraping) ───────────────────────────────
     phone_raw    = (sp.get("phone") or prospect.get("phone") or "").strip()
     phone_digits = re.sub(r"[^\d+]", "", phone_raw)
@@ -12182,8 +12440,12 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
 
     # ── Services cards ────────────────────────────────────────────────────────
     services_html = ""
-    for _si, _svc in enumerate(services_list[:4], 1):
-        services_html += f'<div class="svc-row reveal d{min(_si,3)}"><div class="svc-num">0{_si}</div><div><div class="svc-title">{_svc}</div></div></div>'
+    svc_source = real_svcs[:4] if real_svcs else [{"name": s, "desc": ""} for s in services_list[:4]]
+    for _si, _svc in enumerate(svc_source, 1):
+        _name = _svc["name"] if isinstance(_svc, dict) else _svc
+        _desc = _svc.get("desc", "") if isinstance(_svc, dict) else ""
+        _desc_html = f'<div class="svc-desc">{_desc}</div>' if _desc else ""
+        services_html += f'<div class="svc-row reveal d{min(_si,3)}"><div class="svc-num">0{_si}</div><div><div class="svc-title">{_name}</div>{_desc_html}</div></div>'
 
     # ── Testimonials by industry ──────────────────────────────────────────────
     testimonials_map = {
@@ -12308,6 +12570,43 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     else:
         gallery_section = ""
 
+    # ── About section ─────────────────────────────────────────────────────────
+    if real_about and len(real_about) > 60:
+        _addr_html = (f'<p class="about-addr reveal d3">&#128205; {real_address}</p>' if real_address else "")
+        about_section = (
+            '<section class="sec about-sec" id="apropos">'
+            '<div class="sec-in about-grid">'
+            '<div><div class="sec-label reveal">À propos</div>'
+            f'<h2 class="sec-h reveal d1">{name}</h2>'
+            f'<p class="about-text reveal d2">{real_about[:500]}</p>'
+            f'{_addr_html}'
+            '</div></div></section>'
+        )
+    else:
+        about_section = ""
+
+    # ── Hours section ─────────────────────────────────────────────────────────
+    if real_hours:
+        hours_items = ""
+        for h in real_hours[:7]:
+            if ":" in h:
+                day_part = h.split(":")[0].strip()
+                time_part = ":".join(h.split(":")[1:]).strip()
+            else:
+                day_part = ""
+                time_part = h
+            hours_items += f'<div class="hr-row"><span class="hr-day">{day_part}</span><span class="hr-time">{time_part}</span></div>'
+        hours_section = (
+            '<section class="sec hrs-sec" id="heures">'
+            '<div class="sec-in hrs-inner">'
+            '<div><div class="sec-label reveal">Disponibilité</div>'
+            '<h2 class="sec-h reveal d1">Heures d\'ouverture</h2></div>'
+            f'<div class="hr-grid reveal d2">{hours_items}</div>'
+            '</div></section>'
+        )
+    else:
+        hours_section = ""
+
     html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -12366,6 +12665,18 @@ nav{{position:sticky;top:0;z-index:200;background:rgba(247,244,239,0.95);backdro
 .svc-row:hover .svc-title{{color:var(--brand)}}
 .svc-num{{font-family:var(--serif);font-size:0.78rem;color:var(--ink2);letter-spacing:0.04em;padding-top:4px}}
 .svc-title{{font-family:var(--serif);font-size:1.2rem;font-weight:700;color:var(--ink);transition:color 0.2s;line-height:1.3}}
+.svc-desc{{font-size:0.83rem;color:var(--ink2);font-weight:300;margin-top:4px;line-height:1.6}}
+.about-sec{{background:var(--paper2)}}
+.about-grid{{display:grid;grid-template-columns:1fr;gap:0}}
+.about-text{{font-size:0.98rem;color:var(--ink2);font-weight:300;line-height:1.85;max-width:680px;margin-top:14px}}
+.about-addr{{font-size:0.85rem;color:var(--ink2);margin-top:18px;font-style:italic}}
+.hrs-sec{{background:#fff;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}}
+.hrs-inner{{display:flex;align-items:flex-start;gap:64px;flex-wrap:wrap}}
+.hr-grid{{display:grid;grid-template-columns:1fr;gap:0;min-width:240px}}
+.hr-row{{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--rule);font-size:0.88rem}}
+.hr-row:last-child{{border-bottom:none}}
+.hr-day{{font-weight:600;color:var(--ink)}}
+.hr-time{{color:var(--ink2);font-weight:300}}
 .gal-sec{{background:#fff;padding:88px 5vw}}
 .gal-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:44px}}
 .gal-item{{aspect-ratio:4/3;overflow:hidden;border-radius:6px;background:var(--paper2)}}
@@ -12472,7 +12783,11 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
   </div>
 </section>
 
+{about_section}
+
 {gallery_section}
+
+{hours_section}
 
 <section class="testi-sec" id="avis">
   <div class="sec-in">
@@ -12498,7 +12813,7 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
   <div class="foot-in">
     <div>
       <div class="foot-name">{name}</div>
-      <div class="foot-city">{city}, Québec</div>
+      <div class="foot-city">{real_address or city + ", Québec"}</div>
     </div>
     <div class="novalis-line">Site préparé par <a href="https://novalisia.ca" target="_blank">Novalis IA</a> &nbsp;·&nbsp; <a href="/unsubscribe?id={prospect_id}">Se désabonner</a></div>
   </div>
