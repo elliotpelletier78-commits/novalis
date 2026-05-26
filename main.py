@@ -2140,7 +2140,7 @@ Réponds UNIQUEMENT avec ce JSON:
                     subject = email_data.get("subject", f"Relance — {p['name']}")
                     body = email_data.get("body", "")
 
-                    if body and SMTP_HOST and SMTP_USER:
+                    if body and (RESEND_API_KEY or (SMTP_HOST and SMTP_USER)):
                         html_body = "<div style='font-family:sans-serif;font-size:15px;line-height:1.7;color:#222;max-width:600px;'>" + body.replace("\n", "<br>") + "</div>"
                         await send_email(p['email'], subject, html_body)
                         now = datetime.now().isoformat()
@@ -6737,7 +6737,7 @@ async def suggestions_action_endpoint(request: Request, username: str = Depends(
             db2.row_factory = aiosqlite.Row
             cursor = await db2.execute("SELECT * FROM prospect_suggestions WHERE id=?", (suggestion_id,))
             prospect = await cursor.fetchone()
-        if prospect and prospect["email"] and claude_client and SMTP_HOST and SMTP_USER:
+        if prospect and prospect["email"] and claude_client and (RESEND_API_KEY or (SMTP_HOST and SMTP_USER)):
             p = dict(prospect)
             asyncio.create_task(_send_interested_email(p))
     return {"ok": True, "id": suggestion_id, "status": action}
@@ -7040,8 +7040,8 @@ async def send_prospect_email_endpoint(request: Request, username: str = Depends
     body = data.get("body", "").strip()
     if not to or not subject or not body:
         raise HTTPException(400, "to, subject et body requis")
-    if not SMTP_HOST or not SMTP_USER:
-        raise HTTPException(503, "SMTP non configuré — ajoutez SMTP_HOST, SMTP_USER et SMTP_PASS dans Railway")
+    if not RESEND_API_KEY and (not SMTP_HOST or not SMTP_USER):
+        raise HTTPException(503, "Email non configuré — ajoutez RESEND_API_KEY ou SMTP_HOST/SMTP_USER dans Railway")
     html_body = "<div style=\"font-family:sans-serif;font-size:15px;line-height:1.7;color:#222;max-width:600px;\">" + body.replace("\n", "<br>") + "</div>"
     await send_email(to, subject, html_body)
     # Record that email was sent
@@ -7080,8 +7080,8 @@ async def auto_outreach_status(username: str = Depends(verify_admin)):
 @app.post("/api/admin/auto-outreach/send-now")
 async def outreach_send_now(username: str = Depends(verify_admin)):
     """Force immediate send of up to 3 emails — bypasses the 20-min timer. Returns debug info."""
-    if not SMTP_HOST or not SMTP_USER:
-        raise HTTPException(503, "SMTP non configuré")
+    if not RESEND_API_KEY and (not SMTP_HOST or not SMTP_USER):
+        raise HTTPException(503, "Email non configuré (ni Resend ni SMTP)")
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         # Check what's available
