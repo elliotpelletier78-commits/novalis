@@ -5482,46 +5482,48 @@ async def list_leads(username: str = Depends(verify_admin)):
 # ============================================================
 
 def _google_places_search_sync(city: str, industry: str, max_results: int = 10) -> list:
-    """Cherche des PMEs via Google Places API — meilleure qualité que DDG."""
+    """Cherche des PMEs via Google Places API (New v1) — POST textsearch."""
     if not GOOGLE_PLACES_API_KEY:
         return []
     try:
-        import urllib.request as _ureq, urllib.parse as _uparse
+        import urllib.request as _ureq
         results = []
         query = f"{industry} {city} Québec"
-        url = ("https://maps.googleapis.com/maps/api/place/textsearch/json?"
-               f"query={_uparse.quote(query)}&language=fr&region=ca"
-               f"&key={GOOGLE_PLACES_API_KEY}")
-        with _ureq.urlopen(url, timeout=10) as r:
+        # New Places API (v1) — textsearch
+        payload = json.dumps({
+            "textQuery": query,
+            "languageCode": "fr",
+            "regionCode": "CA",
+            "maxResultCount": min(max_results, 20),
+        }).encode("utf-8")
+        req = _ureq.Request(
+            "https://places.googleapis.com/v1/places:searchText",
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
+                "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.websiteUri,places.nationalPhoneNumber,places.rating,places.userRatingCount,places.id",
+            },
+            method="POST",
+        )
+        with _ureq.urlopen(req, timeout=10) as r:
             data = json.loads(r.read())
-        for place in data.get("results", [])[:max_results]:
-            name = place.get("name", "")
-            address = place.get("formatted_address", "")
+        for place in data.get("places", [])[:max_results]:
+            name = place.get("displayName", {}).get("text", "")
+            address = place.get("formattedAddress", "")
             rating = str(place.get("rating", ""))
-            reviews = str(place.get("user_ratings_total", ""))
-            place_id = place.get("place_id", "")
-            # Get details (website + phone)
-            website, phone = "", ""
-            if place_id:
-                det_url = ("https://maps.googleapis.com/maps/api/place/details/json?"
-                           f"place_id={place_id}&fields=website,formatted_phone_number"
-                           f"&key={GOOGLE_PLACES_API_KEY}")
-                try:
-                    with _ureq.urlopen(det_url, timeout=8) as r2:
-                        det = json.loads(r2.read()).get("result", {})
-                    website = det.get("website", "")
-                    phone = det.get("formatted_phone_number", "")
-                except Exception:
-                    pass
+            reviews = str(place.get("userRatingCount", ""))
+            website = place.get("websiteUri", "")
+            phone = place.get("nationalPhoneNumber", "")
             results.append({
                 "name": name, "url": website, "title": name,
                 "phone": phone, "rating": rating, "review_count": reviews,
                 "address": address, "source": "google_places",
             })
-        logger.info(f"Google Places: {len(results)} résultats pour {industry} {city}")
+        logger.info(f"Google Places v1: {len(results)} résultats pour {industry} {city}")
         return results
     except Exception as e:
-        logger.error(f"Google Places error: {e}")
+        logger.error(f"Google Places v1 error: {e}")
         return []
 
 
@@ -7139,15 +7141,19 @@ async def test_discovery(username: str = Depends(verify_admin)):
             # Test brut de l'API pour voir le vrai message d'erreur
             def _test_gp_raw():
                 query = f"{industry} {city} Québec"
-                url = ("https://maps.googleapis.com/maps/api/place/textsearch/json?"
-                       f"query={_uparse3.quote(query)}&language=fr&region=ca&key={GOOGLE_PLACES_API_KEY}")
+                payload = json.dumps({"textQuery": query, "languageCode": "fr", "regionCode": "CA", "maxResultCount": 5}).encode()
+                req = _ureq3.Request(
+                    "https://places.googleapis.com/v1/places:searchText",
+                    data=payload,
+                    headers={"Content-Type": "application/json", "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
+                             "X-Goog-FieldMask": "places.displayName,places.websiteUri"},
+                    method="POST",
+                )
                 try:
-                    with _ureq3.urlopen(url, timeout=10) as r:
+                    with _ureq3.urlopen(req, timeout=10) as r:
                         data = json.loads(r.read())
-                    status = data.get("status", "UNKNOWN")
-                    error_msg = data.get("error_message", "")
-                    count = len(data.get("results", []))
-                    return f"status={status} count={count} err={error_msg}"
+                    count = len(data.get("places", []))
+                    return f"status=OK count={count} query={query}"
                 except Exception as e:
                     return f"exception: {e}"
             results["gp_raw_status"] = await loop.run_in_executor(None, _test_gp_raw)
