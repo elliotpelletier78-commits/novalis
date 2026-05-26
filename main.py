@@ -5822,29 +5822,43 @@ def _make_template_email(biz: dict) -> dict:
     if web_score <= 2 and web_issues:
         site_note = f" (et votre site actuel a quelques points à améliorer aussi)"
 
-    s1 = f"J'ai analysé votre site — {name}"
-    b1 = (
-        f"Bonjour,\n\n"
-        f"En cherchant des {industry} à {city}, je suis tombé sur votre site.\n\n"
-        f"On a préparé quelque chose pour vous — une version améliorée de votre présence en ligne, "
-        f"basée sur ce qu'on a analysé :\n"
-        f"👉 novalisia.ca/preview/{{PROSPECT_ID}}\n\n"
-        f"L'équipe Novalis IA\nnovalisia.ca"
-    )
+    if web_score <= 2:
+        s1 = f"On a imaginé votre nouveau site — {name}"
+        b1 = (
+            f"Bonjour,\n\n"
+            f"On a analysé plusieurs {industry} à {city} — dont le vôtre.\n\n"
+            f"Votre site actuel perd probablement des clients, surtout sur mobile. "
+            f"On a préparé un aperçu de ce qu'il pourrait devenir :\n\n"
+            f"👉 novalisia.ca/preview/{{PROSPECT_ID}}\n\n"
+            f"30 secondes pour jeter un œil — qu'en pensez-vous?\n\n"
+            f"L'équipe Novalis IA\nnovalisia.ca"
+        )
+    else:
+        s1 = f"On a préparé quelque chose pour {name}"
+        b1 = (
+            f"Bonjour,\n\n"
+            f"En cherchant des {industry} à {city}, on est tombé sur votre entreprise.\n\n"
+            f"On a pris le temps d'imaginer ce que votre présence en ligne pourrait donner :\n\n"
+            f"👉 novalisia.ca/preview/{{PROSPECT_ID}}\n\n"
+            f"Curieux d'avoir votre avis!\n\n"
+            f"L'équipe Novalis IA\nnovalisia.ca"
+        )
 
     s2 = f"Re: {name}"
     b2 = (
         f"Bonjour,\n\n"
-        f"Je fais suite à mon message — avez-vous eu la chance de voir ce qu'on a préparé pour vous ?\n\n"
+        f"Je voulais juste m'assurer que vous aviez vu l'aperçu qu'on a préparé pour vous :\n\n"
         f"👉 novalisia.ca/preview/{{PROSPECT_ID}}\n\n"
+        f"Est-ce que ça correspond à l'image que vous voulez donner?\n\n"
         f"L'équipe Novalis IA"
     )
 
     s3 = f"Dernière nouvelle — {name}"
     b3 = (
         f"Bonjour,\n\n"
-        f"Je ne veux pas encombrer votre boîte — c'est mon dernier message.\n\n"
-        f"Si jamais vous cherchez à automatiser quelque chose dans votre business ou à ne plus manquer de clients, on est là.\n\n"
+        f"C'est mon dernier message — promis!\n\n"
+        f"Si vous pensez un jour à moderniser votre présence en ligne, on sera là. "
+        f"L'aperçu reste disponible ici : novalisia.ca/preview/{{PROSPECT_ID}}\n\n"
         f"Bonne continuation!\n\n"
         f"L'équipe Novalis IA\nnovalisia.ca"
     )
@@ -5891,6 +5905,7 @@ def _make_template_email(biz: dict) -> dict:
             "trust_line": f"Des centaines de clients satisfaits à {city} et environs",
             "cta": cta_text,
             "color_theme": color_theme,
+            "phone": biz.get("phone", ""),
         },
     }
 
@@ -5929,53 +5944,55 @@ Mentions en ligne: {snippets[:600] if snippets else "(non disponible)"}
 ---
 EXEMPLES D'EMAILS QUI CONVERTISSENT (imite ce style):
 
-EXEMPLE A — Salon de coiffure avec no-shows:
-Objet: Rendez-vous manqués?
+EXEMPLE A — Salon bien noté mais site désuet:
+Objet: On a travaillé sur votre site — Salon Lumière
 Corps:
 Bonjour,
 
-En cherchant des salons à Laval, je suis tombé sur le vôtre.
+87 avis Google et 4.3 étoiles — c'est vraiment bien.
 
-Est-ce que les no-shows et les appels manqués en dehors des heures vous font perdre des revenus?
+On a pris le temps de préparer un aperçu de ce que votre site pourrait devenir :
+👉 novalisia.ca/preview/{{PROSPECT_ID}}
 
-On a mis en place un système de rappels automatiques et de prise de RDV 24/7 pour quelques salons québécois — ils ont réduit leurs no-shows de moitié.
-
-Ça vous parle?
+Qu'en pensez-vous?
 
 L'équipe Novalis IA
 novalisia.ca
 
-EXEMPLE B — Restaurant sans système de réservation en ligne:
-Objet: Question rapide — Le Bistro du Port
+EXEMPLE B — Restaurant sans présence en ligne moderne:
+Objet: Un aperçu pour Le Bistro du Port
 Corps:
 Bonjour,
 
-J'ai remarqué que votre restaurant n'a pas de réservation en ligne — est-ce que vous recevez encore beaucoup d'appels pour des réservations pendant le service?
+En cherchant des restaurants à Montréal, on est tombé sur le vôtre.
 
-On automatise ça pour des restos québécois : réservations en ligne, confirmations automatiques, liste d'attente. Le proprio arrête de décrocher le téléphone pendant le rush.
+On a imaginé comment moderniser votre présence en ligne — menu, réservations, image professionnelle :
+👉 novalisia.ca/preview/{{PROSPECT_ID}}
 
-Intéressé qu'on en discute?
+Ça vous intéresse?
 
 L'équipe Novalis IA
 
 ---
 RÈGLES STRICTES — à respecter absolument:
-1. MAX 80 mots par email (compter les mots)
+1. MAX 75 mots par email (compter les mots)
 2. AUCUNE liste à puces (•, -, *) — jamais
 3. JAMAIS "Je suis Elliot, fondateur de..." — pas de présentation formelle
-4. JAMAIS "Cordialement", "Je me permets", "Suite à", "J'espère que"
-5. Commencer par une observation concrète sur CETTE PME spécifique
-6. Finir par UNE seule question courte (oui/non ou simple)
-7. Signature: juste "L'équipe Novalis IA" ou "L'équipe Novalis IA\\nnovalisia.ca" — rien d'autre
-8. Ton: comme un ami entrepreneur qui a trouvé quelque chose d'utile, pas un vendeur
-9. Si web_score <= 2: mentionner subtilement que le site pourrait être amélioré
+4. JAMAIS "Cordialement", "Je me permets", "Suite à", "J'espère que", "J'ai le plaisir"
+5. Commencer par une observation concrète sur CETTE PME (avis, secteur, localisation)
+6. TOUJOURS inclure le lien preview comme valeur principale — c'est le cœur du message
+7. Finir par UNE seule question courte et douce (pas de pression)
+8. Signature: juste "L'équipe Novalis IA" ou "L'équipe Novalis IA\\nnovalisia.ca" — rien d'autre
+9. Ton: chaleureux, curieux, utile — on a fait quelque chose pour eux, pas on veut leur vendre
+10. Si web_score <= 2: une phrase factuelle sur le mobile (ex: "votre site perd des visiteurs sur mobile")
+11. JAMAIS promettre des résultats chiffrés (ex: "réduit les no-shows de 50%") — trop commercial
 
 IMPORTANT pour EMAIL 1: inclure EXACTEMENT ce texte dans le body (le système remplacera {{PROSPECT_ID}} par le vrai ID):
-"J'ai préparé un rapport personnalisé — ce qu'on a trouvé et ce qu'on ferait concrètement pour vous :\n👉 novalisia.ca/preview/{{PROSPECT_ID}}"
-Adapte la phrase d'accroche avant ce lien selon les données de la PME.
+"On a préparé un aperçu de ce que votre présence en ligne pourrait devenir :\n👉 novalisia.ca/preview/{{PROSPECT_ID}}"
+Adapte la phrase d'accroche AVANT ce lien selon les données réelles de la PME.
 
-EMAIL 2 (suivi J+4): plus court encore, nouvel angle, rappel du bénéfice concret
-EMAIL 3 (dernier J+10): 2-3 phrases max, pas de pression, porte ouverte, chaleureux
+EMAIL 2 (suivi J+4): encore plus court, angle différent (ex: question sur leur image en ligne), rappel du lien
+EMAIL 3 (dernier J+10): 2-3 phrases max, pas de pression, porte ouverte, chaleureux — mentionner que le lien reste disponible
 
 ÉTAPE 1 — Évalue le besoin réel (need_score 1-10):
 - 8-10: PME avec problème évident (avis négatifs, site désuet, heures limitées, pas de présence en ligne)
@@ -5993,14 +6010,17 @@ Si need_score < 5: retourne SEULEMENT {{"need_score": X, "skip": true, "reason":
   "email2": {{"subject": "...", "body": "..."}},
   "email3": {{"subject": "...", "body": "..."}},
   "site_preview": {{
-    "hero_title": "Accroche principale du nouveau site (ex: Urgence plomberie à Montréal? On arrive en 1h.)",
-    "hero_subtitle": "Sous-titre rassurant, 1 phrase (ex: Plombier certifié RBQ, disponible 7j/7.)",
-    "services": ["Service 1 exact de cette PME", "Service 2", "Service 3", "Service 4"],
-    "trust_line": "Phrase de confiance courte (ex: +200 clients satisfaits à Montréal depuis 2015)",
-    "cta": "Texte du bouton (ex: Réserver maintenant / Demander une soumission / Appeler)",
-    "color_theme": "blue|green|purple|orange|red (selon l'industrie et l'ambiance)"
+    "hero_title": "Accroche principale percutante basée sur CE QUE FAIT VRAIMENT cette PME (ex: Urgence plomberie à Montréal? On arrive en 1h.)",
+    "hero_subtitle": "Sous-titre rassurant extrait des infos réelles du site, 1 phrase (ex: Plombier certifié RBQ depuis 2008, disponible 7j/7.)",
+    "services": ["Service RÉEL 1 offert par cette PME (tiré du site)", "Service RÉEL 2", "Service RÉEL 3", "Service RÉEL 4"],
+    "trust_line": "Phrase de confiance utilisant les vraies stats si disponibles (ex: +200 clients satisfaits à Montréal depuis 2015 · 4.7 ⭐)",
+    "cta": "Texte du bouton adapté à leur secteur (ex: Réserver / Demander une soumission / Appeler)",
+    "color_theme": "blue|green|purple|orange|red (selon l'industrie et l'ambiance du site)",
+    "phone": "Vrai numéro de téléphone extrait du contenu du site (format: 514 555-1234) — laisser vide si non trouvé"
   }}{refonte_json}
-}}"""
+}}
+
+IMPORTANT: Les services doivent être RÉELS et SPÉCIFIQUES à cette PME. Lis attentivement le contenu du site pour trouver ce qu'ils offrent vraiment. Ne pas inventer de services génériques."""
     try:
         loop = asyncio.get_event_loop()
         async with _claude_semaphore:
@@ -11889,6 +11909,20 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     bm         = json.loads(prospect.get("brand_meta") or "{}")
     industry_lower = industry.lower()
 
+    # ── Contact réel (Google Places + scraping) ───────────────────────────────
+    phone_raw    = (sp.get("phone") or prospect.get("phone") or "").strip()
+    phone_digits = re.sub(r"[^\d+]", "", phone_raw)
+    if phone_digits and not phone_digits.startswith("+"):
+        phone_digits = ("+1" + phone_digits) if len(phone_digits) == 10 else phone_digits
+    phone_display = phone_raw
+    biz_email    = (prospect.get("email") or "").strip()
+    biz_website  = (prospect.get("website") or "").strip()
+    # Tel href — fallback to novalisia contact if no phone
+    _tel_href  = f"tel:{phone_digits}" if phone_digits else "mailto:elliot@novalisia.ca"
+    _tel_label = phone_display if phone_display else "Nous contacter"
+    # Mailto CTA — PME writes to us using their name as subject so we know who they are
+    _mail_href = f"mailto:elliot@novalisia.ca?subject=Site%20web%20-%20{name.replace(' ', '%20')}"
+
     # ── Vraies données du site (logo, image, couleurs) ────────────────────────
     real_logo    = bm.get("logo_url", "")
     real_og      = bm.get("og_image", "")
@@ -12171,7 +12205,7 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
     <div class="nav-links">
       <a class="nav-link" href="#services">Services</a>
       <a class="nav-link" href="#avis">Avis clients</a>
-      <a class="nav-cta" href="#contact">{cta_text}</a>
+      <a class="nav-cta" href="{_tel_href}">{cta_text}</a>
     </div>
   </div>
 </nav>
@@ -12185,7 +12219,7 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
     <p class="hero-sub">{hero_subtitle}</p>
     <div class="hero-rating"><span class="s">{stars_display}</span><span>{rating_text}</span></div>
     <div class="hero-btns">
-      <a class="btn-p" href="#contact">{cta_text}</a>
+      <a class="btn-p" href="{_tel_href}">{cta_text}</a>
       <a class="btn-g" href="#services">Nos services →</a>
     </div>
   </div>
@@ -12226,8 +12260,8 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
   <h2 class="cta-h reveal">Prêts à passer à l'étape suivante ?</h2>
   <p class="cta-sub reveal d1">Parlez à notre équipe — sans engagement, sans pression.</p>
   <div class="cta-btns reveal d2">
-    <a class="cta-a" href="tel:+15141234567">Nous appeler</a>
-    <a class="cta-b" href="mailto:elliot@novalisia.ca">Nous écrire</a>
+    <a class="cta-a" href="{_tel_href}">{_tel_label}</a>
+    <a class="cta-b" href="{_mail_href}">Nous écrire</a>
   </div>
 </section>
 
@@ -12242,7 +12276,7 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 </footer>
 
 <div class="float">
-  <button class="float-btn" onclick="location.href='mailto:elliot@novalisia.ca'" aria-label="Nous contacter">
+  <button class="float-btn" onclick="location.href='{_mail_href}'" aria-label="Nous contacter">
     💬<span class="float-dot">1</span>
   </button>
 </div>
