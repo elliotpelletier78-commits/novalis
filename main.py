@@ -836,6 +836,8 @@ async function loadAutoOutreachStatus(){{
             +(d.resend_configured?'<span style="color:#34d399;">✓ Resend</span>':'<span style="color:#ef4444;">✗ Resend non configuré</span>')
             +' &nbsp;|&nbsp; '
             +(d.smtp_configured?'<span style="color:#34d399;">✓ SMTP</span>':'<span style="color:#64748b;">— SMTP</span>')
+            +' &nbsp;|&nbsp; '
+            +(d.google_places_configured?'<span style="color:#34d399;">✓ Google Places</span>':'<span style="color:#ef4444;">✗ Google Places manquant — AUCUNE DÉCOUVERTE</span>')
             +' &nbsp;|&nbsp; <span style="color:#94a3b8;">From: '+d.from_email+'</span>'
             +'</div>'
             +(on?'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span style="font-size:0.78rem;color:#34d399;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:6px;padding:6px 12px;">🤖 Envoie automatiquement toutes les '+d.interval_minutes+' min</span><button onclick="sendNow(this)" style="background:#1e40af;color:#93c5fd;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;">⚡ Envoyer maintenant</button><button onclick="forceGenerate(this)" style="background:#7c3aed;color:#e9d5ff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;">🔧 Forcer génération</button></div>':'')
@@ -7098,10 +7100,48 @@ async def auto_outreach_status(username: str = Depends(verify_admin)):
         **_auto_outreach,
         "resend_configured": bool(RESEND_API_KEY),
         "smtp_configured": bool(SMTP_HOST and SMTP_USER),
+        "google_places_configured": bool(GOOGLE_PLACES_API_KEY),
         "from_email": FROM_EMAIL,
         "prospects_ready": ready,
         "bank_ready": bank,
     }
+
+
+@app.post("/api/admin/test-discovery")
+async def test_discovery(username: str = Depends(verify_admin)):
+    """Lance une découverte test et retourne les résultats bruts."""
+    import random as _rand
+    city, industry = _rand.choice(_DISCOVERY_TARGETS)
+    results = {"city": city, "industry": industry, "google_places": [], "ddg": [], "error": ""}
+    try:
+        loop = asyncio.get_event_loop()
+        if GOOGLE_PLACES_API_KEY:
+            gp = await loop.run_in_executor(None, _google_places_search_sync, city, industry, 5)
+            results["google_places"] = [{"name": r.get("name",""), "url": r.get("url",""), "phone": r.get("phone","")} for r in gp]
+        from urllib import parse as _uparse2
+        import urllib.request as _ureq2
+        ddg_url = "https://html.duckduckgo.com/html/?q=" + _uparse2.quote(f"{industry} {city} Québec contact") + "&kl=ca-fr"
+        try:
+            req = _ureq2.Request(ddg_url, headers={"User-Agent": "Mozilla/5.0"})
+            with _ureq2.urlopen(req, timeout=6) as r:
+                body = r.read().decode("utf-8", errors="ignore")
+            from bs4 import BeautifulSoup as _BS
+            soup = _BS(body, "html.parser")
+            ddg_items = []
+            for item in soup.select(".result")[:5]:
+                t = item.select_one(".result__title a")
+                if t:
+                    href = t.get("href","")
+                    if "uddg=" in href:
+                        href = _uparse2.unquote(href.split("uddg=")[-1].split("&")[0])
+                    ddg_items.append({"title": t.get_text(strip=True)[:60], "url": href[:80]})
+            results["ddg"] = ddg_items
+            results["ddg_raw_len"] = len(body)
+        except Exception as e:
+            results["ddg_error"] = str(e)
+    except Exception as e:
+        results["error"] = str(e)
+    return results
 
 
 @app.post("/api/admin/auto-outreach/send-now")
