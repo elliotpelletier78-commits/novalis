@@ -829,6 +829,15 @@ async function loadAutoOutreachStatus(){{
             +'<div><div style="font-size:0.7rem;color:#64748b;">Total envoyés</div><div style="font-size:1.4rem;font-weight:800;color:#38bdf8;">'+d.total_sent+'</div></div>'
             +'<div><div style="font-size:0.7rem;color:#64748b;">Dernier envoi</div><div style="font-size:0.85rem;font-weight:600;color:#e2e8f0;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(d.last_prospect||'—')+'</div></div>'
             +'</div>'
+            +'<div><div style="font-size:0.7rem;color:#64748b;">Prospects prêts</div><div style="font-size:1.4rem;font-weight:800;color:'+(d.prospects_ready>0?'#f59e0b':'#ef4444')+';">'+d.prospects_ready+'</div></div>'
+            +'<div><div style="font-size:0.7rem;color:#64748b;">Banque</div><div style="font-size:1.4rem;font-weight:800;color:#a78bfa;">'+d.bank_ready+'</div></div>'
+            +'</div>'
+            +'<div style="font-size:0.75rem;margin-top:4px;padding:6px 10px;border-radius:6px;background:rgba(255,255,255,0.04);">'
+            +(d.resend_configured?'<span style="color:#34d399;">✓ Resend</span>':'<span style="color:#ef4444;">✗ Resend non configuré</span>')
+            +' &nbsp;|&nbsp; '
+            +(d.smtp_configured?'<span style="color:#34d399;">✓ SMTP</span>':'<span style="color:#64748b;">— SMTP</span>')
+            +' &nbsp;|&nbsp; <span style="color:#94a3b8;">From: '+d.from_email+'</span>'
+            +'</div>'
             +(on?'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span style="font-size:0.78rem;color:#34d399;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:6px;padding:6px 12px;">🤖 Envoie automatiquement toutes les '+d.interval_minutes+' min</span><button onclick="sendNow(this)" style="background:#1e40af;color:#93c5fd;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;">⚡ Envoyer maintenant</button><button onclick="forceGenerate(this)" style="background:#7c3aed;color:#e9d5ff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;">🔧 Forcer génération</button></div>':'')
             +'</div>';
     }}catch(e){{}}
@@ -2760,8 +2769,10 @@ def validate_twilio_signature(request_url: str, params: dict, signature: str) ->
     return validator.validate(request_url, params, signature)
 
 async def send_email(to: str, subject: str, body: str):
-    """Envoie via Resend (prioritaire) ou SMTP fallback."""
-    # === RESEND (inbox, tracking, domaine pro) ===
+    """Envoie via Resend (prioritaire) ou SMTP fallback. Lève une exception si l'envoi échoue."""
+    last_error = None
+
+    # === RESEND (prioritaire) ===
     if RESEND_API_KEY:
         def _send_resend():
             import urllib.request, urllib.error
@@ -2780,18 +2791,25 @@ async def send_email(to: str, subject: str, body: str):
                 headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
                 method="POST",
             )
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                result = json.loads(resp.read())
-            logger.info(f"Resend ✓ {to} — id:{result.get('id','?')}")
+            try:
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    result = json.loads(resp.read())
+                logger.info(f"Resend ✓ {to} — id:{result.get('id','?')}")
+            except urllib.error.HTTPError as e:
+                body_err = e.read().decode("utf-8", errors="ignore")
+                raise RuntimeError(f"Resend HTTP {e.code}: {body_err}") from e
         try:
             await asyncio.to_thread(_send_resend)
-            return
+            return  # succès Resend
         except Exception as e:
-            logger.error(f"Resend erreur: {e} — fallback SMTP")
+            last_error = e
+            logger.error(f"Resend erreur: {e}")
+            if not SMTP_HOST or not SMTP_USER:
+                raise RuntimeError(f"Resend échec et SMTP non configuré: {e}") from e
 
-    # === SMTP fallback (Gmail, etc.) ===
+    # === SMTP fallback ===
     if not SMTP_HOST or not SMTP_USER:
-        return
+        raise RuntimeError("Aucune méthode d'envoi configurée (ni Resend ni SMTP)")
     def _send_smtp():
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
@@ -2803,10 +2821,7 @@ async def send_email(to: str, subject: str, body: str):
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_FROM, [to], msg.as_string())
         logger.info(f"SMTP ✓ {to}")
-    try:
-        await asyncio.to_thread(_send_smtp)
-    except Exception as e:
-        logger.error(f"Erreur email SMTP: {e}")
+    await asyncio.to_thread(_send_smtp)  # laisse l'exception remonter
 
 async def provision_twilio_number(preferred_area_code: str = "819") -> Optional[str]:
     """Achète automatiquement un numéro Twilio local et configure les webhooks."""
@@ -7074,7 +7089,19 @@ async def toggle_auto_outreach(username: str = Depends(verify_admin)):
 
 @app.get("/api/admin/auto-outreach/status")
 async def auto_outreach_status(username: str = Depends(verify_admin)):
-    return _auto_outreach
+    async with aiosqlite.connect(DB_PATH) as db:
+        c1 = await db.execute("SELECT COUNT(*) FROM prospect_suggestions WHERE status='new' AND email != '' AND (email_sent_at IS NULL OR email_sent_at='')")
+        ready = (await c1.fetchone())[0]
+        c2 = await db.execute("SELECT COUNT(*) FROM prospect_bank WHERE status='ready'")
+        bank = (await c2.fetchone())[0]
+    return {
+        **_auto_outreach,
+        "resend_configured": bool(RESEND_API_KEY),
+        "smtp_configured": bool(SMTP_HOST and SMTP_USER),
+        "from_email": FROM_EMAIL,
+        "prospects_ready": ready,
+        "bank_ready": bank,
+    }
 
 
 @app.post("/api/admin/auto-outreach/send-now")
