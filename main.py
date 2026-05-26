@@ -2845,7 +2845,12 @@ async def send_email(to: str, subject: str, body: str):
             req = urllib.request.Request(
                 "https://api.resend.com/emails",
                 data=payload,
-                headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+                headers={
+                    "Authorization": f"Bearer {RESEND_API_KEY}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "novalis-mailer/1.0",
+                    "Accept": "application/json",
+                },
                 method="POST",
             )
             try:
@@ -8021,7 +8026,12 @@ async def resend_check(username: str = Depends(verify_admin)):
     req = urllib.request.Request(
         "https://api.resend.com/emails",
         data=payload,
-        headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {RESEND_API_KEY}",
+            "Content-Type": "application/json",
+            "User-Agent": "novalis-mailer/1.0",
+            "Accept": "application/json",
+        },
         method="POST",
     )
     try:
