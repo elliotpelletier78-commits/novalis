@@ -6033,11 +6033,16 @@ def _scrape_business_website(url: str) -> dict:
     }
 
     def _extract_emails(html_text):
-        found = re.findall(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", html_text)
+        # Priority 1: mailto: hrefs (most reliable — business intentionally linked their email)
+        mailto_found = re.findall(r'href=["\']mailto:([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})', html_text, re.I)
+        # Priority 2: plain text emails
+        text_found = re.findall(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", html_text)
+        found = mailto_found + [e for e in text_found if e not in mailto_found]
         bad = ["example", "sentry", "noreply", "no-reply", "jquery", "schema.org",
                "test.", "wp-", "wordpress", "plugin", "woocommerce", "example.com", ".png", ".jpg",
                "user@domain", "your@email", "email@email", "name@domain", "info@domain",
-               "votre@", "votrenom@", "monadresse@", "@domain.com", "@example.", "yourname@"]
+               "votre@", "votrenom@", "monadresse@", "@domain.com", "@example.", "yourname@",
+               "@sentry", "@rollbar", "privacy@", "legal@", "abuse@", "dmca@"]
         return [e for e in found if not any(b in e.lower() for b in bad)]
 
     try:
@@ -6448,11 +6453,13 @@ Utilise les vraies heures/adresse/services ci-dessus si disponibles — ils ont 
 _DDG_EXCLUDE = {
     # Annuaires & agrégateurs
     "yellowpages", "pagesjaunes", "yelp", "tripadvisor", "foursquare",
-    "canada411", "411.ca", "hotfrog", "cylex", "annuaire", "trouve",
+    "canada411", "411.ca", "411habitation", "hotfrog", "cylex", "annuaire", "trouve",
     "restaurantguru", "zomato", "opentable", "restomonpays", "gaultmillau",
     "threebestrated", "3bestrated", "bestinhood", "homestars", "houzz",
     "checkatrade", "bark.com", "thumbtack", "angi", "homeadvisor",
     "clutch.co", "goodfirms", "torontobest", "montrealbestrated",
+    "pagesjaunes.fr", "411.com", "yellowpages.ca", "canpages",
+    "dentistesquebec", "lacliniquemedecin", "local.yahoo", "superpages",
     # Réseaux sociaux
     "facebook", "instagram", "twitter", "linkedin", "youtube",
     "tiktok", "pinterest", "snapchat",
@@ -7152,8 +7159,8 @@ async def _auto_discover_batch(max_new: int = 10, save_to_bank: bool = False) ->
             # Cibler seulement les PMEs avec site désuet ou sans site — skip les bons sites
             has_real_site = bool(b.get("website"))
             web_score_val = b.get("web_score", 5)
-            if has_real_site and web_score_val >= 4:
-                logging.info(f"Skip PME (bon site score {web_score_val}): {b['name']}")
+            if has_real_site and web_score_val >= 5:
+                logging.info(f"Skip PME (site parfait score {web_score_val}): {b['name']}")
                 continue
             # Fallback vers template si Claude dit skip — on contacte toutes les PMEs ciblées
             if emails.get("skip") or not emails.get("email1"):
