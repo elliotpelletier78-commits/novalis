@@ -12765,7 +12765,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         hero_bg = _industry_hero_bg
     # When we have their brand color, tint the overlay with it (makes hero feel like THEIR brand)
     if real_color1 and real_og:
-        hero_overlay_css = f"linear-gradient(to top,{real_color1}f0 0%,{real_color1}99 45%,{real_color1}33 100%)"
+        hero_overlay_css = f"linear-gradient(to top,{real_color1}f0 0%,rgba(0,0,0,0.70) 50%,rgba(0,0,0,0.82) 100%)"
     else:
         hero_overlay_css = "linear-gradient(to top right,rgba(12,7,4,0.88) 0%,rgba(12,7,4,0.50) 55%,rgba(12,7,4,0.64) 100%)"
 
@@ -13245,9 +13245,9 @@ nav{{position:sticky;top:0;z-index:200;background:rgba(247,244,239,0.95);backdro
 .nav-link:hover{{color:var(--ink)}}
 .nav-cta{{background:var(--brand);color:#fff;padding:9px 20px;border-radius:5px;font-size:0.82rem;font-weight:600;letter-spacing:0.01em;transition:opacity 0.2s}}
 .nav-cta:hover{{opacity:0.88}}
-.hero{{position:relative;min-height:100vh;display:flex;align-items:flex-end;overflow:hidden}}
+.hero{{position:relative;min-height:100vh;display:flex;align-items:flex-end;overflow:hidden;background-color:{bg}}}
 .hero-bg{{position:absolute;inset:0;background:{hero_bg};background-size:cover;background-position:center}}
-.hero-veil{{position:absolute;inset:0;background:{hero_overlay_css}}}
+.hero-veil{{position:absolute;inset:0;background:{hero_overlay_css};z-index:1}}
 .hero-body{{position:relative;z-index:2;width:100%;max-width:1160px;margin:0 auto;padding:80px 5vw 72px}}
 .hero-logo-wrap{{margin-bottom:22px}}
 .hero-logo-wrap img{{height:52px;max-width:200px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.9}}
@@ -13664,7 +13664,7 @@ if(pbar){{
 }}
 
 // ── IntersectionObserver révélations ─────────────────────────────────────
-const obs=new IntersectionObserver(e=>e.forEach(x=>{{if(x.isIntersecting){{x.target.classList.add('in');obs.unobserve(x.target);}}}}),{{threshold:0.08}});
+const obs=new IntersectionObserver(e=>e.forEach(x=>{{if(x.isIntersecting){{x.target.classList.add('in');obs.unobserve(x.target);}}}}),{{threshold:0,rootMargin:'0px 0px 40px 0px'}});
 document.querySelectorAll('.reveal,.reveal-left,.reveal-right,.reveal-scale').forEach(el=>obs.observe(el));
 
 // ── Parallax hero ────────────────────────────────────────────────────────
@@ -13684,17 +13684,15 @@ if(heroH1){{
   heroH1.innerHTML=words.map((w,i)=>
     /\s/.test(w)?w:`<span class="wrd" style="display:inline-block;opacity:0;transform:translateY(18px) rotate(-1deg);transition:opacity .55s cubic-bezier(.16,1,.3,1),transform .55s cubic-bezier(.16,1,.3,1);transition-delay:${{.55+i*.07}}s">${{w}}</span>`
   ).join('');
-  requestAnimationFrame(()=>requestAnimationFrame(()=>
-    document.querySelectorAll('.wrd').forEach(w=>Object.assign(w.style,{{opacity:'1',transform:'none'}}))
-  ));
+  setTimeout(()=>document.querySelectorAll('.wrd').forEach(w=>Object.assign(w.style,{{opacity:'1',transform:'none'}})),60);
 }}
 
 // ── Animation entrée héro ────────────────────────────────────────────────
-['.hero-chip','.hero-sub','.hero-rating','.hero-btns'].forEach((s,i)=>{{
+['.hero-chip','.hero-sub','.hero-rating','.hero-btns','.hero-logo-wrap'].forEach((s,i)=>{{
   const el=document.querySelector(s);
   if(!el)return;
-  Object.assign(el.style,{{opacity:'0',transform:'translateY(16px)',transition:'0.7s cubic-bezier(.22,1,.36,1)',transitionDelay:`${{0.9+i*.15}}s`}});
-  requestAnimationFrame(()=>requestAnimationFrame(()=>Object.assign(el.style,{{opacity:'1',transform:'none'}})));
+  Object.assign(el.style,{{opacity:'0',transform:'translateY(14px)',transition:`0.7s cubic-bezier(.22,1,.36,1) ${{0.5+i*.12}}s`}});
+  setTimeout(()=>Object.assign(el.style,{{opacity:'1',transform:'none'}}), 80+i*60);
 }});
 
 // ── Boutons magnétiques ──────────────────────────────────────────────────
@@ -13731,7 +13729,7 @@ document.querySelectorAll('.gal-item').forEach((el,i)=>{{
 }});
 const obsGal=new IntersectionObserver(e=>e.forEach(x=>{{
   if(x.isIntersecting){{Object.assign(x.target.style,{{opacity:'1',transform:'none'}});obsGal.unobserve(x.target);}}
-}}),{{threshold:.1}});
+}}),{{threshold:0}});
 document.querySelectorAll('.gal-item').forEach(el=>obsGal.observe(el));
 
 // ── Compteurs animés ─────────────────────────────────────────────────────
@@ -13768,7 +13766,7 @@ const obsSvc=new IntersectionObserver(e=>e.forEach((x,i)=>{{
     setTimeout(()=>{{x.target.style.opacity='1';x.target.style.transform='none';}},i*80);
     obsSvc.unobserve(x.target);
   }}
-}}),{{threshold:.15}});
+}}),{{threshold:0}});
 document.querySelectorAll('.svc-row').forEach(el=>{{
   Object.assign(el.style,{{opacity:'0',transform:'translateX(-20px)',transition:'opacity .5s cubic-bezier(.16,1,.3,1),transform .5s cubic-bezier(.16,1,.3,1)'}});
   obsSvc.observe(el);
