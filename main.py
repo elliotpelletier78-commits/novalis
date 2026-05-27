@@ -13553,11 +13553,7 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 </div>
 
 <script>
-const obs = new IntersectionObserver(entries => {{
-  entries.forEach(e => {{ if(e.isIntersecting){{ e.target.classList.add('in'); obs.unobserve(e.target); }} }});
-}}, {{threshold:0.08}});
-document.querySelectorAll('.reveal,.reveal-left,.reveal-right,.reveal-scale').forEach(el => obs.observe(el));
-// Scroll progress bar
+// ── Scroll progress bar ───────────────────────────────────────────────────
 const pbar=document.getElementById('pbar');
 if(pbar){{
   window.addEventListener('scroll',()=>{{
@@ -13566,11 +13562,116 @@ if(pbar){{
   }},{{passive:true}});
   document.body.prepend(pbar);
 }}
-['.hero-chip','.hero h1','.hero-sub','.hero-rating','.hero-btns'].forEach((s,i) => {{
-  const el = document.querySelector(s);
-  if(!el) return;
-  Object.assign(el.style,{{opacity:'0',transform:'translateY(14px)',transition:'0.7s cubic-bezier(0.22,1,0.36,1)'}});
-  setTimeout(() => {{ el.style.opacity='1'; el.style.transform='none'; }}, 80 + i*120);
+
+// ── IntersectionObserver révélations ─────────────────────────────────────
+const obs=new IntersectionObserver(e=>e.forEach(x=>{{if(x.isIntersecting){{x.target.classList.add('in');obs.unobserve(x.target);}}}}),{{threshold:0.08}});
+document.querySelectorAll('.reveal,.reveal-left,.reveal-right,.reveal-scale').forEach(el=>obs.observe(el));
+
+// ── Parallax hero ────────────────────────────────────────────────────────
+const heroBg=document.querySelector('.hero-bg');
+if(heroBg){{
+  heroBg.style.willChange='transform';
+  window.addEventListener('scroll',()=>{{
+    if(window.scrollY<window.innerHeight*1.5)
+      heroBg.style.transform=`translateY(${{window.scrollY*0.38}}px)`;
+  }},{{passive:true}});
+}}
+
+// ── Titre héro mot par mot ───────────────────────────────────────────────
+const heroH1=document.querySelector('.hero h1');
+if(heroH1){{
+  const words=heroH1.innerHTML.split(/(\s+)/);
+  heroH1.innerHTML=words.map((w,i)=>
+    /\s/.test(w)?w:`<span class="wrd" style="display:inline-block;opacity:0;transform:translateY(18px) rotate(-1deg);transition:opacity .55s cubic-bezier(.16,1,.3,1),transform .55s cubic-bezier(.16,1,.3,1);transition-delay:${{.55+i*.07}}s">${{w}}</span>`
+  ).join('');
+  requestAnimationFrame(()=>requestAnimationFrame(()=>
+    document.querySelectorAll('.wrd').forEach(w=>Object.assign(w.style,{{opacity:'1',transform:'none'}}))
+  ));
+}}
+
+// ── Animation entrée héro ────────────────────────────────────────────────
+['.hero-chip','.hero-sub','.hero-rating','.hero-btns'].forEach((s,i)=>{{
+  const el=document.querySelector(s);
+  if(!el)return;
+  Object.assign(el.style,{{opacity:'0',transform:'translateY(16px)',transition:'0.7s cubic-bezier(.22,1,.36,1)',transitionDelay:`${{0.9+i*.15}}s`}});
+  requestAnimationFrame(()=>requestAnimationFrame(()=>Object.assign(el.style,{{opacity:'1',transform:'none'}})));
+}});
+
+// ── Boutons magnétiques ──────────────────────────────────────────────────
+document.querySelectorAll('.cta-a,.btn-p,.nav-cta').forEach(btn=>{{
+  btn.style.transition='transform .2s cubic-bezier(.16,1,.3,1),opacity .2s,box-shadow .2s';
+  btn.addEventListener('mousemove',e=>{{
+    const r=btn.getBoundingClientRect();
+    const x=(e.clientX-r.left-r.width/2)*.18;
+    const y=(e.clientY-r.top-r.height/2)*.25;
+    btn.style.transform=`translate(${{x}}px,${{y}}px) scale(1.04)`;
+    btn.style.boxShadow=`0 8px 30px rgba(0,0,0,.25)`;
+  }});
+  btn.addEventListener('mouseleave',()=>{{btn.style.transform='';btn.style.boxShadow='';}});
+}});
+
+// ── Tilt 3D sur cartes ───────────────────────────────────────────────────
+document.querySelectorAll('.testi-card,.incl-item,.val-row').forEach(card=>{{
+  card.style.transition='transform .15s ease';
+  card.addEventListener('mousemove',e=>{{
+    const r=card.getBoundingClientRect();
+    const x=(e.clientX-r.left)/r.width-.5;
+    const y=(e.clientY-r.top)/r.height-.5;
+    card.style.transform=`perspective(700px) rotateY(${{x*7}}deg) rotateX(${{-y*5}}deg) translateZ(6px) scale(1.01)`;
+  }});
+  card.addEventListener('mouseleave',()=>{{card.style.transform='';}});
+}});
+
+// ── Galerie en cascade ───────────────────────────────────────────────────
+document.querySelectorAll('.gal-item').forEach((el,i)=>{{
+  el.style.opacity='0';
+  el.style.transform='scale(0.9) translateY(16px)';
+  el.style.transition=`opacity .55s cubic-bezier(.16,1,.3,1) ${{i*.06}}s,transform .55s cubic-bezier(.16,1,.3,1) ${{i*.06}}s`;
+  obs.observe(Object.assign(el,{{_galItem:true}}));
+}});
+const obsGal=new IntersectionObserver(e=>e.forEach(x=>{{
+  if(x.isIntersecting){{Object.assign(x.target.style,{{opacity:'1',transform:'none'}});obsGal.unobserve(x.target);}}
+}}),{{threshold:.1}});
+document.querySelectorAll('.gal-item').forEach(el=>obsGal.observe(el));
+
+// ── Compteurs animés ─────────────────────────────────────────────────────
+const obsCount=new IntersectionObserver(e=>e.forEach(x=>{{
+  if(!x.isIntersecting)return;
+  const el=x.target,target=+el.dataset.count,dur=1800,start=performance.now();
+  const tick=now=>{{
+    const p=Math.min((now-start)/dur,1),ease=1-Math.pow(1-p,3);
+    el.textContent=(el.dataset.prefix||'')+Math.round(ease*target)+(el.dataset.suffix||'');
+    if(p<1)requestAnimationFrame(tick);
+  }};
+  requestAnimationFrame(tick);
+  obsCount.unobserve(el);
+}}),{{threshold:.5}});
+document.querySelectorAll('[data-count]').forEach(el=>obsCount.observe(el));
+
+// ── Photo strip auto-scroll hint ─────────────────────────────────────────
+const strip=document.querySelector('.photo-strip');
+if(strip){{
+  const obsStrip=new IntersectionObserver(([e])=>{{
+    if(e.isIntersecting){{
+      let t=0;const iv=setInterval(()=>{{
+        strip.scrollLeft+=1.2;t++;if(t>120)clearInterval(iv);
+      }},16);
+      obsStrip.disconnect();
+    }}
+  }},{{threshold:.3}});
+  obsStrip.observe(strip);
+}}
+
+// ── Svc rows — highlight au scroll ───────────────────────────────────────
+const obsSvc=new IntersectionObserver(e=>e.forEach((x,i)=>{{
+  if(x.isIntersecting){{
+    setTimeout(()=>{{x.target.style.opacity='1';x.target.style.transform='none';}},i*80);
+    obsSvc.unobserve(x.target);
+  }}
+}}),{{threshold:.15}});
+document.querySelectorAll('.svc-row').forEach(el=>{{
+  Object.assign(el.style,{{opacity:'0',transform:'translateX(-20px)',transition:'opacity .5s cubic-bezier(.16,1,.3,1),transform .5s cubic-bezier(.16,1,.3,1)'}});
+  obsSvc.observe(el);
 }});
 </script>
 </body>
