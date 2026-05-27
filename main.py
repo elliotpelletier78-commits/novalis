@@ -12687,7 +12687,17 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     bm         = json.loads(prospect.get("brand_meta") or "{}")
     industry_lower = industry.lower()
 
-    # ── Real structured data from scraping ───────────────────────────────────
+    # ── Détection type d'industrie ────────────────────────────────────────────
+    _is_resto    = any(k in industry_lower for k in ["restaurant","resto","café","cafe","bistro","brasserie","pizza","sushi","traiteur","bar ","taverne","auberge","rôtisserie","rotisserie","cuisine"])
+    _is_salon    = any(k in industry_lower for k in ["salon","coiffure","coiffeur","esthétique","esthetique","spa","beauté","beaute","onglerie","barbier","massage","soins"])
+    _is_garage   = any(k in industry_lower for k in ["garage","mécanique","mechanique","carrosserie","pneu","transmission","auto","automobile","concessionnaire"])
+    _is_health   = any(k in industry_lower for k in ["dentiste","médecin","medecin","clinique","physiothérapie","chiropracteur","psychologue","optométriste","opticien","pharmacie","vétérinaire"])
+    _is_legal    = any(k in industry_lower for k in ["avocat","notaire","comptable","fiscaliste","juridique"])
+    _is_trades   = any(k in industry_lower for k in ["plombier","plomberie","électricien","electricien","construction","rénovation","renovation","entrepreneur","toiture","peintre","serrurier","menuisier","chauffage"])
+    _is_immob    = any(k in industry_lower for k in ["immobilier","courtier","hypothèque","agence"])
+    _is_fitness  = any(k in industry_lower for k in ["gym","fitness","entraînement","sport","yoga","pilates","crossfit","natation","boxe"])
+
+
     real_hours   = bm.get("hours", [])
     real_address = bm.get("address", "")
     real_about   = bm.get("about", "")
@@ -12722,23 +12732,44 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     cta_text     = sp.get("cta")          or "Nous contacter"
     color_theme  = sp.get("color_theme",  "purple")
 
-    # ── Theme palette (vraies couleurs si disponibles, sinon par industrie) ───
-    palettes = {
-        "blue":   {"bg":"#050d1f","grad1":"#0ea5e9","grad2":"#2563eb","accent":"#38bdf8","light":"#bae6fd","btn":"#0284c7"},
-        "green":  {"bg":"#030f07","grad1":"#16a34a","grad2":"#059669","accent":"#4ade80","light":"#bbf7d0","btn":"#15803d"},
-        "purple": {"bg":"#0d0720","grad1":"#7c3aed","grad2":"#a21caf","accent":"#a78bfa","light":"#e9d5ff","btn":"#6d28d9"},
-        "orange": {"bg":"#120700","grad1":"#ea580c","grad2":"#dc2626","accent":"#fb923c","light":"#fed7aa","btn":"#c2410c"},
-        "red":    {"bg":"#0f0202","grad1":"#dc2626","grad2":"#9f1239","accent":"#f87171","light":"#fecaca","btn":"#b91c1c"},
-        "yellow": {"bg":"#0c0900","grad1":"#d97706","grad2":"#ca8a04","accent":"#fbbf24","light":"#fef08a","btn":"#b45309"},
-    }
-    p = palettes.get(color_theme, palettes["purple"])
-    bg,g1,g2,acc,lgt,btn = p["bg"],p["grad1"],p["grad2"],p["accent"],p["light"],p["btn"]
+    # ── Theme palette — par industrie d'abord, vraies couleurs ensuite ────────
+    if _is_resto:
+        bg,g1,g2,acc,lgt,btn = "#0a0603","#c9a55a","#a07c3a","#e8c97a","#f5e6c3","#b8922a"
+        _ind_font_style = "prestige"
+    elif _is_salon:
+        bg,g1,g2,acc,lgt,btn = "#0f0810","#b76fa8","#8b3fa0","#d4a0cc","#f5e0f0","#9d4f96"
+        _ind_font_style = "elegant"
+    elif _is_garage:
+        bg,g1,g2,acc,lgt,btn = "#0a0a0a","#f59e0b","#d97706","#fbbf24","#fef3c7","#d97706"
+        _ind_font_style = "industrial"
+    elif _is_health:
+        bg,g1,g2,acc,lgt,btn = "#020d1f","#0ea5e9","#0369a1","#38bdf8","#e0f2fe","#0284c7"
+        _ind_font_style = "clean"
+    elif _is_legal:
+        bg,g1,g2,acc,lgt,btn = "#07060f","#4f46e5","#3730a3","#818cf8","#e0e7ff","#4338ca"
+        _ind_font_style = "authority"
+    elif _is_trades:
+        bg,g1,g2,acc,lgt,btn = "#04080f","#1d4ed8","#1e40af","#60a5fa","#dbeafe","#1d4ed8"
+        _ind_font_style = "trust"
+    elif _is_fitness:
+        bg,g1,g2,acc,lgt,btn = "#060606","#dc2626","#b91c1c","#f87171","#fee2e2","#dc2626"
+        _ind_font_style = "bold"
+    else:
+        palettes = {
+            "blue":   {"bg":"#050d1f","grad1":"#0ea5e9","grad2":"#2563eb","accent":"#38bdf8","light":"#bae6fd","btn":"#0284c7"},
+            "green":  {"bg":"#030f07","grad1":"#16a34a","grad2":"#059669","accent":"#4ade80","light":"#bbf7d0","btn":"#15803d"},
+            "purple": {"bg":"#0d0720","grad1":"#7c3aed","grad2":"#a21caf","accent":"#a78bfa","light":"#e9d5ff","btn":"#6d28d9"},
+            "orange": {"bg":"#120700","grad1":"#ea580c","grad2":"#dc2626","accent":"#fb923c","light":"#fed7aa","btn":"#c2410c"},
+            "red":    {"bg":"#0f0202","grad1":"#dc2626","grad2":"#9f1239","accent":"#f87171","light":"#fecaca","btn":"#b91c1c"},
+            "yellow": {"bg":"#0c0900","grad1":"#d97706","grad2":"#ca8a04","accent":"#fbbf24","light":"#fef08a","btn":"#b45309"},
+        }
+        p = palettes.get(color_theme, palettes["purple"])
+        bg,g1,g2,acc,lgt,btn = p["bg"],p["grad1"],p["grad2"],p["accent"],p["light"],p["btn"]
+        _ind_font_style = "default"
 
     # ── Override avec les vraies couleurs du site si disponibles ─────────────
     if real_color1:
-        g1 = real_color1
-        btn = real_color1
-        acc = real_color1
+        g1 = real_color1; btn = real_color1; acc = real_color1
         lgt = real_color2 or real_color1
     if real_color2:
         g2 = real_color2
@@ -12788,22 +12819,122 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
                 return ic
         return "✦"
 
-    # ── Services cards ────────────────────────────────────────────────────────
+    # ── Services HTML — format selon industrie ────────────────────────────────
     services_html = ""
     svc_source = real_svcs[:6] if real_svcs else [{"name": s, "desc": ""} for s in services_list[:6]]
-    for _si, _svc in enumerate(svc_source, 1):
-        _name = _svc["name"] if isinstance(_svc, dict) else _svc
-        _desc = (_svc.get("desc", "") if isinstance(_svc, dict) else "")
-        _icon = _svc_icon(_name)
-        _desc_html = f'<div class="svc-card-desc">{_desc}</div>' if _desc else ""
-        services_html += (
-            f'<div class="svc-card reveal d{min(_si,4)}">'
-            f'<div class="svc-card-icon">{_icon}</div>'
-            f'<div class="svc-card-title">{_name}</div>'
-            f'{_desc_html}'
-            f'<div class="svc-card-link">En savoir plus →</div>'
-            f'</div>'
-        )
+
+    if _is_resto:
+        # Restaurant: menu prestige avec catégories
+        _menu_cats = ["Spécialités","Menu table d'hôte","Suggestions du Chef","Desserts & Vins"]
+        for _si, _svc in enumerate(svc_source, 1):
+            _name = _svc["name"] if isinstance(_svc,dict) else _svc
+            _desc = (_svc.get("desc","") if isinstance(_svc,dict) else "")
+            _cat  = _menu_cats[(_si-1) % len(_menu_cats)]
+            services_html += (
+                f'<div class="menu-item reveal d{min(_si,4)}">'
+                f'<div class="menu-item-top"><div class="menu-item-cat">{_cat}</div>'
+                f'<div class="menu-item-dots"></div></div>'
+                f'<div class="menu-item-name">{_name}</div>'
+                f'<div class="menu-item-desc">{_desc}</div>'
+                f'</div>'
+            )
+    elif _is_garage:
+        # Garage: checklist avec badge professionnel
+        _garage_badges = ["✓ Garanti","✓ RBQ certifié","✓ Diagnostic inclus","✓ Pièces OEM","✓ Estimé gratuit","✓ Garantie pièces"]
+        for _si, _svc in enumerate(svc_source, 1):
+            _name = _svc["name"] if isinstance(_svc,dict) else _svc
+            _desc = (_svc.get("desc","") if isinstance(_svc,dict) else "")
+            _badge = _garage_badges[(_si-1) % len(_garage_badges)]
+            _icon  = _svc_icon(_name)
+            services_html += (
+                f'<div class="garage-svc reveal d{min(_si,4)}">'
+                f'<div class="garage-svc-icon">{_icon}</div>'
+                f'<div class="garage-svc-body">'
+                f'<div class="garage-svc-name">{_name}</div>'
+                f'<div class="garage-svc-desc">{_desc}</div>'
+                f'</div>'
+                f'<div class="garage-svc-badge">{_badge}</div>'
+                f'</div>'
+            )
+    elif _is_salon:
+        # Salon: carte de service élégante avec durée
+        _durations = ["30 min","45 min","60 min","90 min","120 min","45 min"]
+        for _si, _svc in enumerate(svc_source, 1):
+            _name = _svc["name"] if isinstance(_svc,dict) else _svc
+            _desc = (_svc.get("desc","") if isinstance(_svc,dict) else "")
+            _dur  = _durations[(_si-1) % len(_durations)]
+            _icon = _svc_icon(_name)
+            services_html += (
+                f'<div class="salon-svc reveal d{min(_si,4)}">'
+                f'<div class="salon-svc-icon">{_icon}</div>'
+                f'<div class="salon-svc-body">'
+                f'<div class="salon-svc-name">{_name}</div>'
+                f'<div class="salon-svc-desc">{_desc}</div>'
+                f'</div>'
+                f'<div class="salon-svc-dur">{_dur}</div>'
+                f'</div>'
+            )
+    elif _is_health:
+        # Santé: carte propre avec icône médicale
+        for _si, _svc in enumerate(svc_source, 1):
+            _name = _svc["name"] if isinstance(_svc,dict) else _svc
+            _desc = (_svc.get("desc","") if isinstance(_svc,dict) else "")
+            _icon = _svc_icon(_name)
+            services_html += (
+                f'<div class="health-svc reveal d{min(_si,4)}">'
+                f'<div class="health-svc-icon">{_icon}</div>'
+                f'<div class="health-svc-name">{_name}</div>'
+                f'<div class="health-svc-desc">{_desc}</div>'
+                f'<a href="#contact" class="health-svc-cta">Prendre rendez-vous →</a>'
+                f'</div>'
+            )
+    else:
+        # Default (trades, legal, immob, etc.) : cards professionnelles
+        for _si, _svc in enumerate(svc_source, 1):
+            _name = _svc["name"] if isinstance(_svc,dict) else _svc
+            _desc = (_svc.get("desc","") if isinstance(_svc,dict) else "")
+            _icon = _svc_icon(_name)
+            _desc_html = f'<div class="svc-card-desc">{_desc}</div>' if _desc else ""
+            services_html += (
+                f'<div class="svc-card reveal d{min(_si,4)}">'
+                f'<div class="svc-card-icon">{_icon}</div>'
+                f'<div class="svc-card-title">{_name}</div>'
+                f'{_desc_html}'
+                f'<div class="svc-card-link">En savoir plus →</div>'
+                f'</div>'
+            )
+
+    # ── Section services — titre et layout selon industrie ────────────────────
+    if _is_resto:
+        _svc_section_label = "Notre cuisine"
+        _svc_section_title = f"L'expérience {name}"
+        _svc_section_lead  = f"Une cuisine authentique préparée avec passion à {city}, pour chaque occasion."
+        _svc_grid_class    = "menu-grid"
+        _svc_cta_text      = "Réserver une table"
+    elif _is_garage:
+        _svc_section_label = "Nos services"
+        _svc_section_title = "Expertise & Qualité"
+        _svc_section_lead  = f"Mécaniciens certifiés à {city}. Diagnostic précis, réparations durables, satisfaction garantie."
+        _svc_grid_class    = "garage-grid"
+        _svc_cta_text      = "Prendre un rendez-vous"
+    elif _is_salon:
+        _svc_section_label = "Nos soins & services"
+        _svc_section_title = "Votre transformation"
+        _svc_section_lead  = f"Une expérience personnalisée dans un environnement chaleureux à {city}."
+        _svc_grid_class    = "salon-grid"
+        _svc_cta_text      = "Réserver ma séance"
+    elif _is_health:
+        _svc_section_label = "Nos soins"
+        _svc_section_title = "Votre santé, notre priorité"
+        _svc_section_lead  = f"Des professionnels de la santé qualifiés à {city}, à votre service."
+        _svc_grid_class    = "health-grid"
+        _svc_cta_text      = "Prendre rendez-vous"
+    else:
+        _svc_section_label = "Nos services"
+        _svc_section_title = "Ce que nous offrons"
+        _svc_section_lead  = f"Des services professionnels adaptés à vos besoins à {city}."
+        _svc_grid_class    = "svc-cards"
+        _svc_cta_text      = cta_text or "Nous contacter"
 
     # ── Testimonials by industry ──────────────────────────────────────────────
     testimonials_map = {
@@ -13739,6 +13870,45 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 .foot-bottom a{{font-size:0.72rem;color:rgba(255,255,255,0.22);text-decoration:underline}}
 @media(max-width:768px){{.foot-grid{{grid-template-columns:1fr 1fr;gap:32px}}.foot-col:first-child{{grid-column:1/-1}}}}
 @media(max-width:500px){{.foot-grid{{grid-template-columns:1fr}}}}
+/* ── RESTAURANT styles ── */
+.ind-sec-prestige{{background:#07040200}}
+.menu-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1px;background:rgba(201,165,90,0.12);margin-top:48px;border:1px solid rgba(201,165,90,0.2);border-radius:2px}}
+.menu-item{{background:var(--paper);padding:32px 28px;transition:background 0.3s}}
+.menu-item:hover{{background:var(--paper2)}}
+.menu-item-top{{display:flex;align-items:center;gap:0;margin-bottom:14px}}
+.menu-item-cat{{font-size:0.62rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--brand);flex-shrink:0}}
+.menu-item-dots{{flex:1;border-bottom:1px dotted var(--rule);margin:0 12px;transform:translateY(-1px)}}
+.menu-item-name{{font-family:var(--serif);font-size:1.2rem;font-weight:700;color:var(--ink);margin-bottom:8px;line-height:1.3}}
+.menu-item-desc{{font-size:0.84rem;color:var(--ink2);font-weight:300;line-height:1.7}}
+/* ── GARAGE styles ── */
+.garage-grid{{display:grid;grid-template-columns:1fr;gap:0;margin-top:48px;border:1px solid var(--rule);border-radius:8px;overflow:hidden}}
+.garage-svc{{display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:0 20px;padding:22px 24px;border-bottom:1px solid var(--rule);transition:background 0.2s}}
+.garage-svc:last-child{{border-bottom:none}}
+.garage-svc:hover{{background:rgba(245,158,11,0.06)}}
+.garage-svc-icon{{font-size:1.5rem;text-align:center}}
+.garage-svc-name{{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:4px}}
+.garage-svc-desc{{font-size:0.82rem;color:var(--ink2);font-weight:300}}
+.garage-svc-badge{{font-size:0.68rem;font-weight:700;color:var(--brand);border:1px solid {btn}55;border-radius:3px;padding:3px 8px;white-space:nowrap;flex-shrink:0}}
+@media(max-width:600px){{.garage-svc{{grid-template-columns:40px 1fr}}.garage-svc-badge{{display:none}}}}
+/* ── SALON styles ── */
+.salon-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:48px}}
+.salon-svc{{background:#fff;border:1px solid var(--rule);border-radius:10px;padding:24px 22px;display:flex;align-items:center;gap:16px;transition:box-shadow 0.3s,transform 0.2s}}
+.salon-svc:hover{{box-shadow:0 8px 32px rgba(0,0,0,0.08);transform:translateY(-2px)}}
+.salon-svc-icon{{font-size:1.8rem;flex-shrink:0}}
+.salon-svc-name{{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:4px}}
+.salon-svc-desc{{font-size:0.8rem;color:var(--ink2);font-weight:300;line-height:1.6}}
+.salon-svc-dur{{font-size:0.72rem;font-weight:600;color:var(--brand);border:1px solid {btn}44;border-radius:20px;padding:3px 10px;white-space:nowrap;flex-shrink:0;margin-left:auto}}
+/* ── SANTÉ styles ── */
+.health-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin-top:48px}}
+.health-svc{{background:#fff;border:1px solid var(--rule);border-radius:10px;padding:28px 22px;text-align:center;transition:box-shadow 0.3s,transform 0.2s}}
+.health-svc:hover{{box-shadow:0 8px 32px rgba(0,0,0,0.07);transform:translateY(-2px)}}
+.health-svc-icon{{font-size:2rem;margin-bottom:14px}}
+.health-svc-name{{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:8px}}
+.health-svc-desc{{font-size:0.82rem;color:var(--ink2);font-weight:300;line-height:1.65;margin-bottom:16px}}
+.health-svc-cta{{font-size:0.78rem;font-weight:700;color:var(--brand)}}
+/* ── Hero badge industrie ── */
+.ind-badge{{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.09);border:1px solid rgba(255,255,255,0.18);border-radius:3px;padding:6px 14px;font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.8);margin-bottom:18px}}
+.ind-badge-dot{{width:5px;height:5px;border-radius:50%;background:var(--brand);box-shadow:0 0 8px var(--brand)}}
 </style>
 </head>
 <body>
@@ -13779,7 +13949,7 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
     <div class="hero-rating"><span class="s">{stars_display}</span><span>{rating_text}</span></div>
     <div class="hero-btns">
       <a class="btn-p" href="{_tel_href}">{cta_text}</a>
-      <a class="btn-g" href="#services">Nos services →</a>
+      <a class="btn-g" href="#services">{_svc_cta_text} →</a>
     </div>
   </div>
 </div>
@@ -13797,13 +13967,16 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 
 {qf_section}
 
-<section class="sec" id="services">
+<section class="sec ind-sec-{_ind_font_style}" id="services">
   <div class="sec-in">
-    <div class="sec-label reveal">Vos services</div>
-    <h2 class="sec-h reveal d1">Ce que nous offrons</h2>
-    <p class="sec-lead reveal d2">Des services professionnels adaptés à vos besoins, disponibles rapidement à {city}.</p>
-    <div class="svc-cards">
+    <div class="sec-label reveal">{_svc_section_label}</div>
+    <h2 class="sec-h reveal d1">{_svc_section_title}</h2>
+    <p class="sec-lead reveal d2">{_svc_section_lead}</p>
+    <div class="{_svc_grid_class}">
       {services_html}
+    </div>
+    <div style="margin-top:40px;text-align:center">
+      <a class="btn-p reveal d4" href="#contact">{_svc_cta_text} →</a>
     </div>
   </div>
 </section>
