@@ -12978,25 +12978,48 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     else:
         audit_section = ""
 
-    # ── Ce que vous obtenez (valeur perçue) ───────────────────────────────────
-    included = [
-        ("📱","Site mobile parfait","Vos clients vous trouvent et réservent depuis leur téléphone — à toute heure"),
-        ("🔍","Référencement Google","Apparaître dans les 3 premiers résultats quand on cherche votre service à {city}".format(city=city)),
-        ("⚡","Chargement en 1 seconde","Performance optimisée — aucun visiteur ne repart à cause d'un temps d'attente"),
-        ("📞","Appel direct en 1 clic","Votre numéro en évidence sur mobile — les clients appellent sans chercher"),
-        ("📸","Vos vraies photos","Vos réalisations et votre équipe mis en valeur — pas des photos génériques"),
-        ("🔒","Sécurisé HTTPS","Certificat SSL inclus — Google et vos clients vous font confiance"),
+    # ── Valeur perçue + ROI ───────────────────────────────────────────────────
+    _value_items = [
+        ("Site web professionnel sur mesure", "4 500 $"),
+        ("Optimisation mobile complète", "800 $"),
+        ("Référencement local Google (SEO)", "1 200 $"),
+        ("Hébergement + domaine (1 an inclus)", "360 $"),
+        ("Formulaire de contact + appel 1 clic", "400 $"),
+        ("Intégration de vos photos et contenu", "500 $"),
+        ("Certificat HTTPS + sécurité", "200 $"),
     ]
-    included_html = ""
-    for icon, title, desc in included:
-        included_html += (
-            f'<div class="incl-item reveal">'
-            f'<div class="incl-icon">{icon}</div>'
-            f'<div><div class="incl-title">{title}</div><div class="incl-desc">{desc}</div></div>'
+    _total_agency = "7 960 $"
+    value_rows_html = ""
+    for item, price in _value_items:
+        value_rows_html += (
+            f'<div class="val-row reveal">'
+            f'<div class="val-name"><span class="val-check">✓</span>{item}</div>'
+            f'<div class="val-price"><del>{price}</del></div>'
             f'</div>'
         )
+    # ROI calculation by industry
+    _industry_val = 200
+    _industry_unit = "client"
+    for k, v, u in [
+        ("plombier",250,"service"), ("plomberie",250,"service"),
+        ("électricien",320,"service"), ("electricien",320,"service"),
+        ("restaurant",55,"repas"), ("bistro",55,"repas"), ("café",35,"café"),
+        ("salon",95,"visite"), ("coiffeur",85,"coupe"), ("esthétique",130,"soin"),
+        ("dentiste",210,"consultation"), ("médecin",160,"consultation"), ("clinique",160,"consultation"),
+        ("construction",2500,"contrat"), ("entrepreneur",3000,"contrat"), ("rénovation",1800,"contrat"),
+        ("garage",380,"réparation"), ("mécanique",290,"réparation"),
+        ("avocat",350,"consultation"), ("notaire",500,"acte"), ("comptable",220,"service"),
+        ("serrurier",180,"service"), ("peintre",1200,"contrat"), ("toiture",2000,"contrat"),
+    ]:
+        if k in industry_lower:
+            _industry_val = v
+            _industry_unit = u
+            break
+    _monthly_loss = _industry_val * 3 * 4
+    _payback_weeks = max(1, round(1000 / (_industry_val * 3)))
 
     _favicon_tag = f'<link rel="icon" href="{real_favicon}">' if real_favicon else ""
+
 
     # Logo HTML — image réelle ou texte fallback
     if real_logo:
@@ -13231,12 +13254,28 @@ nav{{position:sticky;top:0;z-index:200;background:rgba(247,244,239,0.95);backdro
 .testi-avatar{{width:36px;height:36px;border-radius:50%;background:{btn};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;flex-shrink:0;font-family:var(--serif)}}
 .testi-name{{font-size:0.82rem;font-weight:600;color:#fff}}
 .testi-loc{{font-size:0.72rem;color:rgba(255,255,255,0.32)}}
-.incl-sec{{background:var(--paper);padding:80px 5vw;border-top:1px solid var(--rule)}}
-.incl-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:44px}}
-.incl-item{{display:flex;align-items:flex-start;gap:16px;padding:22px 20px;background:#fff;border:1px solid var(--rule);border-radius:8px}}
-.incl-icon{{font-size:1.4rem;flex-shrink:0}}
-.incl-title{{font-weight:600;font-size:0.92rem;color:var(--ink);margin-bottom:3px}}
-.incl-desc{{font-size:0.8rem;color:var(--ink2);line-height:1.55}}
+.val-sec{{background:var(--paper);padding:80px 5vw;border-top:1px solid var(--rule)}}
+.val-table{{margin-top:44px;border-radius:10px;overflow:hidden;border:1px solid var(--rule);background:#fff}}
+.val-row{{display:flex;align-items:center;justify-content:space-between;padding:15px 22px;border-bottom:1px solid var(--rule);gap:12px}}
+.val-row:hover{{background:var(--paper)}}
+.val-name{{font-size:0.9rem;color:var(--ink2);display:flex;align-items:center;gap:10px}}
+.val-check{{color:#22c55e;font-weight:700;font-size:1rem;flex-shrink:0}}
+.val-price{{font-size:0.88rem;color:var(--ink2);flex-shrink:0;opacity:0.6}}
+.val-total-row{{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;background:var(--paper2);border-top:2px solid var(--rule)}}
+.val-our-row{{display:flex;align-items:center;justify-content:space-between;padding:20px 22px;background:var(--brand);}}
+.val-our-row .val-name{{color:#fff;font-size:0.95rem;font-weight:600}}
+.val-our-price{{font-family:var(--serif);font-size:1.8rem;font-weight:900;color:#fff;letter-spacing:-0.02em}}
+.roi-box{{display:flex;align-items:flex-start;gap:20px;margin-top:28px;background:#fff;border:1px solid var(--rule);border-left:4px solid var(--brand);border-radius:8px;padding:24px 22px}}
+.roi-icon{{font-size:1.6rem;flex-shrink:0}}
+.roi-title{{font-weight:700;font-size:0.95rem;color:var(--ink);margin-bottom:6px}}
+.roi-text{{font-size:0.85rem;color:var(--ink2);line-height:1.7}}
+.agency-cmp{{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;max-width:480px;margin:0 auto 36px;width:100%}}
+.agency-row{{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.07);font-size:0.88rem;color:rgba(255,255,255,0.45)}}
+.agency-row:last-child{{border-bottom:none}}
+.agency-price-old{{font-weight:500;opacity:0.5;text-decoration:line-through}}
+.agency-row-us{{background:rgba(37,99,235,0.2);border:1px solid rgba(37,99,235,0.4)!important;border-radius:0 0 8px 8px}}
+.agency-row-us span{{color:#fff}}
+.agency-price-us{{font-family:var(--serif);font-size:1.4rem;font-weight:900;color:#fff;letter-spacing:-0.02em}}
 .cta-final{{position:relative;overflow:hidden;padding:100px 5vw;text-align:center;background:var(--ink)}}
 .cta-final-glow{{position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:600px;height:400px;background:var(--brand);opacity:0.15;filter:blur(100px);pointer-events:none;border-radius:50%}}
 .cta-badge{{display:inline-block;background:var(--brand);color:#fff;font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:6px 16px;border-radius:3px;margin-bottom:28px}}
@@ -13379,12 +13418,27 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 
 {hours_section}
 
-<section class="incl-sec" id="inclus">
+<section class="val-sec" id="inclus">
   <div class="sec-in">
     <div class="sec-label reveal">Ce que vous obtenez</div>
-    <h2 class="sec-h reveal d1">Tout ce qu'il faut pour dominer votre marché local</h2>
-    <div class="incl-grid">
-      {included_html}
+    <h2 class="sec-h reveal d1">Tout inclus pour 1&nbsp;000&nbsp;$<br><span style="font-size:0.55em;font-weight:300;color:var(--ink2)">Ce que les agences facturent {_total_agency} — livré clé en main</span></h2>
+    <div class="val-table reveal d2">
+      {value_rows_html}
+      <div class="val-total-row">
+        <div class="val-name" style="font-weight:700;">Total valeur estimée</div>
+        <div class="val-price"><del style="color:var(--ink2)">{_total_agency}</del></div>
+      </div>
+      <div class="val-our-row">
+        <div class="val-name">Votre prix Novalis IA — tout inclus</div>
+        <div class="val-our-price">1&nbsp;000&nbsp;$</div>
+      </div>
+    </div>
+    <div class="roi-box reveal d3">
+      <div class="roi-icon">📉</div>
+      <div>
+        <div class="roi-title">Combien vous coûte votre site actuel?</div>
+        <div class="roi-text">Un site non-mobile fait fuir 3 à 5 clients par semaine. Dans votre secteur, c'est environ <strong>{_monthly_loss:,}&nbsp;$&nbsp;perdus&nbsp;par&nbsp;mois</strong>. Votre nouveau site se rembourse en moins de <strong>{_payback_weeks}&nbsp;semaines</strong>.</div>
+      </div>
     </div>
   </div>
 </section>
@@ -13393,10 +13447,11 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
   <div class="cta-final-glow"></div>
   <div class="cta-badge">Votre site est prêt</div>
   <h2 class="cta-h reveal">Il ne manque que votre accord.</h2>
-  <p class="cta-sub reveal d1">Ce site a été conçu spécifiquement pour {name}.<br>Livraison en 2–3 semaines. Satisfait ou remboursé.</p>
-  <div class="cta-price reveal d2">
-    <div class="cta-price-main">À partir de 1 000 $</div>
-    <span class="cta-price-note">Moins qu'un mois de clients perdus à cause d'un mauvais site</span>
+  <p class="cta-sub reveal d1">Conçu spécifiquement pour <strong style="color:#fff">{name}</strong>.<br>Livraison en 2–3 semaines. Satisfait ou remboursé.</p>
+  <div class="agency-cmp reveal d2">
+    <div class="agency-row"><span>Agence web traditionnelle</span><span class="agency-price-old">5 000 $ – 15 000 $</span></div>
+    <div class="agency-row"><span>Freelance indépendant</span><span class="agency-price-old">2 000 $ – 6 000 $</span></div>
+    <div class="agency-row agency-row-us"><span><strong>Novalis IA — tout inclus</strong></span><span class="agency-price-us">1&nbsp;000&nbsp;$</span></div>
   </div>
   <div class="cta-btns reveal d3">
     <a class="cta-a" href="{_tel_href}">{_tel_label or "Nous appeler"}</a>
