@@ -13120,6 +13120,45 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     else:
         hours_section = ""
 
+    # ── Device mockup section ─────────────────────────────────────────────────
+    mockup_section = (
+        '<section class="mockup-sec">'
+        '<div class="sec-in">'
+        '<div class="sec-label reveal" style="color:rgba(255,255,255,0.45)">Responsive</div>'
+        f'<h2 class="sec-h reveal d1" style="color:#fff">Parfait sur mobile, tablette et ordinateur</h2>'
+        f'<p class="sec-lead reveal d2" style="color:rgba(255,255,255,0.45)">68% de vos clients cherchent sur téléphone. Votre site les accueille parfaitement.</p>'
+        '<div class="mockup-devices reveal d3">'
+        '<div class="mockup-laptop">'
+        '<div class="mockup-screen">'
+        f'<div style="background:{btn};height:36px;display:flex;align-items:center;padding:0 14px;gap:8px"><div style="display:flex;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.3);display:block"></span><span style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.3);display:block"></span><span style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.3);display:block"></span></div><span style="color:rgba(255,255,255,0.8);font-size:0.55rem;font-weight:700;margin-left:8px">{name[:28]}</span></div>'
+        f'<div style="padding:14px 16px;background:#f8fafc">'
+        f'<div style="background:{btn};height:70px;border-radius:5px;margin-bottom:10px;display:flex;align-items:center;padding:0 14px"><span style="color:#fff;font-size:0.6rem;font-weight:700;opacity:0.9">{name[:22]}</span></div>'
+        f'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">'
+        f'<div style="background:#fff;border:1px solid #e2e8f0;height:52px;border-radius:4px;padding:8px 6px"><div style="width:60%;height:5px;background:{btn}33;border-radius:2px;margin-bottom:4px"></div><div style="width:90%;height:4px;background:#e2e8f0;border-radius:2px"></div></div>'
+        f'<div style="background:#fff;border:1px solid #e2e8f0;height:52px;border-radius:4px;padding:8px 6px"><div style="width:70%;height:5px;background:{btn}33;border-radius:2px;margin-bottom:4px"></div><div style="width:80%;height:4px;background:#e2e8f0;border-radius:2px"></div></div>'
+        f'<div style="background:#fff;border:1px solid #e2e8f0;height:52px;border-radius:4px;padding:8px 6px"><div style="width:55%;height:5px;background:{btn}33;border-radius:2px;margin-bottom:4px"></div><div style="width:75%;height:4px;background:#e2e8f0;border-radius:2px"></div></div>'
+        f'</div>'
+        f'<div style="background:{btn};height:22px;border-radius:4px;width:140px;margin:0 auto"></div>'
+        '</div>'
+        '</div>'
+        '<div class="mockup-base"><div class="mockup-stand"></div></div>'
+        '</div>'
+        '<div class="mockup-phone">'
+        '<div class="mockup-notch"></div>'
+        '<div class="mockup-phone-screen">'
+        f'<div style="background:{btn};height:52px;display:flex;flex-direction:column;justify-content:center;padding:0 10px"><span style="color:#fff;font-size:0.5rem;font-weight:700">{name[:18]}</span></div>'
+        f'<div style="padding:8px;background:#f8fafc">'
+        f'<div style="background:{btn}22;height:35px;border-radius:3px;margin-bottom:6px;display:flex;align-items:center;padding:0 6px"><div style="width:70%;height:4px;background:{btn}88;border-radius:2px"></div></div>'
+        f'<div style="background:#fff;border:1px solid #e2e8f0;height:32px;border-radius:3px;margin-bottom:4px;padding:6px"><div style="width:80%;height:4px;background:#e2e8f0;border-radius:2px"></div></div>'
+        f'<div style="background:#fff;border:1px solid #e2e8f0;height:32px;border-radius:3px;margin-bottom:4px;padding:6px"><div style="width:65%;height:4px;background:#e2e8f0;border-radius:2px"></div></div>'
+        f'<div style="background:{btn};height:26px;border-radius:4px;margin-top:8px;display:flex;align-items:center;justify-content:center"><span style="color:#fff;font-size:0.45rem;font-weight:700">Appeler maintenant</span></div>'
+        '</div>'
+        '</div>'
+        '</div>'
+        '</div>'
+        '</div></section>'
+    )
+
     _hero_logo_html = (
         f'<div class="hero-logo-wrap">'
         f'<img src="{real_logo}" alt="{name}" loading="eager" referrerpolicy="no-referrer" '
@@ -13153,7 +13192,7 @@ nav{{position:sticky;top:0;z-index:200;background:rgba(247,244,239,0.95);backdro
 .nav-link:hover{{color:var(--ink)}}
 .nav-cta{{background:var(--brand);color:#fff;padding:9px 20px;border-radius:5px;font-size:0.82rem;font-weight:600;letter-spacing:0.01em;transition:opacity 0.2s}}
 .nav-cta:hover{{opacity:0.88}}
-.hero{{position:relative;min-height:580px;display:flex;align-items:flex-end;overflow:hidden}}
+.hero{{position:relative;min-height:100vh;display:flex;align-items:flex-end;overflow:hidden}}
 .hero-bg{{position:absolute;inset:0;background:{hero_bg};background-size:cover;background-position:center}}
 .hero-veil{{position:absolute;inset:0;background:{hero_overlay_css}}}
 .hero-body{{position:relative;z-index:2;width:100%;max-width:1160px;margin:0 auto;padding:80px 5vw 72px}}
@@ -13276,6 +13315,28 @@ nav{{position:sticky;top:0;z-index:200;background:rgba(247,244,239,0.95);backdro
 .agency-row-us{{background:rgba(37,99,235,0.2);border:1px solid rgba(37,99,235,0.4)!important;border-radius:0 0 8px 8px}}
 .agency-row-us span{{color:#fff}}
 .agency-price-us{{font-family:var(--serif);font-size:1.4rem;font-weight:900;color:#fff;letter-spacing:-0.02em}}
+.scroll-hint{{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;z-index:3}}
+.scroll-hint span{{font-size:0.65rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.4)}}
+.scroll-arrow{{width:28px;height:28px;border-right:2px solid rgba(255,255,255,0.3);border-bottom:2px solid rgba(255,255,255,0.3);transform:rotate(45deg);animation:arrow-bounce 2s ease-in-out infinite}}
+@keyframes arrow-bounce{{0%,100%{{transform:rotate(45deg) translateY(0)}}50%{{transform:rotate(45deg) translateY(7px)}}}}
+.progress-bar{{position:fixed;top:0;left:0;height:2px;background:var(--brand);z-index:9999;transition:width 0.1s;width:0%}}
+.guarantee-wrap{{display:flex;justify-content:center;margin-bottom:32px}}
+.guarantee-badge{{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:50px;padding:12px 22px;max-width:420px}}
+.guarantee-icon{{font-size:1.4rem}}
+.guarantee-text strong{{display:block;font-size:0.88rem;color:#fff;font-weight:700}}
+.guarantee-text span{{font-size:0.76rem;color:rgba(255,255,255,0.45)}}
+.urgency-tag{{display:inline-flex;align-items:center;gap:8px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);border-radius:4px;padding:6px 14px;font-size:0.72rem;font-weight:600;color:#fbbf24;letter-spacing:0.04em;margin-bottom:24px}}
+.urgency-dot{{width:6px;height:6px;border-radius:50%;background:#fbbf24;animation:pulse 2s ease-in-out infinite}}
+@keyframes pulse{{0%,100%{{opacity:1;transform:scale(1)}}50%{{opacity:0.4;transform:scale(0.8)}}}}
+.mockup-sec{{background:#0a0f1e;padding:88px 5vw;overflow:hidden}}
+.mockup-devices{{display:flex;justify-content:center;align-items:flex-end;gap:32px;margin-top:56px;flex-wrap:wrap}}
+.mockup-laptop{{width:min(440px,85vw);background:#1e2640;border-radius:12px 12px 0 0;padding:8px 8px 0;border:2px solid #2d3758;box-shadow:0 40px 100px rgba(0,0,0,0.7)}}
+.mockup-screen{{border-radius:6px 6px 0 0;overflow:hidden;height:230px}}
+.mockup-base{{height:14px;background:#2d3758;position:relative}}
+.mockup-stand{{height:10px;background:#263050;width:60px;margin:0 auto;border-radius:0 0 6px 6px}}
+.mockup-phone{{width:min(130px,32vw);background:#1e2640;border-radius:32px;padding:10px 8px 16px;border:2px solid #2d3758;box-shadow:0 30px 70px rgba(0,0,0,0.6);margin-bottom:28px}}
+.mockup-notch{{width:36px;height:6px;background:#0a0f1e;border-radius:3px;margin:0 auto 8px}}
+.mockup-phone-screen{{border-radius:20px;overflow:hidden;height:220px}}
 .cta-final{{position:relative;overflow:hidden;padding:100px 5vw;text-align:center;background:var(--ink)}}
 .cta-final-glow{{position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:600px;height:400px;background:var(--brand);opacity:0.15;filter:blur(100px);pointer-events:none;border-radius:50%}}
 .cta-badge{{display:inline-block;background:var(--brand);color:#fff;font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:6px 16px;border-radius:3px;margin-bottom:28px}}
@@ -13311,7 +13372,7 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 .reveal-scale.in{{opacity:1;transform:none}}
 .d1{{transition-delay:0.08s}}.d2{{transition-delay:0.18s}}.d3{{transition-delay:0.28s}}.d4{{transition-delay:0.38s}}.d5{{transition-delay:0.48s}}
 @media(max-width:600px){{
-  .hero{{min-height:460px}}
+  .hero{{min-height:100svh}}
   .nav-link{{display:none}}
   .trust-pill{{border-right:none;padding:4px 12px}}
   .foot-in{{flex-direction:column;text-align:center}}
@@ -13373,6 +13434,9 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
   <div class="hero-orb orb1"></div>
   <div class="hero-orb orb2"></div>
   <div class="hero-orb orb3"></div>
+  <div class="scroll-hint" onclick="document.getElementById('services').scrollIntoView({{behavior:'smooth'}})">
+    <span>Découvrir</span><div class="scroll-arrow"></div>
+  </div>
   <div class="hero-body">
     {_hero_logo_html}
     <div class="hero-chip"><i></i>{city} &nbsp;·&nbsp; {industry}</div>
@@ -13412,6 +13476,8 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 
 {audit_section}
 
+{mockup_section}
+
 {about_section}
 
 {gallery_section}
@@ -13444,10 +13510,20 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 </section>
 
 <section class="cta-final" id="contact">
+  <div class="progress-bar" id="pbar"></div>
   <div class="cta-final-glow"></div>
-  <div class="cta-badge">Votre site est prêt</div>
+  <div class="urgency-tag"><span class="urgency-dot"></span>Aperçu disponible · Livraison 2–3 semaines</div>
   <h2 class="cta-h reveal">Il ne manque que votre accord.</h2>
-  <p class="cta-sub reveal d1">Conçu spécifiquement pour <strong style="color:#fff">{name}</strong>.<br>Livraison en 2–3 semaines. Satisfait ou remboursé.</p>
+  <p class="cta-sub reveal d1">Conçu spécifiquement pour <strong style="color:#fff">{name}</strong>.<br>Satisfait ou remboursé — aucun risque.</p>
+  <div class="guarantee-wrap reveal d1">
+    <div class="guarantee-badge">
+      <div class="guarantee-icon">🛡️</div>
+      <div class="guarantee-text">
+        <strong>Garantie 30 jours</strong>
+        <span>Pas satisfait? On vous rembourse intégralement, sans question.</span>
+      </div>
+    </div>
+  </div>
   <div class="agency-cmp reveal d2">
     <div class="agency-row"><span>Agence web traditionnelle</span><span class="agency-price-old">5 000 $ – 15 000 $</span></div>
     <div class="agency-row"><span>Freelance indépendant</span><span class="agency-price-old">2 000 $ – 6 000 $</span></div>
@@ -13481,6 +13557,15 @@ const obs = new IntersectionObserver(entries => {{
   entries.forEach(e => {{ if(e.isIntersecting){{ e.target.classList.add('in'); obs.unobserve(e.target); }} }});
 }}, {{threshold:0.08}});
 document.querySelectorAll('.reveal,.reveal-left,.reveal-right,.reveal-scale').forEach(el => obs.observe(el));
+// Scroll progress bar
+const pbar=document.getElementById('pbar');
+if(pbar){{
+  window.addEventListener('scroll',()=>{{
+    const pct=window.scrollY/(document.documentElement.scrollHeight-window.innerHeight)*100;
+    pbar.style.width=Math.min(pct,100)+'%';
+  }},{{passive:true}});
+  document.body.prepend(pbar);
+}}
 ['.hero-chip','.hero h1','.hero-sub','.hero-rating','.hero-btns'].forEach((s,i) => {{
   const el = document.querySelector(s);
   if(!el) return;
