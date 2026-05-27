@@ -13439,15 +13439,17 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 .float-btn:hover{{transform:scale(1.08)}}
 .float-dot{{position:absolute;top:-2px;right:-2px;width:15px;height:15px;background:#EF4444;border-radius:50%;border:2px solid var(--paper);display:flex;align-items:center;justify-content:center;font-size:0.55rem;font-weight:700;color:#fff}}
 @keyframes breathe{{0%,100%{{box-shadow:0 4px 22px {btn}55}}50%{{box-shadow:0 8px 36px {btn}88,0 0 0 7px {btn}16}}}}
-.reveal{{opacity:0;transform:translateY(28px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}}
-.reveal.in{{opacity:1;transform:none}}
-.reveal-left{{opacity:0;transform:translateX(-36px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}}
-.reveal-left.in{{opacity:1;transform:none}}
-.reveal-right{{opacity:0;transform:translateX(36px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}}
-.reveal-right.in{{opacity:1;transform:none}}
-.reveal-scale{{opacity:0;transform:scale(0.88);transition:opacity 0.6s cubic-bezier(0.16,1,0.3,1),transform 0.6s cubic-bezier(0.16,1,0.3,1)}}
-.reveal-scale.in{{opacity:1;transform:none}}
-.d1{{transition-delay:0.08s}}.d2{{transition-delay:0.18s}}.d3{{transition-delay:0.28s}}.d4{{transition-delay:0.38s}}.d5{{transition-delay:0.48s}}
+/* Visible par défaut — JS ajoute .js-anim au body pour activer les animations */
+.reveal,.reveal-left,.reveal-right,.reveal-scale{{opacity:1;transform:none}}
+.js-anim .reveal{{opacity:0;transform:translateY(24px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}}
+.js-anim .reveal.in{{opacity:1;transform:none}}
+.js-anim .reveal-left{{opacity:0;transform:translateX(-36px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}}
+.js-anim .reveal-left.in{{opacity:1;transform:none}}
+.js-anim .reveal-right{{opacity:0;transform:translateX(36px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}}
+.js-anim .reveal-right.in{{opacity:1;transform:none}}
+.js-anim .reveal-scale{{opacity:0;transform:scale(0.88);transition:opacity 0.6s cubic-bezier(0.16,1,0.3,1),transform 0.6s cubic-bezier(0.16,1,0.3,1)}}
+.js-anim .reveal-scale.in{{opacity:1;transform:none}}
+.js-anim .d1{{transition-delay:0.08s}}.js-anim .d2{{transition-delay:0.18s}}.js-anim .d3{{transition-delay:0.28s}}.js-anim .d4{{transition-delay:0.38s}}.js-anim .d5{{transition-delay:0.48s}}
 @media(max-width:600px){{
   .hero{{min-height:100svh}}
   .nav-link{{display:none}}
@@ -13556,14 +13558,6 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 .exit-cta{{display:block;background:var(--brand);color:#fff;padding:14px 28px;border-radius:5px;font-weight:700;font-size:0.95rem;margin-bottom:12px;transition:opacity .2s}}
 .exit-cta:hover{{opacity:0.88}}
 .exit-skip{{background:none;border:none;font-size:0.75rem;color:var(--ink2);cursor:pointer;text-decoration:underline;}}
-/* ── Mobile: désactiver toutes les animations reveal ── */
-@media(max-width:900px){{
-  .reveal,.reveal-left,.reveal-right,.reveal-scale{{opacity:1!important;transform:none!important;transition:none!important}}
-  .gal-item{{opacity:1!important;transform:none!important;transition:none!important}}
-  .svc-row{{opacity:1!important;transform:none!important;transition:none!important}}
-  .wrd{{opacity:1!important;transform:none!important;transition:none!important}}
-  .hero-chip,.hero-sub,.hero-rating,.hero-btns,.hero-logo-wrap{{opacity:1!important;transform:none!important;transition:none!important}}
-}}
 </style>
 </head>
 <body>
@@ -13718,8 +13712,16 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 </div>
 
 <script>
-// ── Détection mobile (aucune animation JS sur mobile) ────────────────────
-const isMobile=window.innerWidth<=900||('ontouchstart' in window);
+// ── Active les animations (body.js-anim = contenu caché jusqu'à reveal) ──
+document.body.classList.add('js-anim');
+
+// ── Fallback universel: tout visible après 600ms quoi qu'il arrive ────────
+setTimeout(()=>{{
+  document.querySelectorAll('.reveal,.reveal-left,.reveal-right,.reveal-scale').forEach(el=>el.classList.add('in'));
+  document.querySelectorAll('.gal-item,.svc-row').forEach(el=>Object.assign(el.style,{{opacity:'1',transform:'none'}}));
+  document.querySelectorAll('.wrd').forEach(w=>Object.assign(w.style,{{opacity:'1',transform:'none'}}));
+  ['.hero-chip','.hero-sub','.hero-rating','.hero-btns'].forEach(s=>{{const e=document.querySelector(s);if(e)Object.assign(e.style,{{opacity:'1',transform:'none'}});}});
+}},600);
 
 // ── Scroll progress bar ───────────────────────────────────────────────────
 const pbar=document.getElementById('pbar');
@@ -13731,44 +13733,41 @@ if(pbar){{
   document.body.prepend(pbar);
 }}
 
-// ── Reveal animations ─────────────────────────────────────────────────────
-if(isMobile){{
-  // Mobile: tout visible immédiatement, aucun opacity:0 posé
-  document.querySelectorAll('.reveal,.reveal-left,.reveal-right,.reveal-scale').forEach(el=>el.classList.add('in'));
-}}else{{
-  const obs=new IntersectionObserver(e=>e.forEach(x=>{{
-    if(x.isIntersecting){{x.target.classList.add('in');obs.unobserve(x.target);}}
-  }}),{{threshold:0,rootMargin:'0px 0px 40px 0px'}});
-  document.querySelectorAll('.reveal,.reveal-left,.reveal-right,.reveal-scale').forEach(el=>obs.observe(el));
+// ── IntersectionObserver — révélations scroll ─────────────────────────────
+const obs=new IntersectionObserver(e=>e.forEach(x=>{{
+  if(x.isIntersecting){{x.target.classList.add('in');obs.unobserve(x.target);}}
+}}),{{threshold:0,rootMargin:'0px 0px 60px 0px'}});
+document.querySelectorAll('.reveal,.reveal-left,.reveal-right,.reveal-scale').forEach(el=>obs.observe(el));
 
-  // ── Parallax hero ──────────────────────────────────────────────────────
-  const heroBg=document.querySelector('.hero-bg');
-  if(heroBg){{
-    heroBg.style.willChange='transform';
-    window.addEventListener('scroll',()=>{{
-      if(window.scrollY<window.innerHeight*1.5)
-        heroBg.style.transform=`translateY(${{window.scrollY*0.38}}px)`;
-    }},{{passive:true}});
-  }}
+// ── Parallax hero (desktop uniquement) ───────────────────────────────────
+const heroBg=document.querySelector('.hero-bg');
+if(heroBg&&window.innerWidth>900){{
+  heroBg.style.willChange='transform';
+  window.addEventListener('scroll',()=>{{
+    if(window.scrollY<window.innerHeight*1.5)
+      heroBg.style.transform=`translateY(${{window.scrollY*0.38}}px)`;
+  }},{{passive:true}});
+}}
 
-  // ── Titre héro mot par mot ─────────────────────────────────────────────
-  const heroH1=document.querySelector('.hero h1');
-  if(heroH1){{
-    const words=heroH1.innerHTML.split(/(\s+)/);
-    heroH1.innerHTML=words.map((w,i)=>
-      /\s/.test(w)?w:`<span class="wrd" style="display:inline-block;opacity:0;transform:translateY(18px) rotate(-1deg);transition:opacity .55s cubic-bezier(.16,1,.3,1),transform .55s cubic-bezier(.16,1,.3,1);transition-delay:${{.55+i*.07}}s">${{w}}</span>`
-    ).join('');
-    setTimeout(()=>document.querySelectorAll('.wrd').forEach(w=>Object.assign(w.style,{{opacity:'1',transform:'none'}})),60);
-  }}
+// ── Titre héro mot par mot ────────────────────────────────────────────────
+const heroH1=document.querySelector('.hero h1');
+if(heroH1){{
+  const words=heroH1.innerHTML.split(/(\s+)/);
+  heroH1.innerHTML=words.map((w,i)=>
+    /\s/.test(w)?w:`<span class="wrd" style="display:inline-block;opacity:0;transform:translateY(16px);transition:opacity .5s cubic-bezier(.16,1,.3,1) ${{.3+i*.06}}s,transform .5s cubic-bezier(.16,1,.3,1) ${{.3+i*.06}}s">${{w}}</span>`
+  ).join('');
+  setTimeout(()=>document.querySelectorAll('.wrd').forEach(w=>Object.assign(w.style,{{opacity:'1',transform:'none'}})),50);
+}}
 
-  // ── Animation entrée héro ──────────────────────────────────────────────
-  ['.hero-chip','.hero-sub','.hero-rating','.hero-btns','.hero-logo-wrap'].forEach((s,i)=>{{
-    const el=document.querySelector(s);if(!el)return;
-    Object.assign(el.style,{{opacity:'0',transform:'translateY(14px)',transition:`0.7s cubic-bezier(.22,1,.36,1) ${{0.5+i*.12}}s`}});
-    setTimeout(()=>Object.assign(el.style,{{opacity:'1',transform:'none'}}),80+i*60);
-  }});
+// ── Animation entrée héro ─────────────────────────────────────────────────
+['.hero-chip','.hero-sub','.hero-rating','.hero-btns','.hero-logo-wrap'].forEach((s,i)=>{{
+  const el=document.querySelector(s);if(!el)return;
+  Object.assign(el.style,{{opacity:'0',transform:'translateY(12px)',transition:`0.6s cubic-bezier(.22,1,.36,1) ${{0.2+i*.1}}s`}});
+  setTimeout(()=>Object.assign(el.style,{{opacity:'1',transform:'none'}}),50+i*50);
+}});
 
-  // ── Boutons magnétiques ────────────────────────────────────────────────
+// ── Boutons magnétiques (desktop) ────────────────────────────────────────
+if(window.innerWidth>900){{
   document.querySelectorAll('.cta-a,.btn-p,.nav-cta').forEach(btn=>{{
     btn.style.transition='transform .2s cubic-bezier(.16,1,.3,1),opacity .2s,box-shadow .2s';
     btn.addEventListener('mousemove',e=>{{
@@ -13779,8 +13778,7 @@ if(isMobile){{
     }});
     btn.addEventListener('mouseleave',()=>{{btn.style.transform='';btn.style.boxShadow='';}});
   }});
-
-  // ── Tilt 3D sur cartes ─────────────────────────────────────────────────
+  // ── Tilt 3D sur cartes ────────────────────────────────────────────────
   document.querySelectorAll('.testi-card,.val-row').forEach(card=>{{
     card.style.transition='transform .15s ease';
     card.addEventListener('mousemove',e=>{{
@@ -13790,29 +13788,29 @@ if(isMobile){{
     }});
     card.addEventListener('mouseleave',()=>{{card.style.transform='';}});
   }});
-
-  // ── Galerie en cascade ─────────────────────────────────────────────────
-  const obsGal=new IntersectionObserver(e=>e.forEach(x=>{{
-    if(x.isIntersecting){{Object.assign(x.target.style,{{opacity:'1',transform:'none'}});obsGal.unobserve(x.target);}}
-  }}),{{threshold:0}});
-  document.querySelectorAll('.gal-item').forEach((el,i)=>{{
-    Object.assign(el.style,{{opacity:'0',transform:'scale(0.9) translateY(16px)',
-      transition:`opacity .55s cubic-bezier(.16,1,.3,1) ${{i*.06}}s,transform .55s cubic-bezier(.16,1,.3,1) ${{i*.06}}s`}});
-    obsGal.observe(el);
-  }});
-
-  // ── Svc rows slide-in ──────────────────────────────────────────────────
-  const obsSvc=new IntersectionObserver(e=>e.forEach((x,i)=>{{
-    if(x.isIntersecting){{
-      setTimeout(()=>{{x.target.style.opacity='1';x.target.style.transform='none';}},i*80);
-      obsSvc.unobserve(x.target);
-    }}
-  }}),{{threshold:0}});
-  document.querySelectorAll('.svc-row').forEach(el=>{{
-    Object.assign(el.style,{{opacity:'0',transform:'translateX(-20px)',transition:'opacity .5s cubic-bezier(.16,1,.3,1),transform .5s cubic-bezier(.16,1,.3,1)'}});
-    obsSvc.observe(el);
-  }});
 }}
+
+// ── Galerie en cascade ────────────────────────────────────────────────────
+const obsGal=new IntersectionObserver(e=>e.forEach(x=>{{
+  if(x.isIntersecting){{Object.assign(x.target.style,{{opacity:'1',transform:'none'}});obsGal.unobserve(x.target);}}
+}}),{{threshold:0}});
+document.querySelectorAll('.gal-item').forEach((el,i)=>{{
+  Object.assign(el.style,{{opacity:'0',transform:'scale(0.94) translateY(12px)',
+    transition:`opacity .5s ease ${{i*.05}}s,transform .5s ease ${{i*.05}}s`}});
+  obsGal.observe(el);
+}});
+
+// ── Svc rows slide-in ─────────────────────────────────────────────────────
+const obsSvc=new IntersectionObserver(e=>e.forEach((x,i)=>{{
+  if(x.isIntersecting){{
+    setTimeout(()=>{{x.target.style.opacity='1';x.target.style.transform='none';}},i*60);
+    obsSvc.unobserve(x.target);
+  }}
+}}),{{threshold:0}});
+document.querySelectorAll('.svc-row').forEach(el=>{{
+  Object.assign(el.style,{{opacity:'0',transform:'translateX(-16px)',transition:'opacity .5s ease,transform .5s ease'}});
+  obsSvc.observe(el);
+}});
 
 // ── Compteurs animés (desktop + mobile) ───────────────────────────────────
 const obsCount=new IntersectionObserver(e=>e.forEach(x=>{{
