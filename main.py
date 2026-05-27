@@ -13373,11 +13373,10 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
 :root{{--brand:{btn};--ink:#18120F;--ink2:#5C534E;--paper:#F7F4EF;--paper2:#EFEBE4;--rule:#E2DBD2;--serif:'Fraunces',Georgia,serif;--sans:'Jost',system-ui,sans-serif}}
 *{{margin:0;padding:0;box-sizing:border-box}}html{{scroll-behavior:smooth}}
 body{{font-family:var(--sans);background:var(--paper);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}}a{{color:inherit;text-decoration:none}}
-.ticker{{background:var(--brand);color:#fff;padding:8px 0;overflow:hidden;white-space:nowrap}}
-.ticker-inner{{display:inline-flex;animation:tick 30s linear infinite}}
-.ticker-inner span{{padding:0 28px;font-size:0.7rem;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;opacity:0.85}}
-.ticker-inner span::after{{content:'·';margin-left:28px;opacity:0.4}}
-@keyframes tick{{from{{transform:translateX(0)}}to{{transform:translateX(-50%)}}}}
+.ann-bar{{background:var(--brand);color:#fff;padding:9px 5vw;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:210}}
+.ann-bar-text{{font-size:0.76rem;font-weight:500;letter-spacing:0.02em;opacity:0.9}}
+.ann-bar-btn{{background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.32);color:#fff;padding:5px 14px;border-radius:3px;font-size:0.73rem;font-weight:700;letter-spacing:0.03em;white-space:nowrap;transition:background 0.2s}}
+.ann-bar-btn:hover{{background:rgba(255,255,255,0.28)}}
 nav{{position:sticky;top:0;z-index:200;background:rgba(247,244,239,0.95);backdrop-filter:blur(18px);border-bottom:1px solid var(--rule)}}
 .nav-in{{max-width:1160px;margin:0 auto;padding:0 5vw;display:flex;align-items:center;justify-content:space-between;height:66px}}
 .nav-logo{{font-family:var(--serif);font-size:1.08rem;font-weight:700;letter-spacing:-0.01em}}
@@ -13675,15 +13674,78 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 .exit-cta{{display:block;background:var(--brand);color:#fff;padding:14px 28px;border-radius:5px;font-weight:700;font-size:0.95rem;margin-bottom:12px;transition:opacity .2s}}
 .exit-cta:hover{{opacity:0.88}}
 .exit-skip{{background:none;border:none;font-size:0.75rem;color:var(--ink2);cursor:pointer;text-decoration:underline;}}
+/* ── Quick finder ── */
+.qf-sec{{background:#fff;border-bottom:1px solid var(--rule);padding:22px 5vw}}
+.qf-inner{{max-width:1160px;margin:0 auto;display:flex;align-items:center;gap:18px;flex-wrap:wrap}}
+.qf-label{{font-size:0.78rem;font-weight:600;color:var(--ink2);white-space:nowrap;min-width:120px}}
+.qf-chips{{display:flex;gap:8px;flex-wrap:wrap}}
+.qf-chip{{background:var(--paper2);border:1px solid var(--rule);border-radius:20px;padding:7px 15px;font-size:0.78rem;font-weight:500;color:var(--ink);cursor:pointer;transition:all 0.18s;white-space:nowrap}}
+.qf-chip:hover{{background:var(--brand);border-color:var(--brand);color:#fff}}
+.qf-chip-contact{{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}}
+.qf-chip-contact:hover{{opacity:0.88}}
+/* ── Service cards grid ── */
+.svc-cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;margin-top:48px}}
+.svc-card{{background:#fff;border:1px solid var(--rule);border-radius:10px;padding:28px 24px;transition:box-shadow 0.25s,transform 0.25s;cursor:default}}
+.svc-card:hover{{box-shadow:0 10px 40px rgba(0,0,0,0.09);transform:translateY(-3px)}}
+.svc-card-icon{{font-size:2rem;margin-bottom:14px;line-height:1}}
+.svc-card-title{{font-family:var(--serif);font-size:1.08rem;font-weight:700;color:var(--ink);margin-bottom:8px;line-height:1.3}}
+.svc-card-desc{{font-size:0.83rem;color:var(--ink2);font-weight:300;line-height:1.65;margin-bottom:12px}}
+.svc-card-link{{font-size:0.78rem;font-weight:600;color:var(--brand);margin-top:auto}}
+/* ── Contact section ── */
+.contact-sec{{background:var(--paper2);padding:88px 5vw;border-top:1px solid var(--rule)}}
+.contact-grid{{display:grid;grid-template-columns:1fr 1fr;gap:64px;max-width:1160px;margin:0 auto;align-items:start}}
+.contact-form-wrap{{}}
+.form-title{{font-family:var(--serif);font-size:clamp(1.5rem,3vw,2.2rem);font-weight:700;color:var(--ink);letter-spacing:-0.02em;margin-bottom:6px}}
+.form-sub{{font-size:0.9rem;color:var(--ink2);font-weight:300;margin-bottom:28px}}
+.contact-form{{display:flex;flex-direction:column;gap:16px}}
+.form-row2{{display:grid;grid-template-columns:1fr 1fr;gap:16px}}
+.form-group{{display:flex;flex-direction:column;gap:6px}}
+.form-label{{font-size:0.75rem;font-weight:600;color:var(--ink2);letter-spacing:0.04em;text-transform:uppercase}}
+.form-input{{background:#fff;border:1px solid var(--rule);border-radius:5px;padding:11px 14px;font-size:0.9rem;font-family:var(--sans);color:var(--ink);transition:border-color 0.2s,box-shadow 0.2s;outline:none}}
+.form-input:focus{{border-color:var(--brand);box-shadow:0 0 0 3px {btn}18}}
+.form-textarea{{background:#fff;border:1px solid var(--rule);border-radius:5px;padding:11px 14px;font-size:0.9rem;font-family:var(--sans);color:var(--ink);resize:vertical;transition:border-color 0.2s,box-shadow 0.2s;outline:none}}
+.form-textarea:focus{{border-color:var(--brand);box-shadow:0 0 0 3px {btn}18}}
+.form-btn{{background:var(--brand);color:#fff;border:none;border-radius:5px;padding:14px 28px;font-size:0.92rem;font-weight:700;cursor:pointer;transition:opacity 0.2s,transform 0.2s;font-family:var(--sans);align-self:flex-start}}
+.form-btn:hover{{opacity:0.88;transform:translateY(-1px)}}
+.contact-info-col{{display:flex;flex-direction:column;gap:22px;padding-top:8px}}
+.ci-block{{display:flex;align-items:flex-start;gap:14px}}
+.ci-icon{{font-size:1.2rem;flex-shrink:0;margin-top:2px}}
+.ci-label{{font-size:0.7rem;font-weight:600;color:var(--ink2);letter-spacing:0.07em;text-transform:uppercase;margin-bottom:3px}}
+.ci-val{{font-size:0.88rem;color:var(--ink);line-height:1.5}}
+.ci-block-hours{{align-items:flex-start}}
+.hours-compact{{border-collapse:collapse;width:100%;font-size:0.82rem}}
+.hours-compact tr{{border-bottom:1px solid var(--rule)}}
+.hours-compact tr:last-child{{border-bottom:none}}
+.hc-day{{font-weight:600;color:var(--ink);padding:6px 16px 6px 0;white-space:nowrap}}
+.hc-time{{color:var(--ink2);font-weight:300;padding:6px 0}}
+@media(max-width:768px){{.contact-grid{{grid-template-columns:1fr;gap:40px}}.form-row2{{grid-template-columns:1fr}}}}
+/* ── Footer multi-col ── */
+footer{{background:var(--ink);padding:64px 5vw 0}}
+.foot-grid{{max-width:1160px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px;padding-bottom:48px}}
+.foot-col{{}}
+.foot-brand{{margin-bottom:14px;filter:brightness(0) invert(1)}}
+.foot-tagline{{font-size:0.82rem;color:rgba(255,255,255,0.4);line-height:1.7;margin-bottom:12px;font-weight:300}}
+.foot-novalis{{font-size:0.73rem;color:rgba(255,255,255,0.3)}}
+.foot-novalis a{{color:rgba(255,255,255,0.5);font-weight:600}}
+.foot-col-title{{font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:18px}}
+.foot-links{{display:flex;flex-direction:column;gap:10px}}
+.foot-links a{{font-size:0.82rem;color:rgba(255,255,255,0.5);transition:color 0.2s;font-weight:300}}
+.foot-links a:hover{{color:#fff}}
+.foot-contact-items{{display:flex;flex-direction:column;gap:12px}}
+.foot-ci{{display:flex;align-items:flex-start;gap:9px;font-size:0.8rem;color:rgba(255,255,255,0.45);line-height:1.5;font-weight:300}}
+.foot-ci a{{color:rgba(255,255,255,0.55)}}
+.foot-bottom{{max-width:1160px;margin:0 auto;padding:18px 0;border-top:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}}
+.foot-bottom span{{font-size:0.74rem;color:rgba(255,255,255,0.28)}}
+.foot-bottom a{{font-size:0.72rem;color:rgba(255,255,255,0.22);text-decoration:underline}}
+@media(max-width:768px){{.foot-grid{{grid-template-columns:1fr 1fr;gap:32px}}.foot-col:first-child{{grid-column:1/-1}}}}
+@media(max-width:500px){{.foot-grid{{grid-template-columns:1fr}}}}
 </style>
 </head>
 <body>
 
-<div class="ticker" aria-hidden="true">
-  <div class="ticker-inner">
-    <span>Aperçu exclusif</span><span>{name}</span><span>{city}, Québec</span><span>{industry}</span><span>Novalis IA</span>
-    <span>Aperçu exclusif</span><span>{name}</span><span>{city}, Québec</span><span>{industry}</span><span>Novalis IA</span>
-  </div>
+<div class="ann-bar">
+  <span class="ann-bar-text">Aperçu exclusif créé pour <strong>{name}</strong> par Novalis IA &nbsp;·&nbsp; 1&nbsp;000&nbsp;$</span>
+  <a class="ann-bar-btn" href="{_mail_href}">Obtenir ce site — 1 000 $ →</a>
 </div>
 
 <nav>
@@ -13691,7 +13753,10 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
     <div class="nav-logo">{_nav_logo_html}</div>
     <div class="nav-links">
       <a class="nav-link" href="#services">Services</a>
-      <a class="nav-link" href="#avis">Avis clients</a>
+      <a class="nav-link" href="#galerie">Galerie</a>
+      <a class="nav-link" href="#avis">Avis</a>
+      <a class="nav-link" href="#apropos">À propos</a>
+      <a class="nav-link" href="#contact">Contact</a>
       <a class="nav-cta" href="{_tel_href}">{cta_text}</a>
     </div>
   </div>
@@ -13723,102 +13788,77 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
   <div class="trust-in">
     <div class="trust-pill"><strong>{rating_text}</strong></div>
     <div class="trust-pill">{city}, <strong>Québec</strong></div>
-    <div class="trust-pill"><strong>{industry}</strong></div>
-    <div class="trust-pill">Aperçu par <strong>Novalis IA</strong></div>
+    <div class="trust-pill"><strong>{industry.title()}</strong></div>
+    <div class="trust-pill">{real_address.split(",")[0] if real_address else city}</div>
   </div>
 </div>
 
 {photo_strip_section}
 
-{stats_section}
-
-{shock_section}
+{qf_section}
 
 <section class="sec" id="services">
   <div class="sec-in">
     <div class="sec-label reveal">Vos services</div>
-    <h2 class="sec-h reveal d1">Ce que vous offrez — mis en valeur</h2>
-    <p class="sec-lead reveal d2">Vos services présentés comme ils méritent de l'être, pour que vos clients comprennent exactement ce que vous faites.</p>
-    <div class="svc-list">
+    <h2 class="sec-h reveal d1">Ce que nous offrons</h2>
+    <p class="sec-lead reveal d2">Des services professionnels adaptés à vos besoins, disponibles rapidement à {city}.</p>
+    <div class="svc-cards">
       {services_html}
     </div>
   </div>
 </section>
 
-{audit_section}
-
-{calc_section}
-
-{mockup_section}
-
-{process_section}
-
 {about_section}
 
 {gallery_section}
 
-{hours_section}
-
-<section class="val-sec" id="inclus">
+<section class="testi-sec" id="avis">
   <div class="sec-in">
-    <div class="sec-label reveal">Ce que vous obtenez</div>
-    <h2 class="sec-h reveal d1">Tout inclus pour 1&nbsp;000&nbsp;$<br><span style="font-size:0.55em;font-weight:300;color:var(--ink2)">Ce que les agences facturent {_total_agency} — livré clé en main</span></h2>
-    <div class="val-table reveal d2">
-      {value_rows_html}
-      <div class="val-total-row">
-        <div class="val-name" style="font-weight:700;">Total valeur estimée</div>
-        <div class="val-price"><del style="color:var(--ink2)">{_total_agency}</del></div>
-      </div>
-      <div class="val-our-row">
-        <div class="val-name">Votre prix Novalis IA — tout inclus</div>
-        <div class="val-our-price">1&nbsp;000&nbsp;$</div>
-      </div>
-    </div>
-    <div class="roi-box reveal d3">
-      <div class="roi-icon">📉</div>
-      <div>
-        <div class="roi-title">Combien vous coûte votre site actuel?</div>
-        <div class="roi-text">Un site non-mobile fait fuir 3 à 5 clients par semaine. Dans votre secteur, c'est environ <strong>{_monthly_loss:,}&nbsp;$&nbsp;perdus&nbsp;par&nbsp;mois</strong>. Votre nouveau site se rembourse en moins de <strong>{_payback_weeks}&nbsp;semaines</strong>.</div>
-      </div>
+    <div class="sec-label reveal">Témoignages</div>
+    <h2 class="sec-h reveal d1" style="color:#fff">Ce que nos clients disent</h2>
+    <div class="testi-grid">
+      {testimonials_html}
     </div>
   </div>
 </section>
 
-<section class="cta-final" id="contact">
-  <div class="progress-bar" id="pbar"></div>
-  <div class="cta-final-glow"></div>
-  <div class="urgency-tag"><span class="urgency-dot"></span>Aperçu disponible · Livraison 2–3 semaines</div>
-  <div class="spots-wrap reveal"><span class="urgency-dot" style="background:#ef4444;animation:pulse 1.5s ease-in-out infinite"></span>Il reste <span class="spots-num" id="spots-num">3</span> place<span id="spots-s">s</span> pour {city} ce mois&#8209;ci</div>
-  <h2 class="cta-h reveal">Il ne manque que votre accord.</h2>
-  <p class="cta-sub reveal d1">Conçu spécifiquement pour <strong style="color:#fff">{name}</strong>.<br>Satisfait ou remboursé — aucun risque.</p>
-  <div class="guarantee-wrap reveal d1">
-    <div class="guarantee-badge">
-      <div class="guarantee-icon">🛡️</div>
-      <div class="guarantee-text">
-        <strong>Garantie 30 jours</strong>
-        <span>Pas satisfait? On vous rembourse intégralement, sans question.</span>
-      </div>
-    </div>
-  </div>
-  <div class="agency-cmp reveal d2">
-    <div class="agency-row"><span>Agence web traditionnelle</span><span class="agency-price-old">5 000 $ – 15 000 $</span></div>
-    <div class="agency-row"><span>Freelance indépendant</span><span class="agency-price-old">2 000 $ – 6 000 $</span></div>
-    <div class="agency-row agency-row-us"><span><strong>Novalis IA — tout inclus</strong></span><span class="agency-price-us">1&nbsp;000&nbsp;$</span></div>
-  </div>
-  <div class="cta-btns reveal d3">
-    <a class="cta-a" href="{_tel_href}">{_tel_label or "Nous appeler"}</a>
-    <a class="cta-b" href="{_mail_href}">Nous écrire</a>
-  </div>
-  <p class="cta-reassure">Sans engagement · Aucune carte requise · Livré clé en main</p>
-</section>
+{contact_section}
 
 <footer>
-  <div class="foot-in">
-    <div>
-      <div class="foot-name">{name}</div>
-      <div class="foot-city">{real_address or city + ", Québec"}</div>
+  <div class="foot-grid">
+    <div class="foot-col">
+      <div class="foot-brand">{_nav_logo_html}</div>
+      <p class="foot-tagline">{hero_subtitle[:100]}</p>
+      <div class="foot-novalis">Site par <a href="https://novalisia.ca">Novalis IA</a></div>
     </div>
-    <div class="novalis-line">Site préparé par <a href="https://novalisia.ca" target="_blank">Novalis IA</a> &nbsp;·&nbsp; <a href="/unsubscribe?id={prospect_id}">Se désabonner</a></div>
+    <div class="foot-col">
+      <div class="foot-col-title">Navigation</div>
+      <div class="foot-links">
+        <a href="#services">Services</a>
+        <a href="#galerie">Galerie</a>
+        <a href="#avis">Avis clients</a>
+        <a href="#apropos">À propos</a>
+        <a href="#contact">Contact</a>
+      </div>
+    </div>
+    <div class="foot-col">
+      <div class="foot-col-title">Services</div>
+      <div class="foot-links">
+        {_foot_svc_links}
+      </div>
+    </div>
+    <div class="foot-col">
+      <div class="foot-col-title">Contact</div>
+      <div class="foot-contact-items">
+        {_foot_phone_html}
+        {_foot_addr_html}
+        {_foot_email_html}
+      </div>
+    </div>
+  </div>
+  <div class="foot-bottom">
+    <span>© 2025 {name} &nbsp;·&nbsp; {city}, Québec</span>
+    <a href="/unsubscribe?id={prospect_id}">Se désabonner</a>
   </div>
 </footer>
 
@@ -13981,7 +14021,7 @@ if(strip){{
 // ── Sticky bar ────────────────────────────────────────────────────────────
 (function(){{
   const bar=document.createElement('div');bar.className='sticky-bar';
-  bar.innerHTML='<div class="sticky-bar-text"><strong>Votre site est prêt.</strong> 1 000 $ tout inclus — livraison 2–3 sem.</div><a class="sticky-bar-btn" href="{_tel_href}">Parler à Elliot</a><button class="sticky-bar-close" onclick="this.closest(\'.sticky-bar\').remove()" aria-label="Fermer">✕</button>';
+  bar.innerHTML='<div class="sticky-bar-text">Obtenez ce site pour <strong>1&nbsp;000&nbsp;$</strong> &mdash; Parler à Elliot</div><a class="sticky-bar-btn" href="{_tel_href}">Appeler</a><a class="sticky-bar-btn" href="{_mail_href}" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);margin-left:6px">Écrire</a><button class="sticky-bar-close" onclick="this.closest(\'.sticky-bar\').remove()" aria-label="Fermer">✕</button>';
   document.body.appendChild(bar);
   let shown=false;
   window.addEventListener('scroll',()=>{{
