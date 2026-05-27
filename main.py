@@ -13501,6 +13501,14 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 /* ── Spots counter ── */
 .spots-wrap{{display:inline-flex;align-items:center;gap:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.18);border-radius:4px;padding:6px 14px;font-size:0.74rem;font-weight:600;color:#ef4444;margin-bottom:20px;letter-spacing:0.02em}}
 .spots-num{{font-family:var(--serif);font-size:1.05rem;font-weight:900;margin:0 2px}}
+/* ── Mobile: désactiver toutes les animations reveal ── */
+@media(max-width:900px){{
+  .reveal,.reveal-left,.reveal-right,.reveal-scale{{opacity:1!important;transform:none!important;transition:none!important}}
+  .gal-item{{opacity:1!important;transform:none!important;transition:none!important}}
+  .svc-row{{opacity:1!important;transform:none!important;transition:none!important}}
+  .wrd{{opacity:1!important;transform:none!important;transition:none!important}}
+  .hero-chip,.hero-sub,.hero-rating,.hero-btns,.hero-logo-wrap{{opacity:1!important;transform:none!important;transition:none!important}}
+}}
 </style>
 </head>
 <body>
@@ -13653,6 +13661,14 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 </div>
 
 <script>
+// ── Failsafe: tout visible après 1.5s (iOS Safari IntersectionObserver bugs) ──
+setTimeout(()=>{{
+  document.querySelectorAll('.reveal,.reveal-left,.reveal-right,.reveal-scale').forEach(el=>el.classList.add('in'));
+  document.querySelectorAll('.gal-item,.svc-row').forEach(el=>Object.assign(el.style,{{opacity:'1',transform:'none'}}));
+  document.querySelectorAll('.wrd').forEach(w=>Object.assign(w.style,{{opacity:'1',transform:'none'}}));
+  ['.hero-chip','.hero-sub','.hero-rating','.hero-btns'].forEach(s=>{{const e=document.querySelector(s);if(e)Object.assign(e.style,{{opacity:'1',transform:'none'}});}});
+}},1500);
+
 // ── Scroll progress bar ───────────────────────────────────────────────────
 const pbar=document.getElementById('pbar');
 if(pbar){{
