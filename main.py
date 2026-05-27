@@ -13173,6 +13173,30 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         '</div></section>'
     )
 
+    # ── ROI Calculator section ────────────────────────────────────────────────
+    calc_section = (
+        '<section class="calc-sec">'
+        '<div class="sec-in">'
+        '<div class="sec-label reveal">Calculez votre perte</div>'
+        '<h2 class="sec-h reveal d1">Combien vous coûte votre site actuel?</h2>'
+        f'<p class="sec-lead reveal d2">Ajustez selon votre réalité — les chiffres sont basés sur la valeur moyenne d\'un client en {industry.lower()}.</p>'
+        '<div class="calc-box reveal d3">'
+        '<div class="calc-q">Clients manqués par semaine à cause de votre site&nbsp;:</div>'
+        '<div class="calc-slider-row">'
+        '<input type="range" min="1" max="15" value="3" id="calc-slider" class="calc-slider">'
+        '<div class="calc-n-badge"><span id="calc-n">3</span>&nbsp;clients/sem.</div>'
+        '</div>'
+        '<div class="calc-results-grid">'
+        '<div class="calc-res"><div class="calc-res-val" id="calc-weekly">—</div><div class="calc-res-lab">perdu/semaine</div></div>'
+        '<div class="calc-res"><div class="calc-res-val" id="calc-monthly">—</div><div class="calc-res-lab">perdu/mois</div></div>'
+        '<div class="calc-res calc-res-big"><div class="calc-res-val" id="calc-yearly">—</div><div class="calc-res-lab">perdu/année</div></div>'
+        '</div>'
+        f'<div class="calc-cta-line">Votre nouveau site à <strong>1&nbsp;000&nbsp;$</strong> se rembourse en <strong id="calc-weeks">—</strong>.</div>'
+        f'<a href="{_mail_href}" class="calc-cta-btn">Récupérer ces clients maintenant &rarr;</a>'
+        '</div>'
+        '</div></section>'
+    )
+
     # ── Device mockup section ─────────────────────────────────────────────────
     mockup_section = (
         '<section class="mockup-sec">'
@@ -13501,6 +13525,37 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 /* ── Spots counter ── */
 .spots-wrap{{display:inline-flex;align-items:center;gap:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.18);border-radius:4px;padding:6px 14px;font-size:0.74rem;font-weight:600;color:#ef4444;margin-bottom:20px;letter-spacing:0.02em}}
 .spots-num{{font-family:var(--serif);font-size:1.05rem;font-weight:900;margin:0 2px}}
+/* ── ROI Calculator ── */
+.calc-sec{{background:var(--paper2);padding:80px 5vw;border-top:1px solid var(--rule)}}
+.calc-box{{background:#fff;border:1px solid var(--rule);border-radius:12px;padding:36px 32px;max-width:640px;margin-top:32px;box-shadow:0 4px 40px rgba(0,0,0,0.06)}}
+.calc-q{{font-size:0.95rem;font-weight:600;color:var(--ink);margin-bottom:22px;line-height:1.5}}
+.calc-slider-row{{display:flex;align-items:center;gap:18px;margin-bottom:28px}}
+.calc-slider{{flex:1;-webkit-appearance:none;appearance:none;height:5px;border-radius:3px;background:var(--rule);outline:none;cursor:pointer}}
+.calc-slider::-webkit-slider-thumb{{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:var(--brand);cursor:pointer;box-shadow:0 2px 8px {btn}66}}
+.calc-slider::-moz-range-thumb{{width:22px;height:22px;border-radius:50%;background:var(--brand);cursor:pointer;border:none}}
+.calc-n-badge{{background:var(--brand);color:#fff;padding:6px 14px;border-radius:20px;font-size:0.82rem;font-weight:700;white-space:nowrap;min-width:90px;text-align:center}}
+.calc-results-grid{{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:24px}}
+.calc-res{{background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:16px 12px;text-align:center}}
+.calc-res-big{{background:{btn}0e;border-color:{btn}33}}
+.calc-res-val{{font-family:var(--serif);font-size:1.5rem;font-weight:900;color:var(--brand);letter-spacing:-0.03em;line-height:1}}
+.calc-res-big .calc-res-val{{font-size:2rem;color:var(--brand)}}
+.calc-res-lab{{font-size:0.7rem;color:var(--ink2);margin-top:5px;font-weight:500}}
+.calc-cta-line{{font-size:0.9rem;color:var(--ink2);margin-bottom:18px;line-height:1.7}}
+.calc-cta-line strong{{color:var(--ink)}}
+.calc-cta-btn{{display:inline-block;background:var(--brand);color:#fff;padding:13px 28px;border-radius:5px;font-weight:700;font-size:0.9rem;transition:opacity .2s,transform .2s}}
+.calc-cta-btn:hover{{opacity:0.88;transform:translateY(-1px)}}
+@media(max-width:600px){{.calc-results-grid{{grid-template-columns:1fr}}.calc-box{{padding:22px 16px}}}}
+/* ── Exit intent popup ── */
+.exit-overlay{{position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,0.78);display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity 0.3s}}
+.exit-overlay.show{{opacity:1;pointer-events:all}}
+.exit-box{{background:#fff;border-radius:14px;padding:40px 36px;max-width:460px;width:100%;text-align:center;position:relative;box-shadow:0 24px 80px rgba(0,0,0,0.35)}}
+.exit-close{{position:absolute;top:14px;right:16px;background:none;border:none;font-size:1.2rem;color:var(--ink2);cursor:pointer;line-height:1}}
+.exit-badge{{display:inline-block;background:var(--brand);color:#fff;font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:5px 14px;border-radius:3px;margin-bottom:18px}}
+.exit-h{{font-family:var(--serif);font-size:1.5rem;font-weight:900;color:var(--ink);line-height:1.2;margin-bottom:12px;letter-spacing:-0.02em}}
+.exit-p{{font-size:0.88rem;color:var(--ink2);line-height:1.75;margin-bottom:24px}}
+.exit-cta{{display:block;background:var(--brand);color:#fff;padding:14px 28px;border-radius:5px;font-weight:700;font-size:0.95rem;margin-bottom:12px;transition:opacity .2s}}
+.exit-cta:hover{{opacity:0.88}}
+.exit-skip{{background:none;border:none;font-size:0.75rem;color:var(--ink2);cursor:pointer;text-decoration:underline;}}
 /* ── Mobile: désactiver toutes les animations reveal ── */
 @media(max-width:900px){{
   .reveal,.reveal-left,.reveal-right,.reveal-scale{{opacity:1!important;transform:none!important;transition:none!important}}
@@ -13580,6 +13635,8 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 </section>
 
 {audit_section}
+
+{calc_section}
 
 {mockup_section}
 
@@ -13851,6 +13908,47 @@ if(window.matchMedia('(pointer:fine)').matches&&window.innerWidth>900){{
     if(n<=1){{clearInterval(iv);return;}}
     n--;el.textContent=n;if(s)s.textContent=n===1?'':'s';
   }},Math.random()*18000+14000);
+}})();
+
+// ── Calculateur ROI ───────────────────────────────────────────────────────
+(function(){{
+  const slider=document.getElementById('calc-slider');
+  if(!slider)return;
+  const iv={_industry_val};
+  function fmt(n){{return Math.round(n).toLocaleString('fr-CA')+' $';}}
+  function update(){{
+    const n=+slider.value;
+    document.getElementById('calc-n').textContent=n;
+    const weekly=n*iv,monthly=weekly*4,yearly=weekly*52;
+    const weeks=Math.max(1,Math.round(1000/weekly));
+    document.getElementById('calc-weekly').textContent=fmt(weekly);
+    document.getElementById('calc-monthly').textContent=fmt(monthly);
+    document.getElementById('calc-yearly').textContent=fmt(yearly);
+    document.getElementById('calc-weeks').textContent=weeks===1?'1 semaine':`${{weeks}} semaines`;
+  }}
+  slider.addEventListener('input',update);
+  update();
+}})();
+
+// ── Exit intent popup (desktop) ───────────────────────────────────────────
+(function(){{
+  if(window.innerWidth<900||sessionStorage.getItem('exitShown'))return;
+  const ov=document.createElement('div');ov.className='exit-overlay';
+  ov.innerHTML=`<div class="exit-box">
+    <button class="exit-close" onclick="document.querySelector('.exit-overlay').classList.remove('show')" aria-label="Fermer">✕</button>
+    <div class="exit-badge">Offre limitée</div>
+    <h3 class="exit-h">Attendez — cet aperçu expire bientôt.</h3>
+    <p class="exit-p">Il a été conçu spécialement pour <strong>{name}</strong>. Une fois la période d'aperçu terminée, votre place sera offerte à un concurrent de {city}.</p>
+    <a href="{_tel_href}" class="exit-cta">Réserver ma place — 1&nbsp;000&nbsp;$</a>
+    <button class="exit-skip" onclick="document.querySelector('.exit-overlay').classList.remove('show')">Non merci, je préfère perdre des clients</button>
+  </div>`;
+  document.body.appendChild(ov);
+  document.addEventListener('mouseleave',e=>{{
+    if(e.clientY<5&&!sessionStorage.getItem('exitShown')){{
+      ov.classList.add('show');sessionStorage.setItem('exitShown','1');
+    }}
+  }});
+  ov.addEventListener('click',e=>{{if(e.target===ov)ov.classList.remove('show');}});
 }})();
 </script>
 </body>
