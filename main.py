@@ -12844,6 +12844,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         for img_url in gallery_images[:6]:
             gallery_html += (
                 f'<div class="gal-item reveal">'
+                f'<div class="gal-overlay"><span class="gal-zoom">⤢</span></div>'
                 f'<img src="{img_url}" alt="" loading="lazy" referrerpolicy="no-referrer" '
                 f'onerror="this.closest(\'.gal-item\').style.display=\'none\'">'
                 f'</div>'
@@ -12900,12 +12901,59 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         f'<div class="shock-desc">Chaque semaine, des gens cherchent <em>{industry.lower()} à {city}</em> — et choisissent quelqu\'un avec un meilleur site.</div></div>'
         f'</div>'
     )
+    # Build compare rows from web_issues
+    _compare_rows = ""
+    _issue_compare = {
+        "mobile": ("📵 Site illisible sur téléphone", "📱 100% mobile-first — parfait sur tout écran"),
+        "https": ("🔓 Pas de HTTPS — site «non sécurisé»", "🔒 HTTPS inclus — Google et clients vous font confiance"),
+        "vitesse": ("🐢 Chargement lent — visiteurs qui repartent", "⚡ Chargement < 2 secondes — expérience fluide"),
+        "seo": ("👻 Invisible sur Google", "🔍 Optimisé SEO — vous apparaissez quand on cherche"),
+        "design": ("💀 Design daté — crédibilité zéro", "✨ Design moderne 2025 — image professionnelle"),
+        "contact": ("📵 Appel difficile à trouver", "📞 Bouton d'appel en 1 clic partout"),
+    }
+    _generic_compare = [
+        ("❌ Pas de présence mobile", "✅ Mobile-first parfait"),
+        ("❌ Aucun appel à l'action clair", "✅ Boutons d'appel et réservation visibles"),
+        ("❌ Design qui date", "✅ Design moderne et professionnel"),
+        ("❌ Invisible sur Google", "✅ Référencement local optimisé"),
+    ]
+    if web_issues:
+        for issue in web_issues[:4]:
+            iss_low = issue.lower()
+            matched = None
+            for k, (b, a) in _issue_compare.items():
+                if k in iss_low:
+                    matched = (b, a)
+                    break
+            if not matched:
+                matched = (f"❌ {issue}", f"✅ Corrigé dans votre nouveau site")
+            _compare_rows += (
+                f'<div class="compare-row">'
+                f'<div class="compare-cell before"><span class="compare-icon">　</span>{matched[0]}</div>'
+                f'<div class="compare-cell after"><span class="compare-icon">　</span>{matched[1]}</div>'
+                f'</div>'
+            )
+    else:
+        for b, a in _generic_compare:
+            _compare_rows += (
+                f'<div class="compare-row">'
+                f'<div class="compare-cell before"><span class="compare-icon">　</span>{b}</div>'
+                f'<div class="compare-cell after"><span class="compare-icon">　</span>{a}</div>'
+                f'</div>'
+            )
     shock_section = (
-        '<section class="shock-sec">'
+        '<section class="compare-sec">'
         '<div class="sec-in">'
-        '<div class="sec-label reveal" style="color:#ef4444">Votre situation actuelle</div>'
-        f'<h2 class="sec-h reveal d1">Ce que votre site actuel vous coûte</h2>'
-        f'<div class="shock-grid">{shock_rows_html}</div>'
+        '<div class="sec-label reveal" style="color:rgba(255,255,255,0.4)">Votre transformation</div>'
+        f'<h2 class="sec-h reveal d1" style="color:#fff">Avant · Après</h2>'
+        f'<p class="sec-lead reveal d2" style="color:rgba(255,255,255,0.45)">Exactement ce que vos clients voient en ce moment — et ce qu\'ils verront demain.</p>'
+        '<div class="compare-table reveal d3">'
+        '<div class="compare-header">'
+        '<div class="compare-hcol before">Site actuel</div>'
+        '<div class="compare-hcol after">✦ Nouveau site Novalis</div>'
+        '</div>'
+        f'{_compare_rows}'
+        '</div>'
         '</div></section>'
     )
 
@@ -13214,9 +13262,15 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 .float-btn:hover{{transform:scale(1.08)}}
 .float-dot{{position:absolute;top:-2px;right:-2px;width:15px;height:15px;background:#EF4444;border-radius:50%;border:2px solid var(--paper);display:flex;align-items:center;justify-content:center;font-size:0.55rem;font-weight:700;color:#fff}}
 @keyframes breathe{{0%,100%{{box-shadow:0 4px 22px {btn}55}}50%{{box-shadow:0 8px 36px {btn}88,0 0 0 7px {btn}16}}}}
-.reveal{{opacity:0;transform:translateY(22px);transition:opacity 0.6s ease,transform 0.6s ease}}
+.reveal{{opacity:0;transform:translateY(28px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}}
 .reveal.in{{opacity:1;transform:none}}
-.d1{{transition-delay:0.1s}}.d2{{transition-delay:0.2s}}.d3{{transition-delay:0.3s}}
+.reveal-left{{opacity:0;transform:translateX(-36px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}}
+.reveal-left.in{{opacity:1;transform:none}}
+.reveal-right{{opacity:0;transform:translateX(36px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}}
+.reveal-right.in{{opacity:1;transform:none}}
+.reveal-scale{{opacity:0;transform:scale(0.88);transition:opacity 0.6s cubic-bezier(0.16,1,0.3,1),transform 0.6s cubic-bezier(0.16,1,0.3,1)}}
+.reveal-scale.in{{opacity:1;transform:none}}
+.d1{{transition-delay:0.08s}}.d2{{transition-delay:0.18s}}.d3{{transition-delay:0.28s}}.d4{{transition-delay:0.38s}}.d5{{transition-delay:0.48s}}
 @media(max-width:600px){{
   .hero{{min-height:460px}}
   .nav-link{{display:none}}
@@ -13224,6 +13278,34 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
   .foot-in{{flex-direction:column;text-align:center}}
   .svc-row{{grid-template-columns:38px 1fr}}
 }}
+.hero-orb{{position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none;animation:orb-float 12s ease-in-out infinite}}
+.orb1{{width:420px;height:420px;background:var(--brand);opacity:0.22;top:-80px;right:5%;animation-delay:0s}}
+.orb2{{width:280px;height:280px;background:{acc};opacity:0.18;bottom:20px;left:8%;animation-delay:-4s}}
+.orb3{{width:200px;height:200px;background:#ffffff;opacity:0.06;top:40%;right:20%;animation-delay:-8s}}
+@keyframes orb-float{{0%,100%{{transform:translateY(0) scale(1)}}50%{{transform:translateY(-30px) scale(1.05)}}}}
+.compare-sec{{background:#0a0a0f;padding:80px 5vw;overflow:hidden}}
+.compare-table{{margin-top:48px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.07)}}
+.compare-header{{display:grid;grid-template-columns:1fr 1fr;background:rgba(255,255,255,0.04)}}
+.compare-hcol{{padding:16px 24px;font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase}}
+.compare-hcol.before{{color:rgba(255,255,255,0.3)}}
+.compare-hcol.after{{color:var(--brand)}}
+.compare-row{{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid rgba(255,255,255,0.05)}}
+.compare-cell{{padding:18px 24px;font-size:0.88rem;line-height:1.5;display:flex;align-items:flex-start;gap:10px}}
+.compare-cell.before{{color:rgba(255,255,255,0.38);background:rgba(255,0,0,0.03)}}
+.compare-cell.after{{color:rgba(255,255,255,0.85);background:rgba(37,99,235,0.06)}}
+.compare-icon{{flex-shrink:0;font-size:0.9rem;margin-top:1px}}
+@media(max-width:600px){{.compare-header,.compare-row{{grid-template-columns:1fr}}.compare-cell.before{{display:none}}}}
+.gal-item{{position:relative}}
+.gal-overlay{{position:absolute;inset:0;background:rgba(0,0,0,0);transition:background 0.3s;display:flex;align-items:center;justify-content:center}}
+.gal-item:hover .gal-overlay{{background:rgba(0,0,0,0.35)}}
+.gal-zoom{{opacity:0;color:#fff;font-size:1.5rem;transition:opacity 0.3s}}
+.gal-item:hover .gal-zoom{{opacity:1}}
+.svc-row{{cursor:default;border-radius:4px;padding:26px 16px}}
+.svc-num{{font-family:var(--serif);font-size:0.75rem;color:var(--ink2);letter-spacing:0.04em;padding-top:4px;opacity:0.5}}
+.counter-wrap{{background:#fff;border:1px solid var(--rule);border-radius:10px;padding:28px;text-align:center}}
+.counter-val{{font-family:var(--serif);font-size:2.4rem;font-weight:700;color:var(--brand);line-height:1}}
+.counter-label{{font-size:0.78rem;color:var(--ink2);margin-top:6px}}
+.stats-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-top:44px}}
 </style>
 </head>
 <body>
@@ -13249,6 +13331,9 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 <div class="hero">
   <div class="hero-bg"></div>
   <div class="hero-veil"></div>
+  <div class="hero-orb orb1"></div>
+  <div class="hero-orb orb2"></div>
+  <div class="hero-orb orb3"></div>
   <div class="hero-body">
     {_hero_logo_html}
     <div class="hero-chip"><i></i>{city} &nbsp;·&nbsp; {industry}</div>
@@ -13339,8 +13424,8 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 <script>
 const obs = new IntersectionObserver(entries => {{
   entries.forEach(e => {{ if(e.isIntersecting){{ e.target.classList.add('in'); obs.unobserve(e.target); }} }});
-}}, {{threshold:0.1}});
-document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+}}, {{threshold:0.08}});
+document.querySelectorAll('.reveal,.reveal-left,.reveal-right,.reveal-scale').forEach(el => obs.observe(el));
 ['.hero-chip','.hero h1','.hero-sub','.hero-rating','.hero-btns'].forEach((s,i) => {{
   const el = document.querySelector(s);
   if(!el) return;
