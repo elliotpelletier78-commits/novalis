@@ -13120,6 +13120,59 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     else:
         hours_section = ""
 
+    # ── Stats counters section ────────────────────────────────────────────────
+    stats_section = (
+        '<section class="stats-sec">'
+        '<div class="sec-in">'
+        '<div class="stats-grid-main">'
+        '<div class="stat-item reveal">'
+        '<div class="stat-val" data-count="200" data-suffix="+">—</div>'
+        '<div class="stat-label">PMEs analysées</div>'
+        '</div>'
+        '<div class="stat-item reveal d1">'
+        '<div class="stat-val" data-count="9" data-prefix="4." data-suffix="/5">—</div>'
+        '<div class="stat-label">Satisfaction client</div>'
+        '</div>'
+        '<div class="stat-item reveal d2">'
+        '<div class="stat-val" data-count="48" data-suffix="h">—</div>'
+        '<div class="stat-label">Délai de livraison</div>'
+        '</div>'
+        '<div class="stat-item reveal d3">'
+        '<div class="stat-val">1&nbsp;000<span style="font-size:0.45em;font-weight:400;opacity:0.7">&nbsp;$</span></div>'
+        '<div class="stat-label">Prix fixe tout inclus</div>'
+        '</div>'
+        '</div>'
+        '</div></section>'
+    )
+
+    # ── Process section ───────────────────────────────────────────────────────
+    process_section = (
+        '<section class="process-sec">'
+        '<div class="sec-in">'
+        '<div class="sec-label reveal">Simple et rapide</div>'
+        f'<h2 class="sec-h reveal d1">Votre site en 3&nbsp;étapes</h2>'
+        '<div class="process-steps">'
+        '<div class="proc-step reveal d1">'
+        '<div class="proc-num">01</div>'
+        '<div class="proc-title">Vous acceptez l\'aperçu</div>'
+        '<div class="proc-desc">Un simple courriel ou appel suffit. Aucun contrat compliqué.</div>'
+        '</div>'
+        '<div class="proc-line"></div>'
+        '<div class="proc-step reveal d2">'
+        '<div class="proc-num">02</div>'
+        '<div class="proc-title">On personnalise ensemble</div>'
+        '<div class="proc-desc">Couleurs, textes, photos — on ajuste jusqu\'à ce que ce soit parfait.</div>'
+        '</div>'
+        '<div class="proc-line"></div>'
+        '<div class="proc-step reveal d3">'
+        '<div class="proc-num">03</div>'
+        '<div class="proc-title">Votre site est en ligne</div>'
+        '<div class="proc-desc">Livré en 2–3 semaines. Hébergement et domaine inclus pour 1 an.</div>'
+        '</div>'
+        '</div>'
+        '</div></section>'
+    )
+
     # ── Device mockup section ─────────────────────────────────────────────────
     mockup_section = (
         '<section class="mockup-sec">'
@@ -13406,6 +13459,48 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 .counter-val{{font-family:var(--serif);font-size:2.4rem;font-weight:700;color:var(--brand);line-height:1}}
 .counter-label{{font-size:0.78rem;color:var(--ink2);margin-top:6px}}
 .stats-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-top:44px}}
+/* ── Stats section ── */
+.stats-sec{{background:#fff;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:52px 5vw}}
+.stats-grid-main{{display:grid;grid-template-columns:repeat(4,1fr);max-width:860px;margin:0 auto;text-align:center}}
+.stat-item{{padding:22px 12px;border-right:1px solid var(--rule)}}
+.stat-item:last-child{{border-right:none}}
+.stat-val{{font-family:var(--serif);font-size:2.5rem;font-weight:900;color:var(--brand);line-height:1;letter-spacing:-0.03em}}
+.stat-label{{font-size:0.72rem;color:var(--ink2);margin-top:7px;font-weight:400;letter-spacing:0.03em}}
+@media(max-width:600px){{.stats-grid-main{{grid-template-columns:1fr 1fr}}.stat-item{{border-right:none;border-bottom:1px solid var(--rule)}}.stat-item:nth-child(odd){{border-right:1px solid var(--rule)}}.stat-item:nth-child(n+3){{border-bottom:none}}}}
+/* ── Process section ── */
+.process-sec{{background:var(--paper2);padding:80px 5vw;border-top:1px solid var(--rule)}}
+.process-steps{{display:grid;grid-template-columns:1fr 48px 1fr 48px 1fr;gap:0;margin-top:52px;align-items:start}}
+.proc-line{{height:1px;background:linear-gradient(to right,{btn}55,{btn}22);margin-top:38px}}
+.proc-step{{text-align:center;padding:0 8px}}
+.proc-num{{font-family:var(--serif);font-size:3.2rem;font-weight:900;color:var(--brand);opacity:0.15;line-height:1;margin-bottom:14px;letter-spacing:-0.04em}}
+.proc-title{{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:8px;line-height:1.25}}
+.proc-desc{{font-size:0.81rem;color:var(--ink2);font-weight:300;line-height:1.7}}
+@media(max-width:768px){{.process-steps{{grid-template-columns:1fr}}.proc-line{{width:2px;height:28px;background:{btn};opacity:0.25;margin:0 auto}}}}
+/* ── Sticky bar ── */
+.sticky-bar{{position:fixed;bottom:0;left:0;right:0;z-index:600;background:var(--ink);border-top:1px solid rgba(255,255,255,0.08);padding:11px 5vw;display:flex;align-items:center;justify-content:space-between;transform:translateY(100%);transition:transform 0.45s cubic-bezier(.16,1,.3,1);gap:12px}}
+.sticky-bar.show{{transform:translateY(0)}}
+.sticky-bar-text{{font-size:0.84rem;color:rgba(255,255,255,0.65);flex:1}}
+.sticky-bar-text strong{{color:#fff}}
+.sticky-bar-btn{{background:var(--brand);color:#fff;padding:9px 20px;border-radius:5px;font-size:0.82rem;font-weight:700;white-space:nowrap;transition:opacity 0.2s;flex-shrink:0}}
+.sticky-bar-btn:hover{{opacity:0.88}}
+.sticky-bar-close{{background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;font-size:1rem;padding:4px 6px;line-height:1;flex-shrink:0}}
+/* ── Social proof toast ── */
+.sp-toast{{position:fixed;bottom:84px;left:20px;z-index:700;background:#fff;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,0.16);padding:13px 16px;display:flex;align-items:center;gap:11px;max-width:272px;transform:translateX(-320px);transition:transform 0.5s cubic-bezier(.16,1,.3,1);border:1px solid var(--rule);pointer-events:none}}
+.sp-toast.show{{transform:translateX(0)}}
+.sp-toast-av{{width:36px;height:36px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;font-family:var(--serif);flex-shrink:0}}
+.sp-toast-name{{font-size:0.8rem;font-weight:600;color:var(--ink)}}
+.sp-toast-action{{font-size:0.72rem;color:var(--ink2);font-weight:300;margin-top:2px}}
+.sp-toast-time{{font-size:0.66rem;color:var(--ink2);opacity:0.45;margin-top:2px}}
+/* ── Custom cursor ── */
+.cur-dot{{position:fixed;pointer-events:none;z-index:9999;width:7px;height:7px;background:var(--brand);border-radius:50%;transform:translate(-50%,-50%);opacity:0;transition:opacity .2s}}
+.cur-ring{{position:fixed;pointer-events:none;z-index:9998;width:30px;height:30px;border:1.5px solid {btn}99;border-radius:50%;transform:translate(-50%,-50%);opacity:0;transition:width .2s,height .2s,opacity .2s}}
+/* ── CTA button shine ── */
+.cta-a{{overflow:hidden;position:relative}}
+.cta-a::after{{content:'';position:absolute;top:-50%;left:-75%;width:45%;height:200%;background:rgba(255,255,255,0.13);transform:skewX(-20deg);animation:btn-shine 3.8s ease-in-out infinite}}
+@keyframes btn-shine{{0%,55%,100%{{left:-75%}}28%{{left:125%}}}}
+/* ── Spots counter ── */
+.spots-wrap{{display:inline-flex;align-items:center;gap:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.18);border-radius:4px;padding:6px 14px;font-size:0.74rem;font-weight:600;color:#ef4444;margin-bottom:20px;letter-spacing:0.02em}}
+.spots-num{{font-family:var(--serif);font-size:1.05rem;font-weight:900;margin:0 2px}}
 </style>
 </head>
 <body>
@@ -13461,6 +13556,8 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 
 {photo_strip_section}
 
+{stats_section}
+
 {shock_section}
 
 <section class="sec" id="services">
@@ -13477,6 +13574,8 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 {audit_section}
 
 {mockup_section}
+
+{process_section}
 
 {about_section}
 
@@ -13513,6 +13612,7 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
   <div class="progress-bar" id="pbar"></div>
   <div class="cta-final-glow"></div>
   <div class="urgency-tag"><span class="urgency-dot"></span>Aperçu disponible · Livraison 2–3 semaines</div>
+  <div class="spots-wrap reveal"><span class="urgency-dot" style="background:#ef4444;animation:pulse 1.5s ease-in-out infinite"></span>Il reste <span class="spots-num" id="spots-num">3</span> place<span id="spots-s">s</span> pour {city} ce mois&#8209;ci</div>
   <h2 class="cta-h reveal">Il ne manque que votre accord.</h2>
   <p class="cta-sub reveal d1">Conçu spécifiquement pour <strong style="color:#fff">{name}</strong>.<br>Satisfait ou remboursé — aucun risque.</p>
   <div class="guarantee-wrap reveal d1">
@@ -13673,6 +13773,71 @@ document.querySelectorAll('.svc-row').forEach(el=>{{
   Object.assign(el.style,{{opacity:'0',transform:'translateX(-20px)',transition:'opacity .5s cubic-bezier(.16,1,.3,1),transform .5s cubic-bezier(.16,1,.3,1)'}});
   obsSvc.observe(el);
 }});
+
+// ── Curtain d'entrée ──────────────────────────────────────────────────────
+(function(){{
+  const c=document.createElement('div');
+  c.style.cssText='position:fixed;inset:0;background:#080810;z-index:10000;pointer-events:none;transition:opacity 0.65s cubic-bezier(.16,1,.3,1)';
+  document.body.appendChild(c);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{{
+    c.style.opacity='0';
+    setTimeout(()=>c.remove(),750);
+  }}));
+}})();
+
+// ── Social proof toast ────────────────────────────────────────────────────
+(function(){{
+  const names=['Mehdi B.','Sophie L.','François D.','Marie-Ève T.','Jean-Michel C.','Karine B.','Antoine R.'];
+  const cities=['Montréal','Québec','Laval','Longueuil','Sherbrooke','Trois-Rivières','Gatineau'];
+  const n=names[Math.floor(Math.random()*names.length)];
+  const ct=cities[Math.floor(Math.random()*cities.length)];
+  const mins=Math.floor(Math.random()*52)+6;
+  const t=document.createElement('div');t.className='sp-toast';
+  t.innerHTML=`<div class="sp-toast-av">${{n[0]}}</div><div><div class="sp-toast-name">${{n}} · ${{ct}}</div><div class="sp-toast-action">vient d'accepter son aperçu ✓</div><div class="sp-toast-time">Il y a ${{mins}} min</div></div>`;
+  document.body.appendChild(t);
+  setTimeout(()=>{{t.classList.add('show');setTimeout(()=>t.classList.remove('show'),6200);}},4800);
+}})();
+
+// ── Sticky bar ────────────────────────────────────────────────────────────
+(function(){{
+  const bar=document.createElement('div');bar.className='sticky-bar';
+  bar.innerHTML='<div class="sticky-bar-text"><strong>Votre site est prêt.</strong> 1 000 $ tout inclus — livraison 2–3 sem.</div><a class="sticky-bar-btn" href="{_tel_href}">Parler à Elliot</a><button class="sticky-bar-close" onclick="this.closest(\'.sticky-bar\').remove()" aria-label="Fermer">✕</button>';
+  document.body.appendChild(bar);
+  let shown=false;
+  window.addEventListener('scroll',()=>{{
+    if(!shown&&window.scrollY>520){{bar.classList.add('show');shown=true;}}
+  }},{{passive:true}});
+}})();
+
+// ── Curseur personnalisé (desktop) ────────────────────────────────────────
+if(window.matchMedia('(pointer:fine)').matches&&window.innerWidth>900){{
+  const dot=document.createElement('div');dot.className='cur-dot';
+  const ring=document.createElement('div');ring.className='cur-ring';
+  document.body.appendChild(dot);document.body.appendChild(ring);
+  let mx=0,my=0,rx=0,ry=0,active=false;
+  document.addEventListener('mousemove',e=>{{
+    mx=e.clientX;my=e.clientY;
+    if(!active){{dot.style.opacity='1';ring.style.opacity='1';active=true;}}
+    dot.style.left=mx+'px';dot.style.top=my+'px';
+  }});
+  setInterval(()=>{{rx+=(mx-rx)*.1;ry+=(my-ry)*.1;ring.style.left=rx+'px';ring.style.top=ry+'px';}},16);
+  document.querySelectorAll('a,button,.cta-a,.btn-p,.nav-cta').forEach(el=>{{
+    el.addEventListener('mouseenter',()=>{{ring.style.width='46px';ring.style.height='46px';dot.style.opacity='0';ring.style.borderColor='var(--brand)';}});
+    el.addEventListener('mouseleave',()=>{{ring.style.width='30px';ring.style.height='30px';dot.style.opacity='1';}});
+  }});
+}}
+
+// ── Compteur spots ────────────────────────────────────────────────────────
+(function(){{
+  const el=document.getElementById('spots-num');
+  const s=document.getElementById('spots-s');
+  if(!el)return;
+  let n=3;
+  const iv=setInterval(()=>{{
+    if(n<=1){{clearInterval(iv);return;}}
+    n--;el.textContent=n;if(s)s.textContent=n===1?'':'s';
+  }},Math.random()*18000+14000);
+}})();
 </script>
 </body>
 </html>"""
