@@ -12772,14 +12772,38 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     # ── Industry pattern overlay (SVG) ────────────────────────────────────────
     pattern_svg = "data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"
 
+    # ── Service icon helper ───────────────────────────────────────────────────
+    def _svc_icon(n):
+        nl = n.lower()
+        for kw, ic in [("urgence","🚨"),("24h","🚨"),("drain","💧"),("eau","💧"),
+                       ("chauff","🔥"),("thermopompe","🌡️"),("plomberie","🔧"),("plombier","🔧"),
+                       ("électric","⚡"),("installation","🔌"),("panneau","⚡"),
+                       ("rénovation","🏠"),("construction","🏗️"),("toiture","🏚️"),("peinture","🖌️"),
+                       ("restaurant","🍽️"),("cuisine","👨‍🍳"),("livraison","🚚"),("réservation","📅"),
+                       ("coiffure","✂️"),("coloration","🎨"),("soin","💆"),("manucure","💅"),
+                       ("mécanique","⚙️"),("pneu","🔩"),("garage","🚗"),("auto","🚗"),
+                       ("dentiste","🦷"),("médecin","🩺"),("clinique","🏥"),("physiothérapie","🩻"),
+                       ("inspection","🔍"),("nettoyage","🧹"),("serrurier","🔑"),("alarme","🛡️")]:
+            if kw in nl:
+                return ic
+        return "✦"
+
     # ── Services cards ────────────────────────────────────────────────────────
     services_html = ""
-    svc_source = real_svcs[:4] if real_svcs else [{"name": s, "desc": ""} for s in services_list[:4]]
+    svc_source = real_svcs[:6] if real_svcs else [{"name": s, "desc": ""} for s in services_list[:6]]
     for _si, _svc in enumerate(svc_source, 1):
         _name = _svc["name"] if isinstance(_svc, dict) else _svc
-        _desc = _svc.get("desc", "") if isinstance(_svc, dict) else ""
-        _desc_html = f'<div class="svc-desc">{_desc}</div>' if _desc else ""
-        services_html += f'<div class="svc-row reveal d{min(_si,3)}"><div class="svc-num">0{_si}</div><div><div class="svc-title">{_name}</div>{_desc_html}</div></div>'
+        _desc = (_svc.get("desc", "") if isinstance(_svc, dict) else "")
+        _icon = _svc_icon(_name)
+        _desc_html = f'<div class="svc-card-desc">{_desc}</div>' if _desc else ""
+        services_html += (
+            f'<div class="svc-card reveal d{min(_si,4)}">'
+            f'<div class="svc-card-icon">{_icon}</div>'
+            f'<div class="svc-card-title">{_name}</div>'
+            f'{_desc_html}'
+            f'<div class="svc-card-link">En savoir plus →</div>'
+            f'</div>'
+        )
 
     # ── Testimonials by industry ──────────────────────────────────────────────
     testimonials_map = {
@@ -13052,6 +13076,85 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     else:
         photo_strip_section = ""
 
+    # ── Quick-finder section ──────────────────────────────────────────────────
+    qf_chips = ""
+    for _s in (services_list[:6] if services_list else []):
+        _icon = _svc_icon(_s)
+        qf_chips += f'<button class="qf-chip" onclick="document.getElementById(\'services\').scrollIntoView({{behavior:\'smooth\'}})">{_icon} {_s}</button>'
+    qf_section = (
+        f'<div class="qf-sec">'
+        f'<div class="qf-inner">'
+        f'<div class="qf-label">Que cherchez-vous?</div>'
+        f'<div class="qf-chips">{qf_chips}'
+        f'<button class="qf-chip qf-chip-contact" onclick="document.getElementById(\'contact\').scrollIntoView({{behavior:\'smooth\'}})">'
+        f'📞 Nous contacter</button>'
+        f'</div>'
+        f'</div></div>'
+    )
+
+    # ── Contact section ───────────────────────────────────────────────────────
+    _hours_table_html = ""
+    if real_hours:
+        _hours_table_html = '<table class="hours-compact">'
+        for _h in real_hours[:7]:
+            if ":" in _h:
+                _day_p = _h.split(":")[0].strip()
+                _time_p = ":".join(_h.split(":")[1:]).strip()
+            else:
+                _day_p = ""
+                _time_p = _h
+            _hours_table_html += f'<tr><td class="hc-day">{_day_p}</td><td class="hc-time">{_time_p}</td></tr>'
+        _hours_table_html += '</table>'
+    _ci_address_html = (
+        f'<div class="ci-block">'
+        f'<div class="ci-icon">📍</div>'
+        f'<div><div class="ci-label">Adresse</div><div class="ci-val">{real_address}</div></div>'
+        f'</div>'
+    ) if real_address else ""
+    _ci_phone_html = (
+        f'<div class="ci-block">'
+        f'<div class="ci-icon">📞</div>'
+        f'<div><div class="ci-label">Téléphone</div><div class="ci-val"><a href="{_tel_href}" style="color:var(--brand);font-weight:600">{phone_display}</a></div></div>'
+        f'</div>'
+    ) if phone_display else ""
+    _ci_email_html = (
+        f'<div class="ci-block">'
+        f'<div class="ci-icon">✉️</div>'
+        f'<div><div class="ci-label">Courriel</div><div class="ci-val"><a href="mailto:{biz_email}" style="color:var(--brand)">{biz_email}</a></div></div>'
+        f'</div>'
+    ) if biz_email else ""
+    _ci_hours_html = (
+        f'<div class="ci-block ci-block-hours">'
+        f'<div class="ci-icon">🕐</div>'
+        f'<div><div class="ci-label">Heures d\'ouverture</div>{_hours_table_html}</div>'
+        f'</div>'
+    ) if _hours_table_html else ""
+    contact_section = (
+        f'<section class="contact-sec" id="contact">'
+        f'<div class="sec-in">'
+        f'<div class="contact-grid">'
+        f'<div class="contact-form-wrap">'
+        f'<div class="form-title reveal">Nous contacter</div>'
+        f'<div class="form-sub reveal d1">Répondons à vos questions — sans engagement.</div>'
+        f'<form class="contact-form reveal d2" onsubmit="this.querySelector(\'.form-btn\').textContent=\'Envoyé ✓\';this.querySelector(\'.form-btn\').style.background=\'#22c55e\';event.preventDefault()">'
+        f'<div class="form-row2">'
+        f'<div class="form-group"><label class="form-label">Prénom</label><input class="form-input" type="text" placeholder="Votre prénom" required></div>'
+        f'<div class="form-group"><label class="form-label">Téléphone</label><input class="form-input" type="tel" placeholder="(514) 000-0000"></div>'
+        f'</div>'
+        f'<div class="form-group"><label class="form-label">Message</label><textarea class="form-textarea" rows="4" placeholder="Comment pouvons-nous vous aider?" required></textarea></div>'
+        f'<button type="submit" class="form-btn">Envoyer le message</button>'
+        f'</form>'
+        f'</div>'
+        f'<div class="contact-info-col reveal d3">'
+        f'{_ci_address_html}'
+        f'{_ci_phone_html}'
+        f'{_ci_email_html}'
+        f'{_ci_hours_html}'
+        f'</div>'
+        f'</div>'
+        f'</div></section>'
+    )
+
     # ── Gallery section ───────────────────────────────────────────────────────
     if gallery_html:
         gallery_section = (
@@ -13242,6 +13345,20 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         f'onerror="this.closest(\'.hero-logo-wrap\').style.display=\'none\'">'
         f'</div>'
     ) if real_logo else ""
+
+    # ── Footer service links ──────────────────────────────────────────────────
+    _foot_svc_links = ""
+    for _fs in (services_list[:5] if services_list else []):
+        _foot_svc_links += f'<a href="#services">{_fs}</a>'
+    _foot_phone_html = (
+        f'<div class="foot-ci"><span>📞</span><a href="{_tel_href}">{phone_display}</a></div>'
+    ) if phone_display else ""
+    _foot_addr_html = (
+        f'<div class="foot-ci"><span>📍</span><span>{real_address}</span></div>'
+    ) if real_address else ""
+    _foot_email_html = (
+        f'<div class="foot-ci"><span>✉️</span><a href="mailto:{biz_email}">{biz_email}</a></div>'
+    ) if biz_email else ""
 
     html = f"""<!DOCTYPE html>
 <html lang="fr">
