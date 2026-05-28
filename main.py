@@ -12936,6 +12936,338 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         _svc_grid_class    = "svc-cards"
         _svc_cta_text      = cta_text or "Nous contacter"
 
+    # ── "Pourquoi nous choisir" par industrie ────────────────────────────────
+    _rating_disp = rating or "4.8"
+    _rev_disp    = review_count or "100"
+    if _is_resto:
+        _why_items = [
+            ("🍽️", "Cuisine faite maison", "Chaque plat préparé avec des ingrédients frais, locaux et de saison — jamais de surgelé."),
+            ("🍷", "Cave à vins sélectionnée", "Plus de 80 étiquettes choisies par notre sommelier, des régions du monde entier."),
+            ("🎭", "Salles pour événements", "Espaces privés pour vos célébrations, repas d'affaires et occasions spéciales."),
+            ("⭐", f"{_rating_disp}/5 sur Google", f"Plus de {_rev_disp} avis vérifiés — nos clients reviennent et recommandent."),
+        ]
+    elif _is_garage:
+        _why_items = [
+            ("🔧", "Mécaniciens certifiés", "Tous nos techniciens sont certifiés et formés continuellement aux standards ASE et CAA."),
+            ("✅", "Garantie 12 mois/20 000 km", "Tous nos travaux sont garantis pièces et main-d'œuvre — aucune surprise."),
+            ("🔍", "Diagnostic gratuit", "Nous identifions le problème avant de vous proposer quoi que ce soit — transparence totale."),
+            ("📅", "Ouvert 6 jours/7", "Du lundi au samedi, nous sommes là quand vous avez besoin de nous."),
+        ]
+    elif _is_salon:
+        _why_items = [
+            ("✂️", "Stylistes certifiés", "Formation continue et expertise dans les dernières techniques et tendances."),
+            ("💎", "Produits haut de gamme", "Wella, L'Oréal Pro, Kérastase — uniquement les meilleures marques professionnelles."),
+            ("📱", "Réservation en ligne 24/7", "Prenez rendez-vous en 30 secondes depuis votre téléphone, même à minuit."),
+            ("⭐", f"{_rating_disp}/5 · Avis clients", f"Plus de {_rev_disp} clientes satisfaites témoignent de leur expérience."),
+        ]
+    elif _is_health:
+        _why_items = [
+            ("🏥", "Professionnels certifiés", "Tous nos praticiens sont membres de leurs ordres professionnels du Québec."),
+            ("💊", "Équipements de pointe", "Technologie moderne pour des diagnostics précis et des soins efficaces."),
+            ("📅", "RDV sous 48 heures", "Nous nous engageons à vous voir rapidement — sans longues files d'attente."),
+            ("🔒", "Assurances acceptées", "Nous travaillons avec la majorité des assureurs privés du Québec."),
+        ]
+    elif _is_trades:
+        _why_items = [
+            ("📜", "Certifié RBQ", "Licence de la Régie du bâtiment du Québec — votre garantie légale de sérieux."),
+            ("⚡", "Disponible 24/7 pour urgences", "Pannes, dégâts, situations critiques — nous répondons à toute heure."),
+            ("📋", "Soumission gratuite & détaillée", "Estimé complet sans surprise et sans obligation de votre part."),
+            ("🛡️", "Assuré responsabilité civile", "Tous nos chantiers sont couverts — vous êtes entièrement protégé."),
+        ]
+    elif _is_immob:
+        _why_items = [
+            ("🏆", "Courtiers d'expérience", "Des années d'expertise dans le marché immobilier de la région."),
+            ("📊", "Analyse de marché précise", "Évaluation juste pour vendre au meilleur prix dans les meilleurs délais."),
+            ("🤝", "Accompagnement de A à Z", "De la première visite jusqu'à la signature — nous gérons tout pour vous."),
+            ("📞", "Disponible 7 jours/7", "Votre courtier répond à vos questions quand vous en avez besoin."),
+        ]
+    elif _is_fitness:
+        _why_items = [
+            ("💪", "Entraîneurs certifiés", "Nos coachs sont accrédités et adaptent chaque programme à votre niveau."),
+            ("🏋️", "Équipements neufs", "Machines de dernière génération, entretenues et nettoyées quotidiennement."),
+            ("📱", "App mobile incluse", "Suivez vos progrès, vos séances et vos objectifs depuis votre téléphone."),
+            ("🎯", "Résultats garantis", f"Plus de {_rev_disp} membres ont atteint leurs objectifs — le prochain, c'est vous."),
+        ]
+    else:
+        _why_items = [
+            ("🏆", "Expertise reconnue", f"Des années d'expérience au service des clients de {city} et de la région."),
+            ("⭐", f"{_rating_disp}/5 · Avis clients", f"{_rev_disp}+ clients satisfaits vous parlent d'eux-mêmes."),
+            ("⚡", "Réponse rapide", "Nous vous contactons dans les 24 heures suivant votre demande — garanti."),
+            ("💯", "Satisfaction garantie", "Votre satisfaction est notre priorité absolue — nous ne lâchons pas."),
+        ]
+    _why_parts = [
+        f'<div class="why-item reveal d{i}">'
+        f'<div class="why-icon">{ico}</div>'
+        f'<div class="why-title">{ttl}</div>'
+        f'<div class="why-desc">{desc}</div>'
+        f'</div>'
+        for i,(ico,ttl,desc) in enumerate(_why_items)
+    ]
+    _why_html = "".join(_why_parts)
+    _why_section = (
+        f'<section class="why-sec sec">'
+        f'<div class="sec-in">'
+        f'<div class="sec-label reveal">Pourquoi nous choisir</div>'
+        f'<h2 class="sec-h reveal d1">La différence {name[:28]}</h2>'
+        f'<div class="why-grid">{_why_html}</div>'
+        f'</div></section>'
+    )
+
+    # ── Trust badges par industrie ────────────────────────────────────────────
+    if _is_trades:
+        _trust_badges = ["RBQ Certifié","Assuré RC","Membre ACQ","Garantie travaux","Soumission gratuite"]
+    elif _is_garage:
+        _trust_badges = ["ASE Certified","CAA Approuvé","Garantie 12 mois","Pièces OEM","Estimé gratuit"]
+    elif _is_health:
+        _trust_badges = ["Ordre professionnel","Assurances acceptées","Clinique accréditée","Dossier électronique","RDV sous 48h"]
+    elif _is_salon:
+        _trust_badges = ["Stylistes certifiés","Wella · L'Oréal Pro","Réservation en ligne","Cartes-cadeaux","Accès PMR"]
+    elif _is_resto:
+        _trust_badges = ["Menu fait maison","Produits locaux","Cave à vins","Salles privées","Commande en ligne"]
+    elif _is_immob:
+        _trust_badges = ["OACIQ Certifié","RE/MAX · Sutton","Évaluation gratuite","Réseau national","7 jours/7"]
+    elif _is_fitness:
+        _trust_badges = ["Entraîneurs certifiés","Équipements neufs","Essai gratuit","App mobile","Horaires flexibles"]
+    else:
+        _trust_badges = ["Service professionnel","Avis vérifiés","Satisfaction garantie","Disponible 7j/7","Devis gratuit"]
+    _badges_html = "".join(
+        f'<div class="tbadge"><span class="tbadge-ico">✓</span><span class="tbadge-lbl">{b}</span></div>'
+        for b in _trust_badges
+    )
+    _badges_strip_html = f'<div class="tbadge-strip">{_badges_html}</div>'
+
+    # ── Formulaire de contact spécifique par industrie ────────────────────────
+    if _is_resto:
+        _form_title    = "Réserver une table"
+        _form_subtitle = f"Réservation en ligne chez {name} — confirmation immédiate."
+        _form_btn      = "Confirmer ma réservation"
+        _form_fields   = (
+            '<div class="form-row2">'
+            '<div class="form-group"><label class="form-label">Prénom &amp; nom</label>'
+            '<input class="form-input" type="text" placeholder="Marie Tremblay" required></div>'
+            '<div class="form-group"><label class="form-label">Téléphone</label>'
+            '<input class="form-input" type="tel" placeholder="(514) 000-0000" required></div>'
+            '</div>'
+            '<div class="form-row2">'
+            '<div class="form-group"><label class="form-label">Date souhaitée</label>'
+            '<input class="form-input" type="date" required></div>'
+            '<div class="form-group"><label class="form-label">Heure</label>'
+            '<select class="form-input"><option>18h00</option><option>18h30</option>'
+            '<option>19h00</option><option>19h30</option><option>20h00</option><option>20h30</option></select></div>'
+            '</div>'
+            '<div class="form-row2">'
+            '<div class="form-group"><label class="form-label">Nombre de personnes</label>'
+            '<select class="form-input"><option>1 personne</option><option>2 personnes</option>'
+            '<option>3 personnes</option><option>4 personnes</option><option>5 personnes</option>'
+            '<option>6+ personnes</option></select></div>'
+            '<div class="form-group"><label class="form-label">Occasion spéciale?</label>'
+            '<select class="form-input"><option>Aucune</option><option>Anniversaire</option>'
+            '<option>Repas d\'affaires</option><option>Romantique</option><option>Autre</option></select></div>'
+            '</div>'
+            '<div class="form-group"><label class="form-label">Allergies / notes (optionnel)</label>'
+            '<textarea class="form-textarea" rows="3" placeholder="Allergie aux noix, chaise haute..."></textarea></div>'
+        )
+    elif _is_garage:
+        _form_title    = "Prendre un rendez-vous"
+        _form_subtitle = "Réservez votre créneau — diagnostic, entretien ou réparation."
+        _form_btn      = "Réserver mon créneau"
+        _form_fields   = (
+            '<div class="form-row2">'
+            '<div class="form-group"><label class="form-label">Prénom &amp; nom</label>'
+            '<input class="form-input" type="text" placeholder="François Côté" required></div>'
+            '<div class="form-group"><label class="form-label">Téléphone</label>'
+            '<input class="form-input" type="tel" placeholder="(514) 000-0000" required></div>'
+            '</div>'
+            '<div class="form-row3">'
+            '<div class="form-group"><label class="form-label">Année</label>'
+            '<input class="form-input" type="text" placeholder="2018"></div>'
+            '<div class="form-group"><label class="form-label">Marque</label>'
+            '<input class="form-input" type="text" placeholder="Honda"></div>'
+            '<div class="form-group"><label class="form-label">Modèle</label>'
+            '<input class="form-input" type="text" placeholder="Civic"></div>'
+            '</div>'
+            '<div class="form-group"><label class="form-label">Type de service</label>'
+            '<select class="form-input"><option>Vidange d\'huile</option>'
+            '<option>Changement de pneus</option><option>Freins / suspension</option>'
+            '<option>Diagnostic électronique</option><option>Inspection générale</option>'
+            '<option>Carrosserie / peinture</option><option>Autre</option></select></div>'
+            '<div class="form-group"><label class="form-label">Description du problème (optionnel)</label>'
+            '<textarea class="form-textarea" rows="3" placeholder="Bruit étrange, voyant allumé..."></textarea></div>'
+        )
+    elif _is_salon:
+        _form_title    = "Réserver ma séance"
+        _form_subtitle = "Votre rendez-vous beauté en ligne — confirmé en 30 secondes."
+        _form_btn      = "Réserver ma séance"
+        _form_fields   = (
+            '<div class="form-row2">'
+            '<div class="form-group"><label class="form-label">Prénom</label>'
+            '<input class="form-input" type="text" placeholder="Sophie" required></div>'
+            '<div class="form-group"><label class="form-label">Téléphone</label>'
+            '<input class="form-input" type="tel" placeholder="(514) 000-0000" required></div>'
+            '</div>'
+            '<div class="form-group"><label class="form-label">Service désiré</label>'
+            '<select class="form-input"><option>Coupe &amp; styling</option>'
+            '<option>Coloration complète</option><option>Mèches / balayage</option>'
+            '<option>Traitement kératine</option><option>Soin capillaire intensif</option>'
+            '<option>Épilation</option><option>Soin visage</option><option>Autre</option></select></div>'
+            '<div class="form-group"><label class="form-label">Disponibilité préférée</label>'
+            '<select class="form-input"><option>Matin (8h–12h)</option>'
+            '<option>Après-midi (12h–17h)</option><option>Soirée (17h–20h)</option>'
+            '<option>Fin de semaine</option></select></div>'
+            '<div class="form-group"><label class="form-label">Notes (optionnel)</label>'
+            '<textarea class="form-textarea" rows="2" placeholder="Longueur souhaitée, inspiration..."></textarea></div>'
+        )
+    elif _is_health:
+        _form_title    = "Prendre rendez-vous"
+        _form_subtitle = "Consultez nos professionnels — réponse sous 24h, RDV sous 48h."
+        _form_btn      = "Demander un rendez-vous"
+        _form_fields   = (
+            '<div class="form-row2">'
+            '<div class="form-group"><label class="form-label">Nom complet</label>'
+            '<input class="form-input" type="text" placeholder="Pierre Gagnon" required></div>'
+            '<div class="form-group"><label class="form-label">Téléphone</label>'
+            '<input class="form-input" type="tel" placeholder="(514) 000-0000" required></div>'
+            '</div>'
+            '<div class="form-row2">'
+            '<div class="form-group"><label class="form-label">Date de naissance</label>'
+            '<input class="form-input" type="date"></div>'
+            '<div class="form-group"><label class="form-label">Motif de consultation</label>'
+            '<select class="form-input"><option>Première consultation</option>'
+            '<option>Suivi régulier</option><option>Douleur / problème aigu</option>'
+            '<option>Bilan de santé</option><option>Référence médecin</option>'
+            '<option>Autre</option></select></div>'
+            '</div>'
+            '<div class="form-group"><label class="form-label">Couverture d\'assurance</label>'
+            '<select class="form-input"><option>Assurance privée (Blue Cross, Sunlife...)</option>'
+            '<option>RAMQ seulement</option><option>Sans assurance</option></select></div>'
+            '<div class="form-group"><label class="form-label">Précisions (optionnel)</label>'
+            '<textarea class="form-textarea" rows="2" placeholder="Symptômes, médicaments, question..."></textarea></div>'
+        )
+    else:
+        _form_title    = "Nous contacter"
+        _form_subtitle = f"Répondons à vos questions — sans engagement."
+        _form_btn      = "Envoyer le message"
+        _svc_opts = "".join(f'<option>{s}</option>' for s in (services_list[:6] if services_list else ["Information générale","Demande de soumission","Urgence"]))
+        _form_fields   = (
+            '<div class="form-row2">'
+            '<div class="form-group"><label class="form-label">Prénom</label>'
+            '<input class="form-input" type="text" placeholder="Votre prénom" required></div>'
+            '<div class="form-group"><label class="form-label">Téléphone</label>'
+            '<input class="form-input" type="tel" placeholder="(514) 000-0000"></div>'
+            '</div>'
+            f'<div class="form-group"><label class="form-label">Service souhaité</label>'
+            f'<select class="form-input"><option>-- Sélectionner --</option>{_svc_opts}</select></div>'
+            '<div class="form-group"><label class="form-label">Message</label>'
+            '<textarea class="form-textarea" rows="4" placeholder="Comment pouvons-nous vous aider?" required></textarea></div>'
+        )
+
+    # ── FAQ par industrie ─────────────────────────────────────────────────────
+    _addr_faq = real_address or city
+    if _is_resto:
+        _faq_items = [
+            ("Comment réserver une table?",
+             f"Utilisez le formulaire ci-dessus ou appelez-nous directement. Nous confirmons votre réservation sous 30 minutes par SMS ou courriel."),
+            ("Proposez-vous des menus pour groupes?",
+             "Oui! Nous pouvons accueillir des groupes de 10 à 50 personnes avec menu adapté. Contactez-nous pour les détails et la disponibilité."),
+            ("Y a-t-il un service de livraison?",
+             f"Oui, nous livrons dans un rayon de 5 km autour de {city}. Commandez via notre site ou par téléphone pour une livraison rapide."),
+            ("Gérez-vous les allergies alimentaires?",
+             "Absolument. Mentionnez vos allergies lors de la réservation — notre chef adapte chaque plat à vos besoins spécifiques."),
+        ]
+    elif _is_garage:
+        _faq_items = [
+            ("Le diagnostic est-il vraiment gratuit?",
+             "Oui, le diagnostic de base est offert sans frais. Vous recevez un estimé détaillé et approuvé avant tout travail — aucune surprise sur votre facture."),
+            ("Combien de temps dure une vidange?",
+             "Une vidange standard prend 30 à 45 minutes. Pour des entretiens plus complets, prévoyez 1 à 2 heures. Nous vous avertissons toujours si c'est plus long."),
+            ("Utilisez-vous des pièces d'origine?",
+             "Nous utilisons des pièces OEM (d'origine du fabricant) ou des alternatives certifiées de qualité équivalente, au choix du client."),
+            ("Quelle est votre garantie sur les réparations?",
+             "Tous nos travaux sont garantis 12 mois ou 20 000 km, la première échéance applicable. Cette garantie est fournie par écrit avec chaque facture."),
+        ]
+    elif _is_salon:
+        _faq_items = [
+            ("Comment prendre rendez-vous?",
+             "Utilisez le formulaire ci-dessous ou appelez-nous. Vous recevez une confirmation par SMS dans les 30 minutes, et un rappel la veille."),
+            ("Quelle est votre politique d'annulation?",
+             "Nous demandons un préavis de 24h pour les annulations. Cela permet à d'autres clientes de prendre le créneau disponible."),
+            ("Offrez-vous des cartes-cadeaux?",
+             "Oui! Nos cartes-cadeaux sont disponibles en salon et par commande en ligne. Idéales pour les fêtes, anniversaires et occasions spéciales."),
+            ("Utilisez-vous des produits naturels?",
+             "Nous proposons des gammes éco-responsables et bio sur demande. Mentionnez votre préférence lors de la réservation."),
+        ]
+    elif _is_health:
+        _faq_items = [
+            ("Dois-je avoir une référence médicale?",
+             "Non, la plupart de nos services sont accessibles directement. Contactez-nous pour savoir si votre situation nécessite une référence."),
+            ("Mes assurances couvrent-elles les consultations?",
+             "Nous acceptons la majorité des assureurs privés du Québec (Blue Cross, Sunlife, Desjardins...). Apportez votre carte d'assurance lors du rendez-vous."),
+            ("Quel est le délai pour un rendez-vous?",
+             "Nous visons un délai de 48h pour les nouveaux patients. Dans les cas urgents, nous faisons notre possible pour vous accommoder le jour même."),
+            ("Y a-t-il un stationnement?",
+             f"Oui, un stationnement gratuit est disponible à notre adresse ({_addr_faq}). Nous sommes également accessibles en transport en commun."),
+        ]
+    elif _is_trades:
+        _faq_items = [
+            ("La soumission est-elle vraiment gratuite?",
+             "Absolument. Nous nous déplaçons pour évaluer votre projet sans frais et sans obligation. La soumission est détaillée, écrite et sans surprise."),
+            ("Êtes-vous disponibles pour les urgences?",
+             "Oui, notre ligne d'urgence est active 24h/24, 7j/7. Nous intervenons dans les plus brefs délais pour les situations critiques."),
+            ("Votre licence RBQ est-elle à jour?",
+             "Oui, notre licence de la Régie du bâtiment du Québec est active et vérifiable en ligne. Tous nos travaux respectent le Code de construction."),
+            ("Offrez-vous une garantie sur les travaux?",
+             "Tous nos travaux sont garantis selon les standards de l'industrie. Une garantie écrite est fournie avec chaque contrat signé."),
+        ]
+    elif _is_immob:
+        _faq_items = [
+            ("Combien de temps prend une vente?",
+             f"En moyenne 30 à 60 jours sur le marché actuel de {city}. Tout dépend du prix, de l'état et de l'emplacement — nous vous donnons une projection réaliste."),
+            ("Quelle est votre commission?",
+             "Notre commission est compétitive et négociable. Contactez-nous pour une discussion franche et transparente sur les honoraires — sans pression."),
+            ("Offrez-vous une évaluation gratuite?",
+             "Oui! Nous offrons une analyse comparative de marché (ACM) gratuite pour déterminer la juste valeur marchande de votre propriété."),
+            ("Couvrez-vous toute la région?",
+             f"Nous couvrons principalement {city} et toute la grande région. Notre réseau national nous permet aussi d'aider pour les déplacements interprovinciaux."),
+        ]
+    else:
+        _faq_items = [
+            ("Quel est votre délai de réponse?",
+             "Nous répondons à toutes les demandes dans les 24 heures ouvrables. Pour les urgences, une ligne directe est disponible."),
+            ("Offrez-vous des devis gratuits?",
+             "Oui, toutes nos soumissions sont gratuites et sans engagement. Contactez-nous pour une évaluation complète de votre projet."),
+            (f"Servez-vous toute la région de {city}?",
+             f"Oui, nous couvrons {city} et les environs. Contactez-nous pour confirmer la disponibilité dans votre secteur."),
+            ("Comment se passe le premier contact?",
+             "Remplissez le formulaire ou appelez-nous. Un professionnel vous contacte rapidement pour comprendre vos besoins et vous proposer une solution."),
+        ]
+    _faq_parts = [
+        f'<div class="faq-item">'
+        f'<button class="faq-q" onclick="toggleFaq({i})" aria-expanded="false">'
+        f'<span>{q}</span>'
+        f'<span class="faq-arr" id="farr-{i}">▾</span>'
+        f'</button>'
+        f'<div class="faq-a" id="faq-a-{i}">'
+        f'<p>{a}</p>'
+        f'</div>'
+        f'</div>'
+        for i,(q,a) in enumerate(_faq_items)
+    ]
+    _faq_html = "".join(_faq_parts)
+    _faq_section = (
+        f'<section class="faq-sec sec" id="faq">'
+        f'<div class="sec-in">'
+        f'<div class="sec-label reveal">Questions fréquentes</div>'
+        f'<h2 class="sec-h reveal d1">On répond à tout</h2>'
+        f'<p class="sec-lead reveal d2">Tout ce que vous voulez savoir avant de commencer.</p>'
+        f'<div class="faq-list reveal d3">'
+        f'{_faq_html}'
+        f'</div>'
+        f'<div style="text-align:center;margin-top:40px">'
+        f'<a class="btn-p reveal d4" href="#contact">Une autre question? Contactez-nous →</a>'
+        f'</div>'
+        f'</div></section>'
+    )
+
     # ── Testimonials by industry ──────────────────────────────────────────────
     testimonials_map = {
         "restaurant": [
@@ -13265,15 +13597,11 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         f'<div class="sec-in">'
         f'<div class="contact-grid">'
         f'<div class="contact-form-wrap">'
-        f'<div class="form-title reveal">Nous contacter</div>'
-        f'<div class="form-sub reveal d1">Répondons à vos questions — sans engagement.</div>'
+        f'<div class="form-title reveal">{_form_title}</div>'
+        f'<div class="form-sub reveal d1">{_form_subtitle}</div>'
         f'<form class="contact-form reveal d2" onsubmit="this.querySelector(\'.form-btn\').textContent=\'Envoyé ✓\';this.querySelector(\'.form-btn\').style.background=\'#22c55e\';event.preventDefault()">'
-        f'<div class="form-row2">'
-        f'<div class="form-group"><label class="form-label">Prénom</label><input class="form-input" type="text" placeholder="Votre prénom" required></div>'
-        f'<div class="form-group"><label class="form-label">Téléphone</label><input class="form-input" type="tel" placeholder="(514) 000-0000"></div>'
-        f'</div>'
-        f'<div class="form-group"><label class="form-label">Message</label><textarea class="form-textarea" rows="4" placeholder="Comment pouvons-nous vous aider?" required></textarea></div>'
-        f'<button type="submit" class="form-btn">Envoyer le message</button>'
+        f'{_form_fields}'
+        f'<button type="submit" class="form-btn">{_form_btn}</button>'
         f'</form>'
         f'</div>'
         f'<div class="contact-info-col reveal d3">'
@@ -13909,6 +14237,40 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 /* ── Hero badge industrie ── */
 .ind-badge{{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.09);border:1px solid rgba(255,255,255,0.18);border-radius:3px;padding:6px 14px;font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.8);margin-bottom:18px}}
 .ind-badge-dot{{width:5px;height:5px;border-radius:50%;background:var(--brand);box-shadow:0 0 8px var(--brand)}}
+/* ── Trust badges strip ── */
+.tbadge-strip{{background:var(--brand);padding:13px 5vw;display:flex;align-items:center;flex-wrap:wrap;justify-content:center;gap:0}}
+.tbadge{{display:flex;align-items:center;gap:7px;padding:5px 20px;border-right:1px solid rgba(255,255,255,0.25);color:#fff;font-size:0.77rem;font-weight:600;letter-spacing:0.02em}}
+.tbadge:last-child{{border-right:none}}
+.tbadge-ico{{font-style:normal;opacity:0.9}}
+/* ── Pourquoi nous choisir ── */
+.why-sec{{background:var(--paper2);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}}
+.why-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;margin-top:48px}}
+.why-item{{background:#fff;border:1px solid var(--rule);border-radius:12px;padding:32px 24px;text-align:center;transition:box-shadow 0.25s,transform 0.2s;cursor:default}}
+.why-item:hover{{box-shadow:0 10px 40px rgba(0,0,0,0.09);transform:translateY(-3px)}}
+.why-icon{{font-size:2.4rem;margin-bottom:16px;line-height:1}}
+.why-title{{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:10px;line-height:1.3}}
+.why-desc{{font-size:0.83rem;color:var(--ink2);font-weight:300;line-height:1.7}}
+/* ── FAQ accordion ── */
+.faq-sec{{background:#fff}}
+.faq-list{{max-width:740px;margin:40px auto 0}}
+.faq-item{{border-bottom:1px solid var(--rule)}}
+.faq-item:first-child{{border-top:1px solid var(--rule)}}
+.faq-q{{width:100%;background:none;border:none;padding:22px 4px;display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;font-family:var(--serif);font-size:1rem;font-weight:700;color:var(--ink);text-align:left;transition:color 0.2s}}
+.faq-q:hover{{color:var(--brand)}}
+.faq-arr{{font-size:1.1rem;color:var(--brand);transition:transform 0.3s cubic-bezier(.16,1,.3,1);flex-shrink:0;display:inline-block}}
+.faq-arr.open{{transform:rotate(180deg)}}
+.faq-a{{max-height:0;overflow:hidden;transition:max-height 0.35s cubic-bezier(.16,1,.3,1)}}
+.faq-a.open{{max-height:300px}}
+.faq-a p{{font-size:0.88rem;color:var(--ink2);line-height:1.85;margin:0 0 20px 4px;font-weight:300}}
+/* ── form-row3 (3 colonnes pour véhicule garage) ── */
+.form-row3{{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}}
+@media(max-width:700px){{
+  .why-grid{{grid-template-columns:1fr 1fr}}
+  .tbadge{{padding:5px 12px;font-size:0.72rem}}
+  .form-row3{{grid-template-columns:1fr}}
+  .faq-q{{font-size:0.92rem}}
+}}
+@media(max-width:420px){{.why-grid{{grid-template-columns:1fr}}}}
 </style>
 </head>
 <body>
@@ -13963,6 +14325,8 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
   </div>
 </div>
 
+{_badges_strip_html}
+
 {photo_strip_section}
 
 {qf_section}
@@ -13981,6 +14345,8 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
   </div>
 </section>
 
+{_why_section}
+
 {about_section}
 
 {gallery_section}
@@ -13994,6 +14360,8 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
     </div>
   </div>
 </section>
+
+{_faq_section}
 
 {contact_section}
 
@@ -14042,6 +14410,22 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 </div>
 
 <script>
+// ── FAQ accordion toggle ──────────────────────────────────────────────────
+function toggleFaq(i){{
+  const a=document.getElementById('faq-a-'+i);
+  const arr=document.getElementById('farr-'+i);
+  const q=arr&&arr.closest('.faq-q');
+  const isOpen=a&&a.classList.contains('open');
+  document.querySelectorAll('.faq-a.open').forEach(el=>{{el.classList.remove('open');}});
+  document.querySelectorAll('.faq-arr.open').forEach(el=>{{el.classList.remove('open');}});
+  document.querySelectorAll('.faq-q[aria-expanded="true"]').forEach(el=>{{el.setAttribute('aria-expanded','false');}});
+  if(!isOpen&&a){{
+    a.classList.add('open');
+    if(arr)arr.classList.add('open');
+    if(q)q.setAttribute('aria-expanded','true');
+  }}
+}}
+
 // ── Active les animations (body.js-anim = contenu caché jusqu'à reveal) ──
 document.body.classList.add('js-anim');
 
