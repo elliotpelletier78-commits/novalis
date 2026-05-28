@@ -13268,6 +13268,236 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         f'</div></section>'
     )
 
+    # ── Équipe par industrie ──────────────────────────────────────────────────
+    _ind_word = industry_lower.split()[0] if industry_lower.split() else "technicien"
+    if _is_resto:
+        _team = [
+            ("Jean-François Roy",  "Chef propriétaire",        "15 ans en cuisine gastronomique. Formé à l'ITHQ, passionné des produits locaux du Québec."),
+            ("Marie-Ève Carrier",  "Sous-chef & pâtissière",   "Spécialiste des desserts artisanaux et de la cuisine du marché selon les saisons."),
+            ("Antoine Gagnon",     "Sommelier",                 "Diplômé en sommellerie — il sélectionne personnellement chaque bouteille de notre cave."),
+        ]
+    elif _is_garage:
+        _team = [
+            ("Steve Lapointe",     "Chef mécanicien",           "Certifié ASE & CAA, 18 ans d'expérience. Expert en diagnostics complexes."),
+            ("Patrick Beausoleil", "Technicien électronique",   "Spécialiste systèmes électroniques modernes, véhicules hybrides et électriques."),
+            ("Julie Tremblay",     "Coordonnatrice service",    "10 ans dans l'industrie auto. Elle coordonne votre prise en charge de A à Z."),
+        ]
+    elif _is_salon:
+        _team = [
+            ("Isabelle Côté",      "Directrice artistique",     "Formatrice certifiée Wella & L'Oréal Pro. Experte des couleurs et tendances 2025."),
+            ("Karine Desrochers",  "Coloriste experte",         "Maître en balayage, mèches et techniques de coloration complexe."),
+            ("Alexandre Boutin",   "Styliste & barbier",        "Coupe masculine et féminine — formation internationale, à Paris et à New York."),
+        ]
+    elif _is_health:
+        _team = [
+            ("Dr Martin Leblanc",  "Professionnel principal",   "20 ans de pratique, membre actif de l'ordre professionnel. Approche centrée sur le patient."),
+            ("Sophie Marchand",    "Coordinatrice clinique",    "Assure votre confort et la fluidité de chaque consultation, du premier appel au suivi."),
+            ("Nathalie Gagné",     "Réceptionniste médicale",   "Disponible pour vos questions, prises de RDV et tout le volet administratif."),
+        ]
+    elif _is_trades:
+        _team = [
+            ("Marc Ouellet",       f"Maître {_ind_word}",       "Certifié RBQ, 20 ans de métier. Responsable de la qualité sur chaque chantier."),
+            ("David Simard",       "Technicien senior",          "Spécialiste rénovation et construction neuve. Rigueur et souci du détail reconnus."),
+            ("Louise Bouchard",    "Coordination & devis",       "Elle planifie les travaux, gère les délais et s'assure que tout se passe parfaitement."),
+        ]
+    elif _is_immob:
+        _team = [
+            ("Sylvie Dupont",      "Courtière principale",      "Certifiée OACIQ, 15 ans dans l'immobilier régional. Plus de 250 transactions réalisées."),
+            ("Marc-André Proulx",  "Courtier résidentiel",      "Spécialiste des premières acquisitions et des propriétés de luxe."),
+            ("Caroline Houle",     "Directrice administrative", "Coordonne les inspections, notaires et toutes les démarches pour vous."),
+        ]
+    elif _is_fitness:
+        _team = [
+            ("François Beaulieu",  "Directeur & entraîneur",   "Certifié NSCA, 12 ans d'expérience. Spécialiste perte de poids et performance sportive."),
+            ("Mélanie Ouellet",    "Entraîneuse personnelle",  "Spécialiste remise en forme post-grossesse, yoga thérapeutique et pilates."),
+            ("Thomas Bergeron",    "Coach nutritionnel",        "Diplômé en nutrition, il conçoit les plans alimentaires adaptés à chaque objectif."),
+        ]
+    else:
+        _team = [
+            (name.split()[0] + " — Fondateur",  "Directeur & propriétaire",  f"À la tête de {name[:30]} depuis plus de 10 ans. Engagé pour la satisfaction de chaque client."),
+            ("Responsable technique",            "Expert senior",              "Formé et certifié dans son domaine — votre projet entre les meilleures mains."),
+            ("Service clientèle",                "Coordinatrice",              "Disponible pour toutes vos questions. Réponse garantie en moins de 2 heures."),
+        ]
+    _team_parts = [
+        f'<div class="tm-card reveal d{i}">'
+        f'<div class="tm-avatar">'
+        f'{"".join(w[0].upper() for w in tname.replace(" —", "").split()[:2])}'
+        f'</div>'
+        f'<div class="tm-name">{tname}</div>'
+        f'<div class="tm-role">{trole}</div>'
+        f'<div class="tm-bio">{tbio}</div>'
+        f'</div>'
+        for i,(tname,trole,tbio) in enumerate(_team)
+    ]
+    _team_section = (
+        f'<section class="team-sec sec" id="equipe">'
+        f'<div class="sec-in">'
+        f'<div class="sec-label reveal">Notre équipe</div>'
+        f'<h2 class="sec-h reveal d1">Des professionnels à votre service</h2>'
+        f'<p class="sec-lead reveal d2">Chaque membre est choisi pour son expertise et son engagement envers la qualité — aucun compromis.</p>'
+        f'<div class="tm-grid">{"".join(_team_parts)}</div>'
+        f'</div></section>'
+    )
+
+    # ── Tarifs / Prix par industrie ───────────────────────────────────────────
+    if _is_resto:
+        _tarif_label = "Aperçu des prix"
+        _tarif_title = "Notre carte"
+        _tarif_note  = "Taxes non incluses · Menu complet disponible sur demande · Prix susceptibles de changer selon la saison"
+        _tarif_items = [
+            ("Entrées",            "12 – 18 $",   "Soupes, salades et hors-d'œuvre de saison"),
+            ("Plats principaux",   "24 – 42 $",   "Viandes, poissons et options véganes du marché"),
+            ("Menu dégustation",   "65 $/pers.",  "5 services avec accords mets-vins en option"),
+            ("Table d'hôte midi",  "18 – 24 $",   "Soupe + plat + café, du lundi au vendredi"),
+            ("Desserts maison",    "8 – 14 $",    "Créations de notre pâtissière, préparées chaque matin"),
+            ("Privatisation",      "Sur devis",   "Salle privée pour 20 à 60 personnes — événements sur mesure"),
+        ]
+    elif _is_garage:
+        _tarif_label = "Tarifs 2025"
+        _tarif_title = "Nos prix"
+        _tarif_note  = "TPS/TVQ en sus · Estimé détaillé gratuit avant tout travail · Prix garantis sans surprise"
+        _tarif_items = [
+            ("Vidange + filtre",      "79 – 119 $",   "Huile synthétique, filtre inclus, vérification 21 points"),
+            ("Changement 4 pneus",    "80 – 120 $",   "Montage, équilibrage et contrôle de pression"),
+            ("Freins complets",        "280 – 490 $",  "Plaquettes, disques et vérification du système hydraulique"),
+            ("Diagnostic électronique","GRATUIT",      "Lecture des codes d'erreur avec rapport détaillé remis"),
+            ("Inspection pré-achat",  "119 $",        "Rapport 50 points — indispensable avant tout achat de véhicule"),
+            ("Urgence & remorquage",  "Sur appel",    "Service disponible 6 jours sur 7, intervention prioritaire"),
+        ]
+    elif _is_salon:
+        _tarif_label = "Grille tarifaire"
+        _tarif_title = "Nos prix"
+        _tarif_note  = "Prix incluant produits professionnels · Devis gratuit pour colorations complexes · TPS/TVQ en sus"
+        _tarif_items = [
+            ("Coupe femme",          "45 – 85 $",    "Coupe + brushing, selon longueur et technique"),
+            ("Coupe homme",          "35 – 55 $",    "Coupe + finition, classique ou moderne"),
+            ("Coloration complète",  "95 – 195 $",   "Racines, reflets ou couleur totale — produits pro"),
+            ("Balayage / Mèches",    "135 – 225 $",  "Technique manuelle, résultat naturel et lumineux"),
+            ("Traitement kératine",  "165 – 285 $",  "Lissage durable 3 à 5 mois, sans formaldéhyde"),
+            ("Soin intensif",        "55 – 95 $",    "Masque professionnel + ampoule sur mesure"),
+        ]
+    elif _is_health:
+        _tarif_label = "Honoraires"
+        _tarif_title = "Nos tarifs"
+        _tarif_note  = "Reçus pour assurances fournis après chaque consultation · Modes de paiement: carte, virement, comptant"
+        _tarif_items = [
+            ("Première consultation",  "120 – 160 $",   "Évaluation complète, anamnèse et plan de soins personnalisé"),
+            ("Consultation de suivi",  "75 – 95 $",     "Révision du traitement, ajustements et questions"),
+            ("Bilan de santé complet", "185 – 240 $",   "Bilan global, examens et rapport détaillé inclus"),
+            ("Consultation urgente",   "130 – 175 $",   "Prise en charge rapide selon disponibilité du jour"),
+            ("Assurances privées",     "Couvert",       "Plupart des assureurs acceptés (Blue Cross, Sunlife, Desjardins…)"),
+            ("RAMQ",                   "Selon couverture","Certains services remboursés — vérifiez votre plan"),
+        ]
+    elif _is_trades:
+        _tarif_label = "Tarifs 2025"
+        _tarif_title = "Nos prix"
+        _tarif_note  = "TPS/TVQ en sus · Soumission écrite gratuite · Déplacement inclus dans un rayon de 30 km"
+        _tarif_items = [
+            ("Main-d'œuvre",         "95 – 125 $/h",  "Technicien qualifié, déplacement < 30 km inclus"),
+            ("Urgence 24/7",         "150 – 195 $/h", "Intervention prioritaire, disponible en tout temps"),
+            ("Soumission",           "GRATUIT",       "Estimé détaillé, écrit et signé, sans engagement"),
+            ("Petits travaux",       "Dès 150 $",     "Réparations, ajustements et dépannages mineurs"),
+            ("Contrats résidentiels","Sur devis",     "Rénovations complètes — planification incluse"),
+            ("Contrats commerciaux", "Sur devis",     "Bâtiments institutionnels et commerciaux, toutes tailles"),
+        ]
+    else:
+        _tarif_label = "Tarifs"
+        _tarif_title = "Nos prix"
+        _tarif_note  = "Taxes applicables selon le service · Devis gratuit disponible sur demande"
+        _tarif_items = [
+            ("Service standard",   "Dès 75 $",    "Prestation de base, qualité garantie à chaque fois"),
+            ("Service complet",    "Dès 150 $",   "Solution complète, adaptée à vos besoins précis"),
+            ("Forfait premium",    "Sur devis",   "Accompagnement personnalisé et prioritaire de A à Z"),
+            ("Urgences",           "Sur appel",   "Intervention rapide — disponible pour les cas prioritaires"),
+            ("Première consultation","GRATUIT",   "Premier entretien sans frais et sans engagement"),
+            ("Contrat annuel",     "Sur devis",   "Tarif préférentiel pour clients réguliers et partenaires"),
+        ]
+    _tarif_rows = "".join(
+        f'<div class="tarif-row reveal d{i}">'
+        f'<div class="tarif-name"><span class="tarif-dot">●</span>{n}</div>'
+        f'<div class="tarif-mid">{desc}</div>'
+        f'<div class="tarif-price">{p}</div>'
+        f'</div>'
+        for i,(n,p,desc) in enumerate(_tarif_items)
+    )
+    _tarif_section = (
+        f'<section class="tarif-sec sec" id="tarifs">'
+        f'<div class="sec-in">'
+        f'<div class="sec-label reveal">{_tarif_label}</div>'
+        f'<h2 class="sec-h reveal d1">{_tarif_title}</h2>'
+        f'<p class="sec-lead reveal d2">Transparence totale — vous savez exactement à quoi vous attendre avant de commencer.</p>'
+        f'<div class="tarif-table reveal d3">'
+        f'<div class="tarif-header"><div>Service</div><div>Description</div><div>Prix</div></div>'
+        f'{_tarif_rows}'
+        f'</div>'
+        f'<div class="tarif-note reveal d4">{_tarif_note}</div>'
+        f'<div style="text-align:center;margin-top:32px">'
+        f'<a class="btn-p reveal" href="#contact">Demander un estimé gratuit →</a>'
+        f'</div>'
+        f'</div></section>'
+    )
+
+    # ── Zones desservies ──────────────────────────────────────────────────────
+    _city_areas_map = {
+        "montréal":               ["Laval","Longueuil","Brossard","Saint-Bruno","Boucherville","Repentigny","Terrebonne","Mascouche","Rosemère","Blainville"],
+        "montreal":               ["Laval","Longueuil","Brossard","Saint-Bruno","Boucherville","Repentigny","Terrebonne","Mascouche","Rosemère","Blainville"],
+        "laval":                  ["Montréal","Terrebonne","Mascouche","Repentigny","Saint-Jérôme","L'Assomption","Blainville","Mirabel","Boisbriand"],
+        "québec":                 ["Lévis","Charlesbourg","Beauport","Sainte-Foy","L'Ancienne-Lorette","Saint-Augustin","Shannon","Lac-Beauport"],
+        "quebec":                 ["Lévis","Charlesbourg","Beauport","Sainte-Foy","L'Ancienne-Lorette","Saint-Augustin","Shannon","Lac-Beauport"],
+        "lévis":                  ["Québec","Saint-Romuald","Saint-Nicolas","Pintendre","L'Ancienne-Lorette","Saint-Jean-Chrysostome","Saint-Lambert-de-Lévis"],
+        "levis":                  ["Québec","Saint-Romuald","Saint-Nicolas","Pintendre","L'Ancienne-Lorette","Saint-Jean-Chrysostome","Saint-Lambert-de-Lévis"],
+        "longueuil":              ["Brossard","Saint-Bruno","Boucherville","Varennes","Beloeil","Sainte-Julie","Saint-Lambert","Greenfield Park"],
+        "brossard":               ["Longueuil","Saint-Bruno","Boucherville","La Prairie","Candiac","Saint-Constant","Laprairie","Greenfield Park"],
+        "sherbrooke":             ["Magog","Rock Forest","Fleurimont","Lennoxville","Bromont","Granby","Waterloo","Coaticook"],
+        "gatineau":               ["Ottawa","Hull","Aylmer","Buckingham","Masson-Angers","Chelsea","Cantley","Wakefield"],
+        "trois-rivières":         ["Cap-de-la-Madeleine","Shawinigan","Bécancour","Louiseville","Nicolet","Grand-Mère","Yamachiche"],
+        "saguenay":               ["Chicoutimi","Jonquière","La Baie","Alma","Roberval","Dolbeau-Mistassini","Saint-Félicien"],
+        "sorel-tracy":            ["Contrecœur","Varennes","Berthierville","Yamaska","Saint-Ours","Sainte-Victoire","Tracy"],
+        "saint-jean-sur-richelieu":["Iberville","Saint-Luc","Napierville","Lacolle","Chambly","Carignan","Sainte-Brigide"],
+        "granby":                 ["Bromont","Waterloo","Cowansville","Farnham","Shefford","Roxton Pond","Lac-Brome"],
+        "drummondville":          ["Saint-Hyacinthe","Victoriaville","Nicolet","Bécancour","Acton Vale","Windsor","Saint-Germain"],
+        "saint-hyacinthe":        ["Drummondville","Beloeil","Saint-Bruno","McMasterville","Otterburn Park","Mont-Saint-Hilaire","Marieville"],
+        "rouyn-noranda":          ["Val-d'Or","Amos","La Sarre","Malartic","Cadillac","Macamic","Rapide-Danseur"],
+    }
+    _city_norm = city.lower().strip()
+    _nearby = None
+    for k, v in _city_areas_map.items():
+        if k in _city_norm or _city_norm in k:
+            _nearby = v
+            break
+    if not _nearby:
+        _nearby = ["Laval","Longueuil","Brossard","Repentigny","Terrebonne","Saint-Bruno","Boucherville","Sainte-Julie","Varennes","Chambly"]
+    _area_chips_html = f'<div class="area-chip area-chip-main">📍 {city}</div>'
+    for _ac in _nearby[:9]:
+        _area_chips_html += f'<div class="area-chip">{_ac}</div>'
+    _area_section = (
+        f'<section class="area-sec sec">'
+        f'<div class="sec-in">'
+        f'<div class="sec-label reveal">Rayonnement local</div>'
+        f'<h2 class="sec-h reveal d1">Zones desservies</h2>'
+        f'<p class="sec-lead reveal d2">Nous intervenons à {city} et partout dans la région — mêmes délais, même qualité, sans frais supplémentaires.</p>'
+        f'<div class="area-chips reveal d3">{_area_chips_html}</div>'
+        f'<p class="area-note reveal d4">Vous êtes à l\'extérieur de ces zones? <a href="#contact" style="color:var(--brand);font-weight:600">Contactez-nous</a> — on s\'arrange.</p>'
+        f'</div></section>'
+    )
+
+    # ── Mid-page CTA banner ───────────────────────────────────────────────────
+    _midcta_section = (
+        f'<section class="midcta-sec">'
+        f'<div class="midcta-in">'
+        f'<div class="midcta-left">'
+        f'<div class="midcta-badge">Offre exclusive · 1 site, 1&nbsp;000&nbsp;$</div>'
+        f'<h2 class="midcta-h">Prêt à transformer votre présence en ligne?</h2>'
+        f'<p class="midcta-sub">Ce site a été conçu spécialement pour <strong style="color:#fff">{name[:35]}</strong>. '
+        f'Appelez maintenant — votre place est réservée pour 48&nbsp;h seulement.</p>'
+        f'</div>'
+        f'<div class="midcta-right">'
+        f'<a class="midcta-btn" href="{_tel_href}">{cta_text}</a>'
+        f'<a href="{_mail_href}" class="midcta-sub-link">Ou écrire par courriel →</a>'
+        f'</div>'
+        f'</div></section>'
+    )
+
     # ── Testimonials by industry ──────────────────────────────────────────────
     testimonials_map = {
         "restaurant": [
@@ -14264,11 +14494,60 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 .faq-a p{{font-size:0.88rem;color:var(--ink2);line-height:1.85;margin:0 0 20px 4px;font-weight:300}}
 /* ── form-row3 (3 colonnes pour véhicule garage) ── */
 .form-row3{{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}}
+/* ── Équipe ── */
+.team-sec{{background:var(--paper2);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}}
+.tm-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:48px}}
+.tm-card{{background:#fff;border:1px solid var(--rule);border-radius:12px;padding:36px 24px;text-align:center;transition:box-shadow 0.25s,transform 0.2s;cursor:default}}
+.tm-card:hover{{box-shadow:0 10px 40px rgba(0,0,0,0.09);transform:translateY(-3px)}}
+.tm-avatar{{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,{g1},{g2});color:#fff;font-family:var(--serif);font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;box-shadow:0 4px 18px {btn}44}}
+.tm-name{{font-family:var(--serif);font-size:1.08rem;font-weight:700;color:var(--ink);margin-bottom:4px}}
+.tm-role{{font-size:0.75rem;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px}}
+.tm-bio{{font-size:0.83rem;color:var(--ink2);line-height:1.75;font-weight:300}}
+/* ── Tarifs ── */
+.tarif-sec{{background:#fff}}
+.tarif-table{{border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin-top:48px}}
+.tarif-header{{display:grid;grid-template-columns:1.2fr 2fr auto;gap:16px;padding:13px 24px;background:var(--paper2);font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink2);border-bottom:2px solid var(--rule)}}
+.tarif-row{{display:grid;grid-template-columns:1.2fr 2fr auto;gap:16px;padding:18px 24px;border-bottom:1px solid var(--rule);align-items:center;transition:background 0.2s}}
+.tarif-row:last-child{{border-bottom:none}}
+.tarif-row:hover{{background:var(--paper)}}
+.tarif-dot{{color:var(--brand);margin-right:8px;font-size:0.55rem;vertical-align:middle}}
+.tarif-name{{font-weight:600;color:var(--ink);font-size:0.9rem;display:flex;align-items:center}}
+.tarif-mid{{font-size:0.81rem;color:var(--ink2);font-weight:300;line-height:1.5}}
+.tarif-price{{font-family:var(--serif);font-weight:700;color:var(--brand);font-size:0.97rem;white-space:nowrap;text-align:right}}
+.tarif-note{{font-size:0.75rem;color:var(--ink2);margin-top:16px;text-align:center;font-style:italic;opacity:0.7}}
+/* ── Zones desservies ── */
+.area-sec{{background:var(--paper2);border-top:1px solid var(--rule)}}
+.area-chips{{display:flex;flex-wrap:wrap;gap:10px;margin-top:36px;justify-content:center}}
+.area-chip{{padding:9px 20px;border:1px solid var(--rule);border-radius:20px;font-size:0.83rem;color:var(--ink2);background:#fff;font-weight:500;transition:border-color 0.2s,color 0.2s}}
+.area-chip:hover{{border-color:var(--brand);color:var(--brand)}}
+.area-chip-main{{background:var(--brand);border-color:var(--brand);color:#fff!important;font-weight:700}}
+.area-note{{text-align:center;font-size:0.83rem;color:var(--ink2);margin-top:20px;font-weight:300}}
+/* ── Mid CTA banner ── */
+.midcta-sec{{background:var(--ink);padding:72px 5vw;border-top:1px solid rgba(255,255,255,0.07);border-bottom:1px solid rgba(255,255,255,0.07)}}
+.midcta-in{{max-width:1060px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:48px;flex-wrap:wrap}}
+.midcta-left{{flex:1;min-width:280px}}
+.midcta-badge{{display:inline-block;background:var(--brand);color:#fff;font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:5px 14px;border-radius:3px;margin-bottom:18px}}
+.midcta-h{{font-family:var(--serif);font-size:2.1rem;font-weight:700;color:#fff;line-height:1.2;margin-bottom:14px}}
+.midcta-sub{{font-size:0.9rem;color:rgba(255,255,255,0.5);line-height:1.75}}
+.midcta-right{{flex-shrink:0;text-align:center}}
+.midcta-btn{{display:inline-block;background:var(--brand);color:#fff;padding:16px 36px;border-radius:6px;font-size:1rem;font-weight:700;box-shadow:0 4px 24px {btn}55;transition:opacity 0.2s,transform 0.2s}}
+.midcta-btn:hover{{opacity:0.88;transform:translateY(-2px)}}
+.midcta-sub-link{{display:block;margin-top:14px;color:rgba(255,255,255,0.45);font-size:0.84rem;text-decoration:underline}}
+@media(max-width:900px){{
+  .tm-grid{{grid-template-columns:1fr 1fr}}
+  .midcta-in{{flex-direction:column;text-align:center}}
+  .midcta-h{{font-size:1.6rem}}
+  .tarif-header{{display:none}}
+  .tarif-row{{grid-template-columns:1fr auto;grid-template-rows:auto auto}}
+  .tarif-mid{{grid-column:1;color:var(--ink2)}}
+}}
 @media(max-width:700px){{
   .why-grid{{grid-template-columns:1fr 1fr}}
   .tbadge{{padding:5px 12px;font-size:0.72rem}}
   .form-row3{{grid-template-columns:1fr}}
   .faq-q{{font-size:0.92rem}}
+  .tm-grid{{grid-template-columns:1fr}}
+  .tarif-row{{grid-template-columns:1fr auto}}
 }}
 @media(max-width:420px){{.why-grid{{grid-template-columns:1fr}}}}
 </style>
@@ -14285,9 +14564,9 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
     <div class="nav-logo">{_nav_logo_html}</div>
     <div class="nav-links">
       <a class="nav-link" href="#services">Services</a>
-      <a class="nav-link" href="#galerie">Galerie</a>
+      <a class="nav-link" href="#tarifs">Tarifs</a>
+      <a class="nav-link" href="#equipe">Équipe</a>
       <a class="nav-link" href="#avis">Avis</a>
-      <a class="nav-link" href="#apropos">À propos</a>
       <a class="nav-link" href="#contact">Contact</a>
       <a class="nav-cta" href="{_tel_href}">{cta_text}</a>
     </div>
@@ -14345,7 +14624,13 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
   </div>
 </section>
 
+{_tarif_section}
+
+{_midcta_section}
+
 {_why_section}
+
+{_team_section}
 
 {about_section}
 
@@ -14360,6 +14645,8 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
     </div>
   </div>
 </section>
+
+{_area_section}
 
 {_faq_section}
 
@@ -14376,9 +14663,10 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
       <div class="foot-col-title">Navigation</div>
       <div class="foot-links">
         <a href="#services">Services</a>
+        <a href="#tarifs">Tarifs</a>
+        <a href="#equipe">Équipe</a>
         <a href="#galerie">Galerie</a>
         <a href="#avis">Avis clients</a>
-        <a href="#apropos">À propos</a>
         <a href="#contact">Contact</a>
       </div>
     </div>
