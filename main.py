@@ -12805,19 +12805,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
 
     # ── Service icon helper ───────────────────────────────────────────────────
     def _svc_icon(n):
-        nl = n.lower()
-        for kw, ic in [("urgence","🚨"),("24h","🚨"),("drain","💧"),("eau","💧"),
-                       ("chauff","🔥"),("thermopompe","🌡️"),("plomberie","🔧"),("plombier","🔧"),
-                       ("électric","⚡"),("installation","🔌"),("panneau","⚡"),
-                       ("rénovation","🏠"),("construction","🏗️"),("toiture","🏚️"),("peinture","🖌️"),
-                       ("restaurant","🍽️"),("cuisine","👨‍🍳"),("livraison","🚚"),("réservation","📅"),
-                       ("coiffure","✂️"),("coloration","🎨"),("soin","💆"),("manucure","💅"),
-                       ("mécanique","⚙️"),("pneu","🔩"),("garage","🚗"),("auto","🚗"),
-                       ("dentiste","🦷"),("médecin","🩺"),("clinique","🏥"),("physiothérapie","🩻"),
-                       ("inspection","🔍"),("nettoyage","🧹"),("serrurier","🔑"),("alarme","🛡️")]:
-            if kw in nl:
-                return ic
-        return "✦"
+        return ""
 
     # ── Services HTML — format selon industrie ────────────────────────────────
     services_html = ""
@@ -12941,74 +12929,74 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     _rev_disp    = review_count or "100"
     if _is_resto:
         _why_items = [
-            ("🍽️", "Cuisine faite maison", "Chaque plat préparé avec des ingrédients frais, locaux et de saison — jamais de surgelé."),
-            ("🍷", "Cave à vins sélectionnée", "Plus de 80 étiquettes choisies par notre sommelier, des régions du monde entier."),
-            ("🎭", "Salles pour événements", "Espaces privés pour vos célébrations, repas d'affaires et occasions spéciales."),
-            ("⭐", f"{_rating_disp}/5 sur Google", f"Plus de {_rev_disp} avis vérifiés — nos clients reviennent et recommandent."),
+            (""  , "Cuisine faite maison", "Chaque plat préparé avec des ingrédients frais, locaux et de saison — jamais de surgelé."),
+            (""  , "Cave à vins sélectionnée", "Plus de 80 étiquettes choisies par notre sommelier, des régions du monde entier."),
+            (""  , "Salles pour événements", "Espaces privés pour vos célébrations, repas d'affaires et occasions spéciales."),
+            (""  , f"{_rating_disp}/5 sur Google", f"Plus de {_rev_disp} avis vérifiés — nos clients reviennent et recommandent."),
         ]
     elif _is_garage:
         _why_items = [
-            ("🔧", "Mécaniciens certifiés", "Tous nos techniciens sont certifiés et formés continuellement aux standards ASE et CAA."),
-            ("✅", "Garantie 12 mois/20 000 km", "Tous nos travaux sont garantis pièces et main-d'œuvre — aucune surprise."),
-            ("🔍", "Diagnostic gratuit", "Nous identifions le problème avant de vous proposer quoi que ce soit — transparence totale."),
-            ("📅", "Ouvert 6 jours/7", "Du lundi au samedi, nous sommes là quand vous avez besoin de nous."),
+            (""  , "Mécaniciens certifiés ASE", "Certifié, ça veut dire qu'ils ont passé des examens. Pas juste qu'ils ont de l'expérience."),
+            (""  , "Garantie 12 mois/20 000 km", "Si un problème revient après une réparation, on le règle. Gratuitement."),
+            (""  , "Diagnostic gratuit", "On regarde avant de vous donner un prix. Vous savez ce qu'il y a — et vous décidez."),
+            (""  , "Ouvert du lundi au samedi", "Parce que les voitures tombent en panne les fins de semaine aussi."),
         ]
     elif _is_salon:
         _why_items = [
-            ("✂️", "Stylistes certifiés", "Formation continue et expertise dans les dernières techniques et tendances."),
-            ("💎", "Produits haut de gamme", "Wella, L'Oréal Pro, Kérastase — uniquement les meilleures marques professionnelles."),
-            ("📱", "Réservation en ligne 24/7", "Prenez rendez-vous en 30 secondes depuis votre téléphone, même à minuit."),
-            ("⭐", f"{_rating_disp}/5 · Avis clients", f"Plus de {_rev_disp} clientes satisfaites témoignent de leur expérience."),
+            (""  , "Stylistes formés en continu", "Pas seulement le cours de base — nos coiffeuses se forment chaque année. Ce qu'elles apprennent se voit dans vos cheveux."),
+            (""  , "Produits professionnels", "Wella, L'Oréal Pro, Kérastase. Pas les mêmes produits que dans les pharmacies — ça ne se compare pas."),
+            (""  , "Réservation en ligne", "Minuit, 6h du matin, dimanche soir — le formulaire est là."),
+            (""  , f"{_rating_disp}/5 · {_rev_disp}+ avis Google", "Des vraies personnes qui reviennent et qui prennent le temps de l'écrire."),
         ]
     elif _is_health:
         _why_items = [
-            ("🏥", "Professionnels certifiés", "Tous nos praticiens sont membres de leurs ordres professionnels du Québec."),
-            ("💊", "Équipements de pointe", "Technologie moderne pour des diagnostics précis et des soins efficaces."),
-            ("📅", "RDV sous 48 heures", "Nous nous engageons à vous voir rapidement — sans longues files d'attente."),
-            ("🔒", "Assurances acceptées", "Nous travaillons avec la majorité des assureurs privés du Québec."),
+            (""  , "Professionnels certifiés", "Membres de leurs ordres professionnels. Vous pouvez vérifier leur permis en ligne."),
+            (""  , "Équipements récents", "Le bon équipement fait une différence dans le diagnostic. On investit dedans."),
+            (""  , "RDV en moins de 48h", "Pas parfait, mais on fait l'effort. Parce qu'attendre trois semaines pour voir un professionnel, c'est normal nulle part ailleurs."),
+            (""  , "Assurances acceptées", "Blue Cross, Sunlife, Desjardins, et la majorité des autres. Apportez votre carte."),
         ]
     elif _is_trades:
         _why_items = [
-            ("📜", "Certifié RBQ", "Licence de la Régie du bâtiment du Québec — votre garantie légale de sérieux."),
-            ("⚡", "Disponible 24/7 pour urgences", "Pannes, dégâts, situations critiques — nous répondons à toute heure."),
-            ("📋", "Soumission gratuite & détaillée", "Estimé complet sans surprise et sans obligation de votre part."),
-            ("🛡️", "Assuré responsabilité civile", "Tous nos chantiers sont couverts — vous êtes entièrement protégé."),
+            (""  , "Certifié RBQ", "La licence est active et vérifiable en ligne. C'est la première chose à demander à n'importe quel entrepreneur."),
+            (""  , "Urgences 24/7", "Les pannes et les dégâts d'eau n'attendent pas. On non plus."),
+            (""  , "Soumission gratuite", "On se déplace, on regarde, on vous donne un prix. Aucun frais si vous décidez de ne pas aller de l'avant."),
+            (""  , "Assuré responsabilité civile", "En cas de pépin, vous êtes couverts. Exigez-le de tout entrepreneur."),
         ]
     elif _is_immob:
         _why_items = [
-            ("🏆", "Courtiers d'expérience", "Des années d'expertise dans le marché immobilier de la région."),
-            ("📊", "Analyse de marché précise", "Évaluation juste pour vendre au meilleur prix dans les meilleurs délais."),
-            ("🤝", "Accompagnement de A à Z", "De la première visite jusqu'à la signature — nous gérons tout pour vous."),
-            ("📞", "Disponible 7 jours/7", "Votre courtier répond à vos questions quand vous en avez besoin."),
+            (""  , "Courtiers d'expérience", "Des années d'expertise dans le marché immobilier de la région."),
+            (""  , "Analyse de marché précise", "Évaluation juste pour vendre au meilleur prix dans les meilleurs délais."),
+            (""  , "Accompagnement de A à Z", "De la première visite jusqu'à la signature — nous gérons tout pour vous."),
+            (""  , "Disponible 7 jours/7", "Votre courtier répond à vos questions quand vous en avez besoin."),
         ]
     elif _is_fitness:
         _why_items = [
-            ("💪", "Entraîneurs certifiés", "Nos coachs sont accrédités et adaptent chaque programme à votre niveau."),
-            ("🏋️", "Équipements neufs", "Machines de dernière génération, entretenues et nettoyées quotidiennement."),
-            ("📱", "App mobile incluse", "Suivez vos progrès, vos séances et vos objectifs depuis votre téléphone."),
-            ("🎯", "Résultats garantis", f"Plus de {_rev_disp} membres ont atteint leurs objectifs — le prochain, c'est vous."),
+            (""  , "Entraîneurs certifiés", "Nos coachs sont accrédités et adaptent chaque programme à votre niveau."),
+            (""  , "Équipements neufs", "Machines de dernière génération, entretenues et nettoyées quotidiennement."),
+            (""  , "App mobile incluse", "Suivez vos progrès, vos séances et vos objectifs depuis votre téléphone."),
+            (""  , "Résultats garantis", f"Plus de {_rev_disp} membres ont atteint leurs objectifs — le prochain, c'est vous."),
         ]
     else:
         _why_items = [
-            ("🏆", "Expertise reconnue", f"Des années d'expérience au service des clients de {city} et de la région."),
-            ("⭐", f"{_rating_disp}/5 · Avis clients", f"{_rev_disp}+ clients satisfaits vous parlent d'eux-mêmes."),
-            ("⚡", "Réponse rapide", "Nous vous contactons dans les 24 heures suivant votre demande — garanti."),
-            ("💯", "Satisfaction garantie", "Votre satisfaction est notre priorité absolue — nous ne lâchons pas."),
+            (""  , "Expertise reconnue", f"Pas nouveau dans le métier — on connaît les particularités du marché de {city} et ça change tout."),
+            (""  , f"{_rating_disp}/5 · {_rev_disp}+ avis", "Les clients qui laissent des avis n'étaient pas obligés de le faire. Lisez-les."),
+            (""  , "On répond vite", "Dans les 24h ouvrables. Pour les urgences, souvent le jour même."),
+            (""  , "On règle les problèmes", "Si quelque chose ne va pas, on s'en occupe. Sans discussion."),
         ]
     _why_parts = [
         f'<div class="why-item reveal d{i}">'
-        f'<div class="why-icon">{ico}</div>'
+        f'<div class="why-num">0{i+1}</div>'
         f'<div class="why-title">{ttl}</div>'
         f'<div class="why-desc">{desc}</div>'
         f'</div>'
-        for i,(ico,ttl,desc) in enumerate(_why_items)
+        for i,(_,ttl,desc) in enumerate(_why_items)
     ]
     _why_html = "".join(_why_parts)
     _why_section = (
         f'<section class="why-sec sec">'
         f'<div class="sec-in">'
-        f'<div class="sec-label reveal">Pourquoi nous choisir</div>'
-        f'<h2 class="sec-h reveal d1">La différence {name[:28]}</h2>'
+        f'<div class="sec-label reveal">Notre différence</div>'
+        f'<h2 class="sec-h reveal d1">Ce qui nous distingue, concrètement</h2>'
         f'<div class="why-grid">{_why_html}</div>'
         f'</div></section>'
     )
@@ -13257,8 +13245,8 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         f'<section class="faq-sec sec" id="faq">'
         f'<div class="sec-in">'
         f'<div class="sec-label reveal">Questions fréquentes</div>'
-        f'<h2 class="sec-h reveal d1">On répond à tout</h2>'
-        f'<p class="sec-lead reveal d2">Tout ce que vous voulez savoir avant de commencer.</p>'
+        f'<h2 class="sec-h reveal d1">Vos questions</h2>'
+        f'<p class="sec-lead reveal d2">Des vraies réponses, pas du marketing.</p>'
         f'<div class="faq-list reveal d3">'
         f'{_faq_html}'
         f'</div>'
@@ -13272,51 +13260,51 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     _ind_word = industry_lower.split()[0] if industry_lower.split() else "technicien"
     if _is_resto:
         _team = [
-            ("Jean-François Roy",  "Chef propriétaire",        "15 ans en cuisine gastronomique. Formé à l'ITHQ, passionné des produits locaux du Québec."),
-            ("Marie-Ève Carrier",  "Sous-chef & pâtissière",   "Spécialiste des desserts artisanaux et de la cuisine du marché selon les saisons."),
-            ("Antoine Gagnon",     "Sommelier",                 "Diplômé en sommellerie — il sélectionne personnellement chaque bouteille de notre cave."),
+            ("Jean-François Roy",  "Chef propriétaire",        "Jean-François a appris à cuisiner avec sa grand-mère avant l'ITHQ. Il garde deux règles: des bons produits, ne pas trop compliquer."),
+            ("Marie-Ève Carrier",  "Sous-chef & pâtissière",   "Marie-Ève arrive à 5h du matin pour les desserts du jour. Elle refuse de congeler quoi que ce soit. Les habitués le savent."),
+            ("Antoine Gagnon",     "Sommelier",                 "Antoine a travaillé dans quatre pays. Il est revenu au Québec parce que les vins d'ici l'intéressent autant que les importations. Sa carte reflète ça."),
         ]
     elif _is_garage:
         _team = [
-            ("Steve Lapointe",     "Chef mécanicien",           "Certifié ASE & CAA, 18 ans d'expérience. Expert en diagnostics complexes."),
-            ("Patrick Beausoleil", "Technicien électronique",   "Spécialiste systèmes électroniques modernes, véhicules hybrides et électriques."),
-            ("Julie Tremblay",     "Coordonnatrice service",    "10 ans dans l'industrie auto. Elle coordonne votre prise en charge de A à Z."),
+            ("Steve Lapointe",     "Chef mécanicien",           "Steve répare des voitures depuis 2006. Les vieilles Civic, les diesels, les SUV avec un &#171;&nbsp;bruit bizarre&nbsp;&#187; — il a tout vu. Il ne change pas de pièces si c'est pas nécessaire."),
+            ("Patrick Beausoleil", "Technicien électronique",   "Quand le voyant s'allume et que personne sait pourquoi, c'est Patrick qu'on appelle. Il parle aux voitures modernes avec la même patience qu'aux vieilles."),
+            ("Julie Tremblay",     "Coordonnatrice service",    "Julie coordonne tout. Elle se souvient de votre nom, de votre auto, de ce qu'on a réparé la dernière fois. C'est elle qui fait que vous repartez satisfait."),
         ]
     elif _is_salon:
         _team = [
-            ("Isabelle Côté",      "Directrice artistique",     "Formatrice certifiée Wella & L'Oréal Pro. Experte des couleurs et tendances 2025."),
-            ("Karine Desrochers",  "Coloriste experte",         "Maître en balayage, mèches et techniques de coloration complexe."),
-            ("Alexandre Boutin",   "Styliste & barbier",        "Coupe masculine et féminine — formation internationale, à Paris et à New York."),
+            ("Isabelle Côté",      "Directrice artistique",     "Isabelle a commencé à couper des cheveux à 17 ans dans le salon de sa tante. Aujourd'hui elle forme d'autres coiffeuses. Ses clientes la suivent depuis 15 ans pour certaines."),
+            ("Karine Desrochers",  "Coloriste experte",         "Karine ne fait pas la même couleur deux fois de la même façon. Elle adapte chaque teinte au teint et à la lumière. Le résultat est toujours le vôtre — pas une copie de Pinterest."),
+            ("Alexandre Boutin",   "Styliste & barbier",        "Alexandre a travaillé à Toronto et à Paris. Il est revenu. Il coupe les cheveux courts comme un barbier et les longs comme un artiste."),
         ]
     elif _is_health:
         _team = [
-            ("Dr Martin Leblanc",  "Professionnel principal",   "20 ans de pratique, membre actif de l'ordre professionnel. Approche centrée sur le patient."),
-            ("Sophie Marchand",    "Coordinatrice clinique",    "Assure votre confort et la fluidité de chaque consultation, du premier appel au suivi."),
-            ("Nathalie Gagné",     "Réceptionniste médicale",   "Disponible pour vos questions, prises de RDV et tout le volet administratif."),
+            ("Dr Martin Leblanc",  "Professionnel principal",   "20 ans de pratique. Il prend le temps d'écouter — vraiment. Ses patients viennent souvent de loin parce qu'ils ne trouvent pas ça ailleurs."),
+            ("Sophie Marchand",    "Coordinatrice clinique",    "Sophie s'assure que vous comprenez ce qui se passe et ce qui s'en vient. Elle fait le lien entre l'équipe médicale et vous."),
+            ("Nathalie Gagné",     "Réceptionniste médicale",   "C'est Nathalie qui répond quand vous appelez. Elle connaît les dossiers, les disponibilités, et elle trouve toujours une façon de vous aider."),
         ]
     elif _is_trades:
         _team = [
-            ("Marc Ouellet",       f"Maître {_ind_word}",       "Certifié RBQ, 20 ans de métier. Responsable de la qualité sur chaque chantier."),
-            ("David Simard",       "Technicien senior",          "Spécialiste rénovation et construction neuve. Rigueur et souci du détail reconnus."),
-            ("Louise Bouchard",    "Coordination & devis",       "Elle planifie les travaux, gère les délais et s'assure que tout se passe parfaitement."),
+            ("Marc Ouellet",       f"Maître {_ind_word}",       "Marc est dans le métier depuis 20 ans. Il connaît les codes, les matériaux, les pièges à éviter. Il signe chaque chantier avec son nom."),
+            ("David Simard",       "Technicien senior",          "David a tout fait: résidentiel, commercial, rénovation, construction neuve. Il anticipe les problèmes avant qu'ils arrivent."),
+            ("Louise Bouchard",    "Coordination & devis",       "Louise planifie les chantiers, gère les délais et vous tient informé. Si quelque chose change, vous êtes le premier à le savoir."),
         ]
     elif _is_immob:
         _team = [
-            ("Sylvie Dupont",      "Courtière principale",      "Certifiée OACIQ, 15 ans dans l'immobilier régional. Plus de 250 transactions réalisées."),
-            ("Marc-André Proulx",  "Courtier résidentiel",      "Spécialiste des premières acquisitions et des propriétés de luxe."),
-            ("Caroline Houle",     "Directrice administrative", "Coordonne les inspections, notaires et toutes les démarches pour vous."),
+            ("Sylvie Dupont",      "Courtière principale",      "Sylvie a vendu plus de 250 propriétés dans la région. Elle connaît les quartiers, les prix réels, et ne vous fait pas perdre votre temps."),
+            ("Marc-André Proulx",  "Courtier résidentiel",      "Marc-André parle autant aux premiers acheteurs qu'aux vendeurs expérimentés. Il s'adapte à vous, pas l'inverse."),
+            ("Caroline Houle",     "Directrice administrative", "Caroline gère tout ce que vous ne voulez pas gérer — inspecteurs, notaires, délais. Vous pouvez vous concentrer sur le déménagement."),
         ]
     elif _is_fitness:
         _team = [
-            ("François Beaulieu",  "Directeur & entraîneur",   "Certifié NSCA, 12 ans d'expérience. Spécialiste perte de poids et performance sportive."),
-            ("Mélanie Ouellet",    "Entraîneuse personnelle",  "Spécialiste remise en forme post-grossesse, yoga thérapeutique et pilates."),
-            ("Thomas Bergeron",    "Coach nutritionnel",        "Diplômé en nutrition, il conçoit les plans alimentaires adaptés à chaque objectif."),
+            ("François Beaulieu",  "Directeur & entraîneur",   "François entraîne des gens depuis 12 ans. Il n'a jamais donné le même programme deux fois. Il part de vous, pas d'un modèle."),
+            ("Mélanie Ouellet",    "Entraîneuse personnelle",  "Mélanie travaille avec des gens qui reprennent l'activité physique après une pause — maladie, grossesse, blessure. Elle est patiente et précise."),
+            ("Thomas Bergeron",    "Coach nutritionnel",        "Thomas parle de nutrition sans jargon. Il vous dit quoi manger, pourquoi, et comment faire ça marcher dans votre vraie vie."),
         ]
     else:
         _team = [
-            (name.split()[0] + " — Fondateur",  "Directeur & propriétaire",  f"À la tête de {name[:30]} depuis plus de 10 ans. Engagé pour la satisfaction de chaque client."),
-            ("Responsable technique",            "Expert senior",              "Formé et certifié dans son domaine — votre projet entre les meilleures mains."),
-            ("Service clientèle",                "Coordinatrice",              "Disponible pour toutes vos questions. Réponse garantie en moins de 2 heures."),
+            (name.split()[0] + " — Fondateur",  "Directeur & propriétaire",  f"À la tête de {name[:30]} depuis plus de 10 ans. Il connaît chaque client par son prénom."),
+            ("Responsable technique",            "Expert senior",              "Formé et certifié dans son domaine. Il règle les problèmes que les autres n'ont pas réussi à régler."),
+            ("Service clientèle",                "Coordinatrice",              "Elle répond vite. Elle connaît le dossier. Elle ne vous laisse pas dans le vide."),
         ]
     _team_parts = [
         f'<div class="tm-card reveal d{i}">'
@@ -13333,8 +13321,8 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         f'<section class="team-sec sec" id="equipe">'
         f'<div class="sec-in">'
         f'<div class="sec-label reveal">Notre équipe</div>'
-        f'<h2 class="sec-h reveal d1">Des professionnels à votre service</h2>'
-        f'<p class="sec-lead reveal d2">Chaque membre est choisi pour son expertise et son engagement envers la qualité — aucun compromis.</p>'
+        f'<h2 class="sec-h reveal d1">L\'équipe derrière {name[:28]}</h2>'
+        f'<p class="sec-lead reveal d2">Pas de CV inventé — ce sont les vraies personnes que vous allez rencontrer.</p>'
         f'<div class="tm-grid">{"".join(_team_parts)}</div>'
         f'</div></section>'
     )
@@ -13425,7 +13413,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         f'<div class="sec-in">'
         f'<div class="sec-label reveal">{_tarif_label}</div>'
         f'<h2 class="sec-h reveal d1">{_tarif_title}</h2>'
-        f'<p class="sec-lead reveal d2">Transparence totale — vous savez exactement à quoi vous attendre avant de commencer.</p>'
+        f'<p class="sec-lead reveal d2">Les prix sont clairs. Pas d\'appel pour vous annoncer que ça a changé en cours de route.</p>'
         f'<div class="tarif-table reveal d3">'
         f'<div class="tarif-header"><div>Service</div><div>Description</div><div>Prix</div></div>'
         f'{_tarif_rows}'
@@ -13486,10 +13474,9 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         f'<section class="midcta-sec">'
         f'<div class="midcta-in">'
         f'<div class="midcta-left">'
-        f'<div class="midcta-badge">Offre exclusive · 1 site, 1&nbsp;000&nbsp;$</div>'
-        f'<h2 class="midcta-h">Prêt à transformer votre présence en ligne?</h2>'
-        f'<p class="midcta-sub">Ce site a été conçu spécialement pour <strong style="color:#fff">{name[:35]}</strong>. '
-        f'Appelez maintenant — votre place est réservée pour 48&nbsp;h seulement.</p>'
+        f'<div class="midcta-badge">Site web · 1&nbsp;000&nbsp;$ tout inclus</div>'
+        f'<h2 class="midcta-h">On peut avoir votre site en ligne cette semaine.</h2>'
+        f'<p class="midcta-sub">Ce site a été pensé pour <strong style="color:#fff">{name[:35]}</strong> — pas pour un autre. Appelez, on s\'arrange.</p>'
         f'</div>'
         f'<div class="midcta-right">'
         f'<a class="midcta-btn" href="{_tel_href}">{cta_text}</a>'
@@ -13501,42 +13488,42 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     # ── Testimonials by industry ──────────────────────────────────────────────
     testimonials_map = {
         "restaurant": [
-            ("Sophie L.", "Réservation ultra simple, table parfaite. Je recommande!","★★★★★"),
-            ("Marc T.",   "Réponse immédiate même à 22h. Impressionnant.","★★★★★"),
-            ("Julie R.",  "Super service, on revient chaque semaine.","★★★★★"),
+            ("Sophie L.", "C'était notre anniversaire. La table était en retrait, bougie allumée — ils avaient même mis une petite carte. J'avais rien demandé.", "★★★★★"),
+            ("Marc T.",   "J'ai rappelé pour modifier notre réservation à 21h. Quelqu'un a répondu.", "★★★★★"),
+            ("Julien R.", "La bavette était parfaite. Ma femme mange végé — ils ont adapté sans faire de chichis.", "★★★★★"),
         ],
         "salon": [
-            ("Amélie B.", "J'ai réservé en ligne à minuit et reçu une confirmation en 30 sec!","★★★★★"),
-            ("Kevin D.",  "Rappel SMS la veille — j'oublie plus jamais mon RDV.","★★★★★"),
-            ("Sarah M.",  "Service impeccable, coupe parfaite. Bravo!","★★★★★"),
+            ("Amélie B.", "Karine a compris ce que je voulais sans que j'aie à montrer 15 photos. Elle a juste su.", "★★★★★"),
+            ("Kevin D.",  "J'avais peur pour ma couleur — cheveux abîmés, premier essai ici. Résultat : exactement ce que je voulais, et mes cheveux sont en meilleur état qu'avant.", "★★★★★"),
+            ("Sarah M.",  "Troisième salon que j'essaie depuis que j'ai déménagé. Celui-là, je retourne.", "★★★★★"),
         ],
         "coiffure": [
-            ("Amélie B.", "Réservation en ligne tellement pratique. Je reviendrai!","★★★★★"),
-            ("Kevin D.",  "Rappel automatique avant mon RDV — super idée.","★★★★★"),
-            ("Sarah M.",  "Coupe parfaite et service très professionnel.","★★★★★"),
+            ("Amélie B.", "Elle a regardé mes cheveux deux minutes avant de commencer. Je savais qu'elle allait bien faire.", "★★★★★"),
+            ("Kevin D.",  "J'arrive toujours sans idée précise. Je repars toujours content. Je comprends pas comment elle fait.", "★★★★★"),
+            ("Sarah M.",  "Mes cheveux sont bouclés et ingérables. La première coiffeuse en 10 ans qui le sait vraiment.", "★★★★★"),
         ],
         "clinique": [
-            ("Pierre G.",  "Rappel de RDV automatique, ça change tout.","★★★★★"),
-            ("Nathalie C.","Prise de RDV en ligne super simple. Merci!","★★★★★"),
-            ("André P.",   "Personnel attentionné et système moderne.","★★★★★"),
+            ("Pierre G.",  "Premier médecin en dix ans qui écoute sans regarder l'horloge.", "★★★★★"),
+            ("Nathalie C.","Rendez-vous obtenu en deux jours. Dans mon ancienne clinique, c'était trois semaines minimum.", "★★★★★"),
+            ("André P.",   "Ils m'ont rappelé le lendemain pour savoir comment j'allais. Je n'attendais pas ça.", "★★★★★"),
         ],
         "garage": [
-            ("François L.","Devis rapide, travail impeccable. Je recommande à tous.","★★★★★"),
-            ("Manon R.",   "Rappel pour l'inspection annuelle — très pratique!","★★★★★"),
-            ("Robert S.",  "Équipe sérieuse, prix honnêtes.","★★★★★"),
+            ("François L.","J'avais un bruit quand je freinais. Steve a regardé deux minutes, m'a dit ce que c'était, a réparé en deux heures. Il aurait pu me charger bien plus.", "★★★★★"),
+            ("Manon R.",   "Mon inspection était dans trois jours, j'avais oublié. Ils m'ont pris en urgence le matin même.", "★★★★★"),
+            ("Robert S.",  "Premier garage en quinze ans que je ressors sans avoir l'impression de m'être fait avoir.", "★★★★★"),
         ],
         "construction": [
-            ("Daniel M.", "Suivi de chantier parfait, livré à temps.","★★★★★"),
-            ("Lucie F.",  "Soumission rapide et travail excellent.","★★★★★"),
-            ("Thomas B.", "Professionnels du début à la fin.","★★★★★"),
+            ("Daniel M.", "Le chantier s'est terminé deux jours avant la date prévue. Propre, rangé, rien d'oublié.", "★★★★★"),
+            ("Lucie F.",  "Soumission reçue en 24 heures. Prix exact à la fin. C'est rare.", "★★★★★"),
+            ("Thomas B.", "Ils ont trouvé un problème que je n'avais pas demandé de regarder. Ils m'ont prévenu avant de toucher à quoi que ce soit.", "★★★★★"),
         ],
     }
     testimonials = next(
         (v for k,v in testimonials_map.items() if k in industry_lower),
         [
-            ("Marie L.", "Service exceptionnel, réponse en moins d'une minute!","★★★★★"),
-            ("Jean P.",  "Professionnel et efficace. Je recommande.","★★★★★"),
-            ("Claire B.","Exactement ce qu'on cherchait. Parfait.","★★★★★"),
+            ("Marie L.", "Je m'attendais à laisser un message. Quelqu'un a répondu. Ça a réglé mon problème.", "★★★★★"),
+            ("Jean P.",  "Deuxième fois que je fais affaire avec eux. Même sérieux, même prix.", "★★★★★"),
+            ("Claire B.","Ils ont fait exactement ce qu'ils avaient dit. Ni plus, ni moins — mais vraiment.", "★★★★★"),
         ]
     )
     testi_html_parts = []
@@ -13780,7 +13767,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         f'<div class="qf-label">Que cherchez-vous?</div>'
         f'<div class="qf-chips">{qf_chips}'
         f'<button class="qf-chip qf-chip-contact" onclick="document.getElementById(\'contact\').scrollIntoView({{behavior:\'smooth\'}})">'
-        f'📞 Nous contacter</button>'
+        f'Nous contacter</button>'
         f'</div>'
         f'</div></div>'
     )
@@ -13800,25 +13787,25 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         _hours_table_html += '</table>'
     _ci_address_html = (
         f'<div class="ci-block">'
-        f'<div class="ci-icon">📍</div>'
+        f'<div class="ci-label-sm">Adresse</div>'
         f'<div><div class="ci-label">Adresse</div><div class="ci-val">{real_address}</div></div>'
         f'</div>'
     ) if real_address else ""
     _ci_phone_html = (
         f'<div class="ci-block">'
-        f'<div class="ci-icon">📞</div>'
+        f'<div class="ci-label-sm">Téléphone</div>'
         f'<div><div class="ci-label">Téléphone</div><div class="ci-val"><a href="{_tel_href}" style="color:var(--brand);font-weight:600">{phone_display}</a></div></div>'
         f'</div>'
     ) if phone_display else ""
     _ci_email_html = (
         f'<div class="ci-block">'
-        f'<div class="ci-icon">✉️</div>'
+        f'<div class="ci-label-sm">Courriel</div>'
         f'<div><div class="ci-label">Courriel</div><div class="ci-val"><a href="mailto:{biz_email}" style="color:var(--brand)">{biz_email}</a></div></div>'
         f'</div>'
     ) if biz_email else ""
     _ci_hours_html = (
         f'<div class="ci-block ci-block-hours">'
-        f'<div class="ci-icon">🕐</div>'
+        f'<div class="ci-label-sm">Heures</div>'
         f'<div><div class="ci-label">Heures d\'ouverture</div>{_hours_table_html}</div>'
         f'</div>'
     ) if _hours_table_html else ""
@@ -14240,7 +14227,7 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 .novalis-line{{font-size:0.73rem;color:var(--ink2)}}
 .novalis-line a{{color:var(--brand);font-weight:600}}
 .float{{position:fixed;bottom:26px;right:26px;z-index:500}}
-.float-btn{{width:52px;height:52px;border-radius:50%;background:var(--brand);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem;transition:transform 0.2s;animation:breathe 3s ease-in-out infinite;position:relative}}
+.float-btn{{width:52px;height:52px;border-radius:50%;background:var(--brand);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;color:#fff;letter-spacing:0.03em;transition:transform 0.2s;animation:breathe 3s ease-in-out infinite;position:relative}}
 .float-btn:hover{{transform:scale(1.08)}}
 .float-dot{{position:absolute;top:-2px;right:-2px;width:15px;height:15px;background:#EF4444;border-radius:50%;border:2px solid var(--paper);display:flex;align-items:center;justify-content:center;font-size:0.55rem;font-weight:700;color:#fff}}
 @keyframes breathe{{0%,100%{{box-shadow:0 4px 22px {btn}55}}50%{{box-shadow:0 8px 36px {btn}88,0 0 0 7px {btn}16}}}}
@@ -14398,7 +14385,7 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 .form-btn:hover{{opacity:0.88;transform:translateY(-1px)}}
 .contact-info-col{{display:flex;flex-direction:column;gap:22px;padding-top:8px}}
 .ci-block{{display:flex;align-items:flex-start;gap:14px}}
-.ci-icon{{font-size:1.2rem;flex-shrink:0;margin-top:2px}}
+.ci-label-sm{{font-size:0.68rem;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:0.08em;flex-shrink:0;padding-top:3px;min-width:64px}}
 .ci-label{{font-size:0.7rem;font-weight:600;color:var(--ink2);letter-spacing:0.07em;text-transform:uppercase;margin-bottom:3px}}
 .ci-val{{font-size:0.88rem;color:var(--ink);line-height:1.5}}
 .ci-block-hours{{align-items:flex-start}}
@@ -14477,7 +14464,7 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 .why-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;margin-top:48px}}
 .why-item{{background:#fff;border:1px solid var(--rule);border-radius:12px;padding:32px 24px;text-align:center;transition:box-shadow 0.25s,transform 0.2s;cursor:default}}
 .why-item:hover{{box-shadow:0 10px 40px rgba(0,0,0,0.09);transform:translateY(-3px)}}
-.why-icon{{font-size:2.4rem;margin-bottom:16px;line-height:1}}
+.why-num{{font-family:var(--serif);font-size:2rem;font-weight:700;color:var(--brand);opacity:0.35;line-height:1;margin-bottom:14px;letter-spacing:-0.02em}}
 .why-title{{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:10px;line-height:1.3}}
 .why-desc{{font-size:0.83rem;color:var(--ink2);font-weight:300;line-height:1.7}}
 /* ── FAQ accordion ── */
@@ -14639,7 +14626,7 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 <section class="testi-sec" id="avis">
   <div class="sec-in">
     <div class="sec-label reveal">Témoignages</div>
-    <h2 class="sec-h reveal d1" style="color:#fff">Ce que nos clients disent</h2>
+    <h2 class="sec-h reveal d1" style="color:#fff">Ils en parlent mieux que nous</h2>
     <div class="testi-grid">
       {testimonials_html}
     </div>
@@ -14693,7 +14680,7 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 
 <div class="float">
   <button class="float-btn" onclick="location.href='{_mail_href}'" aria-label="Nous contacter">
-    💬<span class="float-dot">1</span>
+    Aide<span class="float-dot">1</span>
   </button>
 </div>
 
