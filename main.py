@@ -103,7 +103,7 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 SMTP_FROM = os.getenv("SMTP_FROM", "") or SMTP_USER
-ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "novalisproia@gmail.com")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "elliot@novalisia.ca")
 
 # Google Places API (découverte PMEs)
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
@@ -2115,6 +2115,10 @@ async def init_db():
             "ALTER TABLE prospect_bank ADD COLUMN email_opened_at TEXT DEFAULT ''",
             "ALTER TABLE prospect_suggestions ADD COLUMN escalation_sent_at TEXT DEFAULT ''",
             "ALTER TABLE prospect_bank ADD COLUMN escalation_sent_at TEXT DEFAULT ''",
+            "ALTER TABLE prospect_suggestions ADD COLUMN intake_sent_at TEXT DEFAULT ''",
+            "ALTER TABLE prospect_bank ADD COLUMN intake_sent_at TEXT DEFAULT ''",
+            "ALTER TABLE prospect_suggestions ADD COLUMN intake_data TEXT DEFAULT ''",
+            "ALTER TABLE prospect_bank ADD COLUMN intake_data TEXT DEFAULT ''",
         ]:
             try:
                 await db.execute(_col_sql)
@@ -3210,7 +3214,7 @@ async def send_email(to: str, subject: str, body: str):
     if RESEND_API_KEY:
         def _send_resend():
             import urllib.request, urllib.error
-            reply_to = os.getenv("REPLY_TO_EMAIL", "novalisproia@gmail.com")
+            reply_to = os.getenv("REPLY_TO_EMAIL", "elliot@novalisia.ca")
             payload = json.dumps({
                 "from": f"{FROM_NAME} <{FROM_EMAIL}>",
                 "to": [to],
@@ -6604,7 +6608,7 @@ def _build_prospect_email_html(plain_body: str, preview_url: str, unsubscribe_ur
     <div style="font-size:0.85rem;color:#475569;line-height:1.8;">
       <strong style="color:#1e293b;">Elliot Pelletier</strong><br>
       Fondateur — Novalis IA<br>
-      <a href="https://novalisia.ca" style="color:#2563eb;text-decoration:none;">novalisia.ca</a>&nbsp;&nbsp;·&nbsp;&nbsp;novalisproia@gmail.com
+      <a href="https://novalisia.ca" style="color:#2563eb;text-decoration:none;">novalisia.ca</a>&nbsp;&nbsp;·&nbsp;&nbsp;elliot@novalisia.ca
     </div>
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:0.68rem;color:#94a3b8;line-height:1.6;">
       Vous recevez ce message car votre entreprise est publiquement accessible en ligne. Nous avons analysé votre site spécifiquement — ce n'est pas un envoi générique.<br>
@@ -8076,7 +8080,7 @@ La proposition doit inclure:
 4. Solution proposée: agent IA 24/7 de Novalis déployé pour leur cas précis
 5. Délai de déploiement: 48h
 6. Tarif: 497$/mois, premier mois GRATUIT (offre clients de la première heure)
-7. Signature: Elliot Pelletier | Novalis IA | novalisia.ca | novalisproia@gmail.com
+7. Signature: Elliot Pelletier | Novalis IA | novalisia.ca | elliot@novalisia.ca
 
 Ton: professionnel mais chaleureux, en québécois naturel. Maximum 400 mots. Texte brut uniquement, pas de markdown."""
 
@@ -8391,7 +8395,7 @@ async def outreach_send_now(username: str = Depends(verify_admin)):
 @app.post("/api/admin/test-email")
 async def test_email_send(username: str = Depends(verify_admin)):
     """Teste Resend et SMTP séparément — montre l'erreur exacte de chacun."""
-    test_to = ADMIN_EMAIL or os.getenv("SMTP_USER", "") or "novalisproia@gmail.com"
+    test_to = ADMIN_EMAIL or os.getenv("SMTP_USER", "") or "elliot@novalisia.ca"
     subject = "✅ Test Novalis"
     body = f"<p>Test envoi — {datetime.now().isoformat()} — FROM: {FROM_EMAIL}</p>"
     results = {}
@@ -8461,7 +8465,7 @@ async def resend_check(username: str = Depends(verify_admin)):
     key_prefix = RESEND_API_KEY[:12] + "..."
     payload = json.dumps({
         "from": f"Novalis IA <{FROM_EMAIL}>",
-        "to": [ADMIN_EMAIL or "novalisproia@gmail.com"],
+        "to": [ADMIN_EMAIL or "elliot@novalisia.ca"],
         "subject": "Test Novalis",
         "html": "<p>Test</p>",
     }).encode("utf-8")
@@ -9132,7 +9136,7 @@ async def dashboard(username: str = Depends(verify_admin)):
       <button onclick="document.getElementById('emailTplModal').style.display='none'" style="background:transparent;border:none;color:#94a3b8;font-size:2rem;cursor:pointer;line-height:1;">×</button>
     </div>
     <input type="hidden" id="emailTplId"/><input type="hidden" id="emailTplNum"/>
-    <p style="color:#64748b;font-size:0.78rem;margin-bottom:10px;">Modifiez si nécessaire, puis copiez et envoyez depuis novalisproia@gmail.com</p>
+    <p style="color:#64748b;font-size:0.78rem;margin-bottom:10px;">Modifiez si nécessaire, puis copiez et envoyez depuis elliot@novalisia.ca</p>
     <textarea id="emailTplContent" rows="18" style="background:#0f1f2e;border:1px solid #1e3a5f;border-radius:8px;padding:12px;color:#e2e8f0;width:100%;font-size:0.82rem;font-family:monospace;line-height:1.6;margin-bottom:12px;resize:vertical;"></textarea>
     <div style="display:flex;gap:8px;">
       <button id="copyTplBtn" class="btn" onclick="copyEmailTpl()">📋 Copier</button>
@@ -10124,7 +10128,7 @@ async def client_portal(key: str = Query(None), t: str = Query(None)):
         <p>Entrez votre clé d'accès pour consulter votre tableau de bord.</p>
         <input id="k" placeholder="Clé d'accès…" type="password" onkeydown="if(event.key==='Enter')go()"/>
         <button onclick="go()">Accéder</button>
-        <p class="hint">Clé perdue ? <a href="mailto:novalisproia@gmail.com">Contactez-nous</a></p>
+        <p class="hint">Clé perdue ? <a href="mailto:elliot@novalisia.ca">Contactez-nous</a></p>
     </div>
     <script>function go(){const k=document.getElementById('k').value.trim();if(k)window.location.href='/portal?key='+encodeURIComponent(k);}</script>
     </body></html>"""
@@ -10588,7 +10592,7 @@ async function upgradePlan(e, plan) {{
   else {{
     const r2 = await fetch('/api/v1/plan-request', {{method:'POST',headers:{{'X-API-Key':API_KEY,'Content-Type':'application/json'}},body:JSON.stringify({{plan}})}});
     if(r2.ok) showToast('✅ Demande reçue — l\'équipe Novalis vous contacte dans les 24h pour finaliser votre plan '+plan+'.', false);
-    else showToast('Demande envoyée — contactez novalisproia@gmail.com pour finaliser.', false);
+    else showToast('Demande envoyée — contactez elliot@novalisia.ca pour finaliser.', false);
   }}
 }}
 function esc(s){{
@@ -11208,7 +11212,7 @@ async def og_image():
   <text x="600" y="300" font-family="Inter,system-ui,sans-serif" font-weight="400" font-size="32" fill="#94a3b8" text-anchor="middle">Agence d&#8217;intelligence artificielle · Qu&#233;bec</text>
   <line x1="480" y1="340" x2="720" y2="340" stroke="rgba(56,189,248,0.3)" stroke-width="1"/>
   <text x="600" y="400" font-family="Inter,system-ui,sans-serif" font-size="26" fill="#64748b" text-anchor="middle">SMS · WhatsApp · Voix · Messenger · Automatisation</text>
-  <text x="600" y="510" font-family="Inter,system-ui,sans-serif" font-weight="600" font-size="22" fill="#38bdf8" text-anchor="middle">novalis.ai · novalisproia@gmail.com</text>
+  <text x="600" y="510" font-family="Inter,system-ui,sans-serif" font-weight="600" font-size="22" fill="#38bdf8" text-anchor="middle">novalis.ai · elliot@novalisia.ca</text>
 </svg>"""
     return Response(content=svg, media_type="image/svg+xml",
                     headers={"Cache-Control": "public, max-age=86400"})
@@ -11318,6 +11322,7 @@ async def handle_stripe_webhook(request: Request):
                     )
                 await db.commit()
             logger.info(f"Prospect {_pid} ({_prospect_name}) a payé — forfait {_tier} — {_amount_dollars}$")
+            # SMS immédiat à Elliot
             if twilio_client and TWILIO_PHONE and OWNER_PHONE:
                 try:
                     _display_name = _prospect_name or _pid
@@ -11334,6 +11339,75 @@ async def handle_stripe_webhook(request: Request):
                     )
                 except Exception as _sms_err:
                     logger.warning(f"SMS paiement prospect non envoyé: {_sms_err}")
+            # Email de bienvenue au client (prospect qui vient de payer)
+            _tier_labels = {
+                "essential": "Essentiel — 1 000 $",
+                "pro": "Pro — 1 500 $",
+                "premium": "Premium — 2 500 $",
+                "monthly": "Plan maintenance — 97 $/mois",
+            }
+            _tier_display = _tier_labels.get(_tier, _tier.capitalize())
+            _intake_url = f"https://novalisia.ca/onboarding/{_pid}"
+            async with aiosqlite.connect(DB_PATH) as _wdb:
+                _wdb.row_factory = aiosqlite.Row
+                for _wtbl in ("prospect_suggestions", "prospect_bank"):
+                    _wcur = await _wdb.execute(
+                        f"SELECT email FROM {_wtbl} WHERE id=?", (_pid,)
+                    )
+                    _wrow = await _wcur.fetchone()
+                    if _wrow and _wrow["email"]:
+                        _prospect_email = _wrow["email"]
+                        _welcome_html = f"""<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<div style="max-width:580px;margin:0 auto;padding:40px 20px;">
+  <div style="background:#0f172a;border-radius:12px 12px 0 0;padding:24px 32px;text-align:center;">
+    <p style="margin:0;font-size:0.65rem;letter-spacing:0.25em;text-transform:uppercase;color:#94a3b8;">Novalis IA</p>
+    <p style="margin:6px 0 0;font-size:0.75rem;color:#475569;">Design web · Québec</p>
+  </div>
+  <div style="background:#ffffff;padding:36px 32px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+    <h1 style="font-size:1.5rem;font-weight:700;color:#0f172a;margin:0 0 8px;">Paiement confirmé — merci {_prospect_name}!</h1>
+    <p style="color:#475569;line-height:1.7;margin:16px 0;">
+      Votre commande <strong style="color:#0f172a;">{_tier_display}</strong> est confirmée.
+      Elliot vous contactera dans les <strong>24 heures</strong> pour démarrer votre projet.
+    </p>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:24px 0;">
+      <p style="margin:0 0 10px;font-size:0.85rem;font-weight:700;color:#15803d;">Votre prochaine étape :</p>
+      <p style="margin:0;font-size:0.9rem;color:#166534;line-height:1.6;">
+        Remplissez le formulaire de démarrage (5 minutes) pour qu'on puisse construire votre site exactement comme vous le voulez.
+      </p>
+    </div>
+    <div style="text-align:center;margin:28px 0;">
+      <a href="{_intake_url}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:8px;font-size:0.9rem;font-weight:700;">
+        Remplir le formulaire de démarrage →
+      </a>
+    </div>
+    <div style="border-top:1px solid #f1f5f9;padding-top:20px;margin-top:20px;">
+      <p style="margin:0;font-size:0.85rem;color:#64748b;line-height:1.7;">
+        <strong style="color:#0f172a;">Délai de livraison :</strong> 2–3 semaines<br>
+        <strong style="color:#0f172a;">Votre contact :</strong> Elliot Pelletier<br>
+        <strong style="color:#0f172a;">Questions :</strong>
+        <a href="mailto:elliot@novalisia.ca" style="color:#2563eb;">elliot@novalisia.ca</a> ·
+        <a href="tel:+15145550000" style="color:#2563eb;">514-555-0000</a>
+      </p>
+    </div>
+  </div>
+  <div style="background:#f8fafc;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;border-top:none;padding:16px 32px;text-align:center;">
+    <p style="margin:0;font-size:0.72rem;color:#94a3b8;">Novalis IA · novalisia.ca · elliot@novalisia.ca</p>
+  </div>
+</div></body></html>"""
+                        asyncio.create_task(send_email(
+                            to=_prospect_email,
+                            subject=f"Votre site web démarre — prochaines étapes | Novalis IA",
+                            body=_welcome_html,
+                        ))
+                        await _wdb.execute(
+                            f"UPDATE {_wtbl} SET intake_sent_at=? WHERE id=?",
+                            (datetime.now().isoformat(), _pid)
+                        )
+                        await _wdb.commit()
+                        logger.info(f"Email bienvenue envoyé à {_prospect_email} ({_prospect_name})")
+                        break
         client_id = metadata.get("client_id")
         plan = metadata.get("plan")
         stripe_customer = data.get("customer", "")
@@ -12631,7 +12705,7 @@ async def privacy_policy():
     <h1>Politique de confidentialite</h1>
     <p class="subtitle">Derniere mise a jour : 1er janvier 2026 — Conforme a la Loi 25 (Loi modernisant des dispositions legislatives en matiere de protection des renseignements personnels, Quebec)</p>
     <h2>1. Responsable du traitement</h2>
-    <p>Novalis IA, exploitee par Elliot Pelletier (ci-apres &laquo; Novalis &raquo;), est responsable du traitement de vos renseignements personnels. Pour toute question : <a href="mailto:novalisproia@gmail.com">novalisproia@gmail.com</a>.</p>
+    <p>Novalis IA, exploitee par Elliot Pelletier (ci-apres &laquo; Novalis &raquo;), est responsable du traitement de vos renseignements personnels. Pour toute question : <a href="mailto:elliot@novalisia.ca">elliot@novalisia.ca</a>.</p>
     <h2>2. Donnees collectees</h2>
     <ul>
         <li><strong>Identification :</strong> nom, prenom, courriel, telephone.</li>
@@ -12679,12 +12753,12 @@ async def privacy_policy():
         <li><strong>Opposition :</strong> refuser le traitement a des fins de prospection.</li>
         <li><strong>Retrait du consentement :</strong> a tout moment, sans effet retroactif.</li>
     </ul>
-    <p>Pour exercer ces droits : <a href="mailto:novalisproia@gmail.com">novalisproia@gmail.com</a>. Reponse sous 30 jours.</p>
+    <p>Pour exercer ces droits : <a href="mailto:elliot@novalisia.ca">elliot@novalisia.ca</a>. Reponse sous 30 jours.</p>
     <h2>10. Declaration d'incident</h2>
     <p>En cas d'incident, nous aviserons la Commission d'acces a l'information du Quebec (CAI) et les personnes concernees, conformement a la Loi 25.</p>
     <h2>11. Contact</h2>
     <ul>
-        <li><strong>Courriel :</strong> <a href="mailto:novalisproia@gmail.com">novalisproia@gmail.com</a></li>
+        <li><strong>Courriel :</strong> <a href="mailto:elliot@novalisia.ca">elliot@novalisia.ca</a></li>
         <li><strong>Entreprise :</strong> Novalis IA — Elliot Pelletier, Quebec, Canada</li>
     </ul>
     <p>Vous pouvez aussi deposer une plainte aupres de la <a href="https://www.cai.gouv.qc.ca" target="_blank" rel="noopener">Commission d'acces a l'information du Quebec</a>.</p>
@@ -12760,7 +12834,7 @@ async def terms_of_service():
     <ul>
         <li>Abonnement mensuel renouvelable automatiquement.</li>
         <li><strong>Preavis de 30 jours</strong> requis avant le renouvellement.</li>
-        <li>Demande de resiliation par courriel a <a href="mailto:novalisproia@gmail.com">novalisproia@gmail.com</a>.</li>
+        <li>Demande de resiliation par courriel a <a href="mailto:elliot@novalisia.ca">elliot@novalisia.ca</a>.</li>
         <li>Aucun remboursement pour la periode en cours.</li>
         <li>Donnees conservees 90 jours apres resiliation puis supprimees.</li>
     </ul>
@@ -12783,7 +12857,7 @@ async def terms_of_service():
     <p>Lois du Quebec et du Canada. Juridiction exclusive des tribunaux du Quebec.</p>
     <h2>11. Contact</h2>
     <ul>
-        <li><strong>Courriel :</strong> <a href="mailto:novalisproia@gmail.com">novalisproia@gmail.com</a></li>
+        <li><strong>Courriel :</strong> <a href="mailto:elliot@novalisia.ca">elliot@novalisia.ca</a></li>
         <li><strong>Entreprise :</strong> Novalis IA — Elliot Pelletier, Quebec, Canada</li>
     </ul>
 </div>
@@ -15650,8 +15724,8 @@ async def prospect_pay_redirect(prospect_id: str, request: Request, tier: str = 
                     },
                     "quantity": 1,
                 }],
-                success_url=f"{base}/merci?pmt=ok",
-                cancel_url=f"{base}/merci?pmt=ok",
+                success_url=f"{base}/merci?pmt=ok&pid={prospect_id}",
+                cancel_url=f"{base}/merci?pmt=ok&pid={prospect_id}",
                 metadata={"prospect_id": prospect_id, "source": "preview_page", "tier": tier},
             )
         else:
@@ -15669,7 +15743,7 @@ async def prospect_pay_redirect(prospect_id: str, request: Request, tier: str = 
                     },
                     "quantity": 1,
                 }],
-                success_url=f"{base}/merci?pmt=ok",
+                success_url=f"{base}/merci?pmt=ok&pid={prospect_id}",
                 cancel_url=f"{base}/preview/{prospect_id}",
                 metadata={"prospect_id": prospect_id, "source": "preview_page", "tier": tier},
             )
@@ -15708,6 +15782,293 @@ async def admin_hot_leads(credentials: HTTPBasicCredentials = Depends(verify_adm
         r["heat_score"] = heat(r)
     rows.sort(key=lambda x: x["heat_score"], reverse=True)
     return {"hot_leads": rows, "total": len(rows)}
+
+
+@app.get("/onboarding/{prospect_id}")
+async def onboarding_page(prospect_id: str):
+    """Formulaire d'intake pour nouveaux clients — informations pour démarrer la construction du site."""
+    return HTMLResponse(f"""<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Démarrez votre site — Novalis IA</title>
+<style>
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8fafc;color:#0f172a;min-height:100vh;padding:40px 16px}}
+.wrap{{max-width:620px;margin:0 auto}}
+.header{{text-align:center;margin-bottom:40px}}
+.logo{{font-size:0.65rem;letter-spacing:0.25em;text-transform:uppercase;color:#64748b;margin-bottom:12px}}
+h1{{font-size:1.6rem;font-weight:700;color:#0f172a;margin-bottom:8px}}
+.sub{{color:#64748b;font-size:0.95rem;line-height:1.6}}
+.card{{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:28px;margin-bottom:20px}}
+.card h2{{font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:18px;padding-bottom:10px;border-bottom:1px solid #f1f5f9}}
+.field{{margin-bottom:18px}}
+label{{display:block;font-size:0.83rem;font-weight:600;color:#374151;margin-bottom:6px}}
+input,textarea,select{{width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;color:#0f172a;background:#fff;transition:border-color 0.2s}}
+input:focus,textarea:focus,select:focus{{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,0.08)}}
+textarea{{min-height:90px;resize:vertical;line-height:1.6}}
+.checkbox-group{{display:flex;flex-direction:column;gap:10px;margin-top:6px}}
+.checkbox-item{{display:flex;align-items:center;gap:10px;cursor:pointer}}
+.checkbox-item input[type=checkbox]{{width:18px;height:18px;cursor:pointer;accent-color:#2563eb}}
+.checkbox-item span{{font-size:0.88rem;color:#374151}}
+.hint{{font-size:0.78rem;color:#94a3b8;margin-top:4px}}
+.color-options{{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px}}
+.color-opt{{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}}
+.color-opt input{{display:none}}
+.color-swatch{{width:40px;height:40px;border-radius:8px;border:2px solid transparent;transition:border-color 0.2s}}
+.color-opt input:checked+.color-swatch{{border-color:#0f172a;transform:scale(1.1)}}
+.color-opt span{{font-size:0.7rem;color:#64748b}}
+.submit-btn{{width:100%;background:#2563eb;color:#fff;border:none;padding:16px;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;transition:opacity 0.2s;margin-top:8px}}
+.submit-btn:hover{{opacity:0.88}}
+.success{{display:none;text-align:center;padding:48px 24px}}
+.check-icon{{width:64px;height:64px;background:#22c55e;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:1.8rem;color:#fff}}
+</style></head>
+<body><div class="wrap">
+<div class="header">
+  <div class="logo">Novalis IA · Design web Québec</div>
+  <h1>Démarrons votre site web</h1>
+  <p class="sub">5 minutes pour nous donner tout ce dont on a besoin.<br>Plus vous êtes précis, plus votre site sera parfait.</p>
+</div>
+
+<form id="intake-form" method="POST" action="/onboarding/{prospect_id}">
+
+<div class="card">
+  <h2>1. Informations de base</h2>
+  <div class="field">
+    <label>Nom complet *</label>
+    <input type="text" name="contact_name" required placeholder="Jean Tremblay">
+  </div>
+  <div class="field">
+    <label>Téléphone *</label>
+    <input type="tel" name="contact_phone" required placeholder="514 555-1234">
+  </div>
+  <div class="field">
+    <label>Courriel de contact *</label>
+    <input type="email" name="contact_email" required placeholder="jean@votre-entreprise.ca">
+  </div>
+  <div class="field">
+    <label>Adresse complète de votre entreprise</label>
+    <input type="text" name="address" placeholder="123 rue Principale, Montréal, QC H1A 1B1">
+  </div>
+  <div class="field">
+    <label>Site web actuel (si vous en avez un)</label>
+    <input type="url" name="current_website" placeholder="https://votre-site.ca">
+  </div>
+</div>
+
+<div class="card">
+  <h2>2. Pages souhaitées</h2>
+  <div class="checkbox-group">
+    <label class="checkbox-item"><input type="checkbox" name="pages" value="accueil" checked><span>Accueil</span></label>
+    <label class="checkbox-item"><input type="checkbox" name="pages" value="services" checked><span>Services / Menu / Soins</span></label>
+    <label class="checkbox-item"><input type="checkbox" name="pages" value="a-propos" checked><span>À propos / Notre équipe</span></label>
+    <label class="checkbox-item"><input type="checkbox" name="pages" value="contact" checked><span>Contact</span></label>
+    <label class="checkbox-item"><input type="checkbox" name="pages" value="galerie"><span>Galerie / Photos</span></label>
+    <label class="checkbox-item"><input type="checkbox" name="pages" value="reservations"><span>Prise de rendez-vous en ligne</span></label>
+    <label class="checkbox-item"><input type="checkbox" name="pages" value="temoignages"><span>Témoignages / Avis</span></label>
+    <label class="checkbox-item"><input type="checkbox" name="pages" value="blogue"><span>Blogue / Actualités</span></label>
+  </div>
+</div>
+
+<div class="card">
+  <h2>3. Style et couleurs</h2>
+  <div class="field">
+    <label>Couleur principale souhaitée</label>
+    <div class="color-options">
+      <label class="color-opt"><input type="radio" name="color_pref" value="bleu"><div class="color-swatch" style="background:#2563eb"></div><span>Bleu</span></label>
+      <label class="color-opt"><input type="radio" name="color_pref" value="vert"><div class="color-swatch" style="background:#16a34a"></div><span>Vert</span></label>
+      <label class="color-opt"><input type="radio" name="color_pref" value="noir"><div class="color-swatch" style="background:#0f172a"></div><span>Noir/Luxe</span></label>
+      <label class="color-opt"><input type="radio" name="color_pref" value="bordeaux"><div class="color-swatch" style="background:#9f1239"></div><span>Bordeaux</span></label>
+      <label class="color-opt"><input type="radio" name="color_pref" value="orange"><div class="color-swatch" style="background:#ea580c"></div><span>Orange</span></label>
+      <label class="color-opt"><input type="radio" name="color_pref" value="violet"><div class="color-swatch" style="background:#7c3aed"></div><span>Violet</span></label>
+      <label class="color-opt"><input type="radio" name="color_pref" value="doré"><div class="color-swatch" style="background:#b45309"></div><span>Doré</span></label>
+      <label class="color-opt"><input type="radio" name="color_pref" value="autre"><div class="color-swatch" style="background:linear-gradient(135deg,#f43f5e,#8b5cf6,#06b6d4)"></div><span>Autre</span></label>
+    </div>
+  </div>
+  <div class="field">
+    <label>Style souhaité</label>
+    <select name="style_pref">
+      <option value="">Choisir…</option>
+      <option value="moderne-epure">Moderne et épuré</option>
+      <option value="classique-elegant">Classique et élégant</option>
+      <option value="dynamique-audacieux">Dynamique et audacieux</option>
+      <option value="chaleureux-humain">Chaleureux et humain</option>
+      <option value="industriel-technique">Industriel / Technique</option>
+      <option value="luxe-premium">Luxe / Premium</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Sites web que vous admirez (optionnel)</label>
+    <textarea name="inspiration_sites" placeholder="ex: apple.com, notaire-martin.ca — dites-nous ce qui vous plaît dans ces sites"></textarea>
+  </div>
+</div>
+
+<div class="card">
+  <h2>4. Contenu et messages clés</h2>
+  <div class="field">
+    <label>En 2-3 phrases, décrivez votre entreprise *</label>
+    <textarea name="about_text" required placeholder="On fait quoi, pour qui, depuis quand, ce qui nous rend différents…"></textarea>
+  </div>
+  <div class="field">
+    <label>Vos 3 à 6 services principaux *</label>
+    <textarea name="services_list" required placeholder="1. Coupe femme&#10;2. Coloration&#10;3. Soins capillaires…"></textarea>
+  </div>
+  <div class="field">
+    <label>Qu'est-ce qui vous distingue de vos compétiteurs?</label>
+    <textarea name="differentiator" placeholder="Prix, expertise, expérience, rapidité, service personnalisé…"></textarea>
+  </div>
+  <div class="field">
+    <label>Avez-vous un logo? *</label>
+    <select name="has_logo" required>
+      <option value="">Choisir…</option>
+      <option value="oui-envoyer">Oui — je vais l'envoyer par courriel à elliot@novalisia.ca</option>
+      <option value="oui-fichier">Oui — j'ai le fichier (PNG ou SVG)</option>
+      <option value="non-creer">Non — créez-en un pour moi</option>
+      <option value="non-simple">Non — du texte simple suffit</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Avez-vous des photos professionnelles?</label>
+    <select name="has_photos">
+      <option value="">Choisir…</option>
+      <option value="oui-envoyer">Oui — je vais les envoyer par courriel</option>
+      <option value="non-stock">Non — utilisez des photos de stock professionnelles</option>
+      <option value="prendre">Non — pouvez-vous m'indiquer un photographe?</option>
+    </select>
+  </div>
+</div>
+
+<div class="card">
+  <h2>5. Informations pratiques</h2>
+  <div class="field">
+    <label>Heures d'ouverture</label>
+    <textarea name="hours" placeholder="Lun-Ven: 8h-18h&#10;Samedi: 9h-16h&#10;Dimanche: Fermé"></textarea>
+  </div>
+  <div class="field">
+    <label>Avez-vous un domaine (.ca ou .com)?</label>
+    <select name="has_domain">
+      <option value="">Choisir…</option>
+      <option value="oui">Oui — je vous donnerai les accès</option>
+      <option value="non-acheter">Non — achetez-en un pour moi</option>
+      <option value="non-inclus">Non — j'ai vu que c'est inclus dans mon forfait</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Autres informations ou demandes spéciales</label>
+    <textarea name="notes" placeholder="Tout ce que vous voulez qu'on sache…"></textarea>
+  </div>
+</div>
+
+<button type="submit" class="submit-btn">Envoyer — démarrons votre site →</button>
+</form>
+
+<div class="success" id="success-msg">
+  <div class="check-icon">✓</div>
+  <h2 style="font-size:1.4rem;margin-bottom:10px">Formulaire reçu!</h2>
+  <p style="color:#64748b;line-height:1.7">Elliot vous contactera dans les <strong>24 heures</strong> pour confirmer le début de votre projet.<br><br>Si vous avez un logo ou des photos, envoyez-les à <a href="mailto:elliot@novalisia.ca" style="color:#2563eb;">elliot@novalisia.ca</a></p>
+</div>
+
+<script>
+document.getElementById('intake-form').addEventListener('submit', async function(e) {{
+  e.preventDefault();
+  const btn = this.querySelector('.submit-btn');
+  btn.textContent = 'Envoi en cours…';
+  btn.disabled = true;
+  const data = new FormData(this);
+  const obj = {{}};
+  for (let [k,v] of data) {{
+    if (obj[k]) {{
+      if (!Array.isArray(obj[k])) obj[k] = [obj[k]];
+      obj[k].push(v);
+    }} else obj[k] = v;
+  }}
+  const r = await fetch('/onboarding/{prospect_id}', {{
+    method: 'POST',
+    headers: {{'Content-Type': 'application/json'}},
+    body: JSON.stringify(obj)
+  }});
+  if (r.ok) {{
+    this.style.display = 'none';
+    document.getElementById('success-msg').style.display = 'block';
+  }} else {{
+    btn.textContent = 'Réessayer';
+    btn.disabled = false;
+    alert('Erreur — réessayez ou écrivez à elliot@novalisia.ca');
+  }}
+}});
+</script>
+</div></body></html>""")
+
+
+@app.post("/onboarding/{prospect_id}")
+async def onboarding_submit(prospect_id: str, request: Request):
+    """Reçoit le formulaire d'intake, sauvegarde en DB et notifie Elliot."""
+    try:
+        intake = await request.json()
+    except Exception:
+        form = await request.form()
+        intake = dict(form)
+
+    intake_json = json.dumps(intake, ensure_ascii=False)
+    contact_name  = intake.get("contact_name", "")
+    contact_email = intake.get("contact_email", "")
+    contact_phone = intake.get("contact_phone", "")
+    about_text    = intake.get("about_text", "")
+    services_list = intake.get("services_list", "")
+    pages_wanted  = intake.get("pages", [])
+    if isinstance(pages_wanted, str):
+        pages_wanted = [pages_wanted]
+    color_pref    = intake.get("color_pref", "")
+    style_pref    = intake.get("style_pref", "")
+    has_logo      = intake.get("has_logo", "")
+    notes         = intake.get("notes", "")
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        for tbl in ("prospect_suggestions", "prospect_bank"):
+            await db.execute(
+                f"UPDATE {tbl} SET intake_data=?, updated_at=? WHERE id=?",
+                (intake_json, datetime.now().isoformat(), prospect_id)
+            )
+        await db.commit()
+
+    # Email complet à Elliot avec toutes les infos du client
+    _pages_str = ", ".join(pages_wanted) if pages_wanted else "non précisé"
+    _notif_html = f"""<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"></head>
+<body style="font-family:-apple-system,sans-serif;background:#f8fafc;padding:32px 16px;">
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;border:1px solid #e2e8f0;">
+<h1 style="color:#0f172a;font-size:1.3rem;margin:0 0 20px;">Nouveau formulaire d'intake — {contact_name}</h1>
+<table style="width:100%;border-collapse:collapse;font-size:0.88rem;">
+<tr><td style="padding:8px;background:#f8fafc;font-weight:600;width:40%">Contact</td><td style="padding:8px">{contact_name} · {contact_phone} · {contact_email}</td></tr>
+<tr><td style="padding:8px;font-weight:600">Pages voulues</td><td style="padding:8px">{_pages_str}</td></tr>
+<tr><td style="padding:8px;background:#f8fafc;font-weight:600">Couleur / Style</td><td style="padding:8px">{color_pref} / {style_pref}</td></tr>
+<tr><td style="padding:8px;font-weight:600">À propos</td><td style="padding:8px">{about_text[:300]}</td></tr>
+<tr><td style="padding:8px;background:#f8fafc;font-weight:600">Services</td><td style="padding:8px">{services_list[:300]}</td></tr>
+<tr><td style="padding:8px;font-weight:600">Logo</td><td style="padding:8px">{has_logo}</td></tr>
+<tr><td style="padding:8px;background:#f8fafc;font-weight:600">Notes</td><td style="padding:8px">{notes[:400]}</td></tr>
+<tr><td style="padding:8px;font-weight:600">Prospect ID</td><td style="padding:8px"><a href="https://novalisia.ca/preview/{prospect_id}">{prospect_id}</a></td></tr>
+</table>
+</div></body></html>"""
+
+    asyncio.create_task(send_email(
+        to=FROM_EMAIL,
+        subject=f"Intake reçu — {contact_name} — DÉMARRE LEUR SITE",
+        body=_notif_html,
+    ))
+
+    # SMS à Elliot
+    if twilio_client and TWILIO_PHONE and OWNER_PHONE:
+        try:
+            await asyncio.to_thread(
+                twilio_client.messages.create,
+                body=f"INTAKE REÇU — {contact_name} ({contact_phone}) a rempli son formulaire. Vérifie ton courriel et démarre leur site.",
+                from_=TWILIO_PHONE,
+                to=OWNER_PHONE,
+            )
+        except Exception:
+            pass
+
+    logger.info(f"Intake soumis — prospect {prospect_id} ({contact_name})")
+    return JSONResponse({"status": "ok"})
 
 
 @app.get("/merci")
