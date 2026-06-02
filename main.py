@@ -170,7 +170,7 @@ _auto_outreach = {
     "enabled": False,
     "sent_today": 0,
     "last_reset": "",
-    "daily_limit": 30,
+    "daily_limit": 80,
     "interval_minutes": 20,
     "last_sent_at": "",
     "last_prospect": "",
@@ -2099,6 +2099,14 @@ async def init_db():
             "ALTER TABLE prospect_suggestions ADD COLUMN brand_meta TEXT DEFAULT '{}'",
             "ALTER TABLE prospect_bank ADD COLUMN brand_meta TEXT DEFAULT '{}'",
             "ALTER TABLE prospect_bank ADD COLUMN email_sent_at TEXT DEFAULT ''",
+            "ALTER TABLE prospect_suggestions ADD COLUMN preview_views INTEGER DEFAULT 0",
+            "ALTER TABLE prospect_suggestions ADD COLUMN preview_last_viewed TEXT DEFAULT ''",
+            "ALTER TABLE prospect_suggestions ADD COLUMN followup2_sent_at TEXT DEFAULT ''",
+            "ALTER TABLE prospect_suggestions ADD COLUMN followup3_sent_at TEXT DEFAULT ''",
+            "ALTER TABLE prospect_bank ADD COLUMN preview_views INTEGER DEFAULT 0",
+            "ALTER TABLE prospect_bank ADD COLUMN preview_last_viewed TEXT DEFAULT ''",
+            "ALTER TABLE prospect_bank ADD COLUMN followup2_sent_at TEXT DEFAULT ''",
+            "ALTER TABLE prospect_bank ADD COLUMN followup3_sent_at TEXT DEFAULT ''",
         ]:
             try:
                 await db.execute(_col_sql)
@@ -2215,6 +2223,91 @@ Réponds UNIQUEMENT avec ce JSON:
                     logging.error(f"Follow-up error for {p.get('name','?')}: {e}")
         except Exception as e:
             logging.error(f"Followup loop error: {e}")
+        # ── J+7 follow-up ──────────────────────────────────────────────────────
+        try:
+            seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()
+            async with aiosqlite.connect(DB_PATH) as db7:
+                db7.row_factory = aiosqlite.Row
+                cur7 = await db7.execute(
+                    """SELECT * FROM prospect_suggestions
+                       WHERE followup_sent_at != '' AND followup_sent_at < ?
+                         AND (followup2_sent_at IS NULL OR followup2_sent_at = '')
+                         AND status = 'contacted' AND email != ''
+                       LIMIT 3""",
+                    (seven_days_ago,)
+                )
+                prospects7 = [dict(r) for r in await cur7.fetchall()]
+            for p7 in prospects7:
+                try:
+                    subj7 = f"Dernière chance — aperçu de {p7['name']}"
+                    body7 = (
+                        f"Bonjour,\n\n"
+                        f"Je reviens une dernière fois au sujet de l'aperçu de site que j'ai préparé pour {p7['name']}.\n\n"
+                        f"Des entreprises similaires à {p7['city']} ont déjà mis leur site à jour. "
+                        f"Chaque semaine sans présence web vous coûte des clients potentiels.\n\n"
+                        f"1 000 $ · livré en 2-3 semaines · hébergement 1 an inclus.\n\n"
+                        f"Un appel de 10 minutes suffit pour démarrer.\n"
+                        f"— Elliot, Novalis IA | novalisia.ca\n"
+                    )
+                    html7 = "<div style='font-family:sans-serif;font-size:15px;line-height:1.8;color:#1a1a1a;max-width:560px;'>" + body7.replace("\n", "<br>") + "</div>"
+                    if RESEND_API_KEY or (SMTP_HOST and SMTP_USER):
+                        await send_email(p7["email"], subj7, html7)
+                        now7 = datetime.now().isoformat()
+                        async with aiosqlite.connect(DB_PATH) as dbu7:
+                            await dbu7.execute(
+                                "UPDATE prospect_suggestions SET followup2_sent_at=?, updated_at=? WHERE id=?",
+                                (now7, now7, p7["id"])
+                            )
+                            await dbu7.commit()
+                        logging.info(f"Follow-up J+7 envoyé: {p7['name']}")
+                        await asyncio.sleep(45)
+                except Exception as _f7e:
+                    logging.warning(f"Followup J+7 error {p7.get('name','?')}: {_f7e}")
+        except Exception as _f7loop:
+            logging.error(f"Followup J+7 loop: {_f7loop}")
+
+        # ── J+14 follow-up (final) ──────────────────────────────────────────────
+        try:
+            fourteen_days_ago = (datetime.now() - timedelta(days=14)).isoformat()
+            async with aiosqlite.connect(DB_PATH) as db14:
+                db14.row_factory = aiosqlite.Row
+                cur14 = await db14.execute(
+                    """SELECT * FROM prospect_suggestions
+                       WHERE followup2_sent_at != '' AND followup2_sent_at < ?
+                         AND (followup3_sent_at IS NULL OR followup3_sent_at = '')
+                         AND status = 'contacted' AND email != ''
+                       LIMIT 2""",
+                    (fourteen_days_ago,)
+                )
+                prospects14 = [dict(r) for r in await cur14.fetchall()]
+            for p14 in prospects14:
+                try:
+                    subj14 = f"Je ferme votre dossier — {p14['name']}"
+                    body14 = (
+                        f"Bonjour,\n\n"
+                        f"Je vais fermer le dossier de {p14['name']} cette semaine.\n\n"
+                        f"Si vous changez d'idée, l'aperçu reste disponible. "
+                        f"Le prix de 1 000 $ reste le même.\n\n"
+                        f"Bonne continuation,\n"
+                        f"— Elliot, Novalis IA\n"
+                    )
+                    html14 = "<div style='font-family:sans-serif;font-size:15px;line-height:1.8;color:#1a1a1a;max-width:560px;'>" + body14.replace("\n", "<br>") + "</div>"
+                    if RESEND_API_KEY or (SMTP_HOST and SMTP_USER):
+                        await send_email(p14["email"], subj14, html14)
+                        now14 = datetime.now().isoformat()
+                        async with aiosqlite.connect(DB_PATH) as dbu14:
+                            await dbu14.execute(
+                                "UPDATE prospect_suggestions SET followup3_sent_at=?, status=?, updated_at=? WHERE id=?",
+                                (now14, "dismissed", now14, p14["id"])
+                            )
+                            await dbu14.commit()
+                        logging.info(f"Follow-up J+14 (final) envoyé: {p14['name']}")
+                        await asyncio.sleep(45)
+                except Exception as _f14e:
+                    logging.warning(f"Followup J+14 error {p14.get('name','?')}: {_f14e}")
+        except Exception as _f14loop:
+            logging.error(f"Followup J+14 loop: {_f14loop}")
+
         await asyncio.sleep(6 * 3600)  # check every 6 hours
 
 
@@ -12707,6 +12800,40 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     if not prospect:
         return HTMLResponse("<h2 style='font-family:sans-serif;text-align:center;margin-top:80px;color:#64748b'>Page introuvable</h2>", status_code=404)
 
+    # ── View tracking — log chaque visite + alerte SMS lead chaud ────────────
+    if prospect_id != "demo":
+        try:
+            _now_ts = datetime.now().isoformat()
+            _new_views = int(prospect.get("preview_views") or 0) + 1
+            async with aiosqlite.connect(DB_PATH) as _vdb:
+                for _vtbl in ("prospect_suggestions", "prospect_bank"):
+                    await _vdb.execute(
+                        f"UPDATE {_vtbl} SET preview_views=?, preview_last_viewed=? WHERE id=?",
+                        (_new_views, _now_ts, prospect_id)
+                    )
+                await _vdb.commit()
+            prospect["preview_views"] = _new_views
+            # Alerte SMS à Elliot quand un prospect regarde son preview 2 fois = lead chaud
+            if _new_views == 2 and OWNER_PHONE and twilio_client and TWILIO_PHONE:
+                _pname = prospect.get("name", "")
+                _pcity = prospect.get("city", "")
+                _pphone = prospect.get("phone", "")
+                _alert_sms = (
+                    f"LEAD CHAUD — {_pname} ({_pcity}) regarde son apercu pour la 2e fois.\n"
+                    f"Tel: {_pphone or 'inconnu'}\n"
+                    f"Appelle maintenant — ils sont sur la page."
+                )
+                try:
+                    import concurrent.futures as _cf
+                    loop = asyncio.get_event_loop()
+                    await loop.run_in_executor(None, lambda: twilio_client.messages.create(
+                        body=_alert_sms, from_=TWILIO_PHONE, to=OWNER_PHONE
+                    ))
+                except Exception as _se:
+                    logger.warning(f"Hot lead SMS: {_se}")
+        except Exception as _ve:
+            pass
+
     name      = prospect.get("name", "votre entreprise")
     city      = prospect.get("city", "Québec")
     industry  = prospect.get("industry", "votre secteur")
@@ -13514,6 +13641,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         f'</div>'
         f'<div class="midcta-right">'
         f'<a class="midcta-btn" href="{_tel_href}">{cta_text}</a>'
+        f'<a href="/api/prospect-pay/{prospect_id}" class="midcta-btn" style="background:#22c55e;box-shadow:0 4px 24px rgba(34,197,94,0.4);margin-top:10px">Réserver et payer en ligne →</a>'
         f'<a href="{_mail_href}" class="midcta-sub-link">Ou écrire par courriel →</a>'
         f'</div>'
         f'</div></section>'
@@ -14983,6 +15111,76 @@ if(window.matchMedia('(pointer:fine)').matches&&window.innerWidth>900){{
 </body>
 </html>"""
     return HTMLResponse(html)
+
+
+@app.get("/api/prospect-pay/{prospect_id}")
+async def prospect_pay_redirect(prospect_id: str, request: Request):
+    """Redirige un prospect vers Stripe Checkout pour payer 1 000 $ CAD directement."""
+    name_checkout = "Site web professionnel — Novalis IA"
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        for table in ("prospect_suggestions", "prospect_bank"):
+            cur = await db.execute(f"SELECT name, city FROM {table} WHERE id=?", (prospect_id,))
+            row = await cur.fetchone()
+            if row:
+                name_checkout = f"Site web — {row['name']} ({row['city']})"
+                break
+    if not stripe:
+        # Stripe non configuré — fallback courriel
+        from fastapi.responses import RedirectResponse as _RR
+        return _RR(f"mailto:elliot@novalisia.ca?subject=Paiement site web - {name_checkout}", status_code=303)
+    try:
+        base = str(request.base_url).rstrip("/")
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            mode="payment",
+            line_items=[{
+                "price_data": {
+                    "currency": "cad",
+                    "product_data": {
+                        "name": name_checkout,
+                        "description": "Site web professionnel sur mesure · Livraison 2-3 semaines · Hébergement 1 an inclus",
+                    },
+                    "unit_amount": 100000,
+                },
+                "quantity": 1,
+            }],
+            success_url=f"{base}/merci?pmt=ok",
+            cancel_url=f"{base}/preview/{prospect_id}",
+            metadata={"prospect_id": prospect_id, "source": "preview_page"},
+        )
+        from fastapi.responses import RedirectResponse as _RR
+        return _RR(session.url, status_code=303)
+    except Exception as _pe:
+        logger.error(f"Prospect pay Stripe: {_pe}")
+        from fastapi.responses import RedirectResponse as _RR
+        return _RR(f"mailto:elliot@novalisia.ca?subject=Paiement site web", status_code=303)
+
+
+@app.get("/merci")
+async def merci_page(pmt: str = ""):
+    """Page de confirmation après paiement Stripe."""
+    return HTMLResponse("""<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Merci — Novalis IA</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#050d1a;color:#e2e8f0;
+display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px}
+.box{max-width:480px}
+.check{width:72px;height:72px;background:#22c55e;border-radius:50%;display:flex;align-items:center;
+justify-content:center;margin:0 auto 28px;font-size:2rem}
+h1{font-size:1.8rem;font-weight:700;margin-bottom:12px}
+p{color:#94a3b8;line-height:1.7;margin-bottom:24px}
+a{color:#38bdf8;text-decoration:underline}
+</style></head>
+<body><div class="box">
+<div class="check">✓</div>
+<h1>Paiement reçu — merci!</h1>
+<p>Votre commande est confirmée. Elliot vous contactera dans les <strong>24 heures</strong>
+pour démarrer votre site web.</p>
+<p style="font-size:0.85rem">Questions? Écrivez à <a href="mailto:elliot@novalisia.ca">elliot@novalisia.ca</a></p>
+</div></body></html>""")
 
 
 @app.post("/api/admin/rescrape-brand-meta")
