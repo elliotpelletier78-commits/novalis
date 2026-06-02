@@ -13393,8 +13393,8 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         _serif_var = "'Figtree',Georgia,sans-serif"
         _sans_var  = "'Noto Sans',system-ui,sans-serif"
     elif _is_trades:
-        _font_url  = "Outfit:wght@300;400;500;600;700;900&family=Rubik:wght@300;400;500"
-        _serif_var = "'Outfit',Georgia,sans-serif"
+        _font_url  = "Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Rubik:wght@300;400;500;600"
+        _serif_var = "'Bricolage Grotesque',Georgia,sans-serif"
         _sans_var  = "'Rubik',system-ui,sans-serif"
     elif _is_immob:
         _font_url  = "Cormorant+Garamond:ital,wght@0,300;0,500;0,700;1,300&family=Raleway:wght@300;400;500;600"
@@ -13405,9 +13405,9 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         _serif_var = "'Barlow Condensed',Georgia,sans-serif"
         _sans_var  = "'Barlow',system-ui,sans-serif"
     else:
-        _font_url  = "Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700;9..144,900&family=Jost:wght@300;400;500;600"
-        _serif_var = "'Fraunces',Georgia,serif"
-        _sans_var  = "'Jost',system-ui,sans-serif"
+        _font_url  = "Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@300;400;500;600"
+        _serif_var = "'Bricolage Grotesque',Georgia,sans-serif"
+        _sans_var  = "'Plus Jakarta Sans',system-ui,sans-serif"
 
     real_hours   = bm.get("hours", [])
     real_address = bm.get("address", "")
@@ -14251,31 +14251,57 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
             ("Sophie L.", "C'était notre anniversaire. La table était en retrait, bougie allumée — ils avaient même mis une petite carte. J'avais rien demandé.", "★★★★★"),
             ("Marc T.",   "J'ai rappelé pour modifier notre réservation à 21h. Quelqu'un a répondu.", "★★★★★"),
             ("Julien R.", "La bavette était parfaite. Ma femme mange végé — ils ont adapté sans faire de chichis.", "★★★★★"),
+            ("Caroline P.", "La présentation des plats est soignée. On sentait que le chef mettait son coeur. On revient dans deux semaines.", "★★★★★"),
+            ("Stéphane M.", "Privatisation de salle pour un repas d'affaires. Tout s'est passé parfaitement, le staff était discret et professionnel.", "★★★★★"),
+            ("Valérie B.", "Le menu dégustation valait chaque dollar. Accords vins impeccables. Soirée mémorable.", "★★★★★"),
         ],
         "salon": [
             ("Amélie B.", "Karine a compris ce que je voulais sans que j'aie à montrer 15 photos. Elle a juste su.", "★★★★★"),
             ("Kevin D.",  "J'avais peur pour ma couleur — cheveux abîmés, premier essai ici. Résultat : exactement ce que je voulais, et mes cheveux sont en meilleur état qu'avant.", "★★★★★"),
             ("Sarah M.",  "Troisième salon que j'essaie depuis que j'ai déménagé. Celui-là, je retourne.", "★★★★★"),
+            ("Renée O.",  "J'ai osé un changement radical. Elle m'a guidée, m'a expliqué ce qui m'irait — je ressors transformée et confiante.", "★★★★★"),
+            ("Pascal T.", "Première fois que j'essaie cette coupe courte. Elle a pris le temps d'écouter mes craintes et le résultat dépasse mes attentes.", "★★★★★"),
+            ("Isabelle M.", "Produits de qualité, ambiance relaxante, résultat qui dure. C'est rare de trouver les trois ensemble.", "★★★★★"),
         ],
         "coiffure": [
             ("Amélie B.", "Elle a regardé mes cheveux deux minutes avant de commencer. Je savais qu'elle allait bien faire.", "★★★★★"),
             ("Kevin D.",  "J'arrive toujours sans idée précise. Je repars toujours content. Je comprends pas comment elle fait.", "★★★★★"),
             ("Sarah M.",  "Mes cheveux sont bouclés et ingérables. La première coiffeuse en 10 ans qui le sait vraiment.", "★★★★★"),
+            ("Renée O.",  "Elle m'a conseillé un traitement que j'avais jamais essayé. Mes cheveux n'ont jamais été aussi beaux.", "★★★★★"),
+            ("Pascal T.", "Atmosphère détendue, pas de pression pour acheter des produits. Juste du bon travail.", "★★★★★"),
+            ("Isabelle M.", "Réservation facile, accueil chaleureux, coupe parfaite. Je comprends les bonnes notes maintenant.", "★★★★★"),
         ],
         "clinique": [
             ("Pierre G.",  "Premier médecin en dix ans qui écoute sans regarder l'horloge.", "★★★★★"),
             ("Nathalie C.","Rendez-vous obtenu en deux jours. Dans mon ancienne clinique, c'était trois semaines minimum.", "★★★★★"),
             ("André P.",   "Ils m'ont rappelé le lendemain pour savoir comment j'allais. Je n'attendais pas ça.", "★★★★★"),
+            ("Louise G.",  "Explications claires, sans jargon médical. Pour la première fois, je comprends vraiment mon traitement.", "★★★★★"),
+            ("Marc-André T.", "Mon assurance est acceptée et les reçus sont envoyés directement. Aucun tracas administratif.", "★★★★★"),
+            ("Diane B.",   "Professionnalisme de haut niveau. On se sent entre bonnes mains dès la première consultation.", "★★★★★"),
         ],
         "garage": [
             ("François L.","J'avais un bruit quand je freinais. Steve a regardé deux minutes, m'a dit ce que c'était, a réparé en deux heures. Il aurait pu me charger bien plus.", "★★★★★"),
             ("Manon R.",   "Mon inspection était dans trois jours, j'avais oublié. Ils m'ont pris en urgence le matin même.", "★★★★★"),
             ("Robert S.",  "Premier garage en quinze ans que je ressors sans avoir l'impression de m'être fait avoir.", "★★★★★"),
+            ("Renée O.",   "Estimé écrit avant les travaux, facture identique à la fin. C'est la base, mais c'est devenu rare.", "★★★★★"),
+            ("Pascal T.",  "Ils m'ont montré la pièce défectueuse avant de la remplacer. Je savais exactement ce que je payais et pourquoi.", "★★★★★"),
+            ("Isabelle M.", "Prise en charge rapide, travail soigné, voiture lavée au retrait. Ces petits détails font toute la différence.", "★★★★★"),
         ],
         "construction": [
             ("Daniel M.", "Le chantier s'est terminé deux jours avant la date prévue. Propre, rangé, rien d'oublié.", "★★★★★"),
             ("Lucie F.",  "Soumission reçue en 24 heures. Prix exact à la fin. C'est rare.", "★★★★★"),
             ("Thomas B.", "Ils ont trouvé un problème que je n'avais pas demandé de regarder. Ils m'ont prévenu avant de toucher à quoi que ce soit.", "★★★★★"),
+            ("Renée O.",  "Travaux de rénovation cuisine — respect du budget, délai respecté, finition impeccable. Je les recommande sans hésiter.", "★★★★★"),
+            ("Pascal T.", "Équipe ponctuelle, courtoise et propre. Mon sous-sol est méconnaissable. Valait chaque dollar.", "★★★★★"),
+            ("Isabelle M.", "Ils ont géré les imprévus sans nous stresser. Communication transparente du début à la fin.", "★★★★★"),
+        ],
+        "plombier": [
+            ("Marie L.",  "Urgence un dimanche soir — ils ont répondu en 20 minutes et réglé le problème en une heure. Impressionnant.", "★★★★★"),
+            ("Jean P.",   "Deuxième fois que je fais affaire avec eux. Même sérieux, même prix, même qualité.", "★★★★★"),
+            ("Claire B.", "Ils ont fait exactement ce qu'ils avaient dit. Ni plus, ni moins — mais vraiment.", "★★★★★"),
+            ("Renée O.",  "Ils sont arrivés à l'heure. Ont fait le travail proprement. M'ont expliqué ce qu'ils avaient changé et pourquoi. Je n'en demandais pas plus.", "★★★★★"),
+            ("Pascal T.", "J'avais peur que ça coûte une fortune. Le prix était raisonnable et clairement expliqué avant qu'ils touchent à quoi que ce soit.", "★★★★★"),
+            ("Isabelle M.", "Mon drain français était bouché depuis des années. Ils ont tout réglé en une journée. J'aurais dû appeler bien avant.", "★★★★★"),
         ],
     }
     testimonials = next(
@@ -14284,16 +14310,29 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
             ("Marie L.", "Je m'attendais à laisser un message. Quelqu'un a répondu. Ça a réglé mon problème.", "★★★★★"),
             ("Jean P.",  "Deuxième fois que je fais affaire avec eux. Même sérieux, même prix.", "★★★★★"),
             ("Claire B.","Ils ont fait exactement ce qu'ils avaient dit. Ni plus, ni moins — mais vraiment.", "★★★★★"),
+            ("Renée O.", "Professionnalisme du début à la fin. Je recommande sans hésiter à mon entourage.", "★★★★★"),
+            ("Pascal T.","Prix clair, travail soigné, délai respecté. Exactement ce qu'on cherche.", "★★★★★"),
+            ("Isabelle M.","Une équipe à l'écoute qui prend le temps de bien faire les choses. Rare et appréciable.", "★★★★★"),
         ]
     )
-    # Build editorial testimonials — featured large quote + 2 secondary
-    _t0_init = "".join(w[0].upper() for w in testimonials[0][0].split()[:2]) if testimonials else "?"
-    _t1_init = "".join(w[0].upper() for w in testimonials[1][0].split()[:2]) if len(testimonials) > 1 else "?"
-    _t2_init = "".join(w[0].upper() for w in testimonials[2][0].split()[:2]) if len(testimonials) > 2 else "?"
+    # Build editorial testimonials — featured large quote + Wall of Love grid
     _t0 = testimonials[0] if testimonials else ("", "", "")
-    _t1 = testimonials[1] if len(testimonials) > 1 else ("", "", "")
-    _t2 = testimonials[2] if len(testimonials) > 2 else ("", "", "")
-    _testi_featured_html = (
+    _t0_init = "".join(w[0].upper() for w in _t0[0].split()[:2]) if _t0[0] else "?"
+    # Wall of Love — toutes les cartes sauf la première
+    _wall_cards_html = ""
+    for _ti, (_author, _text, _stars) in enumerate(testimonials[1:], 1):
+        _init = "".join(w[0].upper() for w in _author.split()[:2])
+        _wall_cards_html += (
+            f'<div class="wol-card reveal d{min(_ti,5)}">'
+            f'<div class="wol-stars">{_stars}</div>'
+            f'<p class="wol-text">{_text}</p>'
+            f'<div class="wol-author">'
+            f'<div class="wol-av">{_init}</div>'
+            f'<div><div class="wol-name">{_author}</div>'
+            f'<div class="wol-loc">{city}, QC</div></div>'
+            f'</div></div>'
+        )
+    testimonials_html = (
         f'<div class="testi-main-quote reveal">'
         f'<span class="testi-bq-mark">&ldquo;</span>'
         f'<p class="testi-bq">{_t0[1]}</p>'
@@ -14304,31 +14343,119 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         f'<div class="testi-name">{_t0[0]}</div>'
         f'<div class="testi-loc">{city}, QC</div>'
         f'</div></div></div>'
+        + (f'<div class="wol-grid">{_wall_cards_html}</div>' if _wall_cards_html else "")
     )
-    _testi_secondary_html = ""
-    if _t1[0]:
-        _testi_secondary_html += (
-            f'<div class="testi-card reveal d1">'
-            f'<div class="testi-stars">{_t1[2]}</div>'
-            f'<p class="testi-text">{_t1[1]}</p>'
-            f'<div class="testi-author">'
-            f'<div class="testi-avatar">{_t1_init}</div>'
-            f'<div><div class="testi-name">{_t1[0]}</div><div class="testi-loc">{city}, QC</div></div>'
-            f'</div></div>'
+
+    # ── Manifeste section (scroll-reveal mot par mot) ────────────────────────
+    _manifeste_sentences = []
+    if _is_trades:
+        _manifeste_sentences = [
+            f"Votre site actuel perd des clients chaque jour.",
+            f"78% des recherches de {industry_lower.split()[0]} à {city} se font sur téléphone.",
+            f"{name} mérite un site à la hauteur de son travail.",
+        ]
+    elif _is_garage:
+        _manifeste_sentences = [
+            "Un site lent ou mal fait, c'est un client qui va chez le concurrent.",
+            f"À {city}, les gens cherchent un garage sur leur téléphone avant même de sortir de chez eux.",
+            f"{name} fait du bon travail — son site devrait le montrer.",
+        ]
+    elif _is_resto:
+        _manifeste_sentences = [
+            "Un restaurant sans site moderne, c'est des réservations perdues chaque soir.",
+            "Les clients décident en 8 secondes si vous valez le déplacement.",
+            f"{name} a la cuisine. Il lui manque la vitrine.",
+        ]
+    elif _is_salon:
+        _manifeste_sentences = [
+            "Vos clientes vous cherchent en ligne avant de réserver.",
+            "Un salon sans présence digitale moderne perd 30% de ses nouveaux clients.",
+            f"{name} crée de la beauté — son site devrait en être le reflet.",
+        ]
+    elif _is_health:
+        _manifeste_sentences = [
+            "Vos patients vous cherchent en ligne. Ce qu'ils trouvent compte.",
+            "Un site professionnel inspire confiance avant même le premier rendez-vous.",
+            f"{name} soigne ses patients — laissez-nous soigner votre présence en ligne.",
+        ]
+    else:
+        _manifeste_sentences = [
+            f"Votre site actuel ne reflète pas la qualité de {name}.",
+            "Chaque visiteur qui repart sans vous contacter est un client perdu.",
+            "Il est temps que votre site travaille aussi dur que vous.",
+        ]
+    _manifeste_words_html = ""
+    _word_idx = 0
+    for _sentence in _manifeste_sentences:
+        _manifeste_words_html += '<p class="mf-sentence">'
+        for _word in _sentence.split():
+            _manifeste_words_html += f'<span class="mf-word" style="transition-delay:{_word_idx * 0.06:.2f}s">{_word} </span>'
+            _word_idx += 1
+        _manifeste_words_html += '</p>'
+    _manifeste_section = (
+        '<section class="manifeste-sec">'
+        '<div class="manifeste-in">'
+        '<div class="mf-label">La vérité</div>'
+        f'<div class="mf-body">{_manifeste_words_html}</div>'
+        '</div>'
+        '</section>'
+    )
+
+    # ── Tabs interactives (Product Showcase) ─────────────────────────────────
+    if _is_trades or _is_garage:
+        _tabs = [
+            ("Diagnostic",    "On identifie le problème avant de toucher quoi que ce soit. Aucune mauvaise surprise.", "Inspection complète · Rapport détaillé · Sans frais"),
+            ("Intervention",  "Nos techniciens interviennent avec le bon matériel, au bon moment.", "Certifié · Pièces de qualité · Garanti"),
+            ("Suivi",         "Après le travail, on reste disponible. Un problème revient ? On revient.", "Support 30 jours · Garantie écrite · Réponse 24h"),
+        ]
+    elif _is_salon or _is_health:
+        _tabs = [
+            ("Consultation",  "On écoute. On comprend. On propose ce qui vous convient vraiment — pas le forfait le plus cher.", "Sans pression · Conseil personnalisé · Gratuit"),
+            ("Soin",          "Des mains expertes, des produits professionnels, un environnement que vous méritez.", "Certifié · Qualité pro · Résultat garanti"),
+            ("Fidélisation",  "Nos clients reviennent. On prend le temps de vous connaître et ça se sent.", "Programme membres · Rappels · Préférence notée"),
+        ]
+    elif _is_resto:
+        _tabs = [
+            ("Réservation",   "Table pour deux ou privatisation complète — aussi simple qu'un message.", "En ligne · Par téléphone · Réponse en 2h"),
+            ("Service",       "Du moment où vous arrivez jusqu'à votre dernier verre — vous êtes notre priorité.", "Service attentionné · Adapté · Mémorable"),
+            ("Expérience",    "On ne cuisine pas juste pour nourrir — on cuisine pour créer un souvenir.", "Produits frais · Chef passionné · Présentation soignée"),
+        ]
+    else:
+        _tabs = [
+            ("Premier contact", "Répondre vite. Savoir écouter. Proposer la bonne solution sans survendre.", "Réponse en 2h · Écoute active · Sans pression"),
+            ("Réalisation",   "On fait ce qu'on a dit. Dans les délais. Avec les matériaux convenus.", "Transparence totale · Délais respectés · Qualité garantie"),
+            ("Après-vente",   "Notre travail ne s'arrête pas quand on part. On est là si vous avez des questions.", "Support inclus · Garantie · Disponible"),
+        ]
+    _tabs_html_buttons = ""
+    _tabs_html_panels = ""
+    for _ti, (_tab_title, _tab_body, _tab_meta) in enumerate(_tabs):
+        _active = " tab-active" if _ti == 0 else ""
+        _tabs_html_buttons += (
+            f'<button class="tab-btn{_active}" onclick="switchTab({_ti})" data-tab="{_ti}">'
+            f'{_tab_title}'
+            f'</button>'
         )
-    if _t2[0]:
-        _testi_secondary_html += (
-            f'<div class="testi-card reveal d2">'
-            f'<div class="testi-stars">{_t2[2]}</div>'
-            f'<p class="testi-text">{_t2[1]}</p>'
-            f'<div class="testi-author">'
-            f'<div class="testi-avatar">{_t2_init}</div>'
-            f'<div><div class="testi-name">{_t2[0]}</div><div class="testi-loc">{city}, QC</div></div>'
-            f'</div></div>'
+        _disp = "block" if _ti == 0 else "none"
+        _tabs_html_panels += (
+            f'<div class="tab-panel" id="tab-panel-{_ti}" style="display:{_disp}">'
+            f'<div class="tab-panel-in reveal">'
+            f'<div class="tab-num">0{_ti+1}</div>'
+            f'<h3 class="tab-title">{_tab_title}</h3>'
+            f'<p class="tab-body">{_tab_body}</p>'
+            f'<div class="tab-meta">{_tab_meta}</div>'
+            f'<a class="btn-p" href="#contact" style="margin-top:24px;display:inline-block">{cta_text}</a>'
+            f'</div>'
+            f'</div>'
         )
-    testimonials_html = (
-        _testi_featured_html
-        + (f'<div class="testi-secondary">{_testi_secondary_html}</div>' if _testi_secondary_html else "")
+    _tabs_section = (
+        f'<section class="tabs-sec sec" style="background:var(--paper2)" id="comment">'
+        f'<div class="sec-in">'
+        f'<div class="sec-label reveal">Notre approche</div>'
+        f'<h2 class="sec-h reveal d1">Comment on travaille</h2>'
+        f'<p class="sec-lead reveal d2">Trois étapes. Zéro surprise. Résultat garanti.</p>'
+        f'<div class="tabs-nav reveal d3">{_tabs_html_buttons}</div>'
+        f'<div class="tabs-body">{_tabs_html_panels}</div>'
+        f'</div></section>'
     )
 
     # ── Galerie d'images réelles du site ─────────────────────────────────────
@@ -14892,6 +15019,16 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     _foot_email_html = (
         f'<div class="foot-ci">{_ico_mail}<a href="mailto:{biz_email}">{biz_email}</a></div>'
     ) if biz_email else ""
+
+    # ── Ann-bar text dynamique par industrie ──────────────────────────────────
+    if _is_trades or _is_garage:
+        _ann_text = f"Nouveau site pour {industry.title()}s à {city} — offre limitée à 3 entreprises ce mois"
+    elif _is_salon or _is_health:
+        _ann_text = f"Aperçu exclusif créé pour {name} par Novalis IA"
+    elif _is_resto:
+        _ann_text = f"Votre nouveau site restaurant — devenez la référence à {city}"
+    else:
+        _ann_text = f"Aperçu personnalisé pour {name} — valable 7 jours"
 
     html = f"""<!DOCTYPE html>
 <html lang="fr">
@@ -15486,12 +15623,48 @@ footer{{background:#06060E;padding:64px 5vw 0}}
 .process-dark-title{{font-size:1rem;font-weight:700;color:#fff;margin-bottom:10px;line-height:1.3}}
 .process-dark-desc{{font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.7;font-weight:300}}
 @media(max-width:700px){{.process-dark-steps{{grid-template-columns:1fr;gap:32px}}.process-dark-steps::before{{display:none}}}}
+/* ── Hero proof badge ── */
+.hero-proof-badge{{display:inline-flex;align-items:center;gap:8px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);border-radius:100px;padding:6px 16px 6px 10px;font-size:0.71rem;font-weight:600;color:#10b981;margin-bottom:14px}}
+.hero-proof-dot{{width:6px;height:6px;border-radius:50%;background:#10b981;animation:pulse-green 2s infinite;flex-shrink:0}}
+@keyframes pulse-green{{0%,100%{{opacity:1;transform:scale(1)}}50%{{opacity:0.5;transform:scale(0.8)}}}}
+/* ── Manifeste scroll reveal ── */
+.manifeste-sec{{background:#04040A;padding:120px 5vw;border-top:1px solid rgba(255,255,255,0.06);overflow:hidden}}
+.manifeste-in{{max-width:860px;margin:0 auto;text-align:center}}
+.mf-label{{font-size:0.68rem;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:{btn};margin-bottom:32px;opacity:0.8}}
+.mf-sentence{{font-family:var(--sans);font-size:clamp(1.6rem,3.8vw,2.8rem);font-weight:700;color:#fff;line-height:1.25;letter-spacing:-0.03em;margin-bottom:16px;display:block}}
+.mf-sentence:last-child{{margin-bottom:0}}
+.mf-word{{display:inline-block;opacity:0;transform:translateY(12px);transition:opacity 0.5s,transform 0.5s}}
+.mf-word.visible{{opacity:1;transform:none}}
+/* ── Tabs interactives ── */
+.tabs-nav{{display:flex;gap:4px;background:rgba(255,255,255,0.04);border:1px solid var(--rule);border-radius:12px;padding:5px;margin-top:40px;flex-wrap:wrap}}
+.tab-btn{{background:transparent;border:none;color:var(--ink2);padding:10px 20px;border-radius:9px;font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.2s;font-family:var(--sans);letter-spacing:0.01em;flex:1;min-width:100px;white-space:nowrap}}
+.tab-btn:hover{{color:#fff}}
+.tab-btn.tab-active{{background:{btn};color:#fff;box-shadow:0 2px 12px {btn}44}}
+.tabs-body{{margin-top:24px}}
+.tab-panel-in{{background:rgba(255,255,255,0.04);border:1px solid var(--rule);border-radius:14px;padding:40px;display:grid;grid-template-columns:auto 1fr;gap:0 28px;align-items:start}}
+.tab-num{{font-family:var(--sans);font-size:3.5rem;font-weight:800;color:{btn};opacity:0.35;line-height:1;letter-spacing:-0.04em;grid-row:span 3}}
+.tab-title{{font-family:var(--sans);font-size:1.5rem;font-weight:700;color:#fff;margin-bottom:10px;letter-spacing:-0.02em}}
+.tab-body{{font-size:0.97rem;color:var(--ink2);line-height:1.8;margin-bottom:14px}}
+.tab-meta{{font-size:0.78rem;color:{btn};font-weight:600;letter-spacing:0.04em}}
+@media(max-width:600px){{.tab-panel-in{{grid-template-columns:1fr}}.tab-num{{display:none}}.tabs-nav{{gap:3px}}.tab-btn{{padding:8px 12px;font-size:0.78rem}}}}
+/* ── Wall of Love ── */
+.wol-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:32px}}
+.wol-card{{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:24px;transition:border-color 0.25s,background 0.25s;cursor:default}}
+.wol-card:hover{{background:rgba(255,255,255,0.06);border-color:{btn}44}}
+.wol-stars{{color:#F5A623;font-size:0.72rem;letter-spacing:1px;margin-bottom:12px}}
+.wol-text{{font-size:0.86rem;color:var(--ink2);line-height:1.85;font-weight:400;margin-bottom:20px}}
+.wol-author{{display:flex;align-items:center;gap:10px}}
+.wol-av{{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,{g1},{g2});color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.78rem;flex-shrink:0}}
+.wol-name{{font-size:0.82rem;font-weight:700;color:#fff}}
+.wol-loc{{font-size:0.68rem;color:var(--ink2);margin-top:1px}}
+@media(max-width:900px){{.wol-grid{{grid-template-columns:repeat(2,1fr)}}}}
+@media(max-width:600px){{.wol-grid{{grid-template-columns:1fr}}}}
 </style>
 </head>
 <body>
 
 <div class="ann-bar">
-  <span class="ann-bar-text">Aperçu exclusif créé pour <strong>{name}</strong> par Novalis IA &nbsp;·&nbsp; 1&nbsp;000&nbsp;$</span>
+  <span class="ann-bar-text">{_ann_text} &nbsp;·&nbsp; 1&nbsp;000&nbsp;$</span>
   <a class="ann-bar-btn" href="{_mail_href}">Obtenir ce site — 1 000 $ →</a>
 </div>
 
@@ -15520,6 +15693,10 @@ footer{{background:#06060E;padding:64px 5vw 0}}
   </div>
   <div class="hero-body">
     {_hero_logo_html}
+    <div class="hero-proof-badge">
+      <span class="hero-proof-dot"></span>
+      <span>{rating_text} &nbsp;·&nbsp; {review_count or "100+"} avis Google vérifiés</span>
+    </div>
     <span class="hero-eyebrow">{industry.title()} &nbsp;·&nbsp; {city}, Québec</span>
     <h1>{hero_title}</h1>
     <p class="hero-sub">{hero_subtitle}</p>
@@ -15560,6 +15737,8 @@ footer{{background:#06060E;padding:64px 5vw 0}}
 
 {qf_section}
 
+{_manifeste_section}
+
 {audit_section}
 
 <section class="sec ind-sec-{_ind_font_style}" id="services">
@@ -15577,6 +15756,8 @@ footer{{background:#06060E;padding:64px 5vw 0}}
 </section>
 
 {process_section}
+
+{_tabs_section}
 
 {_tarif_section}
 
@@ -15941,6 +16122,31 @@ if(window.matchMedia('(pointer:fine)').matches&&window.innerWidth>900){{
   stats.style.transition='opacity 0.7s cubic-bezier(.16,1,.3,1) 0.55s,transform 0.7s cubic-bezier(.16,1,.3,1) 0.55s';
   setTimeout(()=>{{stats.style.opacity='1';stats.style.transform='none';}},100);
 }})();
+
+// ── Manifeste scroll reveal ───────────────────────────────────────────────
+(function(){{
+  const words=document.querySelectorAll('.mf-word');
+  if(!words.length)return;
+  const io=new IntersectionObserver(entries=>{{
+    entries.forEach(e=>{{
+      if(e.isIntersecting){{
+        e.target.classList.add('visible');
+        io.unobserve(e.target);
+      }}
+    }});
+  }},{{threshold:0,rootMargin:'0px 0px -40px 0px'}});
+  words.forEach(w=>io.observe(w));
+}})();
+
+// ── Tabs interactives ─────────────────────────────────────────────────────
+function switchTab(i){{
+  document.querySelectorAll('.tab-btn').forEach((b,j)=>{{
+    b.classList.toggle('tab-active',j===i);
+  }});
+  document.querySelectorAll('.tab-panel').forEach((p,j)=>{{
+    p.style.display=j===i?'block':'none';
+  }});
+}}
 </script>
 </body>
 </html>"""
