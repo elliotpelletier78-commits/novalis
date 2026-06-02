@@ -8247,6 +8247,40 @@ async def discovery_history(username: str = Depends(verify_admin)):
 @app.get("/admin", response_class=HTMLResponse)
 async def dashboard(username: str = Depends(verify_admin)):
     """Admin dashboard — plateforme Novalis V3."""
+    # ── Typographie par industrie (Ford/Mercedes level) ─────────────────────
+    if _is_garage:
+        _font_url  = "Righteous:wght@400&family=Poppins:wght@300;400;500;600"
+        _serif_var = "'Righteous',Impact,sans-serif"
+        _sans_var  = "'Poppins',system-ui,sans-serif"
+    elif _is_resto:
+        _font_url  = "Playfair+Display+SC:wght@400;700&family=Karla:ital,wght@0,300;0,400;0,500;0,600;1,300"
+        _serif_var = "'Playfair Display SC',Georgia,serif"
+        _sans_var  = "'Karla',system-ui,sans-serif"
+    elif _is_salon:
+        _font_url  = "Cormorant+Garamond:ital,wght@0,300;0,500;0,700;1,300;1,500&family=DM+Sans:wght@300;400;500"
+        _serif_var = "'Cormorant Garamond',Georgia,serif"
+        _sans_var  = "'DM Sans',system-ui,sans-serif"
+    elif _is_health:
+        _font_url  = "Figtree:wght@300;400;500;600;700&family=Noto+Sans:wght@300;400;500"
+        _serif_var = "'Figtree',Georgia,sans-serif"
+        _sans_var  = "'Noto Sans',system-ui,sans-serif"
+    elif _is_trades:
+        _font_url  = "Outfit:wght@300;400;500;600;700;900&family=Rubik:wght@300;400;500"
+        _serif_var = "'Outfit',Georgia,sans-serif"
+        _sans_var  = "'Rubik',system-ui,sans-serif"
+    elif _is_immob:
+        _font_url  = "Cormorant+Garamond:ital,wght@0,300;0,500;0,700;1,300&family=Raleway:wght@300;400;500;600"
+        _serif_var = "'Cormorant Garamond',Georgia,serif"
+        _sans_var  = "'Raleway',system-ui,sans-serif"
+    elif _is_fitness:
+        _font_url  = "Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500"
+        _serif_var = "'Barlow Condensed',Georgia,sans-serif"
+        _sans_var  = "'Barlow',system-ui,sans-serif"
+    else:
+        _font_url  = "Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700;9..144,900&family=Jost:wght@300;400;500;600"
+        _serif_var = "'Fraunces',Georgia,serif"
+        _sans_var  = "'Jost',system-ui,sans-serif"
+
     html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -14044,16 +14078,21 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
 <title>{name}</title>
 {_favicon_tag}
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700;9..144,900&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family={_font_url}&display=swap" rel="stylesheet">
 <style>
-:root{{--brand:{btn};--ink:#18120F;--ink2:#5C534E;--paper:#F7F4EF;--paper2:#EFEBE4;--rule:#E2DBD2;--serif:'Fraunces',Georgia,serif;--sans:'Jost',system-ui,sans-serif}}
+:root{{--brand:{btn};--ink:#18120F;--ink2:#5C534E;--paper:#F7F4EF;--paper2:#EFEBE4;--rule:#E2DBD2;--serif:{_serif_var};--sans:{_sans_var}}}
 *{{margin:0;padding:0;box-sizing:border-box}}html{{scroll-behavior:smooth}}
 body{{font-family:var(--sans);background:var(--paper);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}}a{{color:inherit;text-decoration:none}}
 .ann-bar{{background:var(--brand);color:#fff;padding:9px 5vw;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:210}}
 .ann-bar-text{{font-size:0.76rem;font-weight:500;letter-spacing:0.02em;opacity:0.9}}
 .ann-bar-btn{{background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.32);color:#fff;padding:5px 14px;border-radius:3px;font-size:0.73rem;font-weight:700;letter-spacing:0.03em;white-space:nowrap;transition:background 0.2s}}
 .ann-bar-btn:hover{{background:rgba(255,255,255,0.28)}}
-nav{{position:sticky;top:0;z-index:200;background:rgba(247,244,239,0.95);backdrop-filter:blur(18px);border-bottom:1px solid var(--rule)}}
+nav{{position:sticky;top:0;z-index:200;background:transparent;border-bottom:1px solid transparent;transition:background 0.4s cubic-bezier(.16,1,.3,1),border-color 0.4s,backdrop-filter 0.4s}}
+nav.scrolled{{background:rgba(247,244,239,0.97);backdrop-filter:blur(20px);border-bottom:1px solid var(--rule)}}
+nav:not(.scrolled) .nav-link{{color:rgba(255,255,255,0.85)}}
+nav:not(.scrolled) .nav-logo{{color:#fff}}
+nav:not(.scrolled) .nav-cta{{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff}}
 .nav-in{{max-width:1160px;margin:0 auto;padding:0 5vw;display:flex;align-items:center;justify-content:space-between;height:66px}}
 .nav-logo{{font-family:var(--serif);font-size:1.08rem;font-weight:700;letter-spacing:-0.01em}}
 .nav-links{{display:flex;align-items:center;gap:24px}}
@@ -14064,13 +14103,13 @@ nav{{position:sticky;top:0;z-index:200;background:rgba(247,244,239,0.95);backdro
 .hero{{position:relative;min-height:100vh;display:flex;align-items:flex-end;overflow:hidden;background-color:{bg}}}
 .hero-bg{{position:absolute;inset:0;background:{hero_bg};background-size:cover;background-position:center}}
 .hero-veil{{position:absolute;inset:0;background:{hero_overlay_css};z-index:1}}
-.hero-body{{position:relative;z-index:2;width:100%;max-width:1160px;margin:0 auto;padding:80px 5vw 72px}}
+.hero-body{{position:relative;z-index:2;width:100%;max-width:1160px;margin:0 auto;padding:120px 5vw 88px}}
 .hero-logo-wrap{{margin-bottom:22px}}
 .hero-logo-wrap img{{height:52px;max-width:200px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.9}}
 .hero-chip{{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,0.2);border-radius:3px;padding:5px 12px;font-size:0.7rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.75);margin-bottom:24px}}
 .hero-chip i{{width:6px;height:6px;border-radius:50%;background:var(--brand);display:inline-block;box-shadow:0 0 8px {btn}bb;flex-shrink:0}}
-.hero h1{{font-family:var(--serif);font-size:clamp(2rem,5.2vw,3.8rem);font-weight:900;line-height:1.08;letter-spacing:-0.03em;color:#fff;max-width:660px;margin-bottom:18px}}
-.hero-sub{{font-size:0.98rem;color:rgba(255,255,255,0.66);max-width:500px;font-weight:300;line-height:1.75;margin-bottom:32px}}
+.hero h1{{font-family:var(--serif);font-size:clamp(2.8rem,6.5vw,5.8rem);font-weight:900;line-height:1.03;letter-spacing:-0.03em;color:#fff;max-width:780px;margin-bottom:24px}}
+.hero-sub{{font-size:1.08rem;color:rgba(255,255,255,0.72);max-width:560px;font-weight:300;line-height:1.8;margin-bottom:36px}}
 .hero-rating{{display:inline-flex;align-items:center;gap:9px;font-size:0.78rem;color:rgba(255,255,255,0.52);margin-bottom:38px;padding:8px 16px;border:1px solid rgba(255,255,255,0.12);border-radius:3px}}
 .hero-rating .s{{color:#F4B942;letter-spacing:2px}}
 .hero-btns{{display:flex;gap:12px;flex-wrap:wrap}}
@@ -14083,11 +14122,11 @@ nav{{position:sticky;top:0;z-index:200;background:rgba(247,244,239,0.95);backdro
 .trust-pill{{padding:7px 22px;font-size:0.78rem;color:var(--ink2);border-right:1px solid var(--rule)}}
 .trust-pill:last-child{{border-right:none}}
 .trust-pill strong{{color:var(--ink);font-weight:600}}
-.sec{{padding:88px 5vw}}
+.sec{{padding:112px 5vw}}
 .sec-in{{max-width:1160px;margin:0 auto}}
 .sec-label{{display:inline-flex;align-items:center;gap:8px;font-size:0.7rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--brand);margin-bottom:14px}}
 .sec-label::before{{content:'';width:20px;height:1px;background:var(--brand)}}
-.sec-h{{font-family:var(--serif);font-size:clamp(1.7rem,3.5vw,2.7rem);font-weight:700;letter-spacing:-0.025em;color:var(--ink);line-height:1.15;margin-bottom:12px}}
+.sec-h{{font-family:var(--serif);font-size:clamp(2rem,4vw,3.4rem);font-weight:700;letter-spacing:-0.03em;color:var(--ink);line-height:1.1;margin-bottom:16px}}
 .sec-lead{{font-size:0.95rem;color:var(--ink2);font-weight:300;max-width:460px;line-height:1.75}}
 .svc-list{{margin-top:48px;border-top:1px solid var(--rule)}}
 .svc-row{{display:grid;grid-template-columns:52px 1fr;gap:0 24px;padding:26px 0;border-bottom:1px solid var(--rule);transition:background 0.2s;cursor:default}}
@@ -14361,7 +14400,7 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 .qf-chip-contact:hover{{opacity:0.88}}
 /* ── Service cards grid ── */
 .svc-cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;margin-top:48px}}
-.svc-card{{background:#fff;border:1px solid var(--rule);border-radius:10px;padding:28px 24px;transition:box-shadow 0.25s,transform 0.25s;cursor:default}}
+.svc-card{{background:#fff;border:1px solid var(--rule);border-radius:10px;padding:28px 24px;transition:box-shadow 0.25s,transform 0.25s;cursor:pointer}}
 .svc-card:hover{{box-shadow:0 10px 40px rgba(0,0,0,0.09);transform:translateY(-3px)}}
 .svc-card-icon{{font-size:2rem;margin-bottom:14px;line-height:1}}
 .svc-card-title{{font-family:var(--serif);font-size:1.08rem;font-weight:700;color:var(--ink);margin-bottom:8px;line-height:1.3}}
@@ -14462,7 +14501,7 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 /* ── Pourquoi nous choisir ── */
 .why-sec{{background:var(--paper2);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}}
 .why-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;margin-top:48px}}
-.why-item{{background:#fff;border:1px solid var(--rule);border-radius:12px;padding:32px 24px;text-align:center;transition:box-shadow 0.25s,transform 0.2s;cursor:default}}
+.why-item{{background:#fff;border:1px solid var(--rule);border-radius:12px;padding:32px 24px;text-align:center;transition:box-shadow 0.25s,transform 0.2s;cursor:pointer}}
 .why-item:hover{{box-shadow:0 10px 40px rgba(0,0,0,0.09);transform:translateY(-3px)}}
 .why-num{{font-family:var(--serif);font-size:2rem;font-weight:700;color:var(--brand);opacity:0.35;line-height:1;margin-bottom:14px;letter-spacing:-0.02em}}
 .why-title{{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:10px;line-height:1.3}}
@@ -14484,7 +14523,7 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 /* ── Équipe ── */
 .team-sec{{background:var(--paper2);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}}
 .tm-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:48px}}
-.tm-card{{background:#fff;border:1px solid var(--rule);border-radius:12px;padding:36px 24px;text-align:center;transition:box-shadow 0.25s,transform 0.2s;cursor:default}}
+.tm-card{{background:#fff;border:1px solid var(--rule);border-radius:12px;padding:36px 24px;text-align:center;transition:box-shadow 0.25s,transform 0.2s;cursor:pointer}}
 .tm-card:hover{{box-shadow:0 10px 40px rgba(0,0,0,0.09);transform:translateY(-3px)}}
 .tm-avatar{{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,{g1},{g2});color:#fff;font-family:var(--serif);font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;box-shadow:0 4px 18px {btn}44}}
 .tm-name{{font-family:var(--serif);font-size:1.08rem;font-weight:700;color:var(--ink);margin-bottom:4px}}
@@ -14537,6 +14576,7 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
   .tarif-row{{grid-template-columns:1fr auto}}
 }}
 @media(max-width:420px){{.why-grid{{grid-template-columns:1fr}}}}
+@media(prefers-reduced-motion:reduce){{.reveal,.reveal-left,.reveal-right,.reveal-scale{{transition:none!important;opacity:1!important;transform:none!important}}.js-anim .reveal,.js-anim .reveal-left,.js-anim .reveal-right,.js-anim .reveal-scale{{transition:none!important}}.hero-orb{{animation:none!important}}.scroll-arrow{{animation:none!important}}.float-btn{{animation:none!important}}.urgency-dot{{animation:none!important}}}}
 </style>
 </head>
 <body>
@@ -14685,6 +14725,14 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 </div>
 
 <script>
+// ── Nav transparente → solide au scroll ────────────────────────────────
+(function(){{
+  const nav=document.querySelector('nav');
+  function upNav(){{nav.classList.toggle('scrolled',window.scrollY>60);}}
+  window.addEventListener('scroll',upNav,{{passive:true}});
+  upNav();
+}})();
+
 // ── FAQ accordion toggle ──────────────────────────────────────────────────
 function toggleFaq(i){{
   const a=document.getElementById('faq-a-'+i);
