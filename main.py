@@ -13375,6 +13375,39 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     _is_immob    = any(k in industry_lower for k in ["immobilier","courtier","hypothèque","agence"])
     _is_fitness  = any(k in industry_lower for k in ["gym","fitness","entraînement","sport","yoga","pilates","crossfit","natation","boxe"])
 
+    # ── Typographie par industrie (Ford/Mercedes level) ──────────────────────
+    if _is_garage:
+        _font_url  = "Righteous:wght@400&family=Poppins:wght@300;400;500;600"
+        _serif_var = "'Righteous',Impact,sans-serif"
+        _sans_var  = "'Poppins',system-ui,sans-serif"
+    elif _is_resto:
+        _font_url  = "Playfair+Display+SC:wght@400;700&family=Karla:ital,wght@0,300;0,400;0,500;0,600;1,300"
+        _serif_var = "'Playfair Display SC',Georgia,serif"
+        _sans_var  = "'Karla',system-ui,sans-serif"
+    elif _is_salon:
+        _font_url  = "Cormorant+Garamond:ital,wght@0,300;0,500;0,700;1,300;1,500&family=DM+Sans:wght@300;400;500"
+        _serif_var = "'Cormorant Garamond',Georgia,serif"
+        _sans_var  = "'DM Sans',system-ui,sans-serif"
+    elif _is_health:
+        _font_url  = "Figtree:wght@300;400;500;600;700&family=Noto+Sans:wght@300;400;500"
+        _serif_var = "'Figtree',Georgia,sans-serif"
+        _sans_var  = "'Noto Sans',system-ui,sans-serif"
+    elif _is_trades:
+        _font_url  = "Outfit:wght@300;400;500;600;700;900&family=Rubik:wght@300;400;500"
+        _serif_var = "'Outfit',Georgia,sans-serif"
+        _sans_var  = "'Rubik',system-ui,sans-serif"
+    elif _is_immob:
+        _font_url  = "Cormorant+Garamond:ital,wght@0,300;0,500;0,700;1,300&family=Raleway:wght@300;400;500;600"
+        _serif_var = "'Cormorant Garamond',Georgia,serif"
+        _sans_var  = "'Raleway',system-ui,sans-serif"
+    elif _is_fitness:
+        _font_url  = "Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500"
+        _serif_var = "'Barlow Condensed',Georgia,sans-serif"
+        _sans_var  = "'Barlow',system-ui,sans-serif"
+    else:
+        _font_url  = "Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700;9..144,900&family=Jost:wght@300;400;500;600"
+        _serif_var = "'Fraunces',Georgia,serif"
+        _sans_var  = "'Jost',system-ui,sans-serif"
 
     real_hours   = bm.get("hours", [])
     real_address = bm.get("address", "")
