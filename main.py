@@ -2113,6 +2113,8 @@ async def init_db():
             "ALTER TABLE prospect_bank ADD COLUMN wa_sent_at TEXT DEFAULT ''",
             "ALTER TABLE prospect_suggestions ADD COLUMN email_opened_at TEXT DEFAULT ''",
             "ALTER TABLE prospect_bank ADD COLUMN email_opened_at TEXT DEFAULT ''",
+            "ALTER TABLE prospect_suggestions ADD COLUMN escalation_sent_at TEXT DEFAULT ''",
+            "ALTER TABLE prospect_bank ADD COLUMN escalation_sent_at TEXT DEFAULT ''",
         ]:
             try:
                 await db.execute(_col_sql)
@@ -2539,6 +2541,9 @@ async def startup():
     asyncio.create_task(_fast_bank_fill_on_startup())
     asyncio.create_task(_cleanup_duplicate_prospects())
     asyncio.create_task(_outreach_watchdog())
+    asyncio.create_task(_daily_intel_report_loop())
+    asyncio.create_task(_smart_lead_escalation_loop())
+    asyncio.create_task(_loop_health_monitor())
     logger.info(f"Novalis V{VERSION} démarré — Agence IA")
 
 
@@ -2618,6 +2623,163 @@ async def _outreach_watchdog():
                 asyncio.create_task(_run_refresh_job())
         except Exception as e:
             logger.error(f"Outreach watchdog error: {e}")
+
+
+async def _daily_intel_report_loop():
+    """Envoie un rapport SMS à Elliot chaque matin à 8h — métriques de la journée précédente."""
+    while True:
+        try:
+            now = datetime.now()
+            next_8am = now.replace(hour=8, minute=0, second=0, microsecond=0)
+            if now >= next_8am:
+                next_8am += timedelta(days=1)
+            await asyncio.sleep((next_8am - now).total_seconds())
+
+            since = (datetime.now() - timedelta(hours=24)).isoformat()
+            async with aiosqlite.connect(DB_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                cur = await db.execute(
+                    "SELECT COUNT(*) as cnt FROM prospect_suggestions WHERE email_sent_at > ?", (since,)
+                )
+                emails_today = (await cur.fetchone())["cnt"]
+                cur = await db.execute(
+                    "SELECT COUNT(*) as cnt FROM prospect_suggestions WHERE preview_last_viewed > ?", (since,)
+                )
+                views_today = (await cur.fetchone())["cnt"]
+                cur = await db.execute(
+                    "SELECT COUNT(*) as cnt FROM prospect_suggestions WHERE COALESCE(preview_views,0) >= 2 AND status='new'"
+                )
+                hot_count = (await cur.fetchone())["cnt"]
+                cur = await db.execute(
+                    "SELECT COUNT(*) as cnt FROM prospect_suggestions WHERE status='client'"
+                )
+                clients_total = (await cur.fetchone())["cnt"]
+                cur = await db.execute(
+                    "SELECT COUNT(*) as cnt FROM prospect_suggestions WHERE status='new'"
+                )
+                pipeline = (await cur.fetchone())["cnt"]
+
+            report = (
+                f"NOVALIS {datetime.now().strftime('%d %b')} — Rapport matinal\n"
+                f"Emails 24h: {emails_today}\n"
+                f"Previews vus: {views_today}\n"
+                f"Leads chauds: {hot_count}\n"
+                f"Clients payants: {clients_total}\n"
+                f"Pipeline: {pipeline} PMEs\n"
+                f"Potentiel: {pipeline * 1000:,}$"
+            )
+            if twilio_client and TWILIO_PHONE and OWNER_PHONE:
+                await asyncio.to_thread(
+                    twilio_client.messages.create,
+                    body=report, from_=TWILIO_PHONE, to=OWNER_PHONE,
+                )
+            logger.info(f"Rapport matinal envoyé — {emails_today} emails, {views_today} vues, {hot_count} leads chauds")
+        except Exception as e:
+            logger.error(f"Daily intel report error: {e}")
+            await asyncio.sleep(3600)
+
+
+async def _smart_lead_escalation_loop():
+    """Prospects ayant vu leur preview 2+ fois → SMS personnalisé IA pour convertir."""
+    await asyncio.sleep(900)  # 15 min après démarrage
+    while True:
+        try:
+            async with aiosqlite.connect(DB_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                cur = await db.execute("""
+                    SELECT * FROM prospect_suggestions
+                    WHERE COALESCE(preview_views, 0) >= 2
+                      AND status = 'new'
+                      AND phone != '' AND phone IS NOT NULL
+                      AND (escalation_sent_at IS NULL OR escalation_sent_at = '')
+                    ORDER BY preview_views DESC
+                    LIMIT 5
+                """)
+                hot_prospects = [dict(r) for r in await cur.fetchall()]
+
+            for p in hot_prospects:
+                try:
+                    raw_phone = p.get("phone", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+                    if not raw_phone:
+                        continue
+                    phone = raw_phone if raw_phone.startswith("+") else "+1" + raw_phone.lstrip("1")
+                    name = p.get("name", "")
+                    city = p.get("city", "")
+                    industry = p.get("industry", "")
+                    views = int(p.get("preview_views") or 2)
+                    preview_url = f"https://novalisia.ca/preview/{p['id']}"
+
+                    if claude_client:
+                        ai_resp = await asyncio.to_thread(
+                            claude_client.messages.create,
+                            model="claude-haiku-4-5-20251001",
+                            max_tokens=160,
+                            messages=[{
+                                "role": "user",
+                                "content": (
+                                    f"SMS court (<160 chars) en français québécois pour relancer {name}, "
+                                    f"{industry} à {city}, qui a regardé son aperçu de site {views} fois. "
+                                    f"Ton direct, chaleureux, pas vendeur. Signe Elliot. "
+                                    f"Inclus ce lien: {preview_url}"
+                                )
+                            }]
+                        )
+                        sms_body = ai_resp.content[0].text.strip()
+                    else:
+                        sms_body = (
+                            f"Bonjour {name}! Vous avez visité votre aperçu {views} fois — "
+                            f"ça m'intéresse. On se parle? {preview_url} — Elliot"
+                        )
+
+                    if twilio_client and TWILIO_PHONE:
+                        await asyncio.to_thread(
+                            twilio_client.messages.create,
+                            body=sms_body, from_=TWILIO_PHONE, to=phone,
+                        )
+                        now_ts = datetime.now().isoformat()
+                        async with aiosqlite.connect(DB_PATH) as db:
+                            await db.execute(
+                                "UPDATE prospect_suggestions SET escalation_sent_at=?, updated_at=? WHERE id=?",
+                                (now_ts, now_ts, p["id"])
+                            )
+                            await db.commit()
+                        logger.info(f"Smart escalation → {name} ({phone}) — {views} vues")
+                        await asyncio.sleep(45)
+                except Exception as e:
+                    logger.error(f"Smart escalation {p.get('name')}: {e}")
+
+        except Exception as e:
+            logger.error(f"Smart escalation loop error: {e}")
+        await asyncio.sleep(20 * 60)  # toutes les 20 minutes
+
+
+async def _loop_health_monitor():
+    """Surveille la santé de tous les loops — redémarre ceux qui sont morts silencieusement."""
+    await asyncio.sleep(1800)  # 30 min après démarrage
+    _loop_registry = {
+        "_followup_loop": _followup_loop,
+        "_auto_outreach_loop": _auto_outreach_loop,
+        "_sms_outreach_loop": _sms_outreach_loop,
+        "_whatsapp_outreach_loop": _whatsapp_outreach_loop,
+        "_smart_lead_escalation_loop": _smart_lead_escalation_loop,
+        "_daily_intel_report_loop": _daily_intel_report_loop,
+    }
+    _tasks: dict = {}
+    # Register initial tasks
+    for name, fn in _loop_registry.items():
+        _tasks[name] = asyncio.current_task()  # placeholder — will be replaced
+
+    while True:
+        try:
+            await asyncio.sleep(15 * 60)  # vérifie toutes les 15 minutes
+            for loop_name, loop_fn in _loop_registry.items():
+                task = _tasks.get(loop_name)
+                if task is None or task.done():
+                    logger.warning(f"Loop monitor: {loop_name} arrêté — redémarrage")
+                    new_task = asyncio.create_task(loop_fn())
+                    _tasks[loop_name] = new_task
+        except Exception as e:
+            logger.error(f"Loop health monitor error: {e}")
 
 
 async def _sms_outreach_loop():
