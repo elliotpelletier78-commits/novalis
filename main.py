@@ -14410,26 +14410,65 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         '</div></section>'
     )
 
-    # ── Audit avant/après ─────────────────────────────────────────────────────
-    if web_issues:
-        audit_section = (
-            '<section class="sec audit-sec">'
-            '<div class="sec-in audit-grid">'
-            '<div class="audit-col audit-before">'
-            f'<div class="audit-label">Votre site · {score_label}</div>'
-            f'<div class="audit-score" style="color:{score_color}">{web_score}/5</div>'
-            f'{before_items_html}'
-            '</div>'
-            '<div class="audit-arrow">→</div>'
-            '<div class="audit-col audit-after">'
-            '<div class="audit-label">Nouveau site · Novalis IA</div>'
-            '<div class="audit-score" style="color:#22c55e">Professionnel</div>'
-            f'{after_items_html}'
-            '</div>'
-            '</div></section>'
-        )
-    else:
-        audit_section = ""
+    # ── Audit avant/après — version premium avec SVG ring ─────────────────────
+    # SVG circular progress ring for web_score/5
+    _score_pct = int((web_score / 5) * 100)
+    _ring_circumference = 314  # 2 * pi * 50 (radius=50)
+    _ring_offset = int(_ring_circumference * (1 - _score_pct / 100))
+    _ring_color = "#22c55e" if web_score >= 4 else ("#f59e0b" if web_score == 3 else "#ef4444")
+    _audit_issues_html = ""
+    for _iss in web_issues[:5]:
+        _audit_issues_html += f'<div class="audit-issue2"><span style="flex-shrink:0;font-weight:700">✗</span><span>{_iss}</span></div>'
+    if not _audit_issues_html:
+        _audit_issues_html = '<div class="audit-issue2"><span style="flex-shrink:0;font-weight:700">✗</span><span>Présence en ligne à améliorer</span></div>'
+    _audit_goods_html = ""
+    _audit_goods_list = [
+        "Site mobile rapide et moderne",
+        "Appel à l'action visible en 1 clic",
+        "Référencement Google local optimisé",
+        "Chargement en moins de 2 secondes",
+        "HTTPS — Google vous fait confiance",
+    ]
+    for _g in _audit_goods_list[:max(len(web_issues[:5]), 3)]:
+        _audit_goods_html += f'<div class="audit-good2"><span style="flex-shrink:0;font-weight:700">✓</span><span>{_g}</span></div>'
+
+    _new_audit_section = (
+        '<section class="new-audit-sec">'
+        '<div class="new-audit-in">'
+        '<div class="new-audit-left reveal-left">'
+        '<span class="audit-badge2">Audit gratuit réalisé</span>'
+        f'<h2 class="audit-h2">Votre site web analysé</h2>'
+        f'<p class="audit-sub2">Voici ce que vos clients voient en ce moment — et pourquoi ça vous coûte des appels chaque semaine.</p>'
+        '<div class="audit-score-wrap2">'
+        '<div style="position:relative;display:inline-block">'
+        '<svg class="audit-ring2" viewBox="0 0 120 120" width="140" height="140">'
+        '<circle cx="60" cy="60" r="50" fill="none" stroke="#e2e8f0" stroke-width="8"/>'
+        f'<circle cx="60" cy="60" r="50" fill="none" stroke="{_ring_color}" stroke-width="8" stroke-linecap="round"'
+        f' stroke-dasharray="{_ring_circumference}" stroke-dashoffset="{_ring_offset}"'
+        ' transform="rotate(-90 60 60)" class="audit-ring-prog"/>'
+        '</svg>'
+        f'<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">'
+        f'<div class="audit-score-num2" style="color:{_ring_color}">{web_score}<span style="font-size:1rem;font-weight:400;opacity:0.5">/5</span></div>'
+        f'<div class="audit-score-label2">{score_label}</div>'
+        '</div>'
+        '</div>'
+        '</div>'
+        '<div class="audit-issues2">'
+        f'{_audit_issues_html}'
+        '</div>'
+        '</div>'
+        '<div class="new-audit-right reveal-right">'
+        '<span class="audit-badge2 audit-badge2-green">Ce que votre nouveau site aura</span>'
+        f'<h2 class="audit-h2">Novalis IA · Professionnel</h2>'
+        '<p class="audit-sub2">Chaque problème identifié est corrigé. Votre site sera fait pour convertir les visiteurs en clients.</p>'
+        '<div class="audit-goods2">'
+        f'{_audit_goods_html}'
+        '</div>'
+        '</div>'
+        '</div></section>'
+    )
+
+    audit_section = _new_audit_section
 
     # ── Valeur perçue + ROI ───────────────────────────────────────────────────
     _value_items = [
@@ -14673,29 +14712,27 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         '</div></section>'
     )
 
-    # ── Process section ───────────────────────────────────────────────────────
+    # ── Process section — version dark premium ────────────────────────────────
     process_section = (
-        '<section class="process-sec">'
-        '<div class="sec-in">'
-        '<div class="sec-label reveal">Simple et rapide</div>'
-        f'<h2 class="sec-h reveal d1">Votre site en 3&nbsp;étapes</h2>'
-        '<div class="process-steps">'
-        '<div class="proc-step reveal d1">'
-        '<div class="proc-num">01</div>'
-        '<div class="proc-title">Vous acceptez l\'aperçu</div>'
-        '<div class="proc-desc">Un simple courriel ou appel suffit. Aucun contrat compliqué.</div>'
+        '<section class="process-sec-dark">'
+        '<div class="process-dark-in">'
+        '<span class="process-dark-badge reveal">Comment ça fonctionne</span>'
+        '<h2 class="process-dark-h reveal d1">Votre site en 3&nbsp;étapes</h2>'
+        '<div class="process-dark-steps">'
+        '<div class="process-dark-step reveal d1">'
+        '<div class="process-dark-num">01</div>'
+        '<div class="process-dark-title">Vous approuvez l\'aperçu</div>'
+        '<div class="process-dark-desc">Dites-nous ce qui vous plaît ou non. Un simple courriel ou appel suffit — aucun contrat compliqué.</div>'
         '</div>'
-        '<div class="proc-line"></div>'
-        '<div class="proc-step reveal d2">'
-        '<div class="proc-num">02</div>'
-        '<div class="proc-title">On personnalise ensemble</div>'
-        '<div class="proc-desc">Couleurs, textes, photos — on ajuste jusqu\'à ce que ce soit parfait.</div>'
+        '<div class="process-dark-step reveal d2">'
+        '<div class="process-dark-num">02</div>'
+        '<div class="process-dark-title">On personnalise ensemble</div>'
+        '<div class="process-dark-desc">Couleurs, textes, photos — tout est ajustable. On itère jusqu\'à ce que ce soit exactement ce que vous voulez.</div>'
         '</div>'
-        '<div class="proc-line"></div>'
-        '<div class="proc-step reveal d3">'
-        '<div class="proc-num">03</div>'
-        '<div class="proc-title">Votre site est en ligne</div>'
-        '<div class="proc-desc">Livré en 2–3 semaines. Hébergement et domaine inclus pour 1 an.</div>'
+        '<div class="process-dark-step reveal d3">'
+        '<div class="process-dark-num">03</div>'
+        '<div class="process-dark-title">En ligne en 2–3 semaines</div>'
+        '<div class="process-dark-desc">Hébergement, domaine, SSL inclus pour 1 an. Votre site est prêt à recevoir des clients.</div>'
         '</div>'
         '</div>'
         '</div></section>'
@@ -14817,14 +14854,25 @@ nav:not(.scrolled) .nav-cta{{background:rgba(255,255,255,0.15);border:1px solid 
 .nav-cta:hover{{opacity:0.88}}
 .hero{{position:relative;min-height:100vh;display:flex;align-items:flex-end;overflow:hidden;background-color:{bg}}}
 .hero-bg{{position:absolute;inset:0;background:{hero_bg};background-size:cover;background-position:center}}
-.hero-veil{{position:absolute;inset:0;background:{hero_overlay_css};z-index:1}}
-.hero-body{{position:relative;z-index:2;width:100%;max-width:1160px;margin:0 auto;padding:120px 5vw 88px}}
+.hero-veil{{position:absolute;inset:0;background:linear-gradient(to top,{bg}F5 0%,{bg}88 40%,transparent 70%);z-index:1}}
+.hero-body{{position:relative;z-index:2;width:100%;max-width:1160px;margin:0 auto;padding:120px 5vw 96px}}
 .hero-logo-wrap{{margin-bottom:22px}}
 .hero-logo-wrap img{{height:52px;max-width:200px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.9}}
 .hero-chip{{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,0.2);border-radius:3px;padding:5px 12px;font-size:0.7rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.75);margin-bottom:24px}}
 .hero-chip i{{width:6px;height:6px;border-radius:50%;background:var(--brand);display:inline-block;box-shadow:0 0 8px {btn}bb;flex-shrink:0}}
-.hero h1{{font-family:var(--serif);font-size:clamp(2.8rem,6.5vw,5.8rem);font-weight:900;line-height:1.03;letter-spacing:-0.03em;color:#fff;max-width:780px;margin-bottom:24px}}
+.hero h1{{font-family:var(--serif);font-size:clamp(3.2rem,7vw,6.5rem);font-weight:900;line-height:1.0;letter-spacing:-0.03em;color:#fff;max-width:820px;margin-bottom:24px}}
 .hero-sub{{font-size:1.08rem;color:rgba(255,255,255,0.72);max-width:560px;font-weight:300;line-height:1.8;margin-bottom:36px}}
+/* Hero badge + stats */
+.hero-badge{{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.85);font-size:0.72rem;font-weight:600;letter-spacing:0.06em;padding:7px 16px;border-radius:30px;margin-bottom:24px;backdrop-filter:blur(8px)}}
+.hero-badge-dot{{width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e;animation:pulse-dot 2s infinite;flex-shrink:0}}
+@keyframes pulse-dot{{0%,100%{{opacity:1}}50%{{opacity:0.4}}}}
+.hero-stats{{display:flex;gap:32px;margin-top:36px;flex-wrap:wrap}}
+.hero-stat{{display:flex;flex-direction:column;gap:2px}}
+.hero-stat-num{{font-family:var(--serif);font-size:1.8rem;font-weight:900;color:#fff;line-height:1}}
+.hero-stat-label{{font-size:0.68rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.08em}}
+.scroll-hint-new{{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;color:rgba(255,255,255,0.4);font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;animation:bounce-hint 2.4s infinite;z-index:3;cursor:pointer}}
+@keyframes bounce-hint{{0%,100%{{transform:translateX(-50%) translateY(0)}}50%{{transform:translateX(-50%) translateY(6px)}}}}
+.scroll-chevron{{width:18px;height:18px;border-right:2px solid rgba(255,255,255,0.35);border-bottom:2px solid rgba(255,255,255,0.35);transform:rotate(45deg);margin-top:-4px}}
 .hero-rating{{display:inline-flex;align-items:center;gap:9px;font-size:0.78rem;color:rgba(255,255,255,0.52);margin-bottom:38px;padding:8px 16px;border:1px solid rgba(255,255,255,0.12);border-radius:3px}}
 .hero-rating .s{{color:#F4B942;letter-spacing:2px}}
 .hero-btns{{display:flex;gap:12px;flex-wrap:wrap}}
@@ -15309,6 +15357,36 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 }}
 @media(max-width:420px){{.why-grid{{grid-template-columns:1fr}}}}
 @media(prefers-reduced-motion:reduce){{.reveal,.reveal-left,.reveal-right,.reveal-scale{{transition:none!important;opacity:1!important;transform:none!important}}.js-anim .reveal,.js-anim .reveal-left,.js-anim .reveal-right,.js-anim .reveal-scale{{transition:none!important}}.hero-orb{{animation:none!important}}.scroll-arrow{{animation:none!important}}.float-btn{{animation:none!important}}.urgency-dot{{animation:none!important}}}}
+/* ── Premium Audit Section ── */
+.new-audit-sec{{background:#fff;padding:88px 5vw;border-top:1px solid var(--rule)}}
+.new-audit-in{{max-width:1040px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:start}}
+.new-audit-left,.new-audit-right{{}}
+.audit-badge2{{display:inline-block;background:var(--brand);color:#fff;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:5px 14px;border-radius:20px;margin-bottom:18px}}
+.audit-badge2-green{{background:#22c55e}}
+.audit-h2{{font-family:var(--serif);font-size:clamp(1.6rem,3vw,2.2rem);font-weight:700;color:var(--ink);margin-bottom:10px;letter-spacing:-0.02em;line-height:1.15}}
+.audit-sub2{{font-size:0.9rem;color:var(--ink2);line-height:1.65;margin-bottom:24px;font-weight:300;max-width:420px}}
+.audit-score-wrap2{{text-align:center;margin-bottom:24px}}
+.audit-ring2{{display:block;margin:0 auto}}
+.audit-ring-prog{{transition:stroke-dashoffset 1.4s cubic-bezier(.16,1,.3,1)}}
+.audit-score-num2{{font-family:var(--serif);font-size:2.8rem;font-weight:900;line-height:1}}
+.audit-score-label2{{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink2);margin-top:4px}}
+.audit-issues2{{display:flex;flex-direction:column;gap:8px;margin-top:8px}}
+.audit-issue2{{display:flex;align-items:flex-start;gap:10px;font-size:0.88rem;color:#dc2626;background:#fef2f2;padding:10px 14px;border-radius:8px;border-left:3px solid #dc2626;line-height:1.4}}
+.audit-goods2{{display:flex;flex-direction:column;gap:8px;margin-top:8px}}
+.audit-good2{{display:flex;align-items:flex-start;gap:10px;font-size:0.88rem;color:#15803d;background:#f0fdf4;padding:10px 14px;border-radius:8px;border-left:3px solid #22c55e;line-height:1.4}}
+@media(max-width:768px){{.new-audit-in{{grid-template-columns:1fr;gap:40px}}}}
+/* ── Premium Process Section Dark ── */
+.process-sec-dark{{background:var(--ink);padding:96px 5vw}}
+.process-dark-in{{max-width:960px;margin:0 auto;text-align:center}}
+.process-dark-badge{{display:inline-block;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);font-size:0.65rem;letter-spacing:0.14em;text-transform:uppercase;padding:5px 14px;border-radius:20px;border:1px solid rgba(255,255,255,0.15);margin-bottom:18px}}
+.process-dark-h{{font-family:var(--serif);font-size:clamp(1.8rem,4vw,2.8rem);font-weight:700;color:#fff;margin-bottom:56px;letter-spacing:-0.02em;line-height:1.1}}
+.process-dark-steps{{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;position:relative}}
+.process-dark-steps::before{{content:'';position:absolute;top:28px;left:calc(16.66% + 20px);right:calc(16.66% + 20px);height:2px;background:linear-gradient(90deg,var(--brand),rgba(255,255,255,0.15));z-index:0;pointer-events:none}}
+.process-dark-step{{text-align:center;position:relative;z-index:1}}
+.process-dark-num{{width:56px;height:56px;border-radius:50%;background:var(--brand);color:#fff;font-family:var(--serif);font-size:1.05rem;font-weight:900;display:flex;align-items:center;justify-content:center;margin:0 auto 22px;box-shadow:0 0 0 6px rgba(255,255,255,0.07)}}
+.process-dark-title{{font-size:1rem;font-weight:700;color:#fff;margin-bottom:10px;line-height:1.3}}
+.process-dark-desc{{font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.7;font-weight:300}}
+@media(max-width:700px){{.process-dark-steps{{grid-template-columns:1fr;gap:32px}}.process-dark-steps::before{{display:none}}}}
 </style>
 </head>
 <body>
@@ -15338,18 +15416,32 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
   <div class="hero-orb orb1"></div>
   <div class="hero-orb orb2"></div>
   <div class="hero-orb orb3"></div>
-  <div class="scroll-hint" onclick="document.getElementById('services').scrollIntoView({{behavior:'smooth'}})">
-    <span>Découvrir</span><div class="scroll-arrow"></div>
+  <div class="scroll-hint-new" onclick="document.getElementById('services').scrollIntoView({{behavior:'smooth'}})">
+    <span>Découvrir</span>
+    <div class="scroll-chevron"></div>
   </div>
   <div class="hero-body">
     {_hero_logo_html}
-    <div class="hero-chip"><i></i>{city} &nbsp;·&nbsp; {industry}</div>
+    <div class="hero-badge"><span class="hero-badge-dot"></span>{industry.title()} certifié &nbsp;·&nbsp; {city}</div>
     <h1>{hero_title}</h1>
     <p class="hero-sub">{hero_subtitle}</p>
-    <div class="hero-rating"><span class="s">{stars_display}</span><span>{rating_text}</span></div>
     <div class="hero-btns">
       <a class="btn-p" href="{_tel_href}">{cta_text}</a>
       <a class="btn-g" href="#services">{_svc_cta_text} →</a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-num">{stars_display}</div>
+        <div class="hero-stat-label">Note Google</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">{review_count or "100+"}</div>
+        <div class="hero-stat-label">Avis clients</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">24/7</div>
+        <div class="hero-stat-label">Disponible</div>
+      </div>
     </div>
   </div>
 </div>
@@ -15369,6 +15461,8 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 
 {qf_section}
 
+{audit_section}
+
 <section class="sec ind-sec-{_ind_font_style}" id="services">
   <div class="sec-in">
     <div class="sec-label reveal">{_svc_section_label}</div>
@@ -15383,15 +15477,23 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
   </div>
 </section>
 
+{process_section}
+
 {_tarif_section}
 
+{shock_section}
+
 {_midcta_section}
+
+{stats_section}
 
 {_why_section}
 
 {_team_section}
 
 {about_section}
+
+{hours_section}
 
 {gallery_section}
 
@@ -15404,6 +15506,10 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
     </div>
   </div>
 </section>
+
+{mockup_section}
+
+{calc_section}
 
 {_area_section}
 
@@ -15710,6 +15816,33 @@ if(window.matchMedia('(pointer:fine)').matches&&window.innerWidth>900){{
     }}
   }});
   ov.addEventListener('click',e=>{{if(e.target===ov)ov.classList.remove('show');}});
+}})();
+
+// ── Audit ring animation on scroll ───────────────────────────────────────
+(function(){{
+  const ring=document.querySelector('.audit-ring-prog');
+  if(!ring)return;
+  const origOffset=ring.getAttribute('stroke-dashoffset');
+  const origDash=ring.getAttribute('stroke-dasharray');
+  ring.setAttribute('stroke-dashoffset',origDash);
+  const io=new IntersectionObserver(entries=>{{
+    entries.forEach(e=>{{
+      if(e.isIntersecting){{
+        ring.setAttribute('stroke-dashoffset',origOffset);
+        io.unobserve(e.target);
+      }}
+    }});
+  }},{{threshold:0.3}});
+  io.observe(ring.closest('svg')||ring);
+}})();
+
+// ── Hero stats animated entry ─────────────────────────────────────────────
+(function(){{
+  const stats=document.querySelector('.hero-stats');
+  if(!stats)return;
+  stats.style.opacity='0';stats.style.transform='translateY(18px)';
+  stats.style.transition='opacity 0.7s cubic-bezier(.16,1,.3,1) 0.55s,transform 0.7s cubic-bezier(.16,1,.3,1) 0.55s';
+  setTimeout(()=>{{stats.style.opacity='1';stats.style.transform='none';}},100);
 }})();
 </script>
 </body>
