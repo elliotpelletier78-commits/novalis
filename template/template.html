@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{NOM}} — {{VILLE}}, Québec</title>
+<meta name="description" content="{{META_DESCRIPTION}}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07090F;--bg-s:#0D1117;--bg-c:#111827;--bg-ch:#161F30;
+  --bd:rgba(255,255,255,0.06);--bd-a:rgba(255,255,255,0.13);--bd-acc:rgba(59,130,246,0.4);
+  --tx:#F1F5FF;--tx-s:#94A3B8;--tx-m:#4B5563;
+  --acc:#2563EB;--acc-l:#3B82F6;--acc-g:rgba(37,99,235,0.16);
+  --grad:linear-gradient(135deg,#1D4ED8,#3B82F6);
+  --hero-glow:radial-gradient(ellipse 90% 55% at 50% -5%,rgba(37,99,235,0.2),transparent 70%);
+  --r:20px;--r-s:12px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--tx);line-height:1.6;overflow-x:hidden}
+h1,h2,h3,h4,.display{font-family:'Bricolage Grotesque',sans-serif;letter-spacing:-0.03em;line-height:1.05}
+h1{font-size:clamp(44px,7.5vw,88px);font-weight:900}
+h2{font-size:clamp(30px,4.5vw,52px);font-weight:800}
+h3{font-size:clamp(18px,2vw,22px);font-weight:700}
+a{color:inherit;text-decoration:none}
+img{display:block;max-width:100%;object-fit:cover}
+button{cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif}
+.ann-bar{background:rgba(37,99,235,0.1);border-bottom:1px solid rgba(37,99,235,0.18);padding:10px 24px;text-align:center;font-size:13px;font-weight:500;color:var(--tx-s)}
+.ann-bar a{color:var(--acc-l);font-weight:600;border-bottom:1px solid rgba(59,130,246,0.3);padding-bottom:1px}
+nav{position:fixed;top:0;left:0;right:0;z-index:200;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 40px;transition:background .3s,border-color .3s}
+nav.scrolled{background:rgba(7,9,15,0.88);backdrop-filter:blur(24px);border-bottom:1px solid var(--bd)}
+.nav-logo{font-family:'Bricolage Grotesque',sans-serif;font-weight:900;font-size:19px;letter-spacing:-0.04em}
+.nav-links{display:flex;gap:4px;list-style:none}
+.nav-links a{font-size:14px;font-weight:500;color:var(--tx-s);padding:7px 14px;border-radius:10px;transition:color .2s,background .2s}
+.nav-links a:hover{color:var(--tx);background:rgba(255,255,255,0.05)}
+.nav-cta{display:inline-flex;align-items:center;gap:6px;padding:9px 20px;background:var(--grad);color:#fff;font-size:14px;font-weight:600;border-radius:var(--r-s);border:none;box-shadow:0 4px 20px rgba(37,99,235,0.35);transition:box-shadow .2s,transform .2s}
+.nav-cta:hover{box-shadow:0 6px 28px rgba(37,99,235,0.5);transform:translateY(-1px)}
+.hamburger{display:none;flex-direction:column;gap:5px;background:none;border:none;padding:4px}
+.hamburger span{display:block;width:22px;height:2px;background:var(--tx);border-radius:2px;transition:all .3s}
+.mobile-menu{display:none;position:fixed;inset:0;background:var(--bg-s);z-index:300;flex-direction:column;align-items:center;justify-content:center;gap:24px}
+.mobile-menu.open{display:flex}
+.mobile-menu a{font-size:22px;font-weight:600}
+.mobile-close{position:absolute;top:20px;right:24px;background:none;border:none;font-size:28px;color:var(--tx-s);cursor:pointer}
+.hero{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:140px 24px 100px;overflow:hidden}
+.hero-bg{position:absolute;inset:0;background:var(--hero-glow);pointer-events:none}
+.hero-dots{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,0.055) 1px,transparent 1px);background-size:30px 30px;mask-image:radial-gradient(ellipse 85% 85% at 50% 50%,black 40%,transparent 80%);pointer-events:none}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.04);border:1px solid var(--bd-a);border-radius:100px;padding:7px 18px;font-size:13px;font-weight:500;color:var(--tx-s);margin-bottom:28px}
+.hero-badge .stars{color:#FBBF24;letter-spacing:1px}
+.hero h1{max-width:880px;margin:0 auto 20px}
+.hero h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-size:clamp(16px,2vw,20px);color:var(--tx-s);max-width:560px;margin:0 auto 40px;line-height:1.6}
+.hero-ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:52px}
+.btn-primary{display:inline-flex;align-items:center;gap:8px;padding:15px 30px;background:var(--grad);color:#fff;font-size:16px;font-weight:600;border-radius:var(--r-s);border:none;box-shadow:0 4px 24px rgba(37,99,235,0.38);transition:box-shadow .2s,transform .2s;text-decoration:none}
+.btn-primary:hover{box-shadow:0 8px 36px rgba(37,99,235,0.55);transform:translateY(-2px)}
+.btn-secondary{display:inline-flex;align-items:center;gap:8px;padding:15px 30px;background:transparent;color:var(--tx);font-size:16px;font-weight:500;border:1px solid var(--bd-a);border-radius:var(--r-s);transition:border-color .2s,background .2s;text-decoration:none}
+.btn-secondary:hover{border-color:var(--acc-l);background:rgba(37,99,235,0.06)}
+.hero-stats{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.stat-badge{display:flex;flex-direction:column;align-items:center;padding:16px 28px;background:rgba(255,255,255,0.03);border:1px solid var(--bd-a);border-radius:var(--r);backdrop-filter:blur(12px);min-width:100px}
+.stat-badge.feat{border-color:var(--bd-acc);background:rgba(37,99,235,0.07);box-shadow:0 0 32px var(--acc-g)}
+.stat-num{font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:900;line-height:1}
+.stat-lbl{font-size:11px;color:var(--tx-s);margin-top:5px;text-transform:uppercase;letter-spacing:0.09em;font-weight:500}
+.photo-strip{width:100%;overflow:hidden;padding:60px 0 0;mask-image:linear-gradient(90deg,transparent,black 15%,black 85%,transparent)}
+.photo-track{display:flex;gap:16px;animation:strip 30s linear infinite;width:max-content}
+.photo-track img{width:280px;height:180px;border-radius:var(--r);border:1px solid var(--bd);flex-shrink:0}
+@keyframes strip{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.ticker-wrap{background:var(--bg-s);border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);padding:14px 0;overflow:hidden;mask-image:linear-gradient(90deg,transparent,black 10%,black 90%,transparent)}
+.ticker-track{display:flex;animation:ticker 22s linear infinite;width:max-content}
+.ticker-item{display:inline-flex;align-items:center;padding:0 40px;font-size:12px;font-weight:700;color:var(--tx-m);text-transform:uppercase;letter-spacing:0.12em;white-space:nowrap}
+.ticker-item::after{content:'·';margin-left:40px;color:var(--bd-a)}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+section{padding:100px 24px}
+.container{max-width:1120px;margin:0 auto}
+.section-label{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.13em;color:var(--acc-l);background:rgba(37,99,235,0.09);border:1px solid rgba(37,99,235,0.22);border-radius:100px;padding:5px 16px;margin-bottom:18px}
+.section-head{margin-bottom:60px}
+.section-head h2{margin-bottom:14px}
+.section-head p{font-size:18px;color:var(--tx-s);max-width:520px;font-weight:400}
+.audit-section{background:var(--bg-s)}
+.audit-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.audit-card{background:var(--bg-c);border:1px solid var(--bd);border-radius:var(--r);padding:32px}
+.audit-score{display:flex;align-items:center;gap:16px;margin-bottom:24px}
+.score-circle{width:64px;height:64px;border-radius:50%;background:rgba(239,68,68,0.12);border:2px solid rgba(239,68,68,0.3);display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:900;color:#EF4444;flex-shrink:0}
+.score-label{font-size:14px;color:var(--tx-s)}
+.score-label strong{display:block;font-size:17px;color:#EF4444;font-weight:700}
+.audit-item{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--bd);font-size:14px;color:var(--tx-s)}
+.audit-item:last-child{border-bottom:none}
+.icon-bad{color:#EF4444;font-weight:700;flex-shrink:0}
+.icon-good{color:#10B981;font-weight:700;flex-shrink:0}
+.audit-card.good{border-color:rgba(16,185,129,0.2);background:rgba(16,185,129,0.03)}
+.audit-card.good .score-circle{background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.3);color:#10B981}
+.audit-truth{text-align:center;margin-bottom:52px}
+.services-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.service-card{background:var(--bg-c);border:1px solid var(--bd);border-radius:var(--r);padding:28px;transition:border-color .25s,box-shadow .25s,transform .25s}
+.service-card:hover{border-color:var(--bd-a);box-shadow:0 10px 40px rgba(0,0,0,0.5);transform:translateY(-4px)}
+.service-num{font-family:'Bricolage Grotesque',sans-serif;font-size:12px;font-weight:700;color:var(--acc-l);background:rgba(37,99,235,0.1);border:1px solid rgba(37,99,235,0.22);border-radius:8px;padding:4px 10px;display:inline-block;margin-bottom:18px;letter-spacing:0.05em}
+.service-card h3{font-size:17px;margin-bottom:10px}
+.service-card p{font-size:14px;color:var(--tx-s);line-height:1.7}
+.steps-novalis{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.step-card{background:var(--bg-c);border:1px solid var(--bd);border-radius:var(--r);padding:32px;transition:border-color .25s,transform .25s}
+.step-card:hover{border-color:var(--bd-a);transform:translateY(-4px)}
+.step-n{font-family:'Bricolage Grotesque',sans-serif;font-size:64px;font-weight:900;color:rgba(37,99,235,0.08);line-height:1;margin-bottom:12px}
+.tabs-wrap{background:var(--bg-s);border-radius:24px;padding:48px;border:1px solid var(--bd)}
+.tab-btns{display:flex;gap:8px;margin-bottom:40px;background:var(--bg-c);padding:6px;border-radius:var(--r-s);width:fit-content}
+.tab-btn{padding:10px 22px;border:none;background:transparent;color:var(--tx-s);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:600;border-radius:10px;transition:all .2s;cursor:pointer}
+.tab-btn.active{background:var(--bg-ch);color:var(--tx);box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+.tab-pane{display:none}
+.tab-pane.active{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:center}
+.tab-content-text h3{font-size:24px;margin-bottom:16px}
+.tab-content-text p{font-size:15px;color:var(--tx-s);margin-bottom:20px;line-height:1.8}
+.tab-features{display:flex;flex-direction:column;gap:10px;margin-bottom:28px}
+.tab-feature{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--tx-s)}
+.tab-feature::before{content:'✓';color:var(--acc-l);font-weight:700}
+.tab-visual{background:var(--bg-c);border:1px solid var(--bd);border-radius:var(--r);height:220px;display:flex;align-items:center;justify-content:center;color:var(--tx-m);font-size:14px;font-weight:600}
+.price-table-wrap{background:var(--bg-c);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden}
+.price-table{width:100%;border-collapse:collapse}
+.price-table th{background:var(--bg-s);padding:14px 24px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--tx-m);border-bottom:1px solid var(--bd)}
+.price-table td{padding:16px 24px;border-bottom:1px solid var(--bd);font-size:14px;vertical-align:middle}
+.price-table tr:last-child td{border-bottom:none}
+.price-table tr:hover td{background:rgba(255,255,255,0.02)}
+.price-table td:first-child{font-weight:600;color:var(--tx)}
+.price-table td:last-child{color:var(--acc-l);font-weight:700;text-align:right}
+.price-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--acc);margin-right:10px;flex-shrink:0}
+.price-note{font-size:13px;color:var(--tx-m);padding:16px 24px;border-top:1px solid var(--bd)}
+.avap-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.avap-card{border-radius:var(--r);padding:32px}
+.avap-card.bad{background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.15)}
+.avap-card.good{background:rgba(37,99,235,0.04);border:1px solid var(--bd-acc)}
+.avap-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--bd)}
+.avap-card.bad .avap-title{color:#EF4444}
+.avap-card.good .avap-title{color:var(--acc-l)}
+.avap-item{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--bd);font-size:14px;color:var(--tx-s)}
+.avap-item:last-child{border-bottom:none}
+.avap-item .x{color:#EF4444;font-weight:700;flex-shrink:0}
+.avap-item .v{color:#10B981;font-weight:700;flex-shrink:0}
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;align-items:start}
+.pricing-card{background:var(--bg-c);border:1px solid var(--bd);border-radius:24px;padding:36px;position:relative;transition:transform .25s,border-color .25s}
+.pricing-card:hover{transform:translateY(-4px)}
+.pricing-card.pop{border-color:var(--bd-acc);box-shadow:0 0 0 1px var(--bd-acc),0 24px 60px rgba(37,99,235,0.12)}
+.pop-badge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:var(--grad);color:#fff;font-size:11px;font-weight:700;padding:5px 18px;border-radius:100px;white-space:nowrap}
+.pricing-tier{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--tx-s);margin-bottom:12px}
+.pricing-price{font-family:'Bricolage Grotesque',sans-serif;font-size:52px;font-weight:900;line-height:1;letter-spacing:-0.04em;margin-bottom:6px}
+.pricing-price span{font-size:22px;vertical-align:super;color:var(--tx-s);font-weight:400}
+.pricing-period{font-size:13px;color:var(--tx-m);margin-bottom:28px}
+.pricing-feats{list-style:none;display:flex;flex-direction:column;margin-bottom:32px}
+.pricing-feats li{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--bd);font-size:14px;color:var(--tx-s)}
+.pricing-feats li:last-child{border-bottom:none}
+.pricing-feats li::before{content:'✓';color:var(--acc-l);font-weight:700;flex-shrink:0}
+.pricing-cta{display:block;text-align:center;padding:13px 24px;border-radius:var(--r-s);font-weight:600;font-size:15px;transition:all .2s}
+.pricing-card:not(.pop) .pricing-cta{background:transparent;border:1px solid var(--bd-a);color:var(--tx)}
+.pricing-card:not(.pop) .pricing-cta:hover{border-color:var(--acc-l);background:rgba(37,99,235,0.06)}
+.pricing-card.pop .pricing-cta{background:var(--grad);color:#fff;box-shadow:0 4px 20px rgba(37,99,235,0.4)}
+.temoignages-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.temo-card{background:var(--bg-c);border:1px solid var(--bd);border-radius:var(--r);padding:28px;transition:border-color .25s,transform .25s}
+.temo-card:hover{border-color:var(--bd-a);transform:translateY(-3px)}
+.temo-stars{color:#FBBF24;font-size:14px;margin-bottom:14px;letter-spacing:2px}
+.temo-quote{font-size:14px;color:var(--tx-s);line-height:1.8;margin-bottom:20px;font-style:italic}
+.temo-author{display:flex;align-items:center;gap:12px}
+.temo-avatar{width:40px;height:40px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-size:13px;font-weight:800;color:#fff;flex-shrink:0}
+.temo-name{font-size:14px;font-weight:600}
+.temo-loc{font-size:12px;color:var(--tx-m)}
+.equipe-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.equipe-card{background:var(--bg-c);border:1px solid var(--bd);border-radius:var(--r);padding:32px;text-align:center;transition:border-color .25s,transform .25s}
+.equipe-card:hover{border-color:var(--bd-a);transform:translateY(-3px)}
+.equipe-avatar{width:72px;height:72px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:900;color:#fff;margin:0 auto 18px;box-shadow:0 0 0 3px var(--bg-c),0 0 0 4px var(--bd-acc)}
+.equipe-poste{font-size:13px;color:var(--acc-l);font-weight:600;margin-bottom:14px}
+.equipe-bio{font-size:13px;color:var(--tx-s);line-height:1.7}
+.faq-list{display:flex;flex-direction:column;gap:10px;max-width:780px;margin:0 auto}
+.faq-item{background:var(--bg-c);border:1px solid var(--bd);border-radius:var(--r-s);overflow:hidden;transition:border-color .2s}
+.faq-item.open{border-color:var(--bd-a)}
+.faq-q{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;cursor:pointer;gap:16px;font-size:15px;font-weight:600}
+.faq-icon{width:22px;height:22px;border:1px solid var(--bd-a);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;color:var(--tx-s);transition:transform .3s}
+.faq-item.open .faq-icon{transform:rotate(45deg);background:rgba(37,99,235,0.1);border-color:var(--bd-acc);color:var(--acc-l)}
+.faq-a{max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(0.16,1,0.3,1),padding .3s}
+.faq-item.open .faq-a{max-height:300px;padding:0 24px 20px}
+.faq-a p{font-size:14px;color:var(--tx-s);line-height:1.8}
+.calc-wrap{background:var(--bg-s);border:1px solid var(--bd);border-radius:24px;padding:48px;max-width:720px;margin:0 auto;text-align:center}
+.calc-slider-wrap{margin:36px 0 32px}
+.calc-slider-wrap label{display:block;font-size:14px;color:var(--tx-s);margin-bottom:16px}
+input[type=range]{width:100%;appearance:none;height:4px;background:var(--bd-a);border-radius:4px;outline:none}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:22px;height:22px;border-radius:50%;background:var(--grad);cursor:pointer;box-shadow:0 0 12px var(--acc-g)}
+.calc-results{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px}
+.calc-result{background:var(--bg-c);border:1px solid var(--bd);border-radius:var(--r);padding:20px}
+.calc-result-label{font-size:11px;color:var(--tx-m);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;font-weight:600}
+.calc-result-num{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:900;color:#EF4444}
+.calc-roi{font-size:15px;color:var(--tx-s);margin-bottom:28px}
+.galerie-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.galerie-item{position:relative;border-radius:var(--r);overflow:hidden;aspect-ratio:4/3;border:1px solid var(--bd)}
+.galerie-item img{width:100%;height:100%;transition:transform .4s}
+.galerie-item:hover img{transform:scale(1.04)}
+.galerie-overlay{position:absolute;inset:0;background:rgba(37,99,235,0.12);opacity:0;transition:opacity .3s;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff}
+.galerie-item:hover .galerie-overlay{opacity:1}
+.cta-final{background:linear-gradient(135deg,rgba(29,78,216,0.15),rgba(59,130,246,0.08));border:1px solid var(--bd-acc);border-radius:32px;padding:80px 40px;text-align:center;margin:0 24px}
+.cta-final h2{margin-bottom:16px;max-width:620px;margin-left:auto;margin-right:auto}
+.cta-final p{font-size:18px;color:var(--tx-s);max-width:480px;margin:0 auto 40px}
+.cta-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.heures-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:480px}
+.heure-row{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:var(--bg-c);border:1px solid var(--bd);border-radius:var(--r-s);font-size:14px}
+.heure-row .jour{color:var(--tx-s);font-weight:500}
+.heure-row .heure{color:var(--tx);font-weight:600}
+.apropos-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+.apropos-img{border-radius:var(--r);overflow:hidden;aspect-ratio:4/3;border:1px solid var(--bd)}
+.apropos-img img{width:100%;height:100%}
+.apropos-text p{font-size:16px;color:var(--tx-s);line-height:1.9;margin-bottom:20px}
+.apropos-info{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--tx-s);margin-bottom:10px}
+.apropos-info::before{content:'→';color:var(--acc-l);font-weight:700}
+footer{background:var(--bg-s);border-top:1px solid var(--bd);padding:60px 24px 32px}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;margin-bottom:48px}
+.footer-brand h4{font-family:'Bricolage Grotesque',sans-serif;font-size:19px;font-weight:900;letter-spacing:-0.04em;margin-bottom:10px}
+.footer-brand p{font-size:13px;color:var(--tx-m);line-height:1.8;max-width:260px}
+.footer-col h5{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--tx-m);margin-bottom:16px}
+.footer-col ul{list-style:none;display:flex;flex-direction:column;gap:10px}
+.footer-col a{font-size:14px;color:var(--tx-s);transition:color .2s}
+.footer-col a:hover{color:var(--tx)}
+.footer-bottom{border-top:1px solid var(--bd);padding-top:24px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--tx-m)}
+.ani{opacity:0;transform:translateY(24px);transition:opacity .65s cubic-bezier(0.16,1,0.3,1),transform .65s cubic-bezier(0.16,1,0.3,1)}
+.ani.vis{opacity:1;transform:none}
+@media(max-width:900px){
+  nav{padding:0 20px}
+  .nav-links,.nav-cta{display:none}
+  .hamburger{display:flex}
+  .audit-grid,.avap-grid,.apropos-grid,.tab-pane.active{grid-template-columns:1fr}
+  .services-grid,.steps-novalis,.temoignages-grid,.equipe-grid,.pricing-grid{grid-template-columns:1fr}
+  .heures-grid,.calc-results{grid-template-columns:1fr}
+  .galerie-grid{grid-template-columns:repeat(2,1fr)}
+  .footer-grid{grid-template-columns:1fr 1fr}
+  .footer-bottom{flex-direction:column;gap:8px;text-align:center}
+  .cta-final{padding:52px 24px;margin:0 12px;border-radius:20px}
+  section{padding:70px 20px}
+}
+@media(max-width:600px){
+  .galerie-grid,.footer-grid,.avap-grid{grid-template-columns:1fr}
+  .tabs-wrap{padding:24px 20px}
+  .tab-btns{flex-wrap:wrap}
+  .pricing-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="ann-bar">Aperçu personnalisé pour {{NOM}} — valable 7 jours &nbsp;·&nbsp; 1 000 $ tout inclus &nbsp;<a href="mailto:elliot@novalisia.ca?subject=Site web - {{NOM}}">Obtenir ce site — 1 000 $ →</a></div>
+<nav id="main-nav">
+  <a class="nav-logo" href="#">{{NOM_COURT}}</a>
+  <ul class="nav-links">
+    <li><a href="#services">Services</a></li>
+    <li><a href="#tarifs">Tarifs</a></li>
+    <li><a href="#equipe">Équipe</a></li>
+    <li><a href="#avis">Avis</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+  <a class="nav-cta" href="{{CTA_HREF}}">{{CTA_LABEL}}</a>
+  <button class="hamburger" onclick="document.getElementById('mmenu').classList.add('open')"><span></span><span></span><span></span></button>
+</nav>
+<div class="mobile-menu" id="mmenu">
+  <button class="mobile-close" onclick="document.getElementById('mmenu').classList.remove('open')">✕</button>
+  <a href="#services" onclick="document.getElementById('mmenu').classList.remove('open')">Services</a>
+  <a href="#tarifs" onclick="document.getElementById('mmenu').classList.remove('open')">Tarifs</a>
+  <a href="#equipe" onclick="document.getElementById('mmenu').classList.remove('open')">Équipe</a>
+  <a href="#avis" onclick="document.getElementById('mmenu').classList.remove('open')">Avis</a>
+  <a class="btn-primary" href="{{CTA_HREF}}" onclick="document.getElementById('mmenu').classList.remove('open')">{{CTA_LABEL}}</a>
+</div>
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-dots"></div>
+  <div class="hero-badge"><span class="stars">★★★★★</span><span>{{AVIS_GOOGLE}} · {{VILLE}}, Québec</span></div>
+  <h1>{{HERO_H1_LIGNE1}}<br><em>{{HERO_H1_LIGNE2}}</em></h1>
+  <p class="hero-sub">{{HERO_SOUS_TITRE}}</p>
+  <div class="hero-ctas">
+    <a class="btn-primary" href="{{CTA_HREF}}">{{CTA_LABEL}}</a>
+    <a class="btn-secondary" href="#services">Voir nos services</a>
+  </div>
+  <div class="hero-stats">
+    <div class="stat-badge"><span class="stat-num" id="cnt-avis">{{AVIS_COUNT}}</span><span class="stat-lbl">Avis ★★★★★</span></div>
+    <div class="stat-badge feat"><span class="stat-num">24/7</span><span class="stat-lbl">Disponible</span></div>
+    <div class="stat-badge"><span class="stat-num" id="cnt-annee">{{ANNEE_FONDATION}}</span><span class="stat-lbl">En affaires</span></div>
+  </div>
+  <div class="photo-strip" style="margin-top:64px"><div class="photo-track">{{PHOTOS_CAROUSEL}}</div></div>
+</section>
+<div class="ticker-wrap"><div class="ticker-track">{{TICKER_ITEMS}}{{TICKER_ITEMS}}</div></div>
+<section class="audit-section">
+  <div class="container">
+    <div class="audit-truth ani"><span class="section-label">Audit gratuit réalisé</span><h2>Votre site actuel perd des clients chaque semaine.</h2><p>{{AUDIT_ACCROCHE}}</p></div>
+    <div class="audit-grid">
+      <div class="audit-card ani">
+        <div class="audit-score"><div class="score-circle">{{AUDIT_SCORE}}/5</div><div class="score-label"><strong>{{AUDIT_VERDICT}}</strong>Votre site actuel</div></div>
+        {{AUDIT_PROBLEMES}}
+      </div>
+      <div class="audit-card good ani">
+        <div class="audit-score"><div class="score-circle" style="background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.3);color:#10B981">5/5</div><div class="score-label"><strong style="color:#10B981">Parfait</strong>Votre nouveau site Novalis</div></div>
+        <div class="audit-item"><span class="icon-good">✓</span>Site mobile rapide et moderne</div>
+        <div class="audit-item"><span class="icon-good">✓</span>Appel à l'action visible au premier coup d'œil</div>
+        <div class="audit-item"><span class="icon-good">✓</span>HTTPS — Google vous fait pleinement confiance</div>
+        <div class="audit-item"><span class="icon-good">✓</span>SEO local optimisé pour {{VILLE}}</div>
+        <div class="audit-item"><span class="icon-good">✓</span>Formulaire de contact intégré et fonctionnel</div>
+      </div>
+    </div>
+  </div>
+</section>
+<section id="services"><div class="container"><div class="section-head ani"><span class="section-label">Nos services</span><h2>Ce que nous offrons</h2><p>Des services professionnels adaptés à vos besoins à {{VILLE}}.</p></div><div class="services-grid">{{SERVICES_CARDS}}</div></div></section>
+<section style="background:var(--bg-s)"><div class="container"><div class="section-head ani" style="text-align:center"><span class="section-label">Comment ça fonctionne</span><h2>Votre site en 3 étapes</h2></div><div class="steps-novalis"><div class="step-card ani"><div class="step-n">01</div><h3>Vous approuvez l'aperçu</h3><p>Dites-nous ce qui vous plaît ou non. Un simple courriel suffit — aucun engagement.</p></div><div class="step-card ani"><div class="step-n">02</div><h3>On personnalise ensemble</h3><p>Couleurs, textes, photos — tout est ajustable jusqu'à ce que ce soit parfait.</p></div><div class="step-card ani"><div class="step-n">03</div><h3>En ligne en 2–3 semaines</h3><p>Hébergement, domaine et SSL inclus pour 1 an. Prêt à recevoir des clients.</p></div></div></div></section>
+<section><div class="container"><div class="section-head ani"><span class="section-label">Notre approche</span><h2>Comment on travaille</h2></div><div class="tabs-wrap ani"><div class="tab-btns">{{TAB_BTNS}}</div>{{TAB_PANES}}</div></div></section>
+<section id="tarifs" style="background:var(--bg-s)"><div class="container"><div class="section-head ani"><span class="section-label">Tarifs 2025</span><h2>Nos prix</h2><p>Les prix sont clairs. Pas d'appel pour vous annoncer que ça a changé.</p></div><div class="price-table-wrap ani"><table class="price-table"><thead><tr><th>Service</th><th>Description</th><th style="text-align:right">Prix</th></tr></thead><tbody>{{PRIX_LIGNES}}</tbody></table><div class="price-note">{{PRIX_NOTE}}</div></div><div style="text-align:center;margin-top:28px" class="ani"><a class="btn-secondary" href="{{CTA_HREF}}">Demander un estimé gratuit →</a></div></div></section>
+<section><div class="container"><div class="section-head ani" style="text-align:center"><span class="section-label">Votre transformation</span><h2>Avant · Après</h2></div><div class="avap-grid"><div class="avap-card bad ani"><div class="avap-title">✗ Site actuel</div>{{AVAP_BAD}}</div><div class="avap-card good ani"><div class="avap-title">✓ Nouveau site Novalis IA</div>{{AVAP_GOOD}}</div></div></div></section>
+<section style="background:var(--bg-s)"><div class="container"><div class="section-head ani" style="text-align:center"><span class="section-label">Aperçu exclusif · Offre limitée</span><h2>Choisissez votre formule</h2><p>Tout inclus — hébergement, domaine, SSL. Livraison en 2–3 semaines.</p></div><div class="pricing-grid"><div class="pricing-card ani"><div class="pricing-tier">Essentiel</div><div class="pricing-price"><span>$</span>1 000</div><div class="pricing-period">paiement unique · tout inclus</div><ul class="pricing-feats"><li>5 pages sur mesure</li><li>100% mobile et rapide</li><li>Hébergement 1 an inclus</li><li>Formulaire de contact</li><li>SSL + domaine inclus</li></ul><a class="pricing-cta" href="mailto:elliot@novalisia.ca?subject=Forfait Essentiel - {{NOM}}">Choisir ce forfait →</a></div><div class="pricing-card pop ani"><div class="pop-badge">Le plus populaire</div><div class="pricing-tier">Pro</div><div class="pricing-price"><span>$</span>1 500</div><div class="pricing-period">paiement unique · tout inclus</div><ul class="pricing-feats"><li>Tout du forfait Essentiel</li><li>Google My Business optimisé</li><li>SEO local — 5 mots-clés ciblés</li><li>Google Analytics installé</li><li>Photos professionnelles (stock)</li></ul><a class="pricing-cta" href="mailto:elliot@novalisia.ca?subject=Forfait Pro - {{NOM}}">Choisir ce forfait →</a></div><div class="pricing-card ani"><div class="pricing-tier">Premium</div><div class="pricing-price"><span>$</span>2 500</div><div class="pricing-period">paiement unique · tout inclus</div><ul class="pricing-feats"><li>Tout du forfait Pro</li><li>Chatbot IA intégré</li><li>Configuration réseaux sociaux</li><li>Rapport mensuel de performance</li><li>Support prioritaire 6 mois</li></ul><a class="pricing-cta" href="mailto:elliot@novalisia.ca?subject=Forfait Premium - {{NOM}}">Choisir ce forfait →</a></div></div><p style="text-align:center;font-size:14px;color:var(--tx-m);margin-top:24px"><a href="{{CTA_HREF}}" style="color:var(--tx-s)">Préférez un appel? {{TELEPHONE}}</a></p></div></section>
+<section><div class="container"><div class="section-head ani"><span class="section-label">Pourquoi nous</span><h2>Ce qui nous distingue — des faits, pas des promesses.</h2></div><div class="services-grid">{{DIFF_CARDS}}</div></div></section>
+<section id="equipe" style="background:var(--bg-s)"><div class="container"><div class="section-head ani" style="text-align:center"><span class="section-label">Notre équipe</span><h2>L'équipe derrière {{NOM_COURT}}</h2></div><div class="equipe-grid">{{EQUIPE_CARDS}}</div></div></section>
+<section id="contact"><div class="container"><div class="apropos-grid"><div class="apropos-text ani"><span class="section-label">À propos</span><h2>{{NOM}}</h2><p>{{DESCRIPTION}}</p>{{APROPOS_INFOS}}</div><div class="ani"><div class="apropos-img"><img src="{{PHOTO_3}}" alt="{{NOM}}" loading="lazy"></div><div style="margin-top:20px"><div class="section-label" style="display:block;margin-bottom:14px">Heures d'ouverture</div><div class="heures-grid">{{HEURES}}</div></div></div></div></div></section>
+<section style="background:var(--bg-s)"><div class="container"><div class="section-head ani" style="text-align:center"><span class="section-label">En images</span><h2>Nos réalisations</h2></div><div class="galerie-grid">{{GALERIE}}</div></div></section>
+<section id="avis"><div class="container"><div class="section-head ani" style="text-align:center"><span class="section-label">Avis clients</span><h2>Ils en parlent mieux que nous</h2></div><div class="temoignages-grid">{{TEMOIGNAGES}}</div></div></section>
+<section style="background:var(--bg-s)"><div class="container"><div class="section-head ani" style="text-align:center"><span class="section-label">Calculez votre perte</span><h2>Combien vous coûte votre site actuel?</h2></div><div class="calc-wrap ani"><div class="calc-slider-wrap"><label>Clients manqués par semaine : <strong id="slider-val">3</strong></label><input type="range" id="calc-slider" min="1" max="10" value="3" step="1"></div><div class="calc-results"><div class="calc-result"><div class="calc-result-label">Perdu / semaine</div><div class="calc-result-num" id="r-sem">—</div></div><div class="calc-result"><div class="calc-result-label">Perdu / mois</div><div class="calc-result-num" id="r-mois">—</div></div><div class="calc-result"><div class="calc-result-label">Perdu / année</div><div class="calc-result-num" id="r-an">—</div></div></div><p class="calc-roi">Votre nouveau site à <strong>1 000 $</strong> se rembourse en <strong id="r-roi">—</strong>.</p><a class="btn-primary" href="mailto:elliot@novalisia.ca?subject=Site web - {{NOM}}">Récupérer ces clients maintenant →</a></div></div></section>
+<section><div class="container"><div class="section-head ani" style="text-align:center"><span class="section-label">FAQ</span><h2>Questions fréquentes</h2></div><div class="faq-list"><div class="faq-item ani"><div class="faq-q">Est-ce que je peux voir le site avant de payer?<div class="faq-icon">+</div></div><div class="faq-a"><p>Oui — c'est exactement ce que vous voyez maintenant. Cet aperçu est fait sur mesure pour vous, gratuitement et sans engagement.</p></div></div><div class="faq-item ani"><div class="faq-q">Combien de temps pour mettre le site en ligne?<div class="faq-icon">+</div></div><div class="faq-a"><p>2 à 3 semaines après votre approbation. Hébergement, domaine, SSL — on s'occupe de tout.</p></div></div><div class="faq-item ani"><div class="faq-q">Est-ce que mon ancien site disparaît?<div class="faq-icon">+</div></div><div class="faq-a"><p>Non. On fait la transition seulement quand vous êtes entièrement satisfait du nouveau.</p></div></div><div class="faq-item ani"><div class="faq-q">Qu'est-ce qui est inclus dans le 1 000 $?<div class="faq-icon">+</div></div><div class="faq-a"><p>5 pages sur mesure, hébergement 1 an, SSL, domaine, formulaire de contact, adaptation mobile complète. Aucun frais caché.</p></div></div><div class="faq-item ani"><div class="faq-q">Pourquoi c'est moins cher que les autres agences?<div class="faq-icon">+</div></div><div class="faq-a"><p>On utilise l'IA pour aller 10x plus vite — sans sacrifier la qualité. On transfère ces économies directement à nos clients.</p></div></div></div></div></section>
+<section style="padding:60px 24px"><div class="cta-final ani"><span class="section-label">Offre limitée ce mois-ci</span><h2>Votre site peut ressembler à ça dès ce mois-ci.</h2><p>Offre limitée à 3 entreprises ce mois-ci à {{VILLE}}. 1 000 $ tout inclus.</p><div class="cta-btns"><a class="btn-primary" href="mailto:elliot@novalisia.ca?subject=Site web - {{NOM}}">Obtenir ce site — 1 000 $ →</a><a class="btn-secondary" href="{{CTA_HREF}}">{{CTA_LABEL}}</a></div></div></section>
+<footer><div class="container"><div class="footer-grid"><div class="footer-brand"><h4>Novalis IA</h4><p>Sites web premium pour PME québécoises. À partir de 1 000 $, livré en 2–3 semaines.</p></div><div class="footer-col"><h5>Services</h5><ul><li><a href="#services">Nos services</a></li><li><a href="#tarifs">Tarifs</a></li><li><a href="#avis">Avis clients</a></li></ul></div><div class="footer-col"><h5>Entreprise</h5><ul><li><a href="#contact">À propos</a></li><li><a href="#equipe">Équipe</a></li><li><a href="mailto:elliot@novalisia.ca">Contact</a></li></ul></div><div class="footer-col"><h5>Contact</h5><ul><li><a href="{{CTA_HREF}}">{{TELEPHONE}}</a></li><li><a href="mailto:elliot@novalisia.ca">elliot@novalisia.ca</a></li></ul></div></div><div class="footer-bottom"><span>© 2025 {{NOM}} · Démo Novalis IA</span><span>Conçu par <a href="https://novalisia.ca" style="color:var(--acc-l)">Novalis IA</a></span></div></div></footer>
+<script>
+window.addEventListener('scroll',()=>{document.getElementById('main-nav').classList.toggle('scrolled',scrollY>40)});
+const obs=new IntersectionObserver(entries=>{entries.forEach((e,i)=>{if(e.isIntersecting)setTimeout(()=>e.target.classList.add('vis'),(i%5)*70)})},{threshold:0.08,rootMargin:'0px 0px -40px 0px'});
+document.querySelectorAll('.ani').forEach((el,i)=>{el.dataset.delay=(i%5)*70;obs.observe(el)});
+document.querySelectorAll('.faq-item').forEach(item=>{item.querySelector('.faq-q').addEventListener('click',()=>{const o=item.classList.contains('open');document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open'));if(!o)item.classList.add('open')})});
+document.querySelectorAll('.tab-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));btn.classList.add('active');document.getElementById(btn.dataset.tab).classList.add('active')})});
+const VC={{VALEUR_CLIENT}};
+const sl=document.getElementById('calc-slider');
+function cu(){const c=parseInt(sl.value);document.getElementById('slider-val').textContent=c;const s=c*VC,m=s*4,a=m*12,r=Math.ceil(1000/s);const f=n=>n.toLocaleString('fr-CA',{style:'currency',currency:'CAD',minimumFractionDigits:0});document.getElementById('r-sem').textContent=f(s);document.getElementById('r-mois').textContent=f(m);document.getElementById('r-an').textContent=f(a);document.getElementById('r-roi').textContent=r+' semaine'+(r>1?'s':'')}
+sl.addEventListener('input',cu);cu();
+function countUp(el,target,dur=1200){if(!el)return;const isY=target>1000;let s=isY?target-8:0;const step=(target-s)/(dur/16);const t=setInterval(()=>{s+=step;if(s>=target){el.textContent=target;clearInterval(t);return}el.textContent=Math.floor(s)},16)}
+const ho=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting){countUp(document.getElementById('cnt-avis'),{{AVIS_COUNT}});countUp(document.getElementById('cnt-annee'),{{ANNEE_FONDATION}});ho.disconnect()}})},{threshold:0.3});
+const hs=document.querySelector('.hero-stats');if(hs)ho.observe(hs);
+</script>
+</body>
+</html>
