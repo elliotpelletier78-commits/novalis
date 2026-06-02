@@ -13555,7 +13555,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
                 f'</div>'
             )
     elif _is_salon:
-        # Salon: carte de service élégante avec durée
+        # Salon: liste éditoriale numérotée avec durée
         _durations = ["30 min","45 min","60 min","90 min","120 min","45 min"]
         for _si, _svc in enumerate(svc_source, 1):
             _name = _svc["name"] if isinstance(_svc,dict) else _svc
@@ -13563,6 +13563,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
             _dur  = _durations[(_si-1) % len(_durations)]
             services_html += (
                 f'<div class="salon-svc reveal d{min(_si,4)}">'
+                f'<div class="salon-svc-num">0{_si}</div>'
                 f'<div class="salon-svc-body">'
                 f'<div class="salon-svc-name">{_name}</div>'
                 f'<div class="salon-svc-desc">{_desc}</div>'
@@ -13571,15 +13572,18 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
                 f'</div>'
             )
     elif _is_health:
-        # Santé: carte propre avec icône médicale
+        # Santé: liste éditoriale numérotée
         for _si, _svc in enumerate(svc_source, 1):
             _name = _svc["name"] if isinstance(_svc,dict) else _svc
             _desc = (_svc.get("desc","") if isinstance(_svc,dict) else "")
             services_html += (
                 f'<div class="health-svc reveal d{min(_si,4)}">'
+                f'<div class="health-svc-num">0{_si}</div>'
+                f'<div class="health-svc-body">'
                 f'<div class="health-svc-name">{_name}</div>'
                 f'<div class="health-svc-desc">{_desc}</div>'
                 f'<a href="#contact" class="health-svc-cta">Prendre rendez-vous →</a>'
+                f'</div>'
                 f'</div>'
             )
     else:
@@ -14282,32 +14286,50 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
             ("Claire B.","Ils ont fait exactement ce qu'ils avaient dit. Ni plus, ni moins — mais vraiment.", "★★★★★"),
         ]
     )
-    testi_html_parts = []
-    for _ti, (author, text, stars) in enumerate(testimonials[:3]):
-        initials = "".join(w[0].upper() for w in author.split()[:2])
-        if _ti == 0:
-            testi_html_parts.append(
-                f'<div class="testi-featured reveal">'
-                f'<div class="testi-feat-q">&ldquo;</div>'
-                f'<p class="testi-feat-text">{text}</p>'
-                f'<div class="testi-feat-author">'
-                f'<div class="testi-avatar">{initials}</div>'
-                f'<div><div class="testi-name">{author}</div>'
-                f'<div class="testi-loc">{stars}&nbsp;·&nbsp;{city}, QC</div></div>'
-                f'</div>'
-                f'</div>'
-            )
-        else:
-            testi_html_parts.append(
-                f'<div class="testi-card reveal">'
-                f'<div class="testi-stars">{stars}</div>'
-                f'<p class="testi-text">{text}</p>'
-                f'<div class="testi-author">'
-                f'<div class="testi-avatar">{initials}</div>'
-                f'<div><div class="testi-name">{author}</div><div class="testi-loc">{city}, QC</div></div>'
-                f'</div></div>'
-            )
-    testimonials_html = "".join(testi_html_parts)
+    # Build editorial testimonials — featured large quote + 2 secondary
+    _t0_init = "".join(w[0].upper() for w in testimonials[0][0].split()[:2]) if testimonials else "?"
+    _t1_init = "".join(w[0].upper() for w in testimonials[1][0].split()[:2]) if len(testimonials) > 1 else "?"
+    _t2_init = "".join(w[0].upper() for w in testimonials[2][0].split()[:2]) if len(testimonials) > 2 else "?"
+    _t0 = testimonials[0] if testimonials else ("", "", "")
+    _t1 = testimonials[1] if len(testimonials) > 1 else ("", "", "")
+    _t2 = testimonials[2] if len(testimonials) > 2 else ("", "", "")
+    _testi_featured_html = (
+        f'<div class="testi-main-quote reveal">'
+        f'<span class="testi-bq-mark">&ldquo;</span>'
+        f'<p class="testi-bq">{_t0[1]}</p>'
+        f'<div class="testi-author-row">'
+        f'<div class="testi-avatar">{_t0_init}</div>'
+        f'<div>'
+        f'<div class="testi-stars">{_t0[2]}</div>'
+        f'<div class="testi-name">{_t0[0]}</div>'
+        f'<div class="testi-loc">{city}, QC</div>'
+        f'</div></div></div>'
+    )
+    _testi_secondary_html = ""
+    if _t1[0]:
+        _testi_secondary_html += (
+            f'<div class="testi-card reveal d1">'
+            f'<div class="testi-stars">{_t1[2]}</div>'
+            f'<p class="testi-text">{_t1[1]}</p>'
+            f'<div class="testi-author">'
+            f'<div class="testi-avatar">{_t1_init}</div>'
+            f'<div><div class="testi-name">{_t1[0]}</div><div class="testi-loc">{city}, QC</div></div>'
+            f'</div></div>'
+        )
+    if _t2[0]:
+        _testi_secondary_html += (
+            f'<div class="testi-card reveal d2">'
+            f'<div class="testi-stars">{_t2[2]}</div>'
+            f'<p class="testi-text">{_t2[1]}</p>'
+            f'<div class="testi-author">'
+            f'<div class="testi-avatar">{_t2_init}</div>'
+            f'<div><div class="testi-name">{_t2[0]}</div><div class="testi-loc">{city}, QC</div></div>'
+            f'</div></div>'
+        )
+    testimonials_html = (
+        _testi_featured_html
+        + (f'<div class="testi-secondary">{_testi_secondary_html}</div>' if _testi_secondary_html else "")
+    )
 
     # ── Galerie d'images réelles du site ─────────────────────────────────────
     gallery_images = bm.get("gallery", [])
@@ -14866,64 +14888,58 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family={_font_url}&display=swap" rel="stylesheet">
 <style>
-:root{{--brand:{btn};--ink:#18120F;--ink2:#5C534E;--paper:#F7F4EF;--paper2:#EFEBE4;--rule:#E2DBD2;--serif:{_serif_var};--sans:{_sans_var}}}
+:root{{--brand:{btn};--ink:#0F0F0F;--ink2:#6B6460;--paper:#FAF8F5;--paper2:#F2EEE8;--rule:#E3DDD6;--serif:{_serif_var};--sans:{_sans_var}}}
 *{{margin:0;padding:0;box-sizing:border-box}}html{{scroll-behavior:smooth}}
-body{{font-family:var(--sans);background:var(--paper);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}}a{{color:inherit;text-decoration:none}}
-.ann-bar{{background:var(--brand);color:#fff;padding:9px 5vw;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:210}}
-.ann-bar-text{{font-size:0.76rem;font-weight:500;letter-spacing:0.02em;opacity:0.9}}
-.ann-bar-btn{{background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.32);color:#fff;padding:5px 14px;border-radius:3px;font-size:0.73rem;font-weight:700;letter-spacing:0.03em;white-space:nowrap;transition:background 0.2s}}
-.ann-bar-btn:hover{{background:rgba(255,255,255,0.28)}}
-nav{{position:sticky;top:0;z-index:200;background:transparent;border-bottom:1px solid transparent;transition:background 0.4s cubic-bezier(.16,1,.3,1),border-color 0.4s,backdrop-filter 0.4s}}
-nav.scrolled{{background:rgba(247,244,239,0.97);backdrop-filter:blur(20px);border-bottom:1px solid var(--rule)}}
-nav:not(.scrolled) .nav-link{{color:rgba(255,255,255,0.85)}}
+body{{font-family:var(--sans);background:var(--paper);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}}a{{color:inherit;text-decoration:none}}
+.ann-bar{{background:var(--ink);color:rgba(255,255,255,0.88);padding:10px 5vw;display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;position:sticky;top:0;z-index:210}}
+.ann-bar-text{{font-size:0.74rem;font-weight:400;letter-spacing:0.04em}}
+.ann-bar-btn{{background:transparent;border:1px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.9);padding:5px 16px;border-radius:2px;font-size:0.72rem;font-weight:600;letter-spacing:0.05em;white-space:nowrap;transition:all 0.2s}}
+.ann-bar-btn:hover{{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.6)}}
+nav{{position:sticky;top:0;z-index:200;background:transparent;transition:background 0.5s,backdrop-filter 0.5s,border-color 0.5s;border-bottom:1px solid transparent}}
+nav.scrolled{{background:rgba(250,248,245,0.95);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid var(--rule)}}
+nav:not(.scrolled) .nav-link{{color:rgba(255,255,255,0.8)}}
 nav:not(.scrolled) .nav-logo{{color:#fff}}
-nav:not(.scrolled) .nav-cta{{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff}}
-.nav-in{{max-width:1160px;margin:0 auto;padding:0 5vw;display:flex;align-items:center;justify-content:space-between;height:66px}}
-.nav-logo{{font-family:var(--serif);font-size:1.08rem;font-weight:700;letter-spacing:-0.01em}}
-.nav-links{{display:flex;align-items:center;gap:24px}}
-.nav-link{{font-size:0.82rem;font-weight:500;color:var(--ink2);transition:color 0.2s}}
+nav:not(.scrolled) .nav-cta{{border-color:rgba(255,255,255,0.45);color:rgba(255,255,255,0.9)}}
+.nav-in{{max-width:1200px;margin:0 auto;padding:0 5vw;display:flex;align-items:center;justify-content:space-between;height:64px}}
+.nav-logo{{font-family:var(--serif);font-size:1.05rem;font-weight:700;letter-spacing:-0.01em}}
+.nav-links{{display:flex;align-items:center;gap:28px}}
+.nav-link{{font-size:0.79rem;font-weight:500;color:var(--ink2);letter-spacing:0.01em;transition:color 0.2s}}
 .nav-link:hover{{color:var(--ink)}}
-.nav-cta{{background:var(--brand);color:#fff;padding:9px 20px;border-radius:5px;font-size:0.82rem;font-weight:600;letter-spacing:0.01em;transition:opacity 0.2s}}
-.nav-cta:hover{{opacity:0.88}}
+.nav-cta{{border:1px solid var(--ink);color:var(--ink);padding:8px 20px;border-radius:2px;font-size:0.79rem;font-weight:600;letter-spacing:0.02em;transition:all 0.2s}}
+.nav-cta:hover{{background:var(--ink);color:#fff}}
 .hero{{position:relative;min-height:100vh;display:flex;align-items:flex-end;overflow:hidden;background-color:{bg}}}
 .hero-bg{{position:absolute;inset:0;background:{hero_bg};background-size:cover;background-position:center}}
-.hero-veil{{position:absolute;inset:0;background:linear-gradient(to top,{bg}F5 0%,{bg}88 40%,transparent 70%);z-index:1}}
-.hero-body{{position:relative;z-index:2;width:100%;max-width:1160px;margin:0 auto;padding:120px 5vw 96px}}
-.hero-logo-wrap{{margin-bottom:22px}}
-.hero-logo-wrap img{{height:52px;max-width:200px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.9}}
-.hero-chip{{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,0.2);border-radius:3px;padding:5px 12px;font-size:0.7rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.75);margin-bottom:24px}}
-.hero-chip i{{width:6px;height:6px;border-radius:50%;background:var(--brand);display:inline-block;box-shadow:0 0 8px {btn}bb;flex-shrink:0}}
-.hero h1{{font-family:var(--serif);font-size:clamp(3.2rem,7vw,6.5rem);font-weight:900;line-height:1.0;letter-spacing:-0.03em;color:#fff;max-width:820px;margin-bottom:24px}}
-.hero-sub{{font-size:1.08rem;color:rgba(255,255,255,0.72);max-width:560px;font-weight:300;line-height:1.8;margin-bottom:36px}}
-/* Hero badge + stats */
-.hero-badge{{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.85);font-size:0.72rem;font-weight:600;letter-spacing:0.06em;padding:7px 16px;border-radius:30px;margin-bottom:24px;backdrop-filter:blur(8px)}}
-.hero-badge-dot{{width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e;animation:pulse-dot 2s infinite;flex-shrink:0}}
-@keyframes pulse-dot{{0%,100%{{opacity:1}}50%{{opacity:0.4}}}}
-.hero-stats{{display:flex;gap:32px;margin-top:36px;flex-wrap:wrap}}
-.hero-stat{{display:flex;flex-direction:column;gap:2px}}
-.hero-stat-num{{font-family:var(--serif);font-size:1.8rem;font-weight:900;color:#fff;line-height:1}}
-.hero-stat-label{{font-size:0.68rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.08em}}
-.scroll-hint-new{{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;color:rgba(255,255,255,0.4);font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;animation:bounce-hint 2.4s infinite;z-index:3;cursor:pointer}}
-@keyframes bounce-hint{{0%,100%{{transform:translateX(-50%) translateY(0)}}50%{{transform:translateX(-50%) translateY(6px)}}}}
-.scroll-chevron{{width:18px;height:18px;border-right:2px solid rgba(255,255,255,0.35);border-bottom:2px solid rgba(255,255,255,0.35);transform:rotate(45deg);margin-top:-4px}}
-.hero-rating{{display:inline-flex;align-items:center;gap:9px;font-size:0.78rem;color:rgba(255,255,255,0.52);margin-bottom:38px;padding:8px 16px;border:1px solid rgba(255,255,255,0.12);border-radius:3px}}
-.hero-rating .s{{color:#F4B942;letter-spacing:2px}}
-.hero-btns{{display:flex;gap:12px;flex-wrap:wrap}}
-.btn-p{{background:var(--brand);color:#fff;padding:13px 30px;border-radius:5px;font-weight:600;font-size:0.92rem;transition:opacity 0.2s,transform 0.2s;display:inline-block}}
+.hero-veil{{position:absolute;inset:0;background:linear-gradient(to top,{bg}FA 0%,{bg}CC 30%,{bg}66 60%,transparent 85%);z-index:1}}
+.hero-body{{position:relative;z-index:2;width:100%;max-width:1200px;margin:0 auto;padding:0 5vw 100px}}
+.hero-logo-wrap{{margin-bottom:28px}}
+.hero-logo-wrap img{{height:48px;max-width:180px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.85}}
+.hero-eyebrow{{font-size:0.72rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.55);margin-bottom:20px;display:block}}
+.hero h1{{font-family:var(--serif);font-size:clamp(3.6rem,9vw,8.5rem);font-weight:900;line-height:0.95;letter-spacing:-0.04em;color:#fff;max-width:900px;margin-bottom:28px}}
+.hero-sub{{font-size:1.05rem;color:rgba(255,255,255,0.65);max-width:500px;font-weight:300;line-height:1.9;margin-bottom:44px}}
+.hero-stats{{display:flex;gap:0;margin-top:48px;border-top:1px solid rgba(255,255,255,0.15);padding-top:32px}}
+.hero-stat{{display:flex;flex-direction:column;gap:3px;padding-right:36px;margin-right:36px;border-right:1px solid rgba(255,255,255,0.15)}}
+.hero-stat:last-child{{border-right:none;padding-right:0;margin-right:0}}
+.hero-stat-num{{font-family:var(--serif);font-size:2rem;font-weight:900;color:#fff;line-height:1;letter-spacing:-0.03em}}
+.hero-stat-label{{font-size:0.65rem;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.1em}}
+.scroll-hint-new{{position:absolute;bottom:40px;right:5vw;display:flex;flex-direction:column;align-items:center;gap:8px;color:rgba(255,255,255,0.35);font-size:0.62rem;letter-spacing:0.14em;text-transform:uppercase;z-index:3;cursor:pointer}}
+.scroll-chevron{{width:1px;height:44px;background:linear-gradient(to bottom,transparent,rgba(255,255,255,0.4));margin-top:4px}}
+.hero-btns{{display:flex;gap:14px;flex-wrap:wrap}}
+.btn-p{{background:#fff;color:var(--ink);padding:14px 32px;border-radius:2px;font-weight:700;font-size:0.88rem;letter-spacing:0.02em;transition:opacity 0.2s,transform 0.18s;display:inline-block}}
 .btn-p:hover{{opacity:0.88;transform:translateY(-1px)}}
-.btn-g{{background:rgba(255,255,255,0.08);color:#fff;padding:13px 24px;border-radius:5px;font-weight:400;font-size:0.9rem;border:1px solid rgba(255,255,255,0.22);transition:all 0.2s;display:inline-block}}
+.btn-g{{background:transparent;color:rgba(255,255,255,0.85);padding:14px 28px;border-radius:2px;font-weight:400;font-size:0.88rem;border:1px solid rgba(255,255,255,0.3);letter-spacing:0.01em;transition:all 0.2s;display:inline-block}}
+.btn-g:hover{{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.55)}}
 .btn-g:hover{{background:rgba(255,255,255,0.15)}}
 .trust{{background:#fff;border-bottom:1px solid var(--rule);padding:16px 5vw}}
 .trust-in{{max-width:1160px;margin:0 auto;display:flex;align-items:center;flex-wrap:wrap}}
 .trust-pill{{padding:7px 22px;font-size:0.78rem;color:var(--ink2);border-right:1px solid var(--rule)}}
 .trust-pill:last-child{{border-right:none}}
 .trust-pill strong{{color:var(--ink);font-weight:600}}
-.sec{{padding:112px 5vw}}
-.sec-in{{max-width:1160px;margin:0 auto}}
-.sec-label{{display:inline-flex;align-items:center;gap:8px;font-size:0.7rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--brand);margin-bottom:14px}}
-.sec-label::before{{content:'';width:20px;height:1px;background:var(--brand)}}
-.sec-h{{font-family:var(--serif);font-size:clamp(2rem,4vw,3.4rem);font-weight:700;letter-spacing:-0.03em;color:var(--ink);line-height:1.1;margin-bottom:16px}}
-.sec-lead{{font-size:0.95rem;color:var(--ink2);font-weight:300;max-width:460px;line-height:1.75}}
+.sec{{padding:120px 5vw}}
+.sec-in{{max-width:1200px;margin:0 auto}}
+.sec-label{{display:inline-flex;align-items:center;gap:10px;font-size:0.68rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--brand);margin-bottom:18px}}
+.sec-label::before{{content:'';width:24px;height:1px;background:var(--brand)}}
+.sec-h{{font-family:var(--serif);font-size:clamp(2.4rem,5vw,4.2rem);font-weight:900;letter-spacing:-0.04em;color:var(--ink);line-height:1.0;margin-bottom:20px}}
+.sec-lead{{font-size:1rem;color:var(--ink2);font-weight:300;max-width:480px;line-height:1.85}}
 .svc-list{{margin-top:48px;border-top:1px solid var(--rule)}}
 .svc-row{{display:grid;grid-template-columns:52px 1fr;gap:0 24px;padding:26px 0;border-bottom:1px solid var(--rule);transition:background 0.2s;cursor:default}}
 .svc-row:hover{{background:rgba(0,0,0,0.018)}}
@@ -14984,23 +15000,24 @@ nav:not(.scrolled) .nav-cta{{background:rgba(255,255,255,0.15);border:1px solid 
 .audit-check{{color:#22c55e;font-weight:700;flex-shrink:0;margin-top:1px}}
 .audit-arrow{{font-size:1.6rem;color:var(--brand);align-self:center;font-weight:300;padding-top:60px}}
 @media(max-width:600px){{.audit-grid{{grid-template-columns:1fr}}.audit-arrow{{display:none}}}}
-.testi-sec{{background:#131009;padding:88px 5vw}}
-.testi-sec .sec-label{{color:{acc}}}
-.testi-sec .sec-h{{color:#fff}}
-.testi-grid{{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(255,255,255,0.07);margin-top:48px;overflow:hidden}}
-.testi-featured{{grid-column:1/-1;background:#0d0b08;padding:52px 48px;border-bottom:1px solid rgba(255,255,255,0.06)}}
-.testi-feat-q{{font-family:var(--serif);font-size:5rem;line-height:0.75;color:{btn};opacity:0.35;margin-bottom:18px;font-weight:900;display:block}}
-.testi-feat-text{{font-family:var(--serif);font-size:clamp(1.05rem,2.2vw,1.4rem);font-weight:400;color:rgba(255,255,255,0.88);line-height:1.65;margin-bottom:28px;font-style:italic;max-width:860px}}
-.testi-feat-author{{display:flex;align-items:center;gap:14px}}
-.testi-card{{background:#131009;padding:34px 30px;transition:background 0.25s}}
-.testi-card:hover{{background:#1c1510}}
-.testi-stars{{color:#F4B942;font-size:0.75rem;letter-spacing:2px;margin-bottom:14px}}
-.testi-text{{font-size:0.87rem;color:rgba(255,255,255,0.58);line-height:1.85;font-weight:300;margin-bottom:20px}}
-.testi-author,.testi-feat-author{{display:flex;align-items:center;gap:12px}}
-.testi-avatar{{width:38px;height:38px;border-radius:50%;background:{btn};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;flex-shrink:0;font-family:var(--serif)}}
-.testi-name{{font-size:0.82rem;font-weight:600;color:#fff}}
-.testi-loc{{font-size:0.7rem;color:rgba(255,255,255,0.35);margin-top:2px}}
-@media(max-width:600px){{.testi-grid{{grid-template-columns:1fr}}.testi-featured{{padding:36px 24px}}}}
+.testi-sec{{background:var(--paper2);padding:120px 5vw;border-top:1px solid var(--rule)}}
+.testi-sec .sec-label{{color:var(--brand)}}
+.testi-sec .sec-h{{color:var(--ink)}}
+.testi-main-quote{{margin-top:64px;padding-bottom:56px;border-bottom:1px solid var(--rule)}}
+.testi-bq{{font-family:var(--serif);font-size:clamp(1.4rem,3.2vw,2.1rem);font-weight:400;font-style:italic;color:var(--ink);line-height:1.55;max-width:840px;margin-bottom:32px;letter-spacing:-0.01em}}
+.testi-bq-mark{{font-family:var(--serif);font-size:5rem;line-height:0.6;color:var(--brand);display:block;margin-bottom:16px;opacity:0.5}}
+.testi-author-row{{display:flex;align-items:center;gap:16px}}
+.testi-avatar{{width:40px;height:40px;border-radius:50%;background:{btn};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;flex-shrink:0;font-family:var(--serif)}}
+.testi-name{{font-size:0.85rem;font-weight:700;color:var(--ink)}}
+.testi-loc{{font-size:0.72rem;color:var(--ink2);margin-top:1px}}
+.testi-stars{{color:#D4A017;font-size:0.7rem;letter-spacing:2px;margin-bottom:2px}}
+.testi-secondary{{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:0;border-bottom:1px solid var(--rule)}}
+.testi-card{{padding:40px 0;border-right:1px solid var(--rule);padding-right:48px;cursor:default}}
+.testi-card:last-child{{border-right:none;padding-right:0;padding-left:48px}}
+.testi-card:hover .testi-text{{color:var(--ink)}}
+.testi-text{{font-size:0.9rem;color:var(--ink2);line-height:1.9;font-weight:300;margin-bottom:24px;font-style:italic;transition:color 0.25s}}
+.testi-author{{display:flex;align-items:center;gap:12px}}
+@media(max-width:600px){{.testi-secondary{{grid-template-columns:1fr}}.testi-card:last-child{{padding-left:0;border-top:1px solid var(--rule)}}.testi-card{{padding-right:0}}}}
 .val-sec{{background:var(--paper);padding:80px 5vw;border-top:1px solid var(--rule)}}
 .val-table{{margin-top:44px;border-radius:10px;overflow:hidden;border:1px solid var(--rule);background:#fff}}
 .val-row{{display:flex;align-items:center;justify-content:space-between;padding:15px 22px;border-bottom:1px solid var(--rule);gap:12px}}
@@ -15045,20 +15062,20 @@ nav:not(.scrolled) .nav-cta{{background:rgba(255,255,255,0.15);border:1px solid 
 .mockup-phone{{width:min(130px,32vw);background:#1e2640;border-radius:32px;padding:10px 8px 16px;border:2px solid #2d3758;box-shadow:0 30px 70px rgba(0,0,0,0.6);margin-bottom:28px}}
 .mockup-notch{{width:36px;height:6px;background:#0a0f1e;border-radius:3px;margin:0 auto 8px}}
 .mockup-phone-screen{{border-radius:20px;overflow:hidden;height:220px}}
-.cta-final{{position:relative;overflow:hidden;padding:100px 5vw;text-align:center;background:var(--ink)}}
-.cta-final-glow{{position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:600px;height:400px;background:var(--brand);opacity:0.15;filter:blur(100px);pointer-events:none;border-radius:50%}}
-.cta-badge{{display:inline-block;background:var(--brand);color:#fff;font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:6px 16px;border-radius:3px;margin-bottom:28px}}
-.cta-h{{font-family:var(--serif);font-size:clamp(2rem,5vw,3.6rem);font-weight:900;letter-spacing:-0.03em;color:#fff;margin-bottom:16px;line-height:1.05}}
-.cta-sub{{color:rgba(255,255,255,0.55);font-size:0.95rem;font-weight:300;margin-bottom:40px;line-height:1.8;max-width:480px;margin-left:auto;margin-right:auto}}
-.cta-price{{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:20px 28px;display:inline-block;margin-bottom:32px}}
-.cta-price-main{{font-family:var(--serif);font-size:2rem;font-weight:700;color:#fff}}
-.cta-price-note{{display:block;font-size:0.78rem;color:rgba(255,255,255,0.4);margin-top:4px}}
-.cta-btns{{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}}
-.cta-a{{background:var(--brand);color:#fff;padding:17px 38px;border-radius:5px;font-weight:700;font-size:0.95rem;transition:opacity 0.2s,transform 0.2s;display:inline-block;letter-spacing:0.01em}}
-.cta-a:hover{{opacity:0.88;transform:translateY(-2px)}}
-.cta-b{{background:rgba(255,255,255,0.08);color:#fff;padding:17px 28px;border-radius:5px;font-weight:400;font-size:0.9rem;border:1px solid rgba(255,255,255,0.2);transition:all 0.2s;display:inline-block}}
-.cta-b:hover{{background:rgba(255,255,255,0.16)}}
-.cta-reassure{{margin-top:24px;font-size:0.76rem;color:rgba(255,255,255,0.28);letter-spacing:0.04em}}
+.cta-final{{position:relative;overflow:hidden;padding:120px 5vw;text-align:center;background:var(--ink)}}
+.cta-final-glow{{display:none}}
+.cta-badge{{display:inline-block;border:1px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.6);font-size:0.68rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;padding:6px 18px;border-radius:2px;margin-bottom:32px}}
+.cta-h{{font-family:var(--serif);font-size:clamp(2.4rem,6vw,5rem);font-weight:900;letter-spacing:-0.04em;color:#fff;margin-bottom:20px;line-height:1.0}}
+.cta-sub{{color:rgba(255,255,255,0.45);font-size:0.95rem;font-weight:300;margin-bottom:44px;line-height:1.9;max-width:460px;margin-left:auto;margin-right:auto}}
+.cta-price{{border-top:1px solid rgba(255,255,255,0.12);border-bottom:1px solid rgba(255,255,255,0.12);padding:24px 0;display:inline-block;margin-bottom:36px;min-width:280px}}
+.cta-price-main{{font-family:var(--serif);font-size:2.4rem;font-weight:900;color:#fff;letter-spacing:-0.04em}}
+.cta-price-note{{display:block;font-size:0.75rem;color:rgba(255,255,255,0.35);margin-top:6px;letter-spacing:0.04em}}
+.cta-btns{{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}}
+.cta-a{{background:#fff;color:var(--ink);padding:16px 40px;border-radius:2px;font-weight:700;font-size:0.9rem;transition:opacity 0.2s,transform 0.18s;display:inline-block;letter-spacing:0.02em}}
+.cta-a:hover{{opacity:0.88;transform:translateY(-1px)}}
+.cta-b{{background:transparent;color:rgba(255,255,255,0.75);padding:16px 32px;border-radius:2px;font-weight:400;font-size:0.9rem;border:1px solid rgba(255,255,255,0.25);transition:all 0.2s;display:inline-block}}
+.cta-b:hover{{border-color:rgba(255,255,255,0.6);color:#fff}}
+.cta-reassure{{margin-top:28px;font-size:0.73rem;color:rgba(255,255,255,0.22);letter-spacing:0.06em}}
 footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 .foot-in{{max-width:1160px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}}
 .foot-name{{font-family:var(--serif);font-weight:700;font-size:0.98rem;color:var(--ink)}}
@@ -15088,11 +15105,7 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
   .foot-in{{flex-direction:column;text-align:center}}
   .svc-row{{grid-template-columns:38px 1fr}}
 }}
-.hero-orb{{position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none;animation:orb-float 12s ease-in-out infinite}}
-.orb1{{width:420px;height:420px;background:var(--brand);opacity:0.22;top:-80px;right:5%;animation-delay:0s}}
-.orb2{{width:280px;height:280px;background:{acc};opacity:0.18;bottom:20px;left:8%;animation-delay:-4s}}
-.orb3{{width:200px;height:200px;background:#ffffff;opacity:0.06;top:40%;right:20%;animation-delay:-8s}}
-@keyframes orb-float{{0%,100%{{transform:translateY(0) scale(1)}}50%{{transform:translateY(-30px) scale(1.05)}}}}
+/* orbes supprimés — look AI-généré */
 .compare-sec{{background:#0a0a0f;padding:80px 5vw;overflow:hidden}}
 .compare-table{{margin-top:48px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.07)}}
 .compare-header{{display:grid;grid-template-columns:1fr 1fr;background:rgba(255,255,255,0.04)}}
@@ -15275,20 +15288,24 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 .garage-svc-desc{{font-size:0.82rem;color:var(--ink2);font-weight:300}}
 .garage-svc-badge{{font-size:0.68rem;font-weight:600;color:var(--brand);border:1px solid {btn}44;border-radius:3px;padding:4px 10px;white-space:nowrap;flex-shrink:0;letter-spacing:0.02em}}
 @media(max-width:600px){{.garage-svc{{grid-template-columns:36px 1fr}}.garage-svc-badge{{display:none}}}}
-/* ── SALON styles ── */
-.salon-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:48px}}
-.salon-svc{{background:#fff;border:1px solid var(--rule);border-radius:10px;padding:24px 22px;display:flex;align-items:center;gap:16px;transition:box-shadow 0.3s,transform 0.2s;cursor:pointer}}
-.salon-svc:hover{{box-shadow:0 8px 32px rgba(0,0,0,0.08);transform:translateY(-2px)}}
-.salon-svc-name{{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:4px}}
-.salon-svc-desc{{font-size:0.8rem;color:var(--ink2);font-weight:300;line-height:1.6}}
-.salon-svc-dur{{font-size:0.7rem;font-weight:600;color:var(--brand);border:1px solid {btn}44;border-radius:20px;padding:4px 12px;white-space:nowrap;flex-shrink:0;margin-left:auto;letter-spacing:0.02em}}
-/* ── SANTÉ styles ── */
-.health-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin-top:48px}}
-.health-svc{{background:#fff;border:1px solid var(--rule);border-radius:10px;padding:28px 22px;text-align:center;transition:box-shadow 0.3s,transform 0.2s;cursor:pointer}}
-.health-svc:hover{{box-shadow:0 8px 32px rgba(0,0,0,0.07);transform:translateY(-2px)}}
-.health-svc-name{{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:8px}}
-.health-svc-desc{{font-size:0.82rem;color:var(--ink2);font-weight:300;line-height:1.65;margin-bottom:16px}}
-.health-svc-cta{{font-size:0.78rem;font-weight:700;color:var(--brand);display:inline-block}}
+/* ── SALON styles — liste éditoriale ── */
+.salon-grid{{margin-top:48px;border-top:1px solid var(--rule)}}
+.salon-svc{{display:grid;grid-template-columns:52px 1fr auto;align-items:start;gap:0 22px;padding:30px 0;border-bottom:1px solid var(--rule);cursor:default;transition:padding-left 0.2s}}
+.salon-svc:hover{{padding-left:6px}}
+.salon-svc:hover .salon-svc-name{{color:var(--brand)}}
+.salon-svc-num{{font-family:var(--serif);font-size:0.72rem;font-weight:700;color:var(--brand);opacity:0.45;padding-top:4px;letter-spacing:0.06em}}
+.salon-svc-name{{font-family:var(--serif);font-size:1.12rem;font-weight:700;color:var(--ink);margin-bottom:6px;line-height:1.3;transition:color 0.2s}}
+.salon-svc-desc{{font-size:0.84rem;color:var(--ink2);font-weight:300;line-height:1.75}}
+.salon-svc-dur{{font-size:0.68rem;font-weight:600;color:var(--brand);border:1px solid {btn}33;border-radius:2px;padding:4px 11px;white-space:nowrap;flex-shrink:0;letter-spacing:0.04em;margin-top:4px}}
+/* ── SANTÉ styles — liste éditoriale ── */
+.health-grid{{margin-top:48px;border-top:1px solid var(--rule)}}
+.health-svc{{display:grid;grid-template-columns:52px 1fr auto;align-items:start;gap:0 22px;padding:30px 0;border-bottom:1px solid var(--rule);cursor:default;transition:padding-left 0.2s}}
+.health-svc:hover{{padding-left:6px}}
+.health-svc:hover .health-svc-name{{color:var(--brand)}}
+.health-svc-num{{font-family:var(--serif);font-size:0.72rem;font-weight:700;color:var(--brand);opacity:0.45;padding-top:4px;letter-spacing:0.06em}}
+.health-svc-name{{font-family:var(--serif);font-size:1.12rem;font-weight:700;color:var(--ink);margin-bottom:6px;line-height:1.3;transition:color 0.2s}}
+.health-svc-desc{{font-size:0.84rem;color:var(--ink2);font-weight:300;line-height:1.75;margin-bottom:10px}}
+.health-svc-cta{{font-size:0.75rem;font-weight:700;color:var(--brand);display:inline-block;letter-spacing:0.04em}}
 .health-svc-cta:hover{{color:var(--ink)}}
 /* ── Liste éditoriale services (default) ── */
 .svc-editorial{{margin-top:48px;border-top:2px solid var(--rule)}}
@@ -15410,7 +15427,7 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
   .tarif-row{{grid-template-columns:1fr auto}}
 }}
 @media(max-width:420px){{.why-grid{{grid-template-columns:1fr}}}}
-@media(prefers-reduced-motion:reduce){{.reveal,.reveal-left,.reveal-right,.reveal-scale{{transition:none!important;opacity:1!important;transform:none!important}}.js-anim .reveal,.js-anim .reveal-left,.js-anim .reveal-right,.js-anim .reveal-scale{{transition:none!important}}.hero-orb{{animation:none!important}}.scroll-arrow{{animation:none!important}}.float-btn{{animation:none!important}}.urgency-dot{{animation:none!important}}}}
+@media(prefers-reduced-motion:reduce){{.reveal,.reveal-left,.reveal-right,.reveal-scale{{transition:none!important;opacity:1!important;transform:none!important}}.js-anim .reveal,.js-anim .reveal-left,.js-anim .reveal-right,.js-anim .reveal-scale{{transition:none!important}}.scroll-arrow{{animation:none!important}}.float-btn{{animation:none!important}}.urgency-dot{{animation:none!important}}}}
 /* ── Premium Audit Section ── */
 .new-audit-sec{{background:#fff;padding:88px 5vw;border-top:1px solid var(--rule)}}
 .new-audit-in{{max-width:1040px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:start}}
@@ -15467,16 +15484,13 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 <div class="hero">
   <div class="hero-bg"></div>
   <div class="hero-veil"></div>
-  <div class="hero-orb orb1"></div>
-  <div class="hero-orb orb2"></div>
-  <div class="hero-orb orb3"></div>
   <div class="scroll-hint-new" onclick="document.getElementById('services').scrollIntoView({{behavior:'smooth'}})">
-    <span>Découvrir</span>
+    <span>Défiler</span>
     <div class="scroll-chevron"></div>
   </div>
   <div class="hero-body">
     {_hero_logo_html}
-    <div class="hero-badge"><span class="hero-badge-dot"></span>{industry.title()} certifié &nbsp;·&nbsp; {city}</div>
+    <span class="hero-eyebrow">{industry.title()} &nbsp;·&nbsp; {city}, Québec</span>
     <h1>{hero_title}</h1>
     <p class="hero-sub">{hero_subtitle}</p>
     <div class="hero-btns">
@@ -15553,11 +15567,9 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 
 <section class="testi-sec" id="avis">
   <div class="sec-in">
-    <div class="sec-label reveal">Témoignages</div>
-    <h2 class="sec-h reveal d1" style="color:#fff">Ils en parlent mieux que nous</h2>
-    <div class="testi-grid">
-      {testimonials_html}
-    </div>
+    <div class="sec-label reveal">Avis clients</div>
+    <h2 class="sec-h reveal d1">Ils en parlent mieux que nous</h2>
+    {testimonials_html}
   </div>
 </section>
 
