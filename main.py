@@ -70,6 +70,7 @@ TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
 TWILIO_PHONE = os.getenv("TWILIO_PHONE", "")
 OWNER_PHONE = os.getenv("OWNER_PHONE", "")
+TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER", "")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "EXAVITQu4vr4xnSDxMaL")  # Sarah (FR)
 
@@ -94,6 +95,7 @@ DB_PATH = os.getenv("DATABASE_PATH", "novalis.db")
 
 # Email — Resend (prioritaire) ou SMTP fallback
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+RESEND_WEBHOOK_SECRET = os.getenv("RESEND_WEBHOOK_SECRET", "")
 FROM_EMAIL = os.getenv("FROM_EMAIL", "elliot@novalisia.ca")
 FROM_NAME = os.getenv("FROM_NAME", "Elliot Pelletier — Novalis IA")
 SMTP_HOST = os.getenv("SMTP_HOST", "")
@@ -170,8 +172,8 @@ _auto_outreach = {
     "enabled": False,
     "sent_today": 0,
     "last_reset": "",
-    "daily_limit": 80,
-    "interval_minutes": 20,
+    "daily_limit": 150,
+    "interval_minutes": 15,
     "last_sent_at": "",
     "last_prospect": "",
     "total_sent": 0,
@@ -2107,6 +2109,10 @@ async def init_db():
             "ALTER TABLE prospect_bank ADD COLUMN preview_last_viewed TEXT DEFAULT ''",
             "ALTER TABLE prospect_bank ADD COLUMN followup2_sent_at TEXT DEFAULT ''",
             "ALTER TABLE prospect_bank ADD COLUMN followup3_sent_at TEXT DEFAULT ''",
+            "ALTER TABLE prospect_suggestions ADD COLUMN wa_sent_at TEXT DEFAULT ''",
+            "ALTER TABLE prospect_bank ADD COLUMN wa_sent_at TEXT DEFAULT ''",
+            "ALTER TABLE prospect_suggestions ADD COLUMN email_opened_at TEXT DEFAULT ''",
+            "ALTER TABLE prospect_bank ADD COLUMN email_opened_at TEXT DEFAULT ''",
         ]:
             try:
                 await db.execute(_col_sql)
@@ -2527,6 +2533,7 @@ async def startup():
     asyncio.create_task(_followup_loop())
     asyncio.create_task(_auto_outreach_loop())
     asyncio.create_task(_sms_outreach_loop())
+    asyncio.create_task(_whatsapp_outreach_loop())
     asyncio.create_task(_fix_missing_emails_on_startup())
     asyncio.create_task(_auto_suggestions_loop())
     asyncio.create_task(_fast_bank_fill_on_startup())
@@ -2683,6 +2690,133 @@ async def _sms_outreach_loop():
             logger.error(f"SMS outreach loop error: {e}")
 
         await asyncio.sleep(2 * 3600)  # toutes les 2 heures
+
+
+def _wa_message(p: dict) -> str:
+    """Retourne le message WhatsApp adapté à l'industrie du prospect."""
+    name = p.get("name", "votre entreprise")
+    city = p.get("city", "Québec")
+    industry = (p.get("industry") or "").lower()
+    web_score = p.get("web_score", "")
+    pid = p.get("id", "")
+    score_str = f"{web_score}/5" if web_score != "" else "faible"
+    preview_url = f"https://novalisia.ca/preview/{pid}"
+
+    if "garage" in industry or "auto" in industry:
+        return (
+            f"Bonjour! J'ai créé un aperçu de site pour {name} à {city}.\n"
+            f"Votre site actuel score {score_str} — je l'ai refait pour vous.\n"
+            f"Voir l'aperçu: {preview_url}\n"
+            f"1 000 $ · 2-3 semaines · Hébergement inclus\n"
+            f"— Elliot, Novalis IA"
+        )
+    elif any(k in industry for k in ("restaurant", "café", "cafe", "bistro", "traiteur")):
+        return (
+            f"Bonjour {name}! Votre présence en ligne peut attirer plus de clients.\n"
+            f"J'ai préparé un aperçu de site moderne pour votre restaurant à {city}.\n"
+            f"Voir l'aperçu: {preview_url}\n"
+            f"1 000 $ tout inclus · répondez OUI pour plus d'info.\n"
+            f"— Elliot, Novalis IA"
+        )
+    elif any(k in industry for k in ("salon", "coiffure", "esthétique", "spa", "beauté")):
+        return (
+            f"Bonjour {name}! J'ai créé un aperçu de site élégant pour votre salon à {city}.\n"
+            f"Prise de rendez-vous en ligne incluse.\n"
+            f"Voir l'aperçu: {preview_url}\n"
+            f"1 000 $ tout inclus · répondez OUI pour en savoir plus.\n"
+            f"— Elliot, Novalis IA"
+        )
+    elif any(k in industry for k in ("santé", "sante", "health", "clinique", "médecin", "medecin", "dentiste", "physio")):
+        return (
+            f"Bonjour {name}! J'ai préparé un aperçu de site professionnel pour votre clinique à {city}.\n"
+            f"Confiance des patients et prise de rendez-vous en ligne incluses.\n"
+            f"Voir l'aperçu: {preview_url}\n"
+            f"1 000 $ tout inclus · répondez OUI pour en savoir plus.\n"
+            f"— Elliot, Novalis IA"
+        )
+    elif any(k in industry for k in ("construction", "plombier", "électricien", "electricien", "peintre", "renovation", "rénovation", "toiture")):
+        return (
+            f"Bonjour {name}! Un bon site web vous amène plus de contrats à {city}.\n"
+            f"J'ai préparé un aperçu pour votre entreprise.\n"
+            f"Voir l'aperçu: {preview_url}\n"
+            f"1 000 $ tout inclus · répondez OUI pour en savoir plus.\n"
+            f"— Elliot, Novalis IA"
+        )
+    else:
+        return (
+            f"Bonjour {name}! J'ai préparé un aperçu de site professionnel pour votre entreprise.\n"
+            f"{preview_url}\n"
+            f"1 000 $ tout inclus — répondez OUI pour plus d'info.\n"
+            f"— Elliot, Novalis IA"
+        )
+
+
+async def _whatsapp_outreach_loop():
+    """Envoie des messages WhatsApp de prospection après l'email (via Twilio WhatsApp)."""
+    await asyncio.sleep(300)  # 5 min après démarrage
+    wa_sent_today = 0
+    last_reset = datetime.now().strftime("%Y-%m-%d")
+    WA_DAILY_LIMIT = 15
+
+    while True:
+        try:
+            today = datetime.now().strftime("%Y-%m-%d")
+            if last_reset != today:
+                wa_sent_today = 0
+                last_reset = today
+
+            if not twilio_client or not TWILIO_WHATSAPP_NUMBER:
+                await asyncio.sleep(3600)
+                continue
+            if wa_sent_today >= WA_DAILY_LIMIT:
+                await asyncio.sleep(3600)
+                continue
+
+            async with aiosqlite.connect(DB_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute("""
+                    SELECT * FROM prospect_suggestions
+                    WHERE status='new'
+                      AND phone != '' AND phone IS NOT NULL
+                      AND email_sent_at != '' AND email_sent_at IS NOT NULL
+                      AND (wa_sent_at IS NULL OR wa_sent_at = '')
+                    ORDER BY email_sent_at ASC
+                    LIMIT 3
+                """)
+                prospects = [dict(r) for r in await cursor.fetchall()]
+
+            for p in prospects:
+                if wa_sent_today >= WA_DAILY_LIMIT:
+                    break
+                try:
+                    name = p.get("name", "votre entreprise")
+                    phone = p.get("phone", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+                    if not phone.startswith("+"):
+                        phone = "+1" + phone.lstrip("1")
+                    wa_body = _wa_message(p)
+                    await asyncio.to_thread(
+                        twilio_client.messages.create,
+                        body=wa_body,
+                        from_=f"whatsapp:{TWILIO_WHATSAPP_NUMBER}",
+                        to=f"whatsapp:{phone}"
+                    )
+                    now = datetime.now().isoformat()
+                    async with aiosqlite.connect(DB_PATH) as db:
+                        await db.execute(
+                            "UPDATE prospect_suggestions SET wa_sent_at=?, updated_at=? WHERE id=?",
+                            (now, now, p["id"])
+                        )
+                        await db.commit()
+                    wa_sent_today += 1
+                    logger.info(f"WhatsApp ✓ {name} ({phone}) — {wa_sent_today}/{WA_DAILY_LIMIT}")
+                    await asyncio.sleep(90)
+                except Exception as e:
+                    logger.error(f"WhatsApp outreach error {p.get('name')}: {e}")
+
+        except Exception as e:
+            logger.error(f"WhatsApp outreach loop error: {e}")
+
+        await asyncio.sleep(3 * 3600)  # toutes les 3 heures
 
 
 async def _cleanup_duplicate_prospects():
@@ -7071,6 +7205,44 @@ _DISCOVERY_TARGETS = [
     ("Lachute", "garage automobile"), ("Lachute", "plombier"), ("Lachute", "restaurant"),
     ("L'Assomption", "garage automobile"), ("L'Assomption", "plombier"),
     ("Sainte-Marie", "garage automobile"), ("Sainte-Marie", "plombier"), ("Sainte-Marie", "restaurant"),
+    # Nouvelles villes — expansion couverte
+    ("Repentigny", "salon de coiffure"), ("Repentigny", "clinique dentaire"),
+    ("Repentigny", "garage automobile"), ("Repentigny", "restaurant"),
+    ("Repentigny", "plombier"), ("Repentigny", "électricien"),
+    ("Repentigny", "peintre"), ("Repentigny", "esthéticienne"),
+    ("Repentigny", "gym"), ("Repentigny", "vétérinaire"),
+    ("Terrebonne", "salon de coiffure"), ("Terrebonne", "clinique dentaire"),
+    ("Terrebonne", "garage automobile"), ("Terrebonne", "restaurant"),
+    ("Terrebonne", "plombier"), ("Terrebonne", "électricien"),
+    ("Terrebonne", "toiture"), ("Terrebonne", "peintre"),
+    ("Terrebonne", "esthéticienne"), ("Terrebonne", "gym"),
+    ("Châteauguay", "salon de coiffure"), ("Châteauguay", "clinique dentaire"),
+    ("Châteauguay", "garage automobile"), ("Châteauguay", "restaurant"),
+    ("Châteauguay", "plombier"), ("Châteauguay", "électricien"),
+    ("Châteauguay", "peintre"), ("Châteauguay", "toiture"),
+    ("Saint-Eustache", "salon de coiffure"), ("Saint-Eustache", "clinique dentaire"),
+    ("Saint-Eustache", "garage automobile"), ("Saint-Eustache", "restaurant"),
+    ("Saint-Eustache", "plombier"), ("Saint-Eustache", "électricien"),
+    ("Saint-Eustache", "peintre"), ("Saint-Eustache", "toiture"),
+    ("Mirabel", "salon de coiffure"), ("Mirabel", "garage automobile"),
+    ("Mirabel", "restaurant"), ("Mirabel", "plombier"),
+    ("Mirabel", "électricien"), ("Mirabel", "toiture"),
+    ("Vaudreuil-Dorion", "salon de coiffure"), ("Vaudreuil-Dorion", "clinique dentaire"),
+    ("Vaudreuil-Dorion", "garage automobile"), ("Vaudreuil-Dorion", "restaurant"),
+    ("Vaudreuil-Dorion", "plombier"), ("Vaudreuil-Dorion", "électricien"),
+    ("Vaudreuil-Dorion", "toiture"), ("Vaudreuil-Dorion", "peintre"),
+    ("Joliette", "salon de coiffure"), ("Joliette", "clinique dentaire"),
+    ("Joliette", "garage automobile"), ("Joliette", "restaurant"),
+    ("Joliette", "plombier"), ("Joliette", "électricien"),
+    ("Joliette", "peintre"), ("Joliette", "toiture"),
+    ("Victoriaville", "salon de coiffure"), ("Victoriaville", "clinique dentaire"),
+    ("Victoriaville", "garage automobile"), ("Victoriaville", "restaurant"),
+    ("Victoriaville", "plombier"), ("Victoriaville", "électricien"),
+    ("Victoriaville", "toiture"), ("Victoriaville", "peintre"),
+    ("Baie-Comeau", "salon de coiffure"), ("Baie-Comeau", "restaurant"),
+    ("Baie-Comeau", "garage automobile"), ("Baie-Comeau", "plombier"),
+    ("Sept-Îles", "salon de coiffure"), ("Sept-Îles", "restaurant"),
+    ("Sept-Îles", "garage automobile"), ("Sept-Îles", "plombier"),
 ]
 
 
@@ -10958,8 +11130,50 @@ async def handle_stripe_webhook(request: Request):
     plan_limits = {"starter": 500, "pro": 2000, "enterprise": 0}  # 0 = illimité
 
     if event_type == "checkout.session.completed":
-        client_id = data.get("metadata", {}).get("client_id")
-        plan = data.get("metadata", {}).get("plan")
+        metadata = data.get("metadata", {})
+        # ── Paiement prospect preview page ────────────────────────────────────
+        if metadata.get("source") == "preview_page" and metadata.get("prospect_id"):
+            _pid = metadata["prospect_id"]
+            _tier = metadata.get("tier", "essential")
+            _amount_cents = data.get("amount_total") or data.get("amount_subtotal") or 0
+            _amount_dollars = _amount_cents // 100
+            _prospect_name = ""
+            _prospect_city = ""
+            async with aiosqlite.connect(DB_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                for _table in ("prospect_suggestions", "prospect_bank"):
+                    _cur = await db.execute(
+                        f"SELECT name, city FROM {_table} WHERE id=?", (_pid,)
+                    )
+                    _row = await _cur.fetchone()
+                    if _row:
+                        _prospect_name = _row["name"]
+                        _prospect_city = _row["city"]
+                        break
+                for _table in ("prospect_suggestions", "prospect_bank"):
+                    await db.execute(
+                        f"UPDATE {_table} SET status='client' WHERE id=?", (_pid,)
+                    )
+                await db.commit()
+            logger.info(f"Prospect {_pid} ({_prospect_name}) a payé — forfait {_tier} — {_amount_dollars}$")
+            if twilio_client and TWILIO_PHONE and OWNER_PHONE:
+                try:
+                    _display_name = _prospect_name or _pid
+                    _sms_body = (
+                        f"PAIEMENT REÇU — {_display_name}"
+                        + (f" ({_prospect_city})" if _prospect_city else "")
+                        + f" vient de payer {_amount_dollars}$! Commence leur site maintenant."
+                    )
+                    await asyncio.to_thread(
+                        twilio_client.messages.create,
+                        body=_sms_body,
+                        from_=TWILIO_PHONE,
+                        to=OWNER_PHONE,
+                    )
+                except Exception as _sms_err:
+                    logger.warning(f"SMS paiement prospect non envoyé: {_sms_err}")
+        client_id = metadata.get("client_id")
+        plan = metadata.get("plan")
         stripe_customer = data.get("customer", "")
         if client_id and plan:
             max_msgs = plan_limits.get(plan, 500)
@@ -11008,6 +11222,73 @@ async def handle_stripe_webhook(request: Request):
                 )
                 await db.commit()
             logger.info(f"Abonnement annulé — customer Stripe {stripe_customer}")
+
+    return {"status": "ok"}
+
+
+@app.post("/webhooks/resend")
+async def resend_webhook(request: Request):
+    """Reçoit les événements d'ouverture d'email de Resend."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Corps JSON invalide")
+
+    event_type = body.get("type", "")
+    if event_type != "email.opened":
+        return {"status": "ignored", "type": event_type}
+
+    data = body.get("data", {})
+    to_email = ""
+    to_field = data.get("to", "")
+    if isinstance(to_field, list):
+        to_email = to_field[0] if to_field else ""
+    elif isinstance(to_field, str):
+        to_email = to_field
+    to_email = to_email.strip().lower()
+
+    if not to_email:
+        return {"status": "no_email"}
+
+    now = datetime.now().isoformat()
+    prospect = None
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM prospect_suggestions WHERE LOWER(email) = ? LIMIT 1",
+            (to_email,)
+        )
+        row = await cursor.fetchone()
+        if row:
+            prospect = dict(row)
+            await db.execute(
+                "UPDATE prospect_suggestions SET email_opened_at=?, updated_at=? WHERE id=?",
+                (now, now, prospect["id"])
+            )
+            await db.commit()
+
+    if prospect:
+        p_name = prospect.get("name", "?")
+        p_city = prospect.get("city", "?")
+        p_phone = prospect.get("phone", "")
+        p_id = prospect.get("id", "")
+        logger.info(f"Email ouvert — {p_name} ({p_city}) <{to_email}>")
+        if OWNER_PHONE and twilio_client and TWILIO_PHONE:
+            sms_alert = (
+                f"EMAIL OUVERT — {p_name} ({p_city}) vient d'ouvrir ton email. "
+                f"Tel: {p_phone}. "
+                f"Vois son aperçu: https://novalisia.ca/preview/{p_id}"
+            )
+            try:
+                await asyncio.to_thread(
+                    twilio_client.messages.create,
+                    body=sms_alert,
+                    from_=TWILIO_PHONE,
+                    to=OWNER_PHONE
+                )
+                logger.info(f"Alerte SMS envoyée à {OWNER_PHONE} — email ouvert par {p_name}")
+            except Exception as e:
+                logger.error(f"Alerte SMS email ouvert erreur: {e}")
 
     return {"status": "ok"}
 
@@ -13630,19 +13911,56 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         f'</div></section>'
     )
 
-    # ── Mid-page CTA banner ───────────────────────────────────────────────────
+    # ── Mid-page CTA banner — tiered pricing ─────────────────────────────────
     _midcta_section = (
         f'<section class="midcta-sec">'
-        f'<div class="midcta-in">'
+        f'<div class="midcta-in midcta-wide">'
         f'<div class="midcta-left">'
-        f'<div class="midcta-badge">Site web · 1&nbsp;000&nbsp;$ tout inclus</div>'
-        f'<h2 class="midcta-h">On peut avoir votre site en ligne cette semaine.</h2>'
-        f'<p class="midcta-sub">Ce site a été pensé pour <strong style="color:#fff">{name[:35]}</strong> — pas pour un autre. Appelez, on s\'arrange.</p>'
+        f'<div class="midcta-badge">Aperçu exclusif · Offre limitée</div>'
+        f'<h2 class="midcta-h">Choisissez votre formule</h2>'
+        f'<p class="midcta-sub">Tout inclus — hébergement, domaine, SSL. Livraison en 2–3 semaines.</p>'
         f'</div>'
-        f'<div class="midcta-right">'
-        f'<a class="midcta-btn" href="{_tel_href}">{cta_text}</a>'
-        f'<a href="/api/prospect-pay/{prospect_id}" class="midcta-btn" style="background:#22c55e;box-shadow:0 4px 24px rgba(34,197,94,0.4);margin-top:10px">Réserver et payer en ligne →</a>'
-        f'<a href="{_mail_href}" class="midcta-sub-link">Ou écrire par courriel →</a>'
+        f'<div class="pricing-tiers">'
+        f'<div class="pt-card">'
+        f'<div class="pt-name">Essentiel</div>'
+        f'<div class="pt-price">1 000 <span>$</span></div>'
+        f'<ul class="pt-features">'
+        f'<li>5 pages sur mesure</li>'
+        f'<li>100% mobile</li>'
+        f'<li>Hébergement 1 an inclus</li>'
+        f'<li>Formulaire de contact</li>'
+        f'<li>SSL + domaine inclus</li>'
+        f'</ul>'
+        f'<a class="pt-btn" href="/api/prospect-pay/{prospect_id}?tier=essential">Choisir ce forfait →</a>'
+        f'</div>'
+        f'<div class="pt-card pt-featured">'
+        f'<div class="pt-badge-top">Le plus populaire</div>'
+        f'<div class="pt-name">Pro</div>'
+        f'<div class="pt-price">1 500 <span>$</span></div>'
+        f'<ul class="pt-features">'
+        f'<li>Tout du forfait Essentiel</li>'
+        f'<li>Google My Business optimisé</li>'
+        f'<li>SEO local (5 mots-clés)</li>'
+        f'<li>Google Analytics installé</li>'
+        f'<li>Photos professionnelles (stock)</li>'
+        f'</ul>'
+        f'<a class="pt-btn pt-btn-featured" href="/api/prospect-pay/{prospect_id}?tier=pro">Choisir ce forfait →</a>'
+        f'</div>'
+        f'<div class="pt-card">'
+        f'<div class="pt-name">Premium</div>'
+        f'<div class="pt-price">2 500 <span>$</span></div>'
+        f'<ul class="pt-features">'
+        f'<li>Tout du forfait Pro</li>'
+        f'<li>Chatbot IA intégré</li>'
+        f'<li>Configuration réseaux sociaux</li>'
+        f'<li>Rapport mensuel de performance</li>'
+        f'<li>Support prioritaire 6 mois</li>'
+        f'</ul>'
+        f'<a class="pt-btn" href="/api/prospect-pay/{prospect_id}?tier=premium">Choisir ce forfait →</a>'
+        f'</div>'
+        f'</div>'
+        f'<div style="text-align:center;margin-top:20px">'
+        f'<a href="{_tel_href}" style="color:rgba(255,255,255,0.5);font-size:0.82rem">Préférez un appel? {_tel_label}</a>'
         f'</div>'
         f'</div></section>'
     )
@@ -14687,6 +15005,23 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 .midcta-btn{{display:inline-block;background:var(--brand);color:#fff;padding:16px 36px;border-radius:6px;font-size:1rem;font-weight:700;box-shadow:0 4px 24px {btn}55;transition:opacity 0.2s,transform 0.2s}}
 .midcta-btn:hover{{opacity:0.88;transform:translateY(-2px)}}
 .midcta-sub-link{{display:block;margin-top:14px;color:rgba(255,255,255,0.45);font-size:0.84rem;text-decoration:underline}}
+.midcta-wide .midcta-in{{flex-direction:column;text-align:center}}
+.pricing-tiers{{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:36px;max-width:960px;width:100%}}
+.pt-card{{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:28px 22px;position:relative;display:flex;flex-direction:column;gap:0;transition:transform 0.2s,box-shadow 0.2s}}
+.pt-card:hover{{transform:translateY(-4px);box-shadow:0 20px 60px rgba(0,0,0,0.4)}}
+.pt-featured{{background:rgba(255,255,255,0.1);border-color:var(--brand);transform:scale(1.04)}}
+.pt-badge-top{{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--brand);color:#fff;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:4px 14px;border-radius:20px;white-space:nowrap}}
+.pt-name{{font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:10px}}
+.pt-price{{font-family:var(--serif);font-size:2.4rem;font-weight:900;color:#fff;line-height:1;margin-bottom:18px}}
+.pt-price span{{font-size:1rem;font-weight:400;opacity:0.6}}
+.pt-features{{list-style:none;margin-bottom:24px;flex:1}}
+.pt-features li{{font-size:0.82rem;color:rgba(255,255,255,0.65);padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.07);text-align:left}}
+.pt-features li::before{{content:"✓ ";color:var(--brand);font-weight:700}}
+.pt-btn{{display:block;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:12px 20px;border-radius:8px;font-size:0.82rem;font-weight:600;text-align:center;transition:all 0.2s;margin-top:auto;cursor:pointer}}
+.pt-btn:hover{{background:rgba(255,255,255,0.2)}}
+.pt-btn-featured{{background:var(--brand);border-color:var(--brand);box-shadow:0 4px 20px {btn}55}}
+.pt-btn-featured:hover{{opacity:0.88}}
+@media(max-width:700px){{.pricing-tiers{{grid-template-columns:1fr}}.pt-featured{{transform:scale(1)}}}}
 @media(max-width:900px){{
   .tm-grid{{grid-template-columns:1fr 1fr}}
   .midcta-in{{flex-direction:column;text-align:center}}
@@ -15114,41 +15449,68 @@ if(window.matchMedia('(pointer:fine)').matches&&window.innerWidth>900){{
 
 
 @app.get("/api/prospect-pay/{prospect_id}")
-async def prospect_pay_redirect(prospect_id: str, request: Request):
-    """Redirige un prospect vers Stripe Checkout pour payer 1 000 $ CAD directement."""
-    name_checkout = "Site web professionnel — Novalis IA"
+async def prospect_pay_redirect(prospect_id: str, request: Request, tier: str = "essential"):
+    """Redirige un prospect vers Stripe Checkout — prix selon le forfait choisi."""
+    tier_config = {
+        "essential": (100000, "Essentiel — Site web professionnel"),
+        "pro":       (150000, "Pro — Site web + SEO local + Google My Business"),
+        "premium":   (250000, "Premium — Site web complet + Chatbot IA + Support 6 mois"),
+        "monthly":   (9700,   "Plan maintenance mensuel — mises à jour, sauvegardes, support"),
+    }
+    unit_amount, tier_label = tier_config.get(tier, tier_config["essential"])
+    name_checkout = f"{tier_label} — Novalis IA"
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         for table in ("prospect_suggestions", "prospect_bank"):
             cur = await db.execute(f"SELECT name, city FROM {table} WHERE id=?", (prospect_id,))
             row = await cur.fetchone()
             if row:
-                name_checkout = f"Site web — {row['name']} ({row['city']})"
+                name_checkout = f"{tier_label} — {row['name']} ({row['city']})"
                 break
     if not stripe:
-        # Stripe non configuré — fallback courriel
         from fastapi.responses import RedirectResponse as _RR
         return _RR(f"mailto:elliot@novalisia.ca?subject=Paiement site web - {name_checkout}", status_code=303)
     try:
         base = str(request.base_url).rstrip("/")
-        session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            mode="payment",
-            line_items=[{
-                "price_data": {
-                    "currency": "cad",
-                    "product_data": {
-                        "name": name_checkout,
-                        "description": "Site web professionnel sur mesure · Livraison 2-3 semaines · Hébergement 1 an inclus",
+        if tier == "monthly":
+            session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                mode="subscription",
+                line_items=[{
+                    "price_data": {
+                        "currency": "cad",
+                        "product_data": {
+                            "name": name_checkout,
+                            "description": "Mises à jour, sauvegardes automatiques, support prioritaire",
+                        },
+                        "unit_amount": unit_amount,
+                        "recurring": {"interval": "month"},
                     },
-                    "unit_amount": 100000,
-                },
-                "quantity": 1,
-            }],
-            success_url=f"{base}/merci?pmt=ok",
-            cancel_url=f"{base}/preview/{prospect_id}",
-            metadata={"prospect_id": prospect_id, "source": "preview_page"},
-        )
+                    "quantity": 1,
+                }],
+                success_url=f"{base}/merci?pmt=ok",
+                cancel_url=f"{base}/merci?pmt=ok",
+                metadata={"prospect_id": prospect_id, "source": "preview_page", "tier": tier},
+            )
+        else:
+            session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                mode="payment",
+                line_items=[{
+                    "price_data": {
+                        "currency": "cad",
+                        "product_data": {
+                            "name": name_checkout,
+                            "description": "Site web professionnel sur mesure · Livraison 2-3 semaines · Hébergement 1 an inclus",
+                        },
+                        "unit_amount": unit_amount,
+                    },
+                    "quantity": 1,
+                }],
+                success_url=f"{base}/merci?pmt=ok",
+                cancel_url=f"{base}/preview/{prospect_id}",
+                metadata={"prospect_id": prospect_id, "source": "preview_page", "tier": tier},
+            )
         from fastapi.responses import RedirectResponse as _RR
         return _RR(session.url, status_code=303)
     except Exception as _pe:
@@ -15157,29 +15519,77 @@ async def prospect_pay_redirect(prospect_id: str, request: Request):
         return _RR(f"mailto:elliot@novalisia.ca?subject=Paiement site web", status_code=303)
 
 
+@app.get("/api/admin/hot-leads")
+async def admin_hot_leads(credentials: HTTPBasicCredentials = Depends(verify_admin)):
+    """Retourne les prospects chauds — ont vu leur preview 1+ fois, triés par chaleur."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute("""
+            SELECT id, name, city, industry, phone, email, status,
+                   COALESCE(preview_views, 0) as preview_views,
+                   preview_last_viewed, email_sent_at, email_opened_at,
+                   followup_sent_at, wa_sent_at
+            FROM prospect_suggestions
+            WHERE COALESCE(preview_views, 0) > 0 OR email_opened_at != ''
+            ORDER BY COALESCE(preview_views, 0) DESC, email_opened_at DESC
+            LIMIT 100
+        """)
+        rows = [dict(r) for r in await cur.fetchall()]
+    # Compute heat score for each lead
+    def heat(r):
+        score = 0
+        score += int(r.get("preview_views") or 0) * 30
+        if r.get("email_opened_at"): score += 20
+        if r.get("wa_sent_at"): score += 10
+        return score
+    for r in rows:
+        r["heat_score"] = heat(r)
+    rows.sort(key=lambda x: x["heat_score"], reverse=True)
+    return {"hot_leads": rows, "total": len(rows)}
+
+
 @app.get("/merci")
-async def merci_page(pmt: str = ""):
-    """Page de confirmation après paiement Stripe."""
-    return HTMLResponse("""<!DOCTYPE html>
+async def merci_page(request: Request, pmt: str = "", prospect_id: str = ""):
+    """Page de confirmation après paiement Stripe — avec upsell plan maintenance."""
+    _pid = prospect_id or request.query_params.get("pid", "")
+    return HTMLResponse(f"""<!DOCTYPE html>
 <html lang="fr"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Merci — Novalis IA</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#050d1a;color:#e2e8f0;
-display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px}
-.box{max-width:480px}
-.check{width:72px;height:72px;background:#22c55e;border-radius:50%;display:flex;align-items:center;
-justify-content:center;margin:0 auto 28px;font-size:2rem}
-h1{font-size:1.8rem;font-weight:700;margin-bottom:12px}
-p{color:#94a3b8;line-height:1.7;margin-bottom:24px}
-a{color:#38bdf8;text-decoration:underline}
+<style>*{{margin:0;padding:0;box-sizing:border-box}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#050d1a;color:#e2e8f0;
+display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px}}
+.box{{max-width:520px;width:100%}}
+.check{{width:72px;height:72px;background:#22c55e;border-radius:50%;display:flex;align-items:center;
+justify-content:center;margin:0 auto 28px;font-size:2rem}}
+h1{{font-size:1.8rem;font-weight:700;margin-bottom:12px}}
+p{{color:#94a3b8;line-height:1.7;margin-bottom:24px}}
+a{{color:#38bdf8;text-decoration:underline}}
+.upsell{{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:16px;
+padding:32px 28px;margin-top:32px;text-align:center}}
+.upsell h2{{font-size:1.25rem;font-weight:700;color:#fff;margin-bottom:10px}}
+.upsell p{{font-size:0.9rem;color:#94a3b8;margin-bottom:20px}}
+.upsell-price{{font-size:2.2rem;font-weight:900;color:#fff;margin-bottom:22px;line-height:1}}
+.upsell-price span{{font-size:1rem;font-weight:400;opacity:0.55}}
+.upsell-btn{{display:inline-block;background:#22c55e;color:#fff;padding:14px 28px;border-radius:8px;
+font-size:0.9rem;font-weight:700;text-decoration:none;margin-bottom:14px;transition:opacity 0.2s}}
+.upsell-btn:hover{{opacity:0.88}}
+.skip{{font-size:0.78rem;color:rgba(255,255,255,0.3);cursor:pointer;margin-bottom:0}}
+.skip:hover{{color:rgba(255,255,255,0.55)}}
 </style></head>
 <body><div class="box">
-<div class="check">✓</div>
+<div class="check">&#10003;</div>
 <h1>Paiement reçu — merci!</h1>
 <p>Votre commande est confirmée. Elliot vous contactera dans les <strong>24 heures</strong>
 pour démarrer votre site web.</p>
 <p style="font-size:0.85rem">Questions? Écrivez à <a href="mailto:elliot@novalisia.ca">elliot@novalisia.ca</a></p>
+<div class="upsell">
+  <h2>Protégez votre investissement</h2>
+  <p>Plan maintenance mensuel — mises à jour, sauvegardes, support</p>
+  <div class="upsell-price">97 $<span>/mois</span></div>
+  <a class="upsell-btn" href="/api/prospect-pay/{_pid or 'demo'}?tier=monthly">Ajouter le plan maintenance &rarr;</a>
+  <p class="skip" onclick="this.closest('.upsell').style.display='none'">Non merci, je gère moi-même</p>
+</div>
 </div></body></html>""")
 
 
