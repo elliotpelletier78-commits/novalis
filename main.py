@@ -13539,15 +13539,14 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
             )
     elif _is_garage:
         # Garage: checklist avec badge professionnel
-        _garage_badges = ["✓ Garanti","✓ RBQ certifié","✓ Diagnostic inclus","✓ Pièces OEM","✓ Estimé gratuit","✓ Garantie pièces"]
+        _garage_badges = ["Garanti","RBQ certifié","Diagnostic inclus","Pièces OEM","Estimé gratuit","Garantie pièces"]
         for _si, _svc in enumerate(svc_source, 1):
             _name = _svc["name"] if isinstance(_svc,dict) else _svc
             _desc = (_svc.get("desc","") if isinstance(_svc,dict) else "")
             _badge = _garage_badges[(_si-1) % len(_garage_badges)]
-            _icon  = _svc_icon(_name)
             services_html += (
                 f'<div class="garage-svc reveal d{min(_si,4)}">'
-                f'<div class="garage-svc-icon">{_icon}</div>'
+                f'<div class="garage-svc-num">0{_si}</div>'
                 f'<div class="garage-svc-body">'
                 f'<div class="garage-svc-name">{_name}</div>'
                 f'<div class="garage-svc-desc">{_desc}</div>'
@@ -13562,10 +13561,8 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
             _name = _svc["name"] if isinstance(_svc,dict) else _svc
             _desc = (_svc.get("desc","") if isinstance(_svc,dict) else "")
             _dur  = _durations[(_si-1) % len(_durations)]
-            _icon = _svc_icon(_name)
             services_html += (
                 f'<div class="salon-svc reveal d{min(_si,4)}">'
-                f'<div class="salon-svc-icon">{_icon}</div>'
                 f'<div class="salon-svc-body">'
                 f'<div class="salon-svc-name">{_name}</div>'
                 f'<div class="salon-svc-desc">{_desc}</div>'
@@ -13578,28 +13575,27 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         for _si, _svc in enumerate(svc_source, 1):
             _name = _svc["name"] if isinstance(_svc,dict) else _svc
             _desc = (_svc.get("desc","") if isinstance(_svc,dict) else "")
-            _icon = _svc_icon(_name)
             services_html += (
                 f'<div class="health-svc reveal d{min(_si,4)}">'
-                f'<div class="health-svc-icon">{_icon}</div>'
                 f'<div class="health-svc-name">{_name}</div>'
                 f'<div class="health-svc-desc">{_desc}</div>'
                 f'<a href="#contact" class="health-svc-cta">Prendre rendez-vous →</a>'
                 f'</div>'
             )
     else:
-        # Default (trades, legal, immob, etc.) : cards professionnelles
+        # Default (trades, legal, immob, etc.) : liste éditoriale numérotée
         for _si, _svc in enumerate(svc_source, 1):
             _name = _svc["name"] if isinstance(_svc,dict) else _svc
             _desc = (_svc.get("desc","") if isinstance(_svc,dict) else "")
-            _icon = _svc_icon(_name)
-            _desc_html = f'<div class="svc-card-desc">{_desc}</div>' if _desc else ""
+            _desc_html = f'<div class="svc-ed-desc">{_desc}</div>' if _desc else ""
+            _num_str = f"0{_si}" if _si < 10 else str(_si)
             services_html += (
-                f'<div class="svc-card reveal d{min(_si,4)}">'
-                f'<div class="svc-card-icon">{_icon}</div>'
-                f'<div class="svc-card-title">{_name}</div>'
+                f'<div class="svc-ed-item reveal d{min(_si,4)}">'
+                f'<div class="svc-ed-num">{_num_str}</div>'
+                f'<div class="svc-ed-body">'
+                f'<div class="svc-ed-title">{_name}</div>'
                 f'{_desc_html}'
-                f'<div class="svc-card-link">En savoir plus →</div>'
+                f'</div>'
                 f'</div>'
             )
 
@@ -13632,7 +13628,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         _svc_section_label = "Nos services"
         _svc_section_title = "Ce que nous offrons"
         _svc_section_lead  = f"Des services professionnels adaptés à vos besoins à {city}."
-        _svc_grid_class    = "svc-cards"
+        _svc_grid_class    = "svc-editorial"
         _svc_cta_text      = cta_text or "Nous contacter"
 
     # ── "Pourquoi nous choisir" par industrie ────────────────────────────────
@@ -13694,21 +13690,29 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
             (""  , "On répond vite", "Dans les 24h ouvrables. Pour les urgences, souvent le jour même."),
             (""  , "On règle les problèmes", "Si quelque chose ne va pas, on s'en occupe. Sans discussion."),
         ]
-    _why_parts = [
+    _why_right_parts = [
         f'<div class="why-item reveal d{i}">'
-        f'<div class="why-num">0{i+1}</div>'
         f'<div class="why-title">{ttl}</div>'
         f'<div class="why-desc">{desc}</div>'
         f'</div>'
         for i,(_,ttl,desc) in enumerate(_why_items)
     ]
-    _why_html = "".join(_why_parts)
+    _why_right_html = "".join(_why_right_parts)
+    _why_big_num = (rating or "4.8").split("/")[0].strip()[:3]
     _why_section = (
         f'<section class="why-sec sec">'
         f'<div class="sec-in">'
         f'<div class="sec-label reveal">Notre différence</div>'
         f'<h2 class="sec-h reveal d1">Ce qui nous distingue, concrètement</h2>'
-        f'<div class="why-grid">{_why_html}</div>'
+        f'<div class="why-layout">'
+        f'<div class="why-left reveal-left">'
+        f'<div class="why-left-num">{_why_big_num}</div>'
+        f'<div class="why-left-sub">/5 &nbsp;·&nbsp; {review_count or "100+"} avis vérifiés</div>'
+        f'<div class="why-left-label">Note Google · {city}</div>'
+        f'<blockquote class="why-left-quote">&ldquo;{trust_line}&rdquo;</blockquote>'
+        f'</div>'
+        f'<div class="why-right">{_why_right_html}</div>'
+        f'</div>'
         f'</div></section>'
     )
 
@@ -13729,11 +13733,12 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         _trust_badges = ["Entraîneurs certifiés","Équipements neufs","Essai gratuit","App mobile","Horaires flexibles"]
     else:
         _trust_badges = ["Service professionnel","Avis vérifiés","Satisfaction garantie","Disponible 7j/7","Devis gratuit"]
-    _badges_html = "".join(
-        f'<div class="tbadge"><span class="tbadge-ico">✓</span><span class="tbadge-lbl">{b}</span></div>'
+    _chk_svg = '<svg class="tbadge-ico" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+    _single_track = "".join(
+        f'<div class="tbadge">{_chk_svg}{b}</div>'
         for b in _trust_badges
     )
-    _badges_strip_html = f'<div class="tbadge-strip">{_badges_html}</div>'
+    _badges_strip_html = f'<div class="tbadge-ticker"><div class="tbadge-track">{_single_track}{_single_track}{_single_track}{_single_track}</div></div>'
 
     # ── Formulaire de contact spécifique par industrie ────────────────────────
     if _is_resto:
@@ -14022,9 +14027,11 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         f'<div class="tm-avatar">'
         f'{"".join(w[0].upper() for w in tname.replace(" —", "").split()[:2])}'
         f'</div>'
+        f'<div class="tm-info">'
         f'<div class="tm-name">{tname}</div>'
         f'<div class="tm-role">{trole}</div>'
         f'<div class="tm-bio">{tbio}</div>'
+        f'</div>'
         f'</div>'
         for i,(tname,trole,tbio) in enumerate(_team)
     ]
@@ -14166,7 +14173,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
             break
     if not _nearby:
         _nearby = ["Laval","Longueuil","Brossard","Repentigny","Terrebonne","Saint-Bruno","Boucherville","Sainte-Julie","Varennes","Chambly"]
-    _area_chips_html = f'<div class="area-chip area-chip-main">📍 {city}</div>'
+    _area_chips_html = f'<div class="area-chip area-chip-main">— {city}</div>'
     for _ac in _nearby[:9]:
         _area_chips_html += f'<div class="area-chip">{_ac}</div>'
     _area_section = (
@@ -14276,18 +14283,30 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         ]
     )
     testi_html_parts = []
-    for (author, text, stars) in testimonials[:3]:
+    for _ti, (author, text, stars) in enumerate(testimonials[:3]):
         initials = "".join(w[0].upper() for w in author.split()[:2])
-        testi_html_parts.append(
-            f'<div class="testi-card reveal">'
-            f'<div class="testi-quote">&ldquo;</div>'
-            f'<div class="testi-stars">{stars}</div>'
-            f'<p class="testi-text">{text}</p>'
-            f'<div class="testi-author">'
-            f'<div class="testi-avatar">{initials}</div>'
-            f'<div><div class="testi-name">{author}</div><div class="testi-loc">{city}, QC</div></div>'
-            f'</div></div>'
-        )
+        if _ti == 0:
+            testi_html_parts.append(
+                f'<div class="testi-featured reveal">'
+                f'<div class="testi-feat-q">&ldquo;</div>'
+                f'<p class="testi-feat-text">{text}</p>'
+                f'<div class="testi-feat-author">'
+                f'<div class="testi-avatar">{initials}</div>'
+                f'<div><div class="testi-name">{author}</div>'
+                f'<div class="testi-loc">{stars}&nbsp;·&nbsp;{city}, QC</div></div>'
+                f'</div>'
+                f'</div>'
+            )
+        else:
+            testi_html_parts.append(
+                f'<div class="testi-card reveal">'
+                f'<div class="testi-stars">{stars}</div>'
+                f'<p class="testi-text">{text}</p>'
+                f'<div class="testi-author">'
+                f'<div class="testi-avatar">{initials}</div>'
+                f'<div><div class="testi-name">{author}</div><div class="testi-loc">{city}, QC</div></div>'
+                f'</div></div>'
+            )
     testimonials_html = "".join(testi_html_parts)
 
     # ── Galerie d'images réelles du site ─────────────────────────────────────
@@ -14323,14 +14342,23 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         after_items_html += f'<div class="audit-row"><span class="audit-check">✓</span><span>{fix}</span></div>'
 
     # ── Section "Ce que votre site actuel vous coûte" (shock + loss aversion) ──
+    _shock_svgs = {
+        "mobile":  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="17" r="1"/></svg>',
+        "https":   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+        "lent":    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+        "contact": '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-5-5 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+        "images":  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+        "ancien":  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+        "contenu": '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+    }
     _pain_points_map = {
-        "mobile":    ("📱", "Invisible sur mobile", f"68% des recherches {industry.lower()} à {city} se font sur téléphone. Votre site ne s'affiche pas correctement."),
-        "https":     ("🔒", "Pas sécurisé (HTTP)", "Google pénalise les sites non-HTTPS — vous êtes moins bien classé que vos concurrents."),
-        "lent":      ("⏱", "Chargement lent", "Un visiteur qui attend plus de 3 secondes part. Et ne revient pas."),
-        "contact":   ("📞", "Aucun appel à l'action", "Vos visiteurs ne savent pas comment vous rejoindre — ils vont ailleurs."),
-        "images":    ("🖼", "Aucune photo de qualité", "Un site sans images perd 60% de ses visiteurs dès la première seconde."),
-        "ancien":    ("📅", "Site désuet", "Vos concurrents ont refait leur site. Vous semblez fermé ou peu professionnel."),
-        "contenu":   ("📝", "Contenu insuffisant", "Google ne vous trouve pas — votre site n'a pas assez de contenu indexable."),
+        "mobile":    (_shock_svgs["mobile"],  "Invisible sur mobile", f"68% des recherches {industry.lower()} à {city} se font sur téléphone. Votre site ne s'affiche pas correctement."),
+        "https":     (_shock_svgs["https"],   "Pas sécurisé (HTTP)", "Google pénalise les sites non-HTTPS — vous êtes moins bien classé que vos concurrents."),
+        "lent":      (_shock_svgs["lent"],    "Chargement lent", "Un visiteur qui attend plus de 3 secondes part. Et ne revient pas."),
+        "contact":   (_shock_svgs["contact"], "Aucun appel à l'action", "Vos visiteurs ne savent pas comment vous rejoindre — ils vont ailleurs."),
+        "images":    (_shock_svgs["images"],  "Aucune photo de qualité", "Un site sans images perd 60% de ses visiteurs dès la première seconde."),
+        "ancien":    (_shock_svgs["ancien"],  "Site désuet", "Vos concurrents ont refait leur site. Vous semblez fermé ou peu professionnel."),
+        "contenu":   (_shock_svgs["contenu"], "Contenu insuffisant", "Google ne vous trouve pas — votre site n'a pas assez de contenu indexable."),
     }
     shock_rows_html = ""
     used_pains = set()
@@ -14339,7 +14367,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
             if key in issue.lower() and key not in used_pains:
                 shock_rows_html += (
                     f'<div class="shock-row reveal">'
-                    f'<div class="shock-icon">{icon}</div>'
+                    f'<div class="shock-icon-svg">{icon}</div>'
                     f'<div><div class="shock-title">{title}</div>'
                     f'<div class="shock-desc">{desc}</div></div>'
                     f'</div>'
@@ -14349,7 +14377,9 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     # Always add the "clients perdus" row
     shock_rows_html += (
         f'<div class="shock-row reveal shock-conclusion">'
-        f'<div class="shock-icon">💸</div>'
+        f'<div class="shock-icon" style="font-size:0;width:32px;height:32px;border:2px solid #ef4444;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">'
+        f'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+        f'</div>'
         f'<div><div class="shock-title">Des clients partent chez vos concurrents</div>'
         f'<div class="shock-desc">Chaque semaine, des gens cherchent <em>{industry.lower()} à {city}</em> — et choisissent quelqu\'un avec un meilleur site.</div></div>'
         f'</div>'
@@ -14357,18 +14387,18 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     # Build compare rows from web_issues
     _compare_rows = ""
     _issue_compare = {
-        "mobile": ("📵 Site illisible sur téléphone", "📱 100% mobile-first — parfait sur tout écran"),
-        "https": ("🔓 Pas de HTTPS — site «non sécurisé»", "🔒 HTTPS inclus — Google et clients vous font confiance"),
-        "vitesse": ("🐢 Chargement lent — visiteurs qui repartent", "⚡ Chargement < 2 secondes — expérience fluide"),
-        "seo": ("👻 Invisible sur Google", "🔍 Optimisé SEO — vous apparaissez quand on cherche"),
-        "design": ("💀 Design daté — crédibilité zéro", "✨ Design moderne 2025 — image professionnelle"),
-        "contact": ("📵 Appel difficile à trouver", "📞 Bouton d'appel en 1 clic partout"),
+        "mobile": ("Site illisible sur mobile", "100% responsive — parfait sur tout écran"),
+        "https": ("Pas de HTTPS — «non sécurisé»", "HTTPS inclus — Google vous fait confiance"),
+        "vitesse": ("Chargement lent — visiteurs qui repartent", "Chargement < 2 sec — expérience fluide"),
+        "seo": ("Invisible sur Google", "Optimisé SEO — apparaissez quand on cherche"),
+        "design": ("Design daté — crédibilité nulle", "Design moderne 2025 — image professionnelle"),
+        "contact": ("Appel difficile à trouver", "Bouton d'appel en 1 clic partout"),
     }
     _generic_compare = [
-        ("❌ Pas de présence mobile", "✅ Mobile-first parfait"),
-        ("❌ Aucun appel à l'action clair", "✅ Boutons d'appel et réservation visibles"),
-        ("❌ Design qui date", "✅ Design moderne et professionnel"),
-        ("❌ Invisible sur Google", "✅ Référencement local optimisé"),
+        ("Pas de présence mobile", "Mobile-first, rapide et responsive"),
+        ("Aucun appel à l'action clair", "Boutons d'appel et réservation visibles"),
+        ("Design qui date", "Design moderne et professionnel 2025"),
+        ("Invisible sur Google", "Référencement local optimisé"),
     ]
     if web_issues:
         for issue in web_issues[:4]:
@@ -14379,19 +14409,19 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
                     matched = (b, a)
                     break
             if not matched:
-                matched = (f"❌ {issue}", f"✅ Corrigé dans votre nouveau site")
+                matched = (f"{issue}", f"Corrigé dans votre nouveau site")
             _compare_rows += (
                 f'<div class="compare-row">'
-                f'<div class="compare-cell before"><span class="compare-icon">　</span>{matched[0]}</div>'
-                f'<div class="compare-cell after"><span class="compare-icon">　</span>{matched[1]}</div>'
+                f'<div class="compare-cell before"><span class="compare-icon">✗</span>{matched[0]}</div>'
+                f'<div class="compare-cell after"><span class="compare-icon">✓</span>{matched[1]}</div>'
                 f'</div>'
             )
     else:
         for b, a in _generic_compare:
             _compare_rows += (
                 f'<div class="compare-row">'
-                f'<div class="compare-cell before"><span class="compare-icon">　</span>{b}</div>'
-                f'<div class="compare-cell after"><span class="compare-icon">　</span>{a}</div>'
+                f'<div class="compare-cell before"><span class="compare-icon">✗</span>{b}</div>'
+                f'<div class="compare-cell after"><span class="compare-icon">✓</span>{a}</div>'
                 f'</div>'
             )
     shock_section = (
@@ -14403,7 +14433,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         '<div class="compare-table reveal d3">'
         '<div class="compare-header">'
         '<div class="compare-hcol before">Site actuel</div>'
-        '<div class="compare-hcol after">✦ Nouveau site Novalis</div>'
+        '<div class="compare-hcol after">Nouveau site Novalis IA</div>'
         '</div>'
         f'{_compare_rows}'
         '</div>'
@@ -14548,7 +14578,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     qf_chips = ""
     for _s in (services_list[:6] if services_list else []):
         _icon = _svc_icon(_s)
-        qf_chips += f'<button class="qf-chip" onclick="document.getElementById(\'services\').scrollIntoView({{behavior:\'smooth\'}})">{_icon} {_s}</button>'
+        qf_chips += f'<button class="qf-chip" onclick="document.getElementById(\'services\').scrollIntoView({{behavior:\'smooth\'}})">{_s}</button>'
     qf_section = (
         f'<div class="qf-sec">'
         f'<div class="qf-inner">'
@@ -14634,7 +14664,7 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
 
     # ── About section with photo ──────────────────────────────────────────────
     if real_about and len(real_about) > 60:
-        _addr_html = (f'<p class="about-addr reveal d3">&#128205; {real_address}</p>' if real_address else "")
+        _addr_html = (f'<p class="about-addr reveal d3">{real_address}</p>' if real_address else "")
         _phone_html = (f'<p class="about-phone reveal d4"><a href="{_tel_href}" style="color:var(--brand);font-weight:600">{phone_display}</a></p>' if phone_display else "")
         if real_og:
             about_section = (
@@ -14812,14 +14842,17 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     _foot_svc_links = ""
     for _fs in (services_list[:5] if services_list else []):
         _foot_svc_links += f'<a href="#services">{_fs}</a>'
+    _ico_phone = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.5;flex-shrink:0;margin-top:2px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-5-5 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>'
+    _ico_pin = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.5;flex-shrink:0;margin-top:2px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
+    _ico_mail = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.5;flex-shrink:0;margin-top:2px"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>'
     _foot_phone_html = (
-        f'<div class="foot-ci"><span>📞</span><a href="{_tel_href}">{phone_display}</a></div>'
+        f'<div class="foot-ci">{_ico_phone}<a href="{_tel_href}">{phone_display}</a></div>'
     ) if phone_display else ""
     _foot_addr_html = (
-        f'<div class="foot-ci"><span>📍</span><span>{real_address}</span></div>'
+        f'<div class="foot-ci">{_ico_pin}<span>{real_address}</span></div>'
     ) if real_address else ""
     _foot_email_html = (
-        f'<div class="foot-ci"><span>✉️</span><a href="mailto:{biz_email}">{biz_email}</a></div>'
+        f'<div class="foot-ci">{_ico_mail}<a href="mailto:{biz_email}">{biz_email}</a></div>'
     ) if biz_email else ""
 
     html = f"""<!DOCTYPE html>
@@ -14934,7 +14967,7 @@ nav:not(.scrolled) .nav-cta{{background:rgba(255,255,255,0.15);border:1px solid 
 .shock-grid{{margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:16px}}
 .shock-row{{display:flex;align-items:flex-start;gap:18px;background:#1a0808;border:1px solid #3a1010;border-radius:8px;padding:22px 20px}}
 .shock-row.shock-conclusion{{grid-column:1/-1;border-color:#7f1d1d;background:#1f0c0c}}
-.shock-icon{{font-size:1.5rem;flex-shrink:0;margin-top:2px}}
+.shock-icon-svg{{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:40px;height:40px;background:rgba(239,68,68,0.1);border-radius:8px;padding:11px}}
 .shock-title{{font-family:var(--serif);font-size:1rem;font-weight:700;color:#fff;margin-bottom:4px}}
 .shock-desc{{font-size:0.82rem;color:rgba(255,255,255,0.55);line-height:1.6}}
 .shock-desc em{{color:rgba(255,255,255,0.75);font-style:normal;font-weight:500}}
@@ -14954,16 +14987,20 @@ nav:not(.scrolled) .nav-cta{{background:rgba(255,255,255,0.15);border:1px solid 
 .testi-sec{{background:#131009;padding:88px 5vw}}
 .testi-sec .sec-label{{color:{acc}}}
 .testi-sec .sec-h{{color:#fff}}
-.testi-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1px;background:rgba(255,255,255,0.06);margin-top:48px}}
-.testi-card{{background:#131009;padding:34px 28px;transition:background 0.3s}}
-.testi-card:hover{{background:#1b1410}}
-.testi-quote{{font-family:var(--serif);font-size:2.8rem;line-height:1;color:{btn};opacity:0.45;margin-bottom:10px;font-weight:900}}
-.testi-stars{{color:#F4B942;font-size:0.78rem;letter-spacing:3px;margin-bottom:14px}}
-.testi-text{{font-size:0.88rem;color:rgba(255,255,255,0.62);line-height:1.8;font-weight:300;margin-bottom:22px}}
-.testi-author{{display:flex;align-items:center;gap:12px}}
-.testi-avatar{{width:36px;height:36px;border-radius:50%;background:{btn};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;flex-shrink:0;font-family:var(--serif)}}
+.testi-grid{{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(255,255,255,0.07);margin-top:48px;overflow:hidden}}
+.testi-featured{{grid-column:1/-1;background:#0d0b08;padding:52px 48px;border-bottom:1px solid rgba(255,255,255,0.06)}}
+.testi-feat-q{{font-family:var(--serif);font-size:5rem;line-height:0.75;color:{btn};opacity:0.35;margin-bottom:18px;font-weight:900;display:block}}
+.testi-feat-text{{font-family:var(--serif);font-size:clamp(1.05rem,2.2vw,1.4rem);font-weight:400;color:rgba(255,255,255,0.88);line-height:1.65;margin-bottom:28px;font-style:italic;max-width:860px}}
+.testi-feat-author{{display:flex;align-items:center;gap:14px}}
+.testi-card{{background:#131009;padding:34px 30px;transition:background 0.25s}}
+.testi-card:hover{{background:#1c1510}}
+.testi-stars{{color:#F4B942;font-size:0.75rem;letter-spacing:2px;margin-bottom:14px}}
+.testi-text{{font-size:0.87rem;color:rgba(255,255,255,0.58);line-height:1.85;font-weight:300;margin-bottom:20px}}
+.testi-author,.testi-feat-author{{display:flex;align-items:center;gap:12px}}
+.testi-avatar{{width:38px;height:38px;border-radius:50%;background:{btn};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;flex-shrink:0;font-family:var(--serif)}}
 .testi-name{{font-size:0.82rem;font-weight:600;color:#fff}}
-.testi-loc{{font-size:0.72rem;color:rgba(255,255,255,0.32)}}
+.testi-loc{{font-size:0.7rem;color:rgba(255,255,255,0.35);margin-top:2px}}
+@media(max-width:600px){{.testi-grid{{grid-template-columns:1fr}}.testi-featured{{padding:36px 24px}}}}
 .val-sec{{background:var(--paper);padding:80px 5vw;border-top:1px solid var(--rule)}}
 .val-table{{margin-top:44px;border-radius:10px;overflow:hidden;border:1px solid var(--rule);background:#fff}}
 .val-row{{display:flex;align-items:center;justify-content:space-between;padding:15px 22px;border-bottom:1px solid var(--rule);gap:12px}}
@@ -15084,8 +15121,8 @@ footer{{background:#fff;border-top:1px solid var(--rule);padding:36px 5vw}}
 .stats-grid-main{{display:grid;grid-template-columns:repeat(4,1fr);max-width:860px;margin:0 auto;text-align:center}}
 .stat-item{{padding:22px 12px;border-right:1px solid var(--rule)}}
 .stat-item:last-child{{border-right:none}}
-.stat-val{{font-family:var(--serif);font-size:2.5rem;font-weight:900;color:var(--brand);line-height:1;letter-spacing:-0.03em}}
-.stat-label{{font-size:0.72rem;color:var(--ink2);margin-top:7px;font-weight:400;letter-spacing:0.03em}}
+.stat-val{{font-family:var(--serif);font-size:3rem;font-weight:900;color:var(--brand);line-height:1;letter-spacing:-0.04em}}
+.stat-label{{font-size:0.7rem;color:var(--ink2);margin-top:9px;font-weight:500;letter-spacing:0.07em;text-transform:uppercase}}
 @media(max-width:600px){{.stats-grid-main{{grid-template-columns:1fr 1fr}}.stat-item{{border-right:none;border-bottom:1px solid var(--rule)}}.stat-item:nth-child(odd){{border-right:1px solid var(--rule)}}.stat-item:nth-child(n+3){{border-bottom:none}}}}
 /* ── Process section ── */
 .process-sec{{background:var(--paper2);padding:80px 5vw;border-top:1px solid var(--rule)}}
@@ -15229,46 +15266,64 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 .menu-item-desc{{font-size:0.84rem;color:var(--ink2);font-weight:300;line-height:1.7}}
 /* ── GARAGE styles ── */
 .garage-grid{{display:grid;grid-template-columns:1fr;gap:0;margin-top:48px;border:1px solid var(--rule);border-radius:8px;overflow:hidden}}
-.garage-svc{{display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:0 20px;padding:22px 24px;border-bottom:1px solid var(--rule);transition:background 0.2s}}
+.garage-svc{{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:0 18px;padding:22px 24px;border-bottom:1px solid var(--rule);transition:background 0.2s}}
 .garage-svc:last-child{{border-bottom:none}}
-.garage-svc:hover{{background:rgba(245,158,11,0.06)}}
-.garage-svc-icon{{font-size:1.5rem;text-align:center}}
-.garage-svc-name{{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:4px}}
+.garage-svc:hover{{background:rgba(245,158,11,0.05)}}
+.garage-svc:hover .garage-svc-name{{color:var(--brand)}}
+.garage-svc-num{{font-family:var(--serif);font-size:0.72rem;font-weight:700;color:var(--brand);opacity:0.5;letter-spacing:0.06em}}
+.garage-svc-name{{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:4px;transition:color 0.2s}}
 .garage-svc-desc{{font-size:0.82rem;color:var(--ink2);font-weight:300}}
-.garage-svc-badge{{font-size:0.68rem;font-weight:700;color:var(--brand);border:1px solid {btn}55;border-radius:3px;padding:3px 8px;white-space:nowrap;flex-shrink:0}}
-@media(max-width:600px){{.garage-svc{{grid-template-columns:40px 1fr}}.garage-svc-badge{{display:none}}}}
+.garage-svc-badge{{font-size:0.68rem;font-weight:600;color:var(--brand);border:1px solid {btn}44;border-radius:3px;padding:4px 10px;white-space:nowrap;flex-shrink:0;letter-spacing:0.02em}}
+@media(max-width:600px){{.garage-svc{{grid-template-columns:36px 1fr}}.garage-svc-badge{{display:none}}}}
 /* ── SALON styles ── */
 .salon-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:48px}}
-.salon-svc{{background:#fff;border:1px solid var(--rule);border-radius:10px;padding:24px 22px;display:flex;align-items:center;gap:16px;transition:box-shadow 0.3s,transform 0.2s}}
+.salon-svc{{background:#fff;border:1px solid var(--rule);border-radius:10px;padding:24px 22px;display:flex;align-items:center;gap:16px;transition:box-shadow 0.3s,transform 0.2s;cursor:pointer}}
 .salon-svc:hover{{box-shadow:0 8px 32px rgba(0,0,0,0.08);transform:translateY(-2px)}}
-.salon-svc-icon{{font-size:1.8rem;flex-shrink:0}}
 .salon-svc-name{{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:4px}}
 .salon-svc-desc{{font-size:0.8rem;color:var(--ink2);font-weight:300;line-height:1.6}}
-.salon-svc-dur{{font-size:0.72rem;font-weight:600;color:var(--brand);border:1px solid {btn}44;border-radius:20px;padding:3px 10px;white-space:nowrap;flex-shrink:0;margin-left:auto}}
+.salon-svc-dur{{font-size:0.7rem;font-weight:600;color:var(--brand);border:1px solid {btn}44;border-radius:20px;padding:4px 12px;white-space:nowrap;flex-shrink:0;margin-left:auto;letter-spacing:0.02em}}
 /* ── SANTÉ styles ── */
 .health-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin-top:48px}}
-.health-svc{{background:#fff;border:1px solid var(--rule);border-radius:10px;padding:28px 22px;text-align:center;transition:box-shadow 0.3s,transform 0.2s}}
+.health-svc{{background:#fff;border:1px solid var(--rule);border-radius:10px;padding:28px 22px;text-align:center;transition:box-shadow 0.3s,transform 0.2s;cursor:pointer}}
 .health-svc:hover{{box-shadow:0 8px 32px rgba(0,0,0,0.07);transform:translateY(-2px)}}
-.health-svc-icon{{font-size:2rem;margin-bottom:14px}}
 .health-svc-name{{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:8px}}
 .health-svc-desc{{font-size:0.82rem;color:var(--ink2);font-weight:300;line-height:1.65;margin-bottom:16px}}
-.health-svc-cta{{font-size:0.78rem;font-weight:700;color:var(--brand)}}
+.health-svc-cta{{font-size:0.78rem;font-weight:700;color:var(--brand);display:inline-block}}
+.health-svc-cta:hover{{color:var(--ink)}}
+/* ── Liste éditoriale services (default) ── */
+.svc-editorial{{margin-top:48px;border-top:2px solid var(--rule)}}
+.svc-ed-item{{display:grid;grid-template-columns:52px 1fr;gap:0 20px;padding:28px 0;border-bottom:1px solid var(--rule);align-items:start;cursor:default;transition:padding-left 0.22s}}
+.svc-ed-item:hover{{padding-left:8px}}
+.svc-ed-num{{font-family:var(--serif);font-size:0.72rem;font-weight:700;color:var(--brand);opacity:0.55;padding-top:5px;letter-spacing:0.06em}}
+.svc-ed-body{{}}
+.svc-ed-title{{font-family:var(--serif);font-size:1.15rem;font-weight:700;color:var(--ink);margin-bottom:6px;line-height:1.3;transition:color 0.2s}}
+.svc-ed-item:hover .svc-ed-title{{color:var(--brand)}}
+.svc-ed-desc{{font-size:0.84rem;color:var(--ink2);font-weight:300;line-height:1.75}}
 /* ── Hero badge industrie ── */
 .ind-badge{{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.09);border:1px solid rgba(255,255,255,0.18);border-radius:3px;padding:6px 14px;font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.8);margin-bottom:18px}}
 .ind-badge-dot{{width:5px;height:5px;border-radius:50%;background:var(--brand);box-shadow:0 0 8px var(--brand)}}
-/* ── Trust badges strip ── */
-.tbadge-strip{{background:var(--brand);padding:13px 5vw;display:flex;align-items:center;flex-wrap:wrap;justify-content:center;gap:0}}
-.tbadge{{display:flex;align-items:center;gap:7px;padding:5px 20px;border-right:1px solid rgba(255,255,255,0.25);color:#fff;font-size:0.77rem;font-weight:600;letter-spacing:0.02em}}
-.tbadge:last-child{{border-right:none}}
-.tbadge-ico{{font-style:normal;opacity:0.9}}
-/* ── Pourquoi nous choisir ── */
+/* ── Trust badges ticker animé ── */
+.tbadge-ticker{{background:var(--brand);padding:11px 0;overflow:hidden}}
+.tbadge-track{{display:flex;gap:0;animation:badge-scroll 28s linear infinite;width:max-content;will-change:transform}}
+.tbadge-ticker:hover .tbadge-track{{animation-play-state:paused}}
+@keyframes badge-scroll{{0%{{transform:translateX(0)}}100%{{transform:translateX(-50%)}}}}
+.tbadge{{display:inline-flex;align-items:center;gap:8px;padding:0 32px;color:#fff;font-size:0.75rem;font-weight:600;letter-spacing:0.04em;white-space:nowrap;border-right:1px solid rgba(255,255,255,0.18);height:36px}}
+.tbadge-ico{{flex-shrink:0}}
+/* ── Pourquoi nous choisir — split éditorial ── */
 .why-sec{{background:var(--paper2);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}}
-.why-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;margin-top:48px}}
-.why-item{{background:#fff;border:1px solid var(--rule);border-radius:12px;padding:32px 24px;text-align:center;transition:box-shadow 0.25s,transform 0.2s;cursor:pointer}}
-.why-item:hover{{box-shadow:0 10px 40px rgba(0,0,0,0.09);transform:translateY(-3px)}}
-.why-num{{font-family:var(--serif);font-size:2rem;font-weight:700;color:var(--brand);opacity:0.35;line-height:1;margin-bottom:14px;letter-spacing:-0.02em}}
-.why-title{{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:10px;line-height:1.3}}
-.why-desc{{font-size:0.83rem;color:var(--ink2);font-weight:300;line-height:1.7}}
+.why-layout{{display:grid;grid-template-columns:1fr 1.5fr;gap:72px;align-items:start;margin-top:56px}}
+.why-left{{}}
+.why-left-num{{font-family:var(--serif);font-size:5rem;font-weight:900;color:var(--brand);line-height:1;letter-spacing:-0.04em;margin-bottom:0}}
+.why-left-sub{{font-family:var(--serif);font-size:1.2rem;font-weight:300;color:var(--ink2);margin-bottom:6px}}
+.why-left-label{{font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink2);margin-bottom:22px}}
+.why-left-quote{{font-family:var(--serif);font-size:0.98rem;font-weight:400;color:var(--ink);line-height:1.7;font-style:italic;border-left:3px solid var(--brand);padding-left:18px;margin:0}}
+.why-right{{border-top:1px solid var(--rule)}}
+.why-item{{border-bottom:1px solid var(--rule);padding:22px 0;cursor:default;transition:padding-left 0.2s}}
+.why-item:hover{{padding-left:6px}}
+.why-item:hover .why-title{{color:var(--brand)}}
+.why-title{{font-family:var(--serif);font-size:1.04rem;font-weight:700;color:var(--ink);margin-bottom:7px;line-height:1.3;transition:color 0.2s}}
+.why-desc{{font-size:0.84rem;color:var(--ink2);font-weight:300;line-height:1.75}}
+@media(max-width:768px){{.why-layout{{grid-template-columns:1fr;gap:36px}}}}
 /* ── FAQ accordion ── */
 .faq-sec{{background:#fff}}
 .faq-list{{max-width:740px;margin:40px auto 0}}
@@ -15283,15 +15338,15 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 .faq-a p{{font-size:0.88rem;color:var(--ink2);line-height:1.85;margin:0 0 20px 4px;font-weight:300}}
 /* ── form-row3 (3 colonnes pour véhicule garage) ── */
 .form-row3{{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}}
-/* ── Équipe ── */
+/* ── Équipe — liste inline ── */
 .team-sec{{background:var(--paper2);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}}
-.tm-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:48px}}
-.tm-card{{background:#fff;border:1px solid var(--rule);border-radius:12px;padding:36px 24px;text-align:center;transition:box-shadow 0.25s,transform 0.2s;cursor:pointer}}
-.tm-card:hover{{box-shadow:0 10px 40px rgba(0,0,0,0.09);transform:translateY(-3px)}}
-.tm-avatar{{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,{g1},{g2});color:#fff;font-family:var(--serif);font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;box-shadow:0 4px 18px {btn}44}}
-.tm-name{{font-family:var(--serif);font-size:1.08rem;font-weight:700;color:var(--ink);margin-bottom:4px}}
-.tm-role{{font-size:0.75rem;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px}}
-.tm-bio{{font-size:0.83rem;color:var(--ink2);line-height:1.75;font-weight:300}}
+.tm-grid{{display:flex;flex-direction:column;gap:0;margin-top:48px;border-top:1px solid var(--rule)}}
+.tm-card{{display:grid;grid-template-columns:64px 1fr;gap:0 28px;padding:30px 0;border-bottom:1px solid var(--rule);cursor:default;align-items:start}}
+.tm-avatar{{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,{g1},{g2});color:#fff;font-family:var(--serif);font-size:1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 12px {btn}33}}
+.tm-info{{}}
+.tm-name{{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:2px}}
+.tm-role{{font-size:0.7rem;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px}}
+.tm-bio{{font-size:0.84rem;color:var(--ink2);line-height:1.75;font-weight:300;max-width:680px}}
 /* ── Tarifs ── */
 .tarif-sec{{background:#fff}}
 .tarif-table{{border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin-top:48px}}
@@ -15340,7 +15395,6 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 .pt-btn-featured:hover{{opacity:0.88}}
 @media(max-width:700px){{.pricing-tiers{{grid-template-columns:1fr}}.pt-featured{{transform:scale(1)}}}}
 @media(max-width:900px){{
-  .tm-grid{{grid-template-columns:1fr 1fr}}
   .midcta-in{{flex-direction:column;text-align:center}}
   .midcta-h{{font-size:1.6rem}}
   .tarif-header{{display:none}}
@@ -15383,7 +15437,7 @@ footer{{background:var(--ink);padding:64px 5vw 0}}
 .process-dark-steps{{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;position:relative}}
 .process-dark-steps::before{{content:'';position:absolute;top:28px;left:calc(16.66% + 20px);right:calc(16.66% + 20px);height:2px;background:linear-gradient(90deg,var(--brand),rgba(255,255,255,0.15));z-index:0;pointer-events:none}}
 .process-dark-step{{text-align:center;position:relative;z-index:1}}
-.process-dark-num{{width:56px;height:56px;border-radius:50%;background:var(--brand);color:#fff;font-family:var(--serif);font-size:1.05rem;font-weight:900;display:flex;align-items:center;justify-content:center;margin:0 auto 22px;box-shadow:0 0 0 6px rgba(255,255,255,0.07)}}
+.process-dark-num{{font-family:var(--serif);font-size:3rem;font-weight:900;color:{btn};opacity:0.35;line-height:1;margin-bottom:12px;letter-spacing:-0.04em;display:block}}
 .process-dark-title{{font-size:1rem;font-weight:700;color:#fff;margin-bottom:10px;line-height:1.3}}
 .process-dark-desc{{font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.7;font-weight:300}}
 @media(max-width:700px){{.process-dark-steps{{grid-template-columns:1fr;gap:32px}}.process-dark-steps::before{{display:none}}}}
