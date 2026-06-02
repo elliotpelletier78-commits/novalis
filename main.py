@@ -13375,39 +13375,10 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
     _is_immob    = any(k in industry_lower for k in ["immobilier","courtier","hypothèque","agence"])
     _is_fitness  = any(k in industry_lower for k in ["gym","fitness","entraînement","sport","yoga","pilates","crossfit","natation","boxe"])
 
-    # ── Typographie par industrie (Ford/Mercedes level) ──────────────────────
-    if _is_garage:
-        _font_url  = "Righteous:wght@400&family=Poppins:wght@300;400;500;600"
-        _serif_var = "'Righteous',Impact,sans-serif"
-        _sans_var  = "'Poppins',system-ui,sans-serif"
-    elif _is_resto:
-        _font_url  = "Playfair+Display+SC:wght@400;700&family=Karla:ital,wght@0,300;0,400;0,500;0,600;1,300"
-        _serif_var = "'Playfair Display SC',Georgia,serif"
-        _sans_var  = "'Karla',system-ui,sans-serif"
-    elif _is_salon:
-        _font_url  = "Cormorant+Garamond:ital,wght@0,300;0,500;0,700;1,300;1,500&family=DM+Sans:wght@300;400;500"
-        _serif_var = "'Cormorant Garamond',Georgia,serif"
-        _sans_var  = "'DM Sans',system-ui,sans-serif"
-    elif _is_health:
-        _font_url  = "Figtree:wght@300;400;500;600;700&family=Noto+Sans:wght@300;400;500"
-        _serif_var = "'Figtree',Georgia,sans-serif"
-        _sans_var  = "'Noto Sans',system-ui,sans-serif"
-    elif _is_trades:
-        _font_url  = "Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Rubik:wght@300;400;500;600"
-        _serif_var = "'Bricolage Grotesque',Georgia,sans-serif"
-        _sans_var  = "'Rubik',system-ui,sans-serif"
-    elif _is_immob:
-        _font_url  = "Cormorant+Garamond:ital,wght@0,300;0,500;0,700;1,300&family=Raleway:wght@300;400;500;600"
-        _serif_var = "'Cormorant Garamond',Georgia,serif"
-        _sans_var  = "'Raleway',system-ui,sans-serif"
-    elif _is_fitness:
-        _font_url  = "Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500"
-        _serif_var = "'Barlow Condensed',Georgia,sans-serif"
-        _sans_var  = "'Barlow',system-ui,sans-serif"
-    else:
-        _font_url  = "Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@300;400;500;600"
-        _serif_var = "'Bricolage Grotesque',Georgia,sans-serif"
-        _sans_var  = "'Plus Jakarta Sans',system-ui,sans-serif"
+    # ── Typographie universelle — Bricolage Grotesque + Plus Jakarta Sans ──────
+    _font_url  = "Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700"
+    _serif_var = "'Bricolage Grotesque',Georgia,sans-serif"
+    _sans_var  = "'Plus Jakarta Sans',system-ui,sans-serif"
 
     real_hours   = bm.get("hours", [])
     real_address = bm.get("address", "")
@@ -14688,6 +14659,17 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
             break
     _monthly_loss = _industry_val * 3 * 4
     _payback_weeks = max(1, round(1000 / (_industry_val * 3)))
+    # Pre-computed initial values for calculator (slider default = 3 clients)
+    _ci_n       = 3
+    _ci_weekly  = _industry_val * _ci_n
+    _ci_monthly = _ci_weekly * 4
+    _ci_yearly  = _ci_weekly * 52
+    _ci_weeks   = max(1, round(1000 / _ci_weekly))
+    def _fmtca(n): return f"{round(n):,}".replace(",", " ") + " $"
+    _ci_weekly_s  = _fmtca(_ci_weekly)
+    _ci_monthly_s = _fmtca(_ci_monthly)
+    _ci_yearly_s  = _fmtca(_ci_yearly)
+    _ci_weeks_s   = "1 semaine" if _ci_weeks == 1 else f"{_ci_weeks} semaines"
 
     _favicon_tag = f'<link rel="icon" href="{real_favicon}">' if real_favicon else ""
 
@@ -14947,11 +14929,11 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
         '<div class="calc-n-badge"><span id="calc-n">3</span>&nbsp;clients/sem.</div>'
         '</div>'
         '<div class="calc-results-grid">'
-        '<div class="calc-res"><div class="calc-res-val" id="calc-weekly">—</div><div class="calc-res-lab">perdu/semaine</div></div>'
-        '<div class="calc-res"><div class="calc-res-val" id="calc-monthly">—</div><div class="calc-res-lab">perdu/mois</div></div>'
-        '<div class="calc-res calc-res-big"><div class="calc-res-val" id="calc-yearly">—</div><div class="calc-res-lab">perdu/année</div></div>'
+        f'<div class="calc-res"><div class="calc-res-val" id="calc-weekly">{_ci_weekly_s}</div><div class="calc-res-lab">perdu/semaine</div></div>'
+        f'<div class="calc-res"><div class="calc-res-val" id="calc-monthly">{_ci_monthly_s}</div><div class="calc-res-lab">perdu/mois</div></div>'
+        f'<div class="calc-res calc-res-big"><div class="calc-res-val" id="calc-yearly">{_ci_yearly_s}</div><div class="calc-res-lab">perdu/année</div></div>'
         '</div>'
-        f'<div class="calc-cta-line">Votre nouveau site à <strong>1&nbsp;000&nbsp;$</strong> se rembourse en <strong id="calc-weeks">—</strong>.</div>'
+        f'<div class="calc-cta-line">Votre nouveau site à <strong>1&nbsp;000&nbsp;$</strong> se rembourse en <strong id="calc-weeks">{_ci_weeks_s}</strong>.</div>'
         f'<a href="{_mail_href}" class="calc-cta-btn">Récupérer ces clients maintenant &rarr;</a>'
         '</div>'
         '</div></section>'
@@ -15041,51 +15023,67 @@ async def preview_page(prospect_id: str, name_slug: str = ""):
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family={_font_url}&display=swap" rel="stylesheet">
 <style>
-:root{{--brand:{btn};--ink:#F2EFF8;--ink2:rgba(242,239,248,0.55);--paper:#08080F;--paper2:#0F0F1A;--rule:rgba(255,255,255,0.08);--serif:{_serif_var};--sans:{_sans_var};--radius:10px}}
+:root{{
+  --brand:{btn};--ink:#F8FAFC;--ink2:rgba(248,250,252,0.58);
+  --paper:#07090F;--paper2:#0D1117;--bg-card:#111827;
+  --rule:rgba(255,255,255,0.08);--rule2:rgba(255,255,255,0.12);
+  --serif:{_serif_var};--sans:{_sans_var};--radius:16px;
+  --glow:{btn}33;--glow2:{btn}55;--shadow:0 4px 24px rgba(0,0,0,0.45)
+}}
 *{{margin:0;padding:0;box-sizing:border-box}}html{{scroll-behavior:smooth}}
 body{{font-family:var(--sans);background:var(--paper);color:var(--ink);line-height:1.65;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}}a{{color:inherit;text-decoration:none}}
-.ann-bar{{background:#06060E;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);padding:10px 5vw;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:210}}
-.ann-bar-text{{font-size:0.73rem;font-weight:400;letter-spacing:0.03em}}
-.ann-bar-btn{{background:{btn};border:none;color:#fff;padding:5px 14px;border-radius:100px;font-size:0.71rem;font-weight:700;letter-spacing:0.02em;white-space:nowrap;transition:opacity 0.2s;cursor:pointer}}
-.ann-bar-btn:hover{{opacity:0.85}}
-nav{{position:sticky;top:0;z-index:200;background:transparent;transition:background 0.5s,backdrop-filter 0.5s,border-color 0.5s;border-bottom:1px solid transparent}}
-nav.scrolled{{background:rgba(13,13,20,0.95);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid rgba(255,255,255,0.08)}}
-nav:not(.scrolled) .nav-link{{color:rgba(255,255,255,0.8)}}
+/* ── Announcement bar ── */
+.ann-bar{{background:linear-gradient(90deg,#06060E 0%,#0A0A16 100%);border-bottom:1px solid rgba(255,255,255,0.07);color:rgba(255,255,255,0.72);padding:9px 5vw;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;position:fixed;top:0;left:0;right:0;z-index:220}}
+.ann-bar-text{{font-size:0.72rem;font-weight:400;letter-spacing:0.03em}}
+.ann-bar-btn{{background:linear-gradient(135deg,{btn},{btn}cc);border:none;color:#fff;padding:5px 16px;border-radius:100px;font-size:0.71rem;font-weight:700;letter-spacing:0.02em;white-space:nowrap;transition:opacity 0.2s,transform 0.15s;cursor:pointer}}
+.ann-bar-btn:hover{{opacity:0.9;transform:scale(1.03)}}
+/* ── Nav ── */
+nav{{position:fixed;top:38px;left:0;right:0;z-index:210;background:rgba(7,9,15,0.01);transition:background 0.4s,backdrop-filter 0.4s,border-color 0.4s;border-bottom:1px solid transparent}}
+nav.scrolled{{background:rgba(7,9,15,0.88);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.07)}}
+nav:not(.scrolled) .nav-link{{color:rgba(255,255,255,0.82)}}
 nav:not(.scrolled) .nav-logo{{color:#fff}}
-nav:not(.scrolled) .nav-cta{{border-color:rgba(255,255,255,0.45);color:rgba(255,255,255,0.9)}}
-nav.scrolled .nav-link{{color:rgba(242,239,248,0.65)}}
-nav.scrolled .nav-logo{{color:#F2EFF8}}
-nav.scrolled .nav-cta{{box-shadow:0 2px 12px {btn}44}}
-.nav-in{{max-width:1200px;margin:0 auto;padding:0 5vw;display:flex;align-items:center;justify-content:space-between;height:60px}}
-.nav-logo{{font-family:var(--serif);font-size:1.05rem;font-weight:700;letter-spacing:-0.01em}}
-.nav-links{{display:flex;align-items:center;gap:28px}}
-.nav-link{{font-size:0.79rem;font-weight:500;color:var(--ink2);letter-spacing:0.01em;transition:color 0.2s}}
+nav.scrolled .nav-link{{color:rgba(248,250,252,0.62)}}
+nav.scrolled .nav-logo{{color:#F8FAFC}}
+nav.scrolled .nav-cta{{box-shadow:0 2px 14px {btn}55}}
+.nav-in{{max-width:1200px;margin:0 auto;padding:0 5vw;display:flex;align-items:center;justify-content:space-between;height:58px}}
+.nav-logo{{font-family:var(--serif);font-size:1.08rem;font-weight:800;letter-spacing:-0.02em}}
+.nav-links{{display:flex;align-items:center;gap:26px}}
+.nav-link{{font-size:0.79rem;font-weight:500;color:var(--ink2);letter-spacing:0.01em;transition:color 0.2s;cursor:pointer}}
 .nav-link:hover{{color:var(--ink)}}
-.nav-cta{{background:{btn};color:#fff;padding:8px 20px;border-radius:8px;font-size:0.79rem;font-weight:700;letter-spacing:0.01em;transition:opacity 0.2s,box-shadow 0.2s;box-shadow:0 2px 12px {btn}44}}
-.nav-cta:hover{{opacity:0.88;box-shadow:0 4px 20px {btn}66}}
+.nav-cta{{background:linear-gradient(135deg,{btn} 0%,{btn}dd 100%);color:#fff;padding:8px 20px;border-radius:10px;font-size:0.79rem;font-weight:700;letter-spacing:0.01em;transition:opacity 0.2s,box-shadow 0.2s,transform 0.15s;box-shadow:0 2px 12px {btn}44;cursor:pointer}}
+.nav-cta:hover{{opacity:0.9;box-shadow:0 6px 24px {btn}66;transform:translateY(-1px)}}
+/* offset for fixed ann-bar + nav */
+body{{padding-top:96px}}
+/* ── Hero ── */
 .hero{{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--paper)}}
 .hero-bg{{position:absolute;inset:0;background:{hero_bg};background-size:cover;background-position:center}}
-.hero-mesh{{position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 20% -10%,{btn}28 0%,transparent 60%),radial-gradient(ellipse 60% 80% at 85% 110%,{btn}18 0%,transparent 55%),radial-gradient(ellipse 40% 40% at 50% 50%,rgba(255,255,255,0.02) 0%,transparent 70%);z-index:0;pointer-events:none}}
-.hero-veil{{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(8,8,15,0.3) 0%,rgba(8,8,15,0.5) 100%);z-index:1}}
+/* dot grid */
+.hero::after{{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,0.06) 1px,transparent 1px);background-size:28px 28px;pointer-events:none;z-index:1;mask-image:radial-gradient(ellipse 70% 80% at 50% 50%,black 30%,transparent 100%)}}
+.hero-mesh{{position:absolute;inset:0;background:radial-gradient(ellipse 70% 55% at 50% -10%,{btn}30 0%,transparent 65%),radial-gradient(ellipse 55% 70% at 88% 110%,{btn}18 0%,transparent 55%);z-index:0;pointer-events:none}}
+.hero-veil{{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(7,9,15,0.15) 0%,rgba(7,9,15,0.55) 100%);z-index:1}}
 .hero-body{{position:relative;z-index:2;width:100%;max-width:900px;margin:0 auto;padding:0 5vw;text-align:center;display:flex;flex-direction:column;align-items:center}}
-.hero-logo-wrap{{margin-bottom:28px}}
-.hero-logo-wrap img{{height:48px;max-width:180px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.85}}
-.hero-eyebrow{{display:inline-flex;align-items:center;gap:8px;background:{btn}18;border:1px solid {btn}44;border-radius:100px;padding:6px 16px 6px 10px;font-size:0.72rem;font-weight:600;letter-spacing:0.04em;color:{btn};margin-bottom:24px}}
-.hero-eyebrow::before{{content:'';width:6px;height:6px;border-radius:50%;background:{btn};flex-shrink:0}}
-.hero h1{{font-family:var(--sans);font-size:clamp(3rem,7vw,7rem);font-weight:800;line-height:1.0;letter-spacing:-0.04em;background:linear-gradient(135deg,#fff 40%,{btn}cc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;max-width:820px;margin-bottom:24px;text-align:center}}
-.hero-sub{{font-size:1.02rem;color:var(--ink2);max-width:440px;font-weight:400;line-height:1.85;margin-bottom:36px;text-align:center}}
-.hero-stats{{display:flex;gap:0;margin-top:52px;border:1px solid var(--rule);border-radius:var(--radius);overflow:hidden;max-width:480px}}
-.hero-stat{{display:flex;flex-direction:column;gap:3px;padding:18px 28px;border-right:1px solid var(--rule);flex:1;text-align:center}}
-.hero-stat:last-child{{border-right:none}}
-.hero-stat-num{{font-family:var(--sans);font-size:1.6rem;font-weight:800;color:#fff;line-height:1;letter-spacing:-0.03em}}
-.hero-stat-label{{font-size:0.62rem;color:var(--ink2);text-transform:uppercase;letter-spacing:0.1em}}
-.scroll-hint-new{{position:absolute;bottom:40px;right:5vw;display:flex;flex-direction:column;align-items:center;gap:8px;color:rgba(255,255,255,0.35);font-size:0.62rem;letter-spacing:0.14em;text-transform:uppercase;z-index:3;cursor:pointer}}
-.scroll-chevron{{width:1px;height:44px;background:linear-gradient(to bottom,transparent,rgba(255,255,255,0.4));margin-top:4px}}
-.hero-btns{{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}}
-.btn-p{{background:{btn};color:#fff;padding:13px 28px;border-radius:8px;font-weight:700;font-size:0.88rem;letter-spacing:0.01em;transition:opacity 0.2s,transform 0.18s,box-shadow 0.2s;display:inline-block;box-shadow:0 4px 24px {btn}44}}
-.btn-p:hover{{opacity:0.9;transform:translateY(-1px);box-shadow:0 8px 32px {btn}66}}
-.btn-g{{background:transparent;color:rgba(255,255,255,0.8);padding:13px 24px;border-radius:8px;font-weight:500;font-size:0.88rem;border:1px solid rgba(255,255,255,0.18);transition:all 0.2s;display:inline-block}}
-.btn-g:hover{{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.4)}}
+.hero-logo-wrap{{margin-bottom:32px}}
+.hero-logo-wrap img{{height:52px;max-width:190px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.88}}
+.hero-eyebrow{{display:inline-flex;align-items:center;gap:8px;background:{btn}16;border:1px solid {btn}40;border-radius:100px;padding:6px 18px 6px 12px;font-size:0.71rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:{btn};margin-bottom:28px;backdrop-filter:blur(8px)}}
+.hero-eyebrow::before{{content:'';width:6px;height:6px;border-radius:50%;background:{btn};flex-shrink:0;box-shadow:0 0 6px {btn}}}
+.hero h1{{font-family:var(--serif);font-size:clamp(2.8rem,6.5vw,6.8rem);font-weight:800;line-height:1.0;letter-spacing:-0.04em;background:linear-gradient(140deg,#fff 35%,{btn}dd 85%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;max-width:840px;margin-bottom:26px;text-align:center}}
+.hero-sub{{font-size:1.0rem;color:var(--ink2);max-width:440px;font-weight:400;line-height:1.9;margin-bottom:40px;text-align:center}}
+/* glassmorphism stat badges */
+.hero-stats{{display:flex;gap:12px;margin-top:56px;flex-wrap:wrap;justify-content:center}}
+.hero-stat{{display:flex;flex-direction:column;gap:4px;padding:16px 26px;background:rgba(255,255,255,0.05);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.12);border-radius:14px;text-align:center;min-width:110px;transition:background 0.25s,border-color 0.25s}}
+.hero-stat:hover{{background:rgba(255,255,255,0.08);border-color:{btn}55}}
+.hero-stat-num{{font-family:var(--serif);font-size:1.65rem;font-weight:800;color:#fff;line-height:1;letter-spacing:-0.03em}}
+.hero-stat-label{{font-size:0.6rem;color:var(--ink2);text-transform:uppercase;letter-spacing:0.12em}}
+.scroll-hint-new{{position:absolute;bottom:40px;right:5vw;display:flex;flex-direction:column;align-items:center;gap:8px;color:rgba(255,255,255,0.3);font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;z-index:3;cursor:pointer}}
+.scroll-chevron{{width:1px;height:44px;background:linear-gradient(to bottom,transparent,rgba(255,255,255,0.35));margin-top:4px}}
+.hero-btns{{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}}
+/* ── Buttons ── */
+.btn-p{{background:linear-gradient(135deg,{btn} 0%,{btn}cc 100%);color:#fff;padding:14px 32px;border-radius:12px;font-weight:700;font-size:0.88rem;letter-spacing:0.02em;transition:all 0.2s cubic-bezier(.16,1,.3,1);display:inline-block;box-shadow:0 4px 20px {btn}44,inset 0 1px 0 rgba(255,255,255,0.15);cursor:pointer}}
+.btn-p:hover{{transform:translateY(-2px);box-shadow:0 10px 36px {btn}66,inset 0 1px 0 rgba(255,255,255,0.2)}}
+.btn-p:active{{transform:translateY(0)}}
+.btn-g{{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.88);padding:14px 28px;border-radius:12px;font-weight:600;font-size:0.88rem;border:1px solid rgba(255,255,255,0.15);transition:all 0.2s;display:inline-block;backdrop-filter:blur(8px);cursor:pointer}}
+.btn-g:hover{{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.35);transform:translateY(-1px)}}
+/* ── Trust strip ── */
 .trust{{background:var(--paper2);border-bottom:1px solid var(--rule);padding:16px 5vw}}
 .trust-in{{max-width:1160px;margin:0 auto;display:flex;align-items:center;flex-wrap:wrap}}
 .trust-pill{{padding:7px 22px;font-size:0.78rem;color:var(--ink2);border-right:1px solid var(--rule)}}
@@ -15093,9 +15091,10 @@ nav.scrolled .nav-cta{{box-shadow:0 2px 12px {btn}44}}
 .trust-pill strong{{color:var(--ink);font-weight:600}}
 .sec{{padding:100px 5vw}}
 .sec-in{{max-width:1200px;margin:0 auto}}
-.sec-label{{display:inline-flex;align-items:center;gap:8px;font-size:0.68rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:{btn};margin-bottom:16px;background:{btn}14;border:1px solid {btn}28;border-radius:100px;padding:5px 14px}}
-.sec-h{{font-family:var(--sans);font-size:clamp(2rem,4.5vw,3.8rem);font-weight:800;letter-spacing:-0.04em;color:#fff;line-height:1.0;margin-bottom:16px}}
-.sec-lead{{font-size:0.98rem;color:var(--ink2);font-weight:400;max-width:500px;line-height:1.8}}
+.sec-label{{display:inline-flex;align-items:center;gap:7px;font-size:0.67rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:{btn};margin-bottom:18px;background:{btn}12;border:1px solid {btn}30;border-radius:100px;padding:6px 16px 6px 12px}}
+.sec-label::before{{content:'';width:5px;height:5px;border-radius:50%;background:{btn};display:inline-block;box-shadow:0 0 5px {btn}}}
+.sec-h{{font-family:var(--serif);font-size:clamp(2rem,4.5vw,3.8rem);font-weight:800;letter-spacing:-0.04em;color:#fff;line-height:1.05;margin-bottom:16px}}
+.sec-lead{{font-size:0.98rem;color:var(--ink2);font-weight:400;max-width:500px;line-height:1.85}}
 /* ── BENTO GRID ── */
 .bento{{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;margin-top:52px}}
 .b-12{{grid-column:span 12}}
@@ -15105,13 +15104,13 @@ nav.scrolled .nav-cta{{box-shadow:0 2px 12px {btn}44}}
 .b-3{{grid-column:span 3}}
 .b-r2{{grid-row:span 2}}
 /* ── Gradient border card ── */
-.gcard{{position:relative;background:rgba(255,255,255,0.04);border-radius:14px;padding:28px;overflow:hidden;transition:background 0.25s}}
-.gcard::before{{content:'';position:absolute;inset:0;border-radius:14px;padding:1px;background:linear-gradient(135deg,rgba(255,255,255,0.14) 0%,rgba(255,255,255,0.03) 50%,{btn}28 100%);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;transition:background 0.25s}}
-.gcard:hover{{background:rgba(255,255,255,0.06)}}
-.gcard:hover::before{{background:linear-gradient(135deg,{btn}55 0%,rgba(255,255,255,0.08) 50%,{btn}22 100%)}}
-.gcard-title{{font-family:var(--sans);font-size:1.15rem;font-weight:700;color:#fff;margin-bottom:8px;line-height:1.3}}
-.gcard-desc{{font-size:0.84rem;color:var(--ink2);line-height:1.75;font-weight:400}}
-.gcard-num{{font-family:var(--sans);font-size:3.5rem;font-weight:800;color:{btn};opacity:0.7;line-height:1;letter-spacing:-0.04em;margin-bottom:10px}}
+.gcard{{position:relative;background:var(--bg-card);border-radius:20px;padding:30px;overflow:hidden;transition:background 0.25s,box-shadow 0.3s,transform 0.25s;cursor:default}}
+.gcard::before{{content:'';position:absolute;inset:0;border-radius:20px;padding:1px;background:linear-gradient(135deg,rgba(255,255,255,0.13) 0%,rgba(255,255,255,0.03) 50%,{btn}30 100%);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;transition:background 0.3s}}
+.gcard:hover{{background:rgba(17,24,39,0.95);box-shadow:0 0 0 1px {btn}44,0 16px 48px {btn}20;transform:translateY(-2px)}}
+.gcard:hover::before{{background:linear-gradient(135deg,{btn}60 0%,rgba(255,255,255,0.06) 50%,{btn}25 100%)}}
+.gcard-title{{font-family:var(--serif);font-size:1.15rem;font-weight:700;color:#fff;margin-bottom:8px;line-height:1.3}}
+.gcard-desc{{font-size:0.84rem;color:var(--ink2);line-height:1.8;font-weight:400}}
+.gcard-num{{font-family:var(--serif);font-size:3.5rem;font-weight:800;color:{btn};opacity:0.75;line-height:1;letter-spacing:-0.04em;margin-bottom:10px}}
 /* scan beam */
 .scan-beam{{position:absolute;top:0;left:0;width:300px;height:100%;background:linear-gradient(90deg,transparent,{btn}08,transparent);animation:scan-beam 10s ease-in-out infinite;pointer-events:none}}
 @keyframes scan-beam{{0%{{transform:translateX(-300px)}}100%{{transform:translateX(calc(100vw + 300px))}}}}
@@ -15562,20 +15561,20 @@ footer{{background:#06060E;padding:64px 5vw 0}}
 .midcta-sub-link{{display:block;margin-top:14px;color:rgba(255,255,255,0.45);font-size:0.84rem;text-decoration:underline}}
 .midcta-wide .midcta-in{{flex-direction:column;text-align:center}}
 .pricing-tiers{{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:36px;max-width:960px;width:100%}}
-.pt-card{{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:28px 22px;position:relative;display:flex;flex-direction:column;gap:0;transition:transform 0.2s,box-shadow 0.2s}}
-.pt-card:hover{{transform:translateY(-4px);box-shadow:0 20px 60px rgba(0,0,0,0.4)}}
-.pt-featured{{background:rgba(255,255,255,0.1);border-color:var(--brand);transform:scale(1.04)}}
-.pt-badge-top{{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--brand);color:#fff;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:4px 14px;border-radius:20px;white-space:nowrap}}
+.pt-card{{background:var(--bg-card);border:1px solid var(--rule);border-radius:20px;padding:30px 24px;position:relative;display:flex;flex-direction:column;gap:0;transition:transform 0.25s,box-shadow 0.3s,border-color 0.25s}}
+.pt-card:hover{{transform:translateY(-4px);box-shadow:0 20px 60px rgba(0,0,0,0.45);border-color:var(--rule2)}}
+.pt-featured{{background:linear-gradient(160deg,{btn}12 0%,var(--bg-card) 60%);border-color:{btn}55!important;box-shadow:0 0 0 1px {btn}33,0 20px 60px {btn}22;transform:scale(1.03)}}
+.pt-badge-top{{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,{btn},{btn}cc);color:#fff;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:5px 16px;border-radius:100px;white-space:nowrap;box-shadow:0 4px 14px {btn}55}}
 .pt-name{{font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:10px}}
 .pt-price{{font-family:var(--serif);font-size:2.4rem;font-weight:900;color:#fff;line-height:1;margin-bottom:18px}}
 .pt-price span{{font-size:1rem;font-weight:400;opacity:0.6}}
 .pt-features{{list-style:none;margin-bottom:24px;flex:1}}
 .pt-features li{{font-size:0.82rem;color:rgba(255,255,255,0.65);padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.07);text-align:left}}
 .pt-features li::before{{content:"✓ ";color:var(--brand);font-weight:700}}
-.pt-btn{{display:block;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:12px 20px;border-radius:8px;font-size:0.82rem;font-weight:600;text-align:center;transition:all 0.2s;margin-top:auto;cursor:pointer}}
-.pt-btn:hover{{background:rgba(255,255,255,0.2)}}
-.pt-btn-featured{{background:var(--brand);border-color:var(--brand);box-shadow:0 4px 20px {btn}55}}
-.pt-btn-featured:hover{{opacity:0.88}}
+.pt-btn{{display:block;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;padding:13px 20px;border-radius:12px;font-size:0.82rem;font-weight:600;text-align:center;transition:all 0.2s;margin-top:auto;cursor:pointer}}
+.pt-btn:hover{{background:rgba(255,255,255,0.15);transform:translateY(-1px)}}
+.pt-btn-featured{{background:linear-gradient(135deg,{btn},{btn}cc);border-color:{btn};box-shadow:0 4px 20px {btn}55}}
+.pt-btn-featured:hover{{opacity:0.9;box-shadow:0 8px 30px {btn}66}}
 @media(max-width:700px){{.pricing-tiers{{grid-template-columns:1fr}}.pt-featured{{transform:scale(1)}}}}
 @media(max-width:900px){{
   .midcta-in{{flex-direction:column;text-align:center}}
@@ -15624,7 +15623,7 @@ footer{{background:#06060E;padding:64px 5vw 0}}
 .process-dark-desc{{font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.7;font-weight:300}}
 @media(max-width:700px){{.process-dark-steps{{grid-template-columns:1fr;gap:32px}}.process-dark-steps::before{{display:none}}}}
 /* ── Hero proof badge ── */
-.hero-proof-badge{{display:inline-flex;align-items:center;gap:8px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);border-radius:100px;padding:6px 16px 6px 10px;font-size:0.71rem;font-weight:600;color:#10b981;margin-bottom:14px}}
+.hero-proof-badge{{display:inline-flex;align-items:center;gap:8px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.28);border-radius:100px;padding:7px 18px 7px 12px;font-size:0.71rem;font-weight:600;color:#10b981;margin-bottom:14px;backdrop-filter:blur(8px)}}
 .hero-proof-dot{{width:6px;height:6px;border-radius:50%;background:#10b981;animation:pulse-green 2s infinite;flex-shrink:0}}
 @keyframes pulse-green{{0%,100%{{opacity:1;transform:scale(1)}}50%{{opacity:0.5;transform:scale(0.8)}}}}
 /* ── Manifeste scroll reveal ── */
@@ -15648,17 +15647,27 @@ footer{{background:#06060E;padding:64px 5vw 0}}
 .tab-meta{{font-size:0.78rem;color:{btn};font-weight:600;letter-spacing:0.04em}}
 @media(max-width:600px){{.tab-panel-in{{grid-template-columns:1fr}}.tab-num{{display:none}}.tabs-nav{{gap:3px}}.tab-btn{{padding:8px 12px;font-size:0.78rem}}}}
 /* ── Wall of Love ── */
-.wol-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:32px}}
-.wol-card{{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:24px;transition:border-color 0.25s,background 0.25s;cursor:default}}
-.wol-card:hover{{background:rgba(255,255,255,0.06);border-color:{btn}44}}
+.wol-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px}}
+.wol-card{{background:var(--bg-card);border:1px solid var(--rule);border-radius:20px;padding:26px;transition:border-color 0.25s,background 0.25s,box-shadow 0.3s,transform 0.25s;cursor:default}}
+.wol-card:hover{{background:rgba(17,24,39,0.95);border-color:{btn}40;box-shadow:0 0 0 1px {btn}22,0 12px 36px {btn}18;transform:translateY(-2px)}}
 .wol-stars{{color:#F5A623;font-size:0.72rem;letter-spacing:1px;margin-bottom:12px}}
-.wol-text{{font-size:0.86rem;color:var(--ink2);line-height:1.85;font-weight:400;margin-bottom:20px}}
+.wol-text{{font-size:0.86rem;color:var(--ink2);line-height:1.88;font-weight:400;margin-bottom:20px}}
 .wol-author{{display:flex;align-items:center;gap:10px}}
-.wol-av{{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,{g1},{g2});color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.78rem;flex-shrink:0}}
+.wol-av{{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,{g1},{g2});color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.78rem;flex-shrink:0}}
 .wol-name{{font-size:0.82rem;font-weight:700;color:#fff}}
 .wol-loc{{font-size:0.68rem;color:var(--ink2);margin-top:1px}}
 @media(max-width:900px){{.wol-grid{{grid-template-columns:repeat(2,1fr)}}}}
 @media(max-width:600px){{.wol-grid{{grid-template-columns:1fr}}}}
+/* ── Scroll animate-in ── */
+.animate-in{{opacity:0;transform:translateY(22px);transition:opacity 0.65s cubic-bezier(.16,1,.3,1),transform 0.65s cubic-bezier(.16,1,.3,1)}}
+.animate-in.visible{{opacity:1;transform:none}}
+.animate-in.d1{{transition-delay:.1s}}.animate-in.d2{{transition-delay:.2s}}.animate-in.d3{{transition-delay:.3s}}.animate-in.d4{{transition-delay:.4s}}
+/* ── Pricing card featured ── */
+.pricing-featured{{border:1px solid {btn}66!important;background:linear-gradient(160deg,{btn}10 0%,var(--bg-card) 100%)!important;box-shadow:0 0 0 1px {btn}33,0 20px 60px {btn}22!important}}
+.pricing-badge{{display:inline-flex;align-items:center;gap:5px;background:{btn};color:#fff;font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:4px 12px;border-radius:100px;margin-bottom:14px}}
+/* ── Responsive mobile ── */
+@media(max-width:768px){{body{{padding-top:86px}}nav{{top:34px}}}}
+@media(max-width:600px){{.ann-bar{{flex-direction:column;gap:8px;padding:8px 5vw}}.ann-bar-btn{{align-self:stretch;text-align:center}}}}
 </style>
 </head>
 <body>
@@ -15677,7 +15686,7 @@ footer{{background:#06060E;padding:64px 5vw 0}}
       <a class="nav-link" href="#equipe">Équipe</a>
       <a class="nav-link" href="#avis">Avis</a>
       <a class="nav-link" href="#contact">Contact</a>
-      <a class="nav-cta" href="{_tel_href}">{cta_text}</a>
+      <a class="nav-cta" href="{_mail_href}">{cta_text}</a>
     </div>
   </div>
 </nav>
@@ -15701,7 +15710,7 @@ footer{{background:#06060E;padding:64px 5vw 0}}
     <h1>{hero_title}</h1>
     <p class="hero-sub">{hero_subtitle}</p>
     <div class="hero-btns">
-      <a class="btn-p" href="{_tel_href}">{cta_text}</a>
+      <a class="btn-p" href="{_mail_href}">{cta_text}</a>
       <a class="btn-g" href="#services">{_svc_cta_text} →</a>
     </div>
     <div class="hero-stats">
@@ -15844,9 +15853,19 @@ footer{{background:#06060E;padding:64px 5vw 0}}
 // ── Nav transparente → solide au scroll ────────────────────────────────
 (function(){{
   const nav=document.querySelector('nav');
-  function upNav(){{nav.classList.toggle('scrolled',window.scrollY>60);}}
+  function upNav(){{nav.classList.toggle('scrolled',window.scrollY>20);}}
   window.addEventListener('scroll',upNav,{{passive:true}});
   upNav();
+}})();
+
+// ── Animate-in scroll reveal ──────────────────────────────────────────
+(function(){{
+  const io=new IntersectionObserver(entries=>{{
+    entries.forEach(e=>{{
+      if(e.isIntersecting){{e.target.classList.add('visible');io.unobserve(e.target);}}
+    }});
+  }},{{threshold:0,rootMargin:'0px 0px -50px 0px'}});
+  document.querySelectorAll('.animate-in').forEach(el=>io.observe(el));
 }})();
 
 // ── FAQ accordion toggle ──────────────────────────────────────────────────
