@@ -2,6 +2,110 @@ const fs = require('fs');
 const path = require('path');
 
 // ============================================================
+// UTILITAIRES COULEUR — adapte le template à la couleur du logo
+// ============================================================
+
+function hexToRgb(hex) {
+  const h = hex.replace('#', '');
+  return {
+    r: parseInt(h.substring(0, 2), 16),
+    g: parseInt(h.substring(2, 4), 16),
+    b: parseInt(h.substring(4, 6), 16),
+  };
+}
+
+function toHex(r, g, b) {
+  return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+}
+
+function darken(hex, factor = 0.22) {
+  const { r, g, b } = hexToRgb(hex);
+  return toHex(r * (1 - factor), g * (1 - factor), b * (1 - factor));
+}
+
+function lighten(hex, factor = 0.32) {
+  const { r, g, b } = hexToRgb(hex);
+  return toHex(r + (255 - r) * factor, g + (255 - g) * factor, b + (255 - b) * factor);
+}
+
+// Vérifie si la couleur est trop sombre ou trop claire pour être utile
+function ensureVibrancy(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  // Trop sombre → éclaircir; trop clair → assombrir
+  if (luminance < 0.12) return lighten(hex, 0.5);
+  if (luminance > 0.88) return darken(hex, 0.5);
+  return hex;
+}
+
+// Remplace toutes les occurrences de la couleur bleue de référence
+// (#2563EB / #1D4ED8 / #3B82F6 + leurs variantes rgba) par la couleur du logo
+function applyBrandColor(html, brandHex) {
+  if (!brandHex || brandHex === '#2563EB') return html; // pas de changement si bleu par défaut
+
+  const main  = ensureVibrancy(brandHex);
+  const dark  = darken(main, 0.22);
+  const light = lighten(main, 0.28);
+
+  const { r: mr, g: mg, b: mb } = hexToRgb(main);
+  const { r: lr, g: lg, b: lb } = hexToRgb(light);
+  const { r: dr, g: dg, b: db } = hexToRgb(dark);
+
+  return html
+    // Hex directs
+    .replace(/#2563EB/g, main)
+    .replace(/#1D4ED8/g, dark)
+    .replace(/#3B82F6/g, light)
+    // rgba main (37,99,235 = #2563EB)
+    .replace(/rgba\(37,99,235,/g,   `rgba(${mr},${mg},${mb},`)
+    // rgba light (59,130,246 = #3B82F6)
+    .replace(/rgba\(59,130,246,/g,  `rgba(${lr},${lg},${lb},`)
+    // rgba dark  (29,78,216 = #1D4ED8)
+    .replace(/rgba\(29,78,216,/g,   `rgba(${dr},${dg},${db},`);
+}
+
+// Extrait la couleur principale d'un HTML/CSS scrapé
+// Priorité : meta theme-color → CSS custom props → boutons CTA → couleur la plus fréquente
+function extractBrandColor(html) {
+  if (!html) return null;
+
+  // 1. meta theme-color
+  const theme = html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["'](#[0-9a-fA-F]{6})/i)
+    || html.match(/<meta[^>]+content=["'](#[0-9a-fA-F]{6})["'][^>]+name=["']theme-color["']/i);
+  if (theme) return theme[1];
+
+  // 2. CSS custom properties courantes
+  const customProp = html.match(/--(?:primary|brand|main|accent|color-primary|primary-color|colour-primary)\s*:\s*(#[0-9a-fA-F]{6})/i);
+  if (customProp) return customProp[1];
+
+  // 3. background-color sur des éléments typiques de marque (nav, header, .btn, .cta, .button)
+  const btnBg = html.match(/(?:\.btn[-_]?(?:primary|main)|\.cta|nav|\.header|header)[^{]*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{6})/i);
+  if (btnBg) {
+    const c = btnBg[1];
+    // Ignorer le blanc, le noir et les gris
+    const { r, g, b } = hexToRgb(c);
+    const isGray = Math.abs(r - g) < 20 && Math.abs(g - b) < 20;
+    if (!isGray && c !== '#ffffff' && c !== '#000000') return c;
+  }
+
+  // 4. Compter les hex les plus fréquents (excluant noir/blanc/gris)
+  const allHex = [...html.matchAll(/#([0-9a-fA-F]{6})\b/g)].map(m => '#' + m[1].toUpperCase());
+  const freq = {};
+  for (const hex of allHex) {
+    const { r, g, b } = hexToRgb(hex);
+    const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    const isGray = Math.abs(r - g) < 22 && Math.abs(g - b) < 22;
+    if (!isGray && lum > 0.1 && lum < 0.9) {
+      freq[hex] = (freq[hex] || 0) + 1;
+    }
+  }
+  const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
+  if (sorted.length > 0) return sorted[0][0];
+
+  return null;
+}
+
+// ============================================================
 // DONNÉES PAR SECTEUR
 // ============================================================
 
@@ -369,6 +473,7 @@ async function generate(data) {
     certifications = [],
     auditProblemes = [],
     auditScore,
+    brandColor,        // Hex du logo/site ex: '#D4141C' — optionnel, sinon bleu par défaut
   } = data;
 
   // Normaliser le secteur
@@ -477,6 +582,9 @@ async function generate(data) {
     html = html.split(key).join(value || '');
   }
 
+  // Appliquer la couleur du logo sur tout le HTML
+  html = applyBrandColor(html, brandColor);
+
   // Vérifier les variables non remplacées
   const remaining = html.match(/\{\{[A-Z_]+\}\}/g);
   if (remaining) {
@@ -490,9 +598,10 @@ async function generate(data) {
 
   const outputPath = path.join(outputDir, `${slug}.html`);
   fs.writeFileSync(outputPath, html, 'utf8');
-  console.log(`✅ Site généré : output/${slug}.html`);
+  const colorUsed = brandColor ? ensureVibrancy(brandColor) : '#2563EB (défaut)';
+  console.log(`✅ Site généré : output/${slug}.html  •  couleur: ${colorUsed}`);
 
   return { slug, outputPath };
 }
 
-module.exports = { generate };
+module.exports = { generate, extractBrandColor, applyBrandColor };
