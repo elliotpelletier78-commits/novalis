@@ -105,6 +105,24 @@ function extractBrandColor(html) {
   return null;
 }
 
+// Extrait les URLs d'images du HTML scrapé du site client
+function extractSitePhotos(html) {
+  if (!html) return [];
+  const seen = new Set();
+  const photos = [];
+  const imgSrcs = [...html.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)].map(m => m[1]);
+  const bgUrls = [...html.matchAll(/url\(["']?([^"')]+\.(?:jpg|jpeg|png|webp)[^"')?]*)["']?\)/gi)].map(m => m[1]);
+  for (const src of [...imgSrcs, ...bgUrls]) {
+    if (!src || src.startsWith('data:') || seen.has(src)) continue;
+    if (/logo|icon|sprite|thumb|avatar|badge|favicon/i.test(src)) continue;
+    if (/\.(gif|svg)$/i.test(src)) continue;
+    seen.add(src);
+    photos.push(src);
+    if (photos.length >= 4) break;
+  }
+  return photos;
+}
+
 // ============================================================
 // DONNÉES PAR SECTEUR
 // ============================================================
@@ -180,6 +198,38 @@ const SERVICES = {
     ['Réservations de groupe', 'Salles privées disponibles pour anniversaires, célébrations et repas d\'affaires.'],
     ['Traiteur & événements', 'Service traiteur complet pour vos événements corporatifs et familiaux.'],
   ],
+  salon: [
+    ['Coupe & style', 'Consultation incluse. On adapte la coupe à votre visage, votre mode de vie et vos préférences.'],
+    ['Coloration', 'Techniques modernes et produits haut de gamme. Résultat naturel ou audacieux — c\'est vous qui décidez.'],
+    ['Soins capillaires', 'Traitements réparateurs, hydratants ou lissants. Pour des cheveux en santé à long terme.'],
+    ['Mèches & balayage', 'Balayage naturel, mèches lumineuses ou ombré. Des nuances qui magnifient votre couleur de base.'],
+    ['Coiffure événement', 'Mariage, galas, occasions spéciales. Une coiffure pensée pour durer toute la soirée.'],
+    ['Soins esthétiques', 'Manucure, pédicure et soins du visage. Une expérience complète en un seul endroit.'],
+  ],
+  health: [
+    ['Médecine générale', 'Suivi régulier, bilans de santé et prise en charge des maladies courantes.'],
+    ['Consultations spécialisées', 'Accès rapide aux spécialistes partenaires selon vos besoins spécifiques.'],
+    ['Prévention & dépistage', 'Tests, vaccins et programmes de prévention pour rester en bonne santé.'],
+    ['Suivi chronique', 'Accompagnement des maladies chroniques avec des rendez-vous adaptés à votre rythme.'],
+    ['Téléconsultation', 'Consultation vidéo en moins de 24h pour les cas non urgents. Ordonnance électronique disponible.'],
+    ['Médecine du travail', 'Évaluation et certificats médicaux pour vos démarches professionnelles.'],
+  ],
+  construction: [
+    ['Rénovation résidentielle', 'Cuisine, salle de bain, sous-sol — rénovations complètes clés en main.'],
+    ['Construction neuve', 'Planification, fondation, charpente et finitions. On bâtit de A à Z.'],
+    ['Toiture & bardage', 'Remplacement, réparation et inspection. Protection durable contre les éléments.'],
+    ['Menuiserie & charpente', 'Structures bois, pergolas, decks et escaliers. Travail précis, matériaux de qualité.'],
+    ['Rénovation commerciale', 'Aménagement de bureaux, commerces et espaces professionnels.'],
+    ['Estimation gratuite', 'Visite sur place, écoute de vos besoins et devis détaillé sans engagement.'],
+  ],
+  fitness: [
+    ['Entraînement personnel', 'Programme sur mesure avec un entraîneur dédié. Objectifs clairs, progression mesurée.'],
+    ['Cours collectifs', 'Yoga, HIIT, spinning, Pilates — des cours adaptés à tous les niveaux.'],
+    ['Bilan fitness', 'Évaluation complète de votre condition physique et définition d\'objectifs réalistes.'],
+    ['Nutrition & performance', 'Conseils nutritionnels intégrés à votre programme d\'entraînement.'],
+    ['Accès libre', 'Équipements disponibles 7j/7 pour un entraînement à votre propre rythme.'],
+    ['Programme en ligne', 'Plans d\'entraînement personnalisés accessibles depuis votre téléphone, partout.'],
+  ],
   defaut: [
     ['Service professionnel', 'Une expertise reconnue et une approche personnalisée pour chaque client.'],
     ['Consultation gratuite', 'Premier entretien sans frais pour évaluer vos besoins et vous proposer la meilleure solution.'],
@@ -219,6 +269,34 @@ const PRIX = {
     ['Traiteur (min. 20 personnes)', 'Menu personnalisé, livraison et service inclus', 'Sur devis'],
     ['Réservation de salle', 'Salle privée pour 10 à 60 personnes', 'GRATUIT'],
   ],
+  salon: [
+    ['Coupe femme', 'Shampoing, coupe, brushing et style inclus', '65 – 95 $'],
+    ['Coupe homme', 'Shampoing, coupe et finition', '35 – 55 $'],
+    ['Coloration complète', 'Produits haut de gamme, application et finition', '120 – 185 $'],
+    ['Balayage / mèches', 'Technique personnalisée selon votre type de cheveux', '140 – 220 $'],
+    ['Traitement soin', 'Masque, kératine ou lissage express', '55 – 95 $'],
+  ],
+  health: [
+    ['Consultation générale', 'Durée 20 min — bilan ou suivi régulier', '115 $'],
+    ['Consultation longue', 'Durée 40 min — cas complexes ou bilans complets', '185 $'],
+    ['Téléconsultation', 'Vidéo 15 min — renouvellement ou avis rapide', '85 $'],
+    ['Bilan complet', 'Examen + analyses + rapport écrit', '225 $'],
+    ['Urgence même jour', 'Rendez-vous prioritaire — disponibilité limitée', 'Selon acte'],
+  ],
+  construction: [
+    ['Main-d\'œuvre', 'Équipe qualifiée, selon complexité des travaux', '75 – 95 $/h'],
+    ['Rénovation salle de bain', 'Démolition, plomberie, carrelage, finitions', 'Dès 8 500 $'],
+    ['Toiture complète', 'Dépose, isolant, couverture neuve, finition', 'Sur devis'],
+    ['Sous-sol aménagé', 'Cloisons, électricité, plancher, peinture', 'Dès 22 000 $'],
+    ['Estimation', 'Visite sur place et devis détaillé sans engagement', 'GRATUIT'],
+  ],
+  fitness: [
+    ['Abonnement mensuel', 'Accès complet à tous les équipements et cours', '59 $/mois'],
+    ['Abonnement annuel', 'Meilleur tarif, sans engagement mensuel', '39 $/mois'],
+    ['Entraîneur personnel', 'Programme sur mesure + 4 séances encadrées', '299 $/mois'],
+    ['Évaluation fitness', 'Bilan complet + plan d\'action personnalisé', '75 $'],
+    ['Cours collectifs', 'Accès illimité inclus avec tout abonnement', 'INCLUS'],
+  ],
   defaut: [
     ['Service de base', 'Prestation standard, qualité garantie', 'Dès 75 $'],
     ['Service complet', 'Solution complète adaptée à vos besoins', 'Dès 150 $'],
@@ -251,10 +329,14 @@ const HEURES = {
   plombier: [['Lundi','7h00 – 18h00'],['Mardi','7h00 – 18h00'],['Mercredi','7h00 – 18h00'],['Jeudi','7h00 – 18h00'],['Vendredi','7h00 – 17h00'],['Samedi','8h00 – 12h00'],['Dimanche','Urgences seulement']],
   electricien: [['Lundi','7h30 – 17h00'],['Mardi','7h30 – 17h00'],['Mercredi','7h30 – 17h00'],['Jeudi','7h30 – 17h00'],['Vendredi','7h30 – 16h30'],['Samedi','Sur rendez-vous'],['Dimanche','Fermé']],
   restaurant: [['Lundi','11h00 – 21h00'],['Mardi','11h00 – 21h00'],['Mercredi','11h00 – 21h00'],['Jeudi','11h00 – 22h00'],['Vendredi','11h00 – 22h00'],['Samedi','10h00 – 22h00'],['Dimanche','10h00 – 20h00']],
+  salon: [['Lundi','9h00 – 19h00'],['Mardi','9h00 – 19h00'],['Mercredi','9h00 – 19h00'],['Jeudi','9h00 – 20h00'],['Vendredi','9h00 – 18h00'],['Samedi','8h30 – 17h00'],['Dimanche','Fermé']],
+  health: [['Lundi','8h00 – 17h30'],['Mardi','8h00 – 17h30'],['Mercredi','8h00 – 17h30'],['Jeudi','8h00 – 17h30'],['Vendredi','8h00 – 16h30'],['Samedi','9h00 – 12h00'],['Dimanche','Fermé']],
+  construction: [['Lundi','7h00 – 17h00'],['Mardi','7h00 – 17h00'],['Mercredi','7h00 – 17h00'],['Jeudi','7h00 – 17h00'],['Vendredi','7h00 – 16h00'],['Samedi','Sur rendez-vous'],['Dimanche','Fermé']],
+  fitness: [['Lundi','5h30 – 23h00'],['Mardi','5h30 – 23h00'],['Mercredi','5h30 – 23h00'],['Jeudi','5h30 – 23h00'],['Vendredi','5h30 – 22h00'],['Samedi','7h00 – 21h00'],['Dimanche','8h00 – 20h00']],
   defaut: [['Lundi','8h00 – 17h00'],['Mardi','8h00 – 17h00'],['Mercredi','8h00 – 17h00'],['Jeudi','8h00 – 17h00'],['Vendredi','8h00 – 16h30'],['Samedi','Sur rendez-vous'],['Dimanche','Fermé']],
 };
 
-const VALEUR_CLIENT = { garage: 350, plombier: 400, electricien: 350, restaurant: 80, defaut: 300 };
+const VALEUR_CLIENT = { garage: 350, plombier: 400, electricien: 350, restaurant: 80, salon: 120, health: 180, construction: 8000, fitness: 60, defaut: 300 };
 
 const PRENOMS = [
   { nom: 'Marie L.', initiales: 'ML' }, { nom: 'Jean-François T.', initiales: 'JT' },
@@ -414,6 +496,38 @@ function buildTemoignages(secteur, ville) {
       'Mon drain français était bouché depuis des années. Réglé en une journée. J\'aurais dû appeler bien avant.',
       'Ils ont fait exactement ce qu\'ils avaient dit. Ni plus, ni moins — mais vraiment proprement.',
     ],
+    salon: [
+      'Exactement ce que j\'avais demandé. Le résultat dépasse mes attentes et l\'ambiance est vraiment agréable.',
+      'J\'avais peur de changer de salon. Maintenant je n\'irais nulle part ailleurs.',
+      'Coloration et coupe — tout était parfait. Et le prix était raisonnable pour la qualité.',
+      'L\'équipe prend vraiment le temps d\'écouter. Aucun jugement, seulement de bons conseils.',
+      'Mon balayage a été complimenté partout. Je reviens dans 6 semaines sans hésitation.',
+      'Un salon où on se sent bien dès qu\'on entre. Atmosphère parfaite.',
+    ],
+    health: [
+      'Premier médecin en 4 ans qui prend le temps d\'expliquer avant de prescrire.',
+      'Rendez-vous obtenu en moins de 48h. Suivi rigoureux et professionnel.',
+      'J\'avais des doutes sur mon diagnostic. Ici, on m\'a tout expliqué clairement.',
+      'Un cabinet moderne, une équipe attentionnée. Exactement ce qu\'on cherche pour un suivi long terme.',
+      'Téléconsultation rapide et efficace. Ordonnance reçue en 20 minutes.',
+      'Enfin un médecin de famille qui répond quand on a des questions. C\'est rarissime.',
+    ],
+    construction: [
+      'Chantier dans les temps, budget respecté. C\'est rare et ça mérite d\'être souligné.',
+      'Ils ont travaillé dans notre maison comme si c\'était la leur. Propre et respectueux.',
+      'Devis détaillé, aucune surprise. Le résultat final est exactement ce qu\'on avait imaginé.',
+      'On hésitait entre trois entrepreneurs. On a choisi le plus transparent — et on a eu raison.',
+      'Rénovation complète du sous-sol en 3 semaines. Qualité irréprochable.',
+      'Ils ont signalé une problématique qu\'on n\'avait pas vue. Ça nous a évité une catastrophe.',
+    ],
+    fitness: [
+      'En 3 mois avec un entraîneur, j\'ai atteint des objectifs que je courais après depuis 2 ans.',
+      'Les cours sont motivants, les entraîneurs sont disponibles et les équipements sont en parfait état.',
+      'Jamais eu l\'impression d\'être jugé. Une ambiance inclusive et sincèrement bienveillante.',
+      'Je viens à 6h le matin. Le centre est propre, ouvert et bien équipé.',
+      'Le bilan fitness au départ a tout changé. On savait enfin sur quoi travailler.',
+      'Abonnement honnête, sans contrat piège. On vient parce qu\'on veut venir.',
+    ],
     defaut: [
       'Professionnel, ponctuel et transparent. Exactement ce qu\'on cherche.',
       'J\'ai rappelé deux semaines après avec une question. Réponse en moins d\'une heure. C\'est rare.',
@@ -457,6 +571,240 @@ function buildGalerie(photos) {
 // ============================================================
 // FONCTION PRINCIPALE
 // ============================================================
+
+// ── Données cinématiques par secteur ───────────────────────
+
+const CINEMATIC_SCENE_PHOTOS = {
+  garage: [
+    'https://images.unsplash.com/photo-1625047509248-ec889cbff17f?w=1600&q=85',
+    'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=1600&q=85',
+    'https://images.unsplash.com/photo-1534093607318-aaff814b9e85?w=1600&q=85',
+    'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1600&q=85',
+  ],
+  salon: [
+    'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1600&q=85',
+    'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=1600&q=85',
+    'https://images.unsplash.com/photo-1580618672591-eb180b1a973f?w=1600&q=85',
+    'https://images.unsplash.com/photo-1562322140-8baeececf3df?w=1600&q=85',
+  ],
+  health: [
+    'https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?w=1600&q=85',
+    'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=1600&q=85',
+    'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1600&q=85',
+    'https://images.unsplash.com/photo-1504813184591-01572f98c85f?w=1600&q=85',
+  ],
+  construction: [
+    'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1600&q=85',
+    'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=1600&q=85',
+    'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=1600&q=85',
+    'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=1600&q=85',
+  ],
+  fitness: [
+    'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1600&q=85',
+    'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1600&q=85',
+    'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1600&q=85',
+    'https://images.unsplash.com/photo-1581009137042-c552e485697a?w=1600&q=85',
+  ],
+};
+
+const CINEMATIC_POETICS = {
+  garage: [
+    { line: 'On soulève le capot,<br>la vérité apparaît.', sub: 'Aucun diagnostic caché. Aucune surprise à la caisse. Juste le travail bien fait.' },
+    { line: 'Les mains parlent,<br>les chiffres confirment.', sub: 'Chaque pièce a son rôle. Chaque intervention, sa raison.' },
+    { line: 'Votre véhicule<br>repart comme prévu.', sub: 'Parce qu\'un devis honnête vaut mieux qu\'une bonne surprise.' },
+  ],
+  salon: [
+    { line: 'Vous entrez,<br>vous ressortez différemment.', sub: 'Un espace pensé pour ralentir, se recentrer et ressortir soi-même — en mieux.' },
+    { line: 'Le geste précis,<br>le résultat juste.', sub: 'Des années de métier dans chaque coupe. Une attention sincère pour chaque client.' },
+    { line: 'Ce que vous voulez<br>et ce dont vous avez besoin.', sub: 'L\'équipe qui écoute autant qu\'elle conseille.' },
+  ],
+  health: [
+    { line: 'Le corps<br>mérite d\'être compris.', sub: 'Un diagnostic clair, une approche respectueuse, un suivi sans ambiguïté.' },
+    { line: 'Avant de traiter,<br>on prend le temps d\'écouter.', sub: 'Parce que chaque patient est différent. Chaque cas mérite une attention singulière.' },
+    { line: 'Votre santé<br>n\'est pas une statistique.', sub: 'C\'est une priorité humaine, accompagnée avec rigueur et bienveillance.' },
+  ],
+  construction: [
+    { line: 'On bâtit pour<br>les prochaines décennies.', sub: 'Des matériaux choisis, un savoir-faire transmis, une garantie derrière chaque mur.' },
+    { line: 'Le chantier propre<br>est une marque de respect.', sub: 'On travaille chez vous. On ne l\'oublie jamais.' },
+    { line: 'Ce qui est promis<br>se retrouve dans les plans.', sub: 'Devis détaillé, délais tenus, finitions soignées.' },
+  ],
+  fitness: [
+    { line: 'Chaque séance<br>a un objectif.', sub: 'Un espace équipé pour performer, progresser et rester motivé.' },
+    { line: 'Le premier effort<br>est toujours le plus difficile.', sub: 'On est là pour accompagner les cent qui suivent.' },
+    { line: 'Le corps s\'adapte<br>quand on lui donne les bons outils.', sub: 'Entraînement structuré, suivi personnalisé, résultats mesurables.' },
+  ],
+};
+
+const CINEMATIC_SECTOR_LABELS = {
+  garage: 'Garage automobile',
+  salon: 'Salon de coiffure & beauté',
+  health: 'Clinique médicale',
+  construction: 'Construction & rénovation',
+  fitness: 'Centre d\'entraînement',
+};
+
+const CINEMATIC_HEADINGS = {
+  garage: 'Un atelier qui <em>tient parole.</em>',
+  salon: 'Un soin qui <em>vous ressemble.</em>',
+  health: 'Une clinique qui <em>vous écoute.</em>',
+  construction: 'Un chantier qui <em>respecte votre maison.</em>',
+  fitness: 'Un espace fait pour <em>aller plus loin.</em>',
+};
+
+const CINEMATIC_DESCRIPTIONS = {
+  garage: (nom, ville) => `${nom} est un garage de confiance à ${ville}. Devis honnête, pièces de qualité, techniciens certifiés. Votre véhicule repart dans les meilleures conditions — et vous le savez d'avance.`,
+  salon: (nom, ville) => `${nom} est un salon haut de gamme à ${ville}. Un espace pensé pour vous faire sentir bien, avec une équipe qui écoute et un résultat qui vous ressemble.`,
+  health: (nom, ville) => `${nom} est une clinique médicale à ${ville}. Une approche humaine et rigoureuse, des rendez-vous rapides et un suivi personnalisé pour chaque patient.`,
+  construction: (nom, ville) => `${nom} est une entreprise de construction établie à ${ville}. Des projets livrés dans les temps, des budgets respectés et une qualité d'exécution qui parle d'elle-même.`,
+  fitness: (nom, ville) => `${nom} est un centre d'entraînement à ${ville}. Équipements professionnels, entraîneurs certifiés et un environnement conçu pour performer et progresser.`,
+};
+
+function buildCinematicScenes(secteur, { nom, nomCourt, ville, adresse, telephone, sitePhotos }) {
+  const addr = adresse || `${ville}, Québec`;
+  const tel = telephone || '';
+  const defaultPhotos = CINEMATIC_SCENE_PHOTOS[secteur] || CINEMATIC_SCENE_PHOTOS.garage;
+  // Prefer client's own site photos when available
+  const photos = (sitePhotos && sitePhotos.length >= 2)
+    ? [...sitePhotos.slice(0, 2), ...defaultPhotos.slice(0, 2)]
+    : defaultPhotos;
+  const poetics = CINEMATIC_POETICS[secteur] || CINEMATIC_POETICS.garage;
+  const label = CINEMATIC_SECTOR_LABELS[secteur] || 'Service professionnel';
+
+  const hero = `<section class="scene">
+  <img class="scene-bg" src="${photos[0]}" alt="${nom}" loading="eager">
+  <div class="scene-overlay"></div>
+  <div class="scene-body">
+    <span class="scene-addr">${addr}</span>
+    <h1 class="scene-name">${nomCourt}<br><em>— ${label}</em></h1>
+    <p class="scene-tagline">${label} · ${ville}, Québec</p>
+  </div>
+  ${tel ? `<span class="scene-tel">${tel}</span>` : ''}
+</section>`;
+
+  const stories = poetics.map((p, i) => `<section class="scene">
+  <img class="scene-bg" src="${photos[i + 1] || photos[0]}" alt="${nom}" loading="lazy">
+  <div class="scene-overlay"></div>
+  <div class="scene-body">
+    <span class="scene-addr">${addr}</span>
+    <h2 class="scene-line">${p.line}</h2>
+    <p class="scene-sub">${p.sub}</p>
+  </div>
+  ${tel ? `<span class="scene-tel">${tel}</span>` : ''}
+</section>`).join('');
+
+  return hero + stories;
+}
+
+const CINEMATIC_FEATURES = {
+  garage: [
+    ['Devis avant intervention', 'Estimé écrit et signé. Aucun travail commencé sans votre accord.'],
+    ['Pièces certifiées', 'OEM ou équivalent approuvé. Chaque réparation est garantie par écrit.'],
+    ['Techniciens qualifiés', 'Formation continue, outillage de pointe. Votre véhicule entre de bonnes mains.'],
+    ['Délais respectés', 'On confirme un horaire et on le tient. Votre temps a de la valeur.'],
+  ],
+  salon: [
+    ['Consultation gratuite', 'On prend le temps de comprendre vos attentes avant de commencer.'],
+    ['Produits professionnels', 'Gammes sélectionnées pour leur efficacité et leur respect de vos cheveux.'],
+    ['Atmosphère apaisante', 'Un espace conçu pour que vous vous sentiez bien dès l\'entrée.'],
+    ['Expertise certifiée', 'Des années de formation et de perfectionnement derrière chaque geste.'],
+  ],
+  health: [
+    ['Rendez-vous rapide', 'Disponibilités en 48h. Aucune attente inutile pour prendre soin de vous.'],
+    ['Dossier confidentiel', 'Votre santé reste privée. Données protégées, approche discrète.'],
+    ['Suivi personnalisé', 'Un médecin qui vous connaît et qui suit votre évolution dans le temps.'],
+    ['Environnement serein', 'Un cabinet conçu pour réduire l\'anxiété et favoriser la confiance.'],
+  ],
+  construction: [
+    ['Soumission détaillée', 'Chaque poste de coût est expliqué. Aucun frais surprise en cours de chantier.'],
+    ['Chantier propre', 'Protection des espaces, nettoyage quotidien. On travaille dans votre maison.'],
+    ['Licences & assurances', 'Licence RBQ à jour, assurance responsabilité civile. Tout est vérifiable.'],
+    ['Garantie travaux', 'Nos réalisations sont couvertes. Si quelque chose ne va pas, on revient.'],
+  ],
+  fitness: [
+    ['Équipement de qualité', 'Appareils professionnels entretenus régulièrement pour une performance optimale.'],
+    ['Entraîneurs certifiés', 'Des professionnels passionnés qui adaptent chaque programme à vos objectifs.'],
+    ['Horaires flexibles', 'Ouvert tôt le matin et tard le soir. Votre programme, à votre rythme.'],
+    ['Résultats mesurables', 'Suivi régulier et ajustement du plan d\'entraînement pour continuer à progresser.'],
+  ],
+};
+
+function buildCinematicFeatures(secteur) {
+  const feats = CINEMATIC_FEATURES[secteur] || CINEMATIC_FEATURES.garage;
+  return feats.map((f, i) => `<div class="feat-card fade fade-d${(i % 3) + 1}">
+    <span class="feat-num">0${i + 1}</span>
+    <h3 class="feat-title">${f[0]}</h3>
+    <p class="feat-text">${f[1]}</p>
+  </div>`).join('');
+}
+
+function buildCinematicServices(secteur) {
+  const services = SERVICES[secteur] || SERVICES.defaut;
+  return services.map((s, i) => `<div class="service-item fade">
+    <div class="service-num">0${i + 1}</div>
+    <h3 class="service-title">${s[0]}</h3>
+    <p class="service-text">${s[1]}</p>
+  </div>`).join('');
+}
+
+function buildCinematicPrix(secteur) {
+  const prix = PRIX[secteur] || PRIX.defaut;
+  return prix.map(p => `<div class="prix-item">
+    <div>
+      <div class="prix-nom">${p[0]}</div>
+      <div class="prix-desc">${p[1]}</div>
+    </div>
+    <span class="prix-val">${p[2]}</span>
+  </div>`).join('');
+}
+
+function buildCinematicHeures(secteur) {
+  const heures = HEURES[secteur] || HEURES.defaut;
+  return heures.map(h => `<div class="heure-r">
+    <span class="heure-j">${h[0]}</span>
+    <span class="heure-h">${h[1]}</span>
+  </div>`).join('');
+}
+
+function buildCinematicTemoignages(secteur, ville) {
+  const quotes = {
+    garage: [
+      'Devis clair, travail fait comme promis, voiture prête à l\'heure. C\'est tout ce que je demande.',
+      'J\'avais peur que ça coûte une fortune. Le prix était honnête et expliqué avant qu\'ils touchent à quoi que ce soit.',
+      'Problème diagnostiqué en 20 minutes. Réparé dans l\'après-midi. Garantie incluse.',
+    ],
+    salon: [
+      'Exactement ce que j\'avais demandé. Le résultat dépasse mes attentes et l\'ambiance est vraiment agréable.',
+      'J\'avais peur de changer de salon. Maintenant je n\'irais nulle part ailleurs.',
+      'Mon balayage a été complimenté partout. Je reviens dans 6 semaines sans hésitation.',
+    ],
+    health: [
+      'Premier médecin en 4 ans qui prend le temps d\'expliquer avant de prescrire.',
+      'Rendez-vous obtenu en moins de 48h. Suivi rigoureux et professionnel.',
+      'Enfin un médecin de famille qui répond quand on a des questions. C\'est rarissime.',
+    ],
+    construction: [
+      'Chantier dans les temps, budget respecté. C\'est rare et ça mérite d\'être souligné.',
+      'Ils ont travaillé dans notre maison comme si c\'était la leur. Propre et respectueux.',
+      'Devis détaillé, aucune surprise. Le résultat final est exactement ce qu\'on avait imaginé.',
+    ],
+    fitness: [
+      'En 3 mois avec un entraîneur, j\'ai atteint des objectifs que je courais après depuis 2 ans.',
+      'Les cours sont motivants et les équipements sont en parfait état.',
+      'Ambiance inclusive et sincèrement bienveillante. Je n\'aurais pas dû attendre autant.',
+    ],
+    defaut: [
+      'Professionnel, ponctuel et transparent. Exactement ce qu\'on cherche.',
+      'Prix annoncé = prix facturé. Travail fait dans les délais.',
+      'Je les recommande à tous mes collègues. Service comme on n\'en voit plus souvent.',
+    ],
+  };
+  const q = quotes[secteur] || quotes.defaut;
+  return PRENOMS.slice(0, 3).map((p, i) => `<div class="temo-item fade fade-d${i + 1}">
+    <div class="temo-stars">★★★★★</div>
+    <p class="temo-quote">${q[i]}</p>
+    <div class="temo-author">${p.nom} · ${ville}, QC</div>
+  </div>`).join('');
+}
 
 // ── Données restaurant ─────────────────────────────────────
 
@@ -623,10 +971,68 @@ async function generate(data) {
   }
 
   // Thème visuel par secteur
-  const themeMap = {
-    salon: 'light',
-    health: 'light',
-  };
+  const themeMap = { salon: 'light', health: 'light' };
+
+  // ── Template cinématique — garage, salon, health, construction, fitness ──
+  const cinematicSectors = ['garage', 'salon', 'health', 'construction', 'fitness'];
+  if (cinematicSectors.includes(secteur)) {
+    const nomCourtC = nomCourt || nom.split(' ').slice(0, 2).join(' ');
+    const ctaHrefC = telephone
+      ? `tel:+1${telephone.replace(/\D/g, '')}`
+      : `mailto:elliot@novalisia.ca?subject=Contact - ${encodeURIComponent(nom)}`;
+    const ctaLabelC = telephone ? 'Appeler maintenant' : 'Nous contacter';
+    const ctaNavLabelC = telephone ? 'Appeler' : 'Contact';
+
+    const cTemplatePath = path.join(__dirname, 'template', 'template-cinematic.html');
+    let cHtml = fs.readFileSync(cTemplatePath, 'utf8');
+
+    const descFn = CINEMATIC_DESCRIPTIONS[secteur];
+    const cDesc = description
+      ? description.split('.').slice(0, 2).join('.') + '.'
+      : (descFn ? descFn(nom, ville) : `${nom} — service professionnel à ${ville}.`);
+
+    const cReplacements = {
+      '{{THEME}}':             themeMap[secteur] || 'dark',
+      '{{NOM}}':               nom,
+      '{{NOM_COURT}}':         nomCourtC,
+      '{{VILLE}}':             ville,
+      '{{META_DESCRIPTION}}':  `${nom} — ${secteurRaw} à ${ville}, Québec. ${certifications[0] || 'Service professionnel'}. Contactez-nous.`,
+      '{{CTA_HREF}}':          ctaHrefC,
+      '{{CTA_LABEL}}':         ctaLabelC,
+      '{{CTA_NAV_LABEL}}':     ctaNavLabelC,
+      '{{ANNEE_FONDATION}}':   String(anneeFondation || new Date().getFullYear() - 10),
+      '{{ANNEE}}':             String(new Date().getFullYear()),
+      '{{SCENES_HTML}}':       buildCinematicScenes(secteur, { nom, nomCourt: nomCourtC, ville, adresse, telephone, sitePhotos: data.sitePhotos }),
+      '{{FEATURES_HEADING}}':  CINEMATIC_HEADINGS[secteur] || CINEMATIC_HEADINGS.garage,
+      '{{FEATURES_HTML}}':     buildCinematicFeatures(secteur),
+      '{{DESCRIPTION}}':       cDesc,
+      '{{SERVICES_HTML}}':     buildCinematicServices(secteur),
+      '{{PRIX_LIGNES}}':       buildCinematicPrix(secteur),
+      '{{PRIX_INTRO}}':        'Tous nos tarifs sont confirmés avant chaque intervention. Aucun frais caché, aucune mauvaise surprise.',
+      '{{TEMOIGNAGES}}':       buildCinematicTemoignages(secteur, ville),
+      '{{HEURES}}':            buildCinematicHeures(secteur),
+      '{{CONTACT_ROWS}}':      buildContactRows({ telephone, adresse, nom }),
+    };
+
+    for (const [key, value] of Object.entries(cReplacements)) {
+      cHtml = cHtml.split(key).join(value || '');
+    }
+
+    cHtml = applyBrandColor(cHtml, brandColor);
+
+    const remaining = cHtml.match(/\{\{[A-Z_]+\}\}/g);
+    if (remaining) console.warn('⚠️  Variables non remplacées (cinematic):', [...new Set(remaining)].join(', '));
+
+    const slug = slugify(nom);
+    const outputDir = path.join(__dirname, 'output');
+    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+    const outputPath = path.join(outputDir, `${slug}.html`);
+    fs.writeFileSync(outputPath, cHtml, 'utf8');
+    const colorUsed = brandColor ? ensureVibrancy(brandColor) : '#2563EB (défaut)';
+    console.log(`✅ Site généré : output/${slug}.html  •  secteur: ${secteur}  •  thème: ${themeMap[secteur] || 'dark'}  •  couleur: ${colorUsed}`);
+    return { slug, outputPath };
+  }
+
   const theme = themeMap[secteur] || 'dark';
 
   const photos = PHOTOS[secteur] || PHOTOS.defaut;
@@ -749,4 +1155,4 @@ async function generate(data) {
   return { slug, outputPath };
 }
 
-module.exports = { generate, extractBrandColor, applyBrandColor };
+module.exports = { generate, extractBrandColor, applyBrandColor, extractSitePhotos };
