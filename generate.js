@@ -482,8 +482,19 @@ async function generate(data) {
     plombier: 'plombier', plomberie: 'plombier',
     électricien: 'electricien', electricien: 'electricien', électricité: 'electricien',
     restaurant: 'restaurant', café: 'restaurant', cafe: 'restaurant', brasserie: 'restaurant',
+    salon: 'salon', coiffure: 'salon', coiffeur: 'salon', spa: 'salon', esthétique: 'salon', esthetique: 'salon', beauté: 'salon', beaute: 'salon',
+    santé: 'health', sante: 'health', health: 'health', clinique: 'health', médecin: 'health', medecin: 'health', dentiste: 'health', physiothérapie: 'health', physiotherapie: 'health',
+    construction: 'construction', entrepreneur: 'construction', rénovation: 'construction', renovation: 'construction', toiture: 'construction', charpentier: 'construction',
+    fitness: 'fitness', gym: 'fitness', entraînement: 'fitness', entrainement: 'fitness', sport: 'fitness',
   };
   const secteur = secteurMap[secteurRaw?.toLowerCase()] || 'defaut';
+
+  // Thème visuel par secteur
+  const themeMap = {
+    salon: 'light',
+    health: 'light',
+  };
+  const theme = themeMap[secteur] || 'dark';
 
   const photos = PHOTOS[secteur] || PHOTOS.defaut;
   const ctaHref = telephone
@@ -534,6 +545,7 @@ async function generate(data) {
   let html = fs.readFileSync(templatePath, 'utf8');
 
   const replacements = {
+    '{{THEME}}': theme,
     '{{NOM}}': nom,
     '{{NOM_COURT}}': nomCourt || nom.split(' ').slice(0, 2).join(' '),
     '{{VILLE}}': ville,
