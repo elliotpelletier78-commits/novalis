@@ -670,6 +670,14 @@ function buildCinematicScenes(secteur, { nom, nomCourt, ville, adresse, telephon
   const poetics = CINEMATIC_POETICS[secteur] || CINEMATIC_POETICS.garage;
   const label = CINEMATIC_SECTOR_LABELS[secteur] || 'Service professionnel';
 
+  const kineticInner = {
+    garage: '<div class="k-inner"></div>',
+    salon: '<div class="k-p"></div><div class="k-p"></div><div class="k-p"></div><div class="k-p"></div>',
+    health: `<svg class="k-ecg" viewBox="0 0 100 40"><path d="M0,20 L20,20 L28,6 L36,34 L44,20 L52,20 L60,10 L68,30 L76,20 L100,20"/></svg>`,
+    construction: '<div class="k-level"><div class="k-bubble"></div><div class="k-l1"></div><div class="k-l2"></div></div>',
+    fitness: '<div class="k-ring"></div><div class="k-ring"></div><div class="k-ring"></div>',
+  };
+
   const hero = `<section class="scene">
   <img class="scene-bg" src="${photos[0]}" alt="${nom}" loading="eager">
   <div class="scene-overlay"></div>
@@ -678,6 +686,8 @@ function buildCinematicScenes(secteur, { nom, nomCourt, ville, adresse, telephon
     <h1 class="scene-name">${nomCourt}<br><em>— ${label}</em></h1>
     <p class="scene-tagline">${label} · ${ville}, Québec</p>
   </div>
+  <div class="kinetic">${kineticInner[secteur] || ''}</div>
+  <div class="scroll-hint"><span>Défiler</span><div class="scroll-hint-line"></div></div>
   ${tel ? `<span class="scene-tel">${tel}</span>` : ''}
 </section>`;
 
@@ -993,6 +1003,7 @@ async function generate(data) {
 
     const cReplacements = {
       '{{THEME}}':             themeMap[secteur] || 'dark',
+      '{{SECTEUR}}':           secteur,
       '{{NOM}}':               nom,
       '{{NOM_COURT}}':         nomCourtC,
       '{{VILLE}}':             ville,
