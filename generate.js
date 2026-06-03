@@ -458,6 +458,89 @@ function buildGalerie(photos) {
 // FONCTION PRINCIPALE
 // ============================================================
 
+// ── Données restaurant ─────────────────────────────────────
+
+const RESTAURANT_SCENE_PHOTOS = [
+  'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1600&q=85',
+  'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1600&q=85',
+  'https://images.unsplash.com/photo-1544025162-d76694265947?w=1600&q=85',
+  'https://images.unsplash.com/photo-1424847651672-bf20a4b0982b?w=1600&q=85',
+];
+
+const RESTAURANT_POETICS = [
+  { line: 'On pousse la porte,<br>la ville s\'éteint.', sub: 'Un lieu pensé comme une parenthèse, entre feu, matière et lumière.' },
+  { line: 'La braise donne<br>le tempo du repas.', sub: 'Chaque assiette est une décision. Chaque détail, une intention.' },
+  { line: 'Le dernier verre<br>se choisit lentement.', sub: 'Parce que les bonnes soirées méritent d\'être prolongées.' },
+];
+
+function buildRestaurantScenes({ nom, nomCourt, ville, adresse, telephone }) {
+  const addr = adresse || `${ville}, Québec`;
+  const tel = telephone || '';
+
+  const hero = `<section class="scene">
+  <img class="scene-bg" src="${RESTAURANT_SCENE_PHOTOS[0]}" alt="${nom}" loading="eager">
+  <div class="scene-overlay"></div>
+  <div class="scene-body">
+    <span class="scene-addr">${addr}</span>
+    <h1 class="scene-name">${nomCourt}<br><em>— Cuisine &amp; saveurs</em></h1>
+    <p class="scene-tagline">Restaurant gastronomique · ${ville}, Québec</p>
+  </div>
+  ${tel ? `<span class="scene-tel">${tel}</span>` : ''}
+</section>`;
+
+  const stories = RESTAURANT_POETICS.map((p, i) => `<section class="scene">
+  <img class="scene-bg" src="${RESTAURANT_SCENE_PHOTOS[i + 1] || RESTAURANT_SCENE_PHOTOS[0]}" alt="${nom}" loading="lazy">
+  <div class="scene-overlay"></div>
+  <div class="scene-body">
+    <span class="scene-addr">${addr}</span>
+    <h2 class="scene-line">${p.line}</h2>
+    <p class="scene-sub">${p.sub}</p>
+  </div>
+  ${tel ? `<span class="scene-tel">${tel}</span>` : ''}
+</section>`).join('');
+
+  return hero + stories;
+}
+
+function buildRestaurantFeatures() {
+  const feats = [
+    ['Cuisine de saison', 'Produits frais du Québec, menu renouvelé selon les arrivages et les saisons.'],
+    ['Service attentionné', 'Présent sans être intrusif — vous êtes entre de bonnes mains.'],
+    ['Cadre soigné', 'Un espace pensé pour que vous oubliiez le temps.'],
+    ['Produits locaux', 'Des artisans et producteurs d\'ici, sélectionnés avec soin.'],
+  ];
+  return feats.map((f, i) => `<div class="feat-card fade fade-d${(i % 3) + 1}">
+    <span class="feat-num">0${i + 1}</span>
+    <h3 class="feat-title">${f[0]}</h3>
+    <p class="feat-text">${f[1]}</p>
+  </div>`).join('');
+}
+
+function buildRestaurantPrix(prix) {
+  return prix.map(p => `<div class="prix-item">
+    <div>
+      <div class="prix-nom">${p[0]}</div>
+      <div class="prix-desc">${p[1]}</div>
+    </div>
+    <span class="prix-val">${p[2]}</span>
+  </div>`).join('');
+}
+
+function buildRestaurantHeures(heures) {
+  return heures.map(h => `<div class="heure-r">
+    <span class="heure-j">${h[0]}</span>
+    <span class="heure-h">${h[1]}</span>
+  </div>`).join('');
+}
+
+function buildContactRows({ telephone, adresse, nom }) {
+  const rows = [];
+  if (adresse) rows.push(`<div class="contact-row"><span class="c-icon">→</span><span>${adresse}</span></div>`);
+  if (telephone) rows.push(`<div class="contact-row"><span class="c-icon">T.</span><a href="tel:+1${telephone.replace(/\D/g, '')}">${telephone}</a></div>`);
+  rows.push(`<div class="contact-row"><span class="c-icon">@</span><a href="mailto:elliot@novalisia.ca?subject=Réservation - ${encodeURIComponent(nom)}">Nous écrire</a></div>`);
+  return rows.join('\n');
+}
+
 async function generate(data) {
   const {
     nom,
@@ -488,6 +571,56 @@ async function generate(data) {
     fitness: 'fitness', gym: 'fitness', entraînement: 'fitness', entrainement: 'fitness', sport: 'fitness',
   };
   const secteur = secteurMap[secteurRaw?.toLowerCase()] || 'defaut';
+
+  // ── Template dédié restaurant ─────────────────────────────
+  if (secteur === 'restaurant') {
+    const nomCourtR = nomCourt || nom.split(' ').slice(0, 2).join(' ');
+    const ctaHrefR = telephone
+      ? `tel:+1${telephone.replace(/\D/g, '')}`
+      : `mailto:elliot@novalisia.ca?subject=Réservation - ${encodeURIComponent(nom)}`;
+    const ctaLabelR = telephone ? 'Réserver par téléphone' : 'Réserver une table';
+
+    const rTemplatePath = path.join(__dirname, 'template', 'template-restaurant.html');
+    let rHtml = fs.readFileSync(rTemplatePath, 'utf8');
+
+    const rReplacements = {
+      '{{NOM}}':              nom,
+      '{{NOM_COURT}}':        nomCourtR,
+      '{{VILLE}}':            ville,
+      '{{META_DESCRIPTION}}': `${nom} — Restaurant à ${ville}, Québec. ${description?.split('.')[0] || 'Cuisine fraîche et service attentionné'}. Réservations disponibles.`,
+      '{{CTA_HREF}}':         ctaHrefR,
+      '{{CTA_LABEL}}':        ctaLabelR,
+      '{{ANNEE_FONDATION}}':  String(anneeFondation || new Date().getFullYear() - 12),
+      '{{ANNEE}}':            String(new Date().getFullYear()),
+      '{{SCENES_HTML}}':      buildRestaurantScenes({ nom, nomCourt: nomCourtR, ville, adresse, telephone }),
+      '{{FEATURES_HEADING}}': 'Une adresse qui <em>ralentit le temps.</em>',
+      '{{FEATURES_HTML}}':    buildRestaurantFeatures(),
+      '{{DESCRIPTION}}':      description
+        ? description.split('.').slice(0, 2).join('.') + '.'
+        : `${nom} est un restaurant établi au cœur de ${ville}. Une cuisine sincère, des produits choisis, une expérience mémorable.`,
+      '{{PRIX_LIGNES}}':      buildRestaurantPrix(PRIX.restaurant),
+      '{{HEURES}}':           buildRestaurantHeures(HEURES.restaurant || HEURES.defaut),
+      '{{CONTACT_ROWS}}':     buildContactRows({ telephone, adresse, nom }),
+    };
+
+    for (const [key, value] of Object.entries(rReplacements)) {
+      rHtml = rHtml.split(key).join(value || '');
+    }
+
+    rHtml = applyBrandColor(rHtml, brandColor);
+
+    const remaining = rHtml.match(/\{\{[A-Z_]+\}\}/g);
+    if (remaining) console.warn('⚠️  Variables non remplacées (restaurant):', [...new Set(remaining)].join(', '));
+
+    const slug = slugify(nom);
+    const outputDir = path.join(__dirname, 'output');
+    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+    const outputPath = path.join(outputDir, `${slug}.html`);
+    fs.writeFileSync(outputPath, rHtml, 'utf8');
+    const colorUsed = brandColor ? ensureVibrancy(brandColor) : '#2563EB (défaut)';
+    console.log(`✅ Site généré : output/${slug}.html  •  secteur: restaurant  •  couleur: ${colorUsed}`);
+    return { slug, outputPath };
+  }
 
   // Thème visuel par secteur
   const themeMap = {
