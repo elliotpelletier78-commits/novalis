@@ -84,8 +84,37 @@ app.post('/generate', async (req, res) => {
   }
 
   try {
-    const { generate } = require('./generate');
-    const result = await generate(req.body);
+    const { generate, extractSitePhotos } = require('./generate');
+    const data = { ...req.body };
+
+    // Scraper le site existant pour extraire les vraies photos
+    if (data.siteExistant && !data.sitePhotos) {
+      try {
+        const https = require('https');
+        const http  = require('http');
+        const siteHtml = await new Promise((resolve, reject) => {
+          const mod = data.siteExistant.startsWith('https') ? https : http;
+          const req2 = mod.get(data.siteExistant, { timeout: 8000,
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NovalisBot/1.0)' }
+          }, (r) => {
+            let body = '';
+            r.on('data', c => body += c);
+            r.on('end', () => resolve(body));
+          });
+          req2.on('error', reject);
+          req2.on('timeout', () => { req2.destroy(); reject(new Error('timeout')); });
+        });
+        const photos = extractSitePhotos(siteHtml);
+        if (photos.length > 0) {
+          data.sitePhotos = photos;
+          console.log(`[scrape] ${photos.length} photos extraites de ${data.siteExistant}`);
+        }
+      } catch (scrapeErr) {
+        console.warn(`[scrape] impossible d'accéder à ${data.siteExistant}: ${scrapeErr.message}`);
+      }
+    }
+
+    const result = await generate(data);
     const base = `${req.protocol}://${req.get('host')}`;
     const demoUrl = `${base}/demo/${result.slug}.html`;
     console.log(`[generate] ${result.slug} → ${demoUrl}`);
