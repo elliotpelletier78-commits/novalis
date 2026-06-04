@@ -574,64 +574,66 @@ function buildGalerie(photos) {
 
 // ── Données cinématiques par secteur ───────────────────────
 
+// Photos progression: extérieur → approche → intérieur → action/détail
 const CINEMATIC_SCENE_PHOTOS = {
   garage: [
-    'https://images.unsplash.com/photo-1625047509248-ec889cbff17f?w=1600&q=85',
-    'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=1600&q=85',
-    'https://images.unsplash.com/photo-1534093607318-aaff814b9e85?w=1600&q=85',
-    'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1600&q=85',
+    'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=85',   // extérieur garage
+    'https://images.unsplash.com/photo-1625047509248-ec889cbff17f?w=1600&q=85', // intérieur garage, voitures
+    'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=1600&q=85', // mécanicien au travail
+    'https://images.unsplash.com/photo-1534093607318-aaff814b9e85?w=1600&q=85', // moteur / détail
   ],
   salon: [
-    'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1600&q=85',
-    'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=1600&q=85',
-    'https://images.unsplash.com/photo-1580618672591-eb180b1a973f?w=1600&q=85',
-    'https://images.unsplash.com/photo-1562322140-8baeececf3df?w=1600&q=85',
+    'https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?w=1600&q=85', // extérieur salon / vitrine
+    'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1600&q=85',    // intérieur salon
+    'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=1600&q=85', // coiffeuse au travail
+    'https://images.unsplash.com/photo-1562322140-8baeececf3df?w=1600&q=85',    // détail coupe / résultat
   ],
   health: [
-    'https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?w=1600&q=85',
-    'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=1600&q=85',
-    'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1600&q=85',
-    'https://images.unsplash.com/photo-1504813184591-01572f98c85f?w=1600&q=85',
+    'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1600&q=85', // extérieur clinique
+    'https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?w=1600&q=85', // réception / couloir
+    'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=1600&q=85', // salle de consultation
+    'https://images.unsplash.com/photo-1584982751601-97dea52dbe35?w=1600&q=85', // médecin avec patient
   ],
   construction: [
-    'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1600&q=85',
-    'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=1600&q=85',
-    'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=1600&q=85',
-    'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=1600&q=85',
+    'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=1600&q=85',    // maison / projet fini
+    'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1600&q=85', // chantier actif
+    'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=1600&q=85', // équipe sur le terrain
+    'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=1600&q=85', // finitions / détail
   ],
   fitness: [
-    'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1600&q=85',
-    'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1600&q=85',
-    'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1600&q=85',
-    'https://images.unsplash.com/photo-1581009137042-c552e485697a?w=1600&q=85',
+    'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1600&q=85', // façade / entrée gym
+    'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1600&q=85', // plancher du gym
+    'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1600&q=85', // entraînement
+    'https://images.unsplash.com/photo-1581009137042-c552e485697a?w=1600&q=85', // effort / détermination
   ],
 };
 
+// Moments poétiques pour chaque plan de la progression (approche → intérieur → action)
 const CINEMATIC_POETICS = {
   garage: [
-    { line: 'On soulève le capot,<br>la vérité apparaît.', sub: 'Aucun diagnostic caché. Aucune surprise à la caisse. Juste le travail bien fait.' },
-    { line: 'Les mains parlent,<br>les chiffres confirment.', sub: 'Chaque pièce a son rôle. Chaque intervention, sa raison.' },
-    { line: 'Votre véhicule<br>repart comme prévu.', sub: 'Parce qu\'un devis honnête vaut mieux qu\'une bonne surprise.' },
+    { line: 'On lève le rideau.', sub: 'Ici, on ne touche à rien sans vous avoir tout expliqué d\'abord.' },
+    { line: 'Les mains parlent,<br>les chiffres confirment.', sub: 'Chaque pièce a son rôle. Chaque geste, sa raison.' },
+    { line: 'Votre véhicule<br>repart comme prévu.', sub: 'Devis honnête, travail garanti. Aucune mauvaise surprise.' },
   ],
   salon: [
-    { line: 'Vous entrez,<br>vous ressortez différemment.', sub: 'Un espace pensé pour ralentir, se recentrer et ressortir soi-même — en mieux.' },
-    { line: 'Le geste précis,<br>le résultat juste.', sub: 'Des années de métier dans chaque coupe. Une attention sincère pour chaque client.' },
-    { line: 'Ce que vous voulez<br>et ce dont vous avez besoin.', sub: 'L\'équipe qui écoute autant qu\'elle conseille.' },
+    { line: 'On entre.', sub: 'Derrière cette porte — votre heure. Rien d\'autre ne compte.' },
+    { line: 'L\'espace respire.', sub: 'Pensé pour que vous vous sentiez bien dès le premier regard.' },
+    { line: 'Le geste précis,<br>le résultat juste.', sub: 'Des années de métier dans chaque coupe. Une attention sincère.' },
   ],
   health: [
-    { line: 'Le corps<br>mérite d\'être compris.', sub: 'Un diagnostic clair, une approche respectueuse, un suivi sans ambiguïté.' },
-    { line: 'Avant de traiter,<br>on prend le temps d\'écouter.', sub: 'Parce que chaque patient est différent. Chaque cas mérite une attention singulière.' },
-    { line: 'Votre santé<br>n\'est pas une statistique.', sub: 'C\'est une priorité humaine, accompagnée avec rigueur et bienveillance.' },
+    { line: 'On vous reçoit.', sub: 'Sans précipitation. Parce que votre temps — et votre santé — ont de la valeur.' },
+    { line: 'Avant de traiter,<br>on écoute.', sub: 'Un diagnostic clair. Une approche honnête. Un suivi sans ambiguïté.' },
+    { line: 'Votre santé<br>mérite une vraie attention.', sub: 'Pas un numéro. Un accompagnement humain et rigoureux.' },
   ],
   construction: [
-    { line: 'On bâtit pour<br>les prochaines décennies.', sub: 'Des matériaux choisis, un savoir-faire transmis, une garantie derrière chaque mur.' },
-    { line: 'Le chantier propre<br>est une marque de respect.', sub: 'On travaille chez vous. On ne l\'oublie jamais.' },
-    { line: 'Ce qui est promis<br>se retrouve dans les plans.', sub: 'Devis détaillé, délais tenus, finitions soignées.' },
+    { line: 'Le chantier commence.', sub: 'Planifié à la journée. Chaque étape communiquée à l\'avance.' },
+    { line: 'Les bonnes mains,<br>les bons matériaux.', sub: 'On bâtit avec le même soin que si c\'était chez nous.' },
+    { line: 'Ce qui est promis<br>se retrouve dans les plans.', sub: 'Délais tenus, finitions soignées, garantie écrite.' },
   ],
   fitness: [
-    { line: 'Chaque séance<br>a un objectif.', sub: 'Un espace équipé pour performer, progresser et rester motivé.' },
-    { line: 'Le premier effort<br>est toujours le plus difficile.', sub: 'On est là pour accompagner les cent qui suivent.' },
-    { line: 'Le corps s\'adapte<br>quand on lui donne les bons outils.', sub: 'Entraînement structuré, suivi personnalisé, résultats mesurables.' },
+    { line: 'On entre.', sub: 'L\'air change. Le rythme aussi. C\'est fait pour ça.' },
+    { line: 'L\'espace pour<br>aller plus loin.', sub: 'Équipé pour performer. Pensé pour progresser.' },
+    { line: 'Chaque séance<br>a un objectif.', sub: 'Entraînement structuré, suivi personnalisé, résultats mesurables.' },
   ],
 };
 
@@ -659,50 +661,51 @@ const CINEMATIC_DESCRIPTIONS = {
   fitness: (nom, ville) => `${nom} est un centre d'entraînement à ${ville}. Équipements professionnels, entraîneurs certifiés et un environnement conçu pour performer et progresser.`,
 };
 
-function buildCinematicScenes(secteur, { nom, nomCourt, ville, adresse, telephone, sitePhotos }) {
+function buildJourneySlides(secteur, { nom, nomCourt, ville, adresse, telephone, sitePhotos }) {
   const addr = adresse || `${ville}, Québec`;
-  const tel = telephone || '';
+  const tel  = telephone || '';
   const defaultPhotos = CINEMATIC_SCENE_PHOTOS[secteur] || CINEMATIC_SCENE_PHOTOS.garage;
-  // Prefer client's own site photos when available
+  // Si le client a ses propres photos, les utiliser en priorité pour les 2 premiers plans
   const photos = (sitePhotos && sitePhotos.length >= 2)
-    ? [...sitePhotos.slice(0, 2), ...defaultPhotos.slice(0, 2)]
+    ? [...sitePhotos.slice(0, 2), ...defaultPhotos.slice(2, 4)]
     : defaultPhotos;
+
   const poetics = CINEMATIC_POETICS[secteur] || CINEMATIC_POETICS.garage;
-  const label = CINEMATIC_SECTOR_LABELS[secteur] || 'Service professionnel';
+  const label   = CINEMATIC_SECTOR_LABELS[secteur] || 'Service professionnel';
+  const N       = 1 + poetics.length;
 
-  const kineticInner = {
-    garage: '<div class="k-inner"></div>',
-    salon: '<div class="k-p"></div><div class="k-p"></div><div class="k-p"></div><div class="k-p"></div>',
-    health: `<svg class="k-ecg" viewBox="0 0 100 40"><path d="M0,20 L20,20 L28,6 L36,34 L44,20 L52,20 L60,10 L68,30 L76,20 L100,20"/></svg>`,
-    construction: '<div class="k-level"><div class="k-bubble"></div><div class="k-l1"></div><div class="k-l2"></div></div>',
-    fitness: '<div class="k-ring"></div><div class="k-ring"></div><div class="k-ring"></div>',
-  };
-
-  const hero = `<section class="scene">
-  <img class="scene-bg" src="${photos[0]}" alt="${nom}" loading="eager">
-  <div class="scene-overlay"></div>
-  <div class="scene-body">
-    <span class="scene-addr">${addr}</span>
-    <h1 class="scene-name">${nomCourt}<br><em>— ${label}</em></h1>
-    <p class="scene-tagline">${label} · ${ville}, Québec</p>
+  const heroSlide = `<div class="jslide" data-n="0">
+  <img class="jslide-bg" src="${photos[0]}" loading="eager" alt="${nom}">
+  <div class="jslide-over"></div>
+  <div class="jslide-body">
+    <span class="jslide-eyebrow">${addr}</span>
+    <h1 class="jslide-head">${nomCourt}<br><em>— ${label}</em></h1>
+    <p class="jslide-sub">${label} · ${ville}, Québec</p>
   </div>
-  <div class="kinetic">${kineticInner[secteur] || ''}</div>
-  <div class="scroll-hint"><span>Défiler</span><div class="scroll-hint-line"></div></div>
-  ${tel ? `<span class="scene-tel">${tel}</span>` : ''}
+  ${tel ? `<span class="jslide-tel">${tel}</span>` : ''}
+</div>`;
+
+  const momentSlides = poetics.map((p, i) => `<div class="jslide" data-n="${i + 1}">
+  <img class="jslide-bg" src="${photos[i + 1] || photos[0]}" loading="lazy" alt="${nom}">
+  <div class="jslide-over"></div>
+  <div class="jslide-body">
+    <span class="jslide-eyebrow">${addr}</span>
+    <h2 class="jslide-head">${p.line}</h2>
+    <p class="jslide-sub">${p.sub}</p>
+  </div>
+  ${tel ? `<span class="jslide-tel">${tel}</span>` : ''}
+</div>`).join('\n');
+
+  return `<section class="journey" id="j">
+  <div class="j-stick">
+    <div class="j-reveal"></div>
+    ${heroSlide}
+    ${momentSlides}
+    <div class="j-dots" id="jdots"></div>
+    <div class="j-num"><span id="jcur">01</span><span class="j-sep"> / </span><span id="jtot">${String(N).padStart(2,'0')}</span></div>
+    <div class="j-hint"><span class="j-hint-label">Défiler</span><div class="j-hint-line"></div></div>
+  </div>
 </section>`;
-
-  const stories = poetics.map((p, i) => `<section class="scene">
-  <img class="scene-bg" src="${photos[i + 1] || photos[0]}" alt="${nom}" loading="lazy">
-  <div class="scene-overlay"></div>
-  <div class="scene-body">
-    <span class="scene-addr">${addr}</span>
-    <h2 class="scene-line">${p.line}</h2>
-    <p class="scene-sub">${p.sub}</p>
-  </div>
-  ${tel ? `<span class="scene-tel">${tel}</span>` : ''}
-</section>`).join('');
-
-  return hero + stories;
 }
 
 const CINEMATIC_FEATURES = {
@@ -1013,7 +1016,7 @@ async function generate(data) {
       '{{CTA_NAV_LABEL}}':     ctaNavLabelC,
       '{{ANNEE_FONDATION}}':   String(anneeFondation || new Date().getFullYear() - 10),
       '{{ANNEE}}':             String(new Date().getFullYear()),
-      '{{SCENES_HTML}}':       buildCinematicScenes(secteur, { nom, nomCourt: nomCourtC, ville, adresse, telephone, sitePhotos: data.sitePhotos }),
+      '{{SCENES_HTML}}':       buildJourneySlides(secteur, { nom, nomCourt: nomCourtC, ville, adresse, telephone, sitePhotos: data.sitePhotos }),
       '{{FEATURES_HEADING}}':  CINEMATIC_HEADINGS[secteur] || CINEMATIC_HEADINGS.garage,
       '{{FEATURES_HTML}}':     buildCinematicFeatures(secteur),
       '{{DESCRIPTION}}':       cDesc,
