@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GURU — Organic Energy Drink</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:auto}
+body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;overflow-x:hidden}
+
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:22px 48px;background:transparent}
+.nav-links{display:flex;gap:32px;list-style:none}
+.nav-links a{color:#fff;text-decoration:none;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;opacity:.55;transition:opacity .2s}
+.nav-links a:hover{opacity:1}
+.nav-logo{font-size:26px;font-weight:900;letter-spacing:6px;text-transform:uppercase;color:#fff}
+.nav-actions{display:flex;align-items:center;gap:20px}
+.nav-actions svg{width:18px;height:18px;fill:none;stroke:rgba(255,255,255,.55);stroke-width:1.5;cursor:pointer;transition:stroke .2s}
+.nav-actions svg:hover{stroke:#fff}
+.btn-buy{padding:8px 20px;border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:background .2s,color .2s}
+.btn-buy:hover{background:#fff;color:#000}
+
+.scroll-container{height:900vh;position:relative}
+.sticky-wrapper{position:sticky;top:0;height:100vh;overflow:hidden}
+
+#threeCanvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%;z-index:0}
+
+.hero-bg-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:1;pointer-events:none;white-space:nowrap}
+.hero-bg-text span{display:block;font-size:clamp(60px,12vw,160px);font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.07);line-height:1}
+
+.hero-text{position:absolute;bottom:15%;left:50%;transform:translateX(-50%);text-align:center;z-index:2;pointer-events:none}
+.hero-text h1{font-size:clamp(13px,1.8vw,17px);font-weight:300;letter-spacing:8px;text-transform:uppercase;opacity:.7;margin-bottom:8px}
+.hero-text p{font-size:10px;letter-spacing:3px;text-transform:uppercase;opacity:.4}
+
+.scroll-indicator{position:absolute;bottom:6%;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:10px;z-index:2;pointer-events:none}
+.scroll-indicator span{font-size:9px;letter-spacing:3px;text-transform:uppercase;opacity:.4}
+.scroll-line{width:1px;height:40px;background:rgba(255,255,255,.2);position:relative;overflow:hidden}
+.scroll-line::after{content:'';position:absolute;top:-100%;left:0;width:100%;height:100%;background:#fff;animation:scrollPulse 1.6s ease-in-out infinite}
+@keyframes scrollPulse{0%{top:-100%}100%{top:100%}}
+
+.st{position:absolute;z-index:2;pointer-events:none;top:50%;transform:translateY(-50%);max-width:340px;opacity:0}
+.st.l{left:7%}
+.st.r{right:7%;text-align:right}
+.st h2{font-size:clamp(34px,4.5vw,68px);font-weight:900;text-transform:uppercase;line-height:1.02;letter-spacing:-.02em;margin-bottom:16px}
+.st p{font-size:13px;opacity:.5;line-height:1.75;font-weight:300}
+.st.neon h2{color:#39ff14;text-shadow:0 0 30px rgba(57,255,20,.4)}
+
+.neon-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:380px;height:380px;border-radius:50%;background:transparent;box-shadow:0 0 80px 40px rgba(57,255,20,.15),0 0 200px 100px rgba(57,255,20,.07);opacity:0;z-index:1;pointer-events:none}
+
+.progress-bar{position:fixed;bottom:0;left:0;width:0%;height:2px;background:#39ff14;z-index:200}
+</style>
+</head>
+<body>
+
+<nav>
+  <ul class="nav-links">
+    <li><a href="#">Home</a></li>
+    <li><a href="#">About</a></li>
+    <li><a href="#">Shop</a></li>
+  </ul>
+  <div class="nav-logo">GURU</div>
+  <div class="nav-actions">
+    <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <button class="btn-buy">Buy Now</button>
+  </div>
+</nav>
+
+<div class="progress-bar" id="progressBar"></div>
+
+<div class="scroll-container">
+  <div class="sticky-wrapper" id="stickyWrapper">
+
+    <canvas id="threeCanvas"></canvas>
+    <div class="neon-glow" id="neonGlow"></div>
+
+    <div class="hero-bg-text" id="heroBgText">
+      <span>The Future</span>
+      <span>Of Energy</span>
+    </div>
+
+    <div class="hero-text" id="heroText">
+      <h1>Organic Energy Drink</h1>
+      <p>Pure &nbsp;·&nbsp; Natural &nbsp;·&nbsp; Powerful</p>
+    </div>
+
+    <div class="scroll-indicator" id="scrollIndicator">
+      <span>Scroll</span>
+      <div class="scroll-line"></div>
+    </div>
+
+    <div class="st l" id="s1">
+      <h2>Organic<br>Energy<br>Drink</h2>
+      <p>Certified organic ingredients.<br>Zero compromise on quality or taste.</p>
+    </div>
+    <div class="st l" id="s2">
+      <h2>Natural<br>Ingredients</h2>
+      <p>Green tea, ginseng, and echinacea —<br>nature's finest energy sources working in perfect harmony.</p>
+    </div>
+    <div class="st l" id="s3">
+      <h2>Premium<br>Aluminum</h2>
+      <p>Recyclable. Lightweight.<br>Built for the planet.</p>
+    </div>
+    <div class="st r" id="s3r">
+      <h2>250<br>ml</h2>
+      <p>The perfect dose.<br>The perfect can.</p>
+    </div>
+    <div class="st l" id="s4">
+      <h2>Zero<br>Artificial<br>Sugar</h2>
+      <p>No aspartame. No sucralose.<br>Real sweetness from real sources.</p>
+    </div>
+    <div class="st r" id="s5">
+      <h2>Natural<br>Caffeine</h2>
+      <p>Derived from organic green tea —<br>smooth, sustained energy without the crash.</p>
+    </div>
+    <div class="st l neon" id="s6">
+      <h2>100%<br>Energy<br>Capacity</h2>
+      <p>Every ingredient optimized<br>for peak human performance.</p>
+    </div>
+    <div class="st l" id="s7">
+      <h2>Say Goodbye<br>To Artificial<br>Energy</h2>
+      <p>The future is organic.</p>
+    </div>
+    <div class="st r" id="s7r">
+      <h2>&nbsp;</h2>
+      <p>GURU is certified organic, non-GMO verified, and crafted with only the finest natural ingredients. Real energy for people who care about what they put in their body — and what they leave behind.</p>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  function init() {
+    if (typeof THREE === 'undefined') { console.error('THREE not loaded'); return; }
+    if (typeof gsap === 'undefined')  { console.error('GSAP not loaded');  return; }
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    // ── Renderer ────────────────────────────────────────
+    var canvas   = document.getElementById('threeCanvas');
+    var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping        = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    renderer.setClearColor(0x000000, 1);
+
+    var scene  = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 0, 5.5);
+
+    // ── Lights ───────────────────────────────────────────
+    scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+
+    var keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
+    keyLight.position.set(4, 4, 6);
+    scene.add(keyLight);
+
+    var rimLight = new THREE.DirectionalLight(0xd0e8ff, 1.2);
+    rimLight.position.set(-5, 3, -4);
+    scene.add(rimLight);
+
+    var fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    fillLight.position.set(0, -3, 4);
+    scene.add(fillLight);
+
+    var neonLight = new THREE.PointLight(0x39ff14, 0, 12);
+    neonLight.position.set(0, 0, 3);
+    scene.add(neonLight);
+
+    // ── Label texture ────────────────────────────────────
+    function createLabelTexture() {
+      var c   = document.createElement('canvas');
+      c.width = 1024; c.height = 1024;
+      var ctx = c.getContext('2d');
+
+      var bg = ctx.createLinearGradient(0, 0, 1024, 0);
+      bg.addColorStop(0,   '#071a0b');
+      bg.addColorStop(0.5, '#145522');
+      bg.addColorStop(1,   '#071a0b');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, 1024, 1024);
+
+      var tg = ctx.createLinearGradient(0, 0, 0, 90);
+      tg.addColorStop(0,    '#e0e0e0');
+      tg.addColorStop(0.45, '#f8f8f8');
+      tg.addColorStop(1,    '#909090');
+      ctx.fillStyle = tg;
+      ctx.fillRect(0, 0, 1024, 90);
+
+      var bg2 = ctx.createLinearGradient(0, 934, 0, 1024);
+      bg2.addColorStop(0,    '#909090');
+      bg2.addColorStop(0.55, '#f8f8f8');
+      bg2.addColorStop(1,    '#e0e0e0');
+      ctx.fillStyle = bg2;
+      ctx.fillRect(0, 934, 1024, 90);
+
+      var shine = ctx.createLinearGradient(0, 300, 0, 560);
+      shine.addColorStop(0,   'rgba(57,255,20,0)');
+      shine.addColorStop(0.5, 'rgba(57,255,20,0.04)');
+      shine.addColorStop(1,   'rgba(57,255,20,0)');
+      ctx.fillStyle = shine;
+      ctx.fillRect(0, 300, 1024, 260);
+
+      ctx.save();
+      ctx.font          = 'bold 230px Arial Black,Arial';
+      ctx.textAlign     = 'center';
+      ctx.textBaseline  = 'middle';
+      ctx.shadowColor   = 'rgba(57,255,20,0.6)';
+      ctx.shadowBlur    = 50;
+      ctx.fillStyle     = '#ffffff';
+      ctx.fillText('GURU', 512, 430);
+      ctx.restore();
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.lineWidth   = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(100, 558); ctx.lineTo(924, 558);
+      ctx.stroke();
+
+      ctx.font         = '600 46px Helvetica Neue,Arial';
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle    = '#fff';
+      ctx.globalAlpha  = 0.88;
+      ctx.fillText('ORGANIC ENERGY', 512, 624);
+      ctx.globalAlpha  = 1;
+
+      ctx.font      = '26px Arial';
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.fillText('CERTIFIED ORGANIC  ·  250 ML', 512, 706);
+
+      ctx.font      = '22px Arial';
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.fillText('GREEN TEA  ·  GINSENG  ·  ECHINACEA', 512, 876);
+
+      return new THREE.CanvasTexture(c);
+    }
+
+    // ── Cap texture ──────────────────────────────────────
+    function createCapTexture() {
+      var c   = document.createElement('canvas');
+      c.width = 256; c.height = 256;
+      var ctx = c.getContext('2d');
+
+      var g = ctx.createRadialGradient(110, 90, 0, 128, 128, 128);
+      g.addColorStop(0,    '#f0f0f0');
+      g.addColorStop(0.35, '#c8c8c8');
+      g.addColorStop(0.7,  '#a0a0a0');
+      g.addColorStop(1,    '#686868');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 256, 256);
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+      ctx.lineWidth   = 1;
+      for (var r = 18; r < 118; r += 13) {
+        ctx.beginPath();
+        ctx.arc(128, 128, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      ctx.save();
+      ctx.strokeStyle = '#39ff14';
+      ctx.lineWidth   = 3.5;
+      ctx.shadowColor = '#39ff14';
+      ctx.shadowBlur  = 12;
+      ctx.beginPath();
+      ctx.arc(128, 128, 44, -Math.PI * 0.72, Math.PI * 0.72);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(128, 84); ctx.lineTo(128, 107);
+      ctx.stroke();
+      ctx.restore();
+
+      return new THREE.CanvasTexture(c);
+    }
+
+    // ── Materials ────────────────────────────────────────
+    var matLabel  = new THREE.MeshStandardMaterial({ map: createLabelTexture(), metalness: 0.75, roughness: 0.2  });
+    var matSilver = new THREE.MeshStandardMaterial({ color: 0xbcbcbc, metalness: 0.88, roughness: 0.14 });
+    var matDark   = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.3,  roughness: 0.9  });
+    var matCap    = new THREE.MeshStandardMaterial({ map: createCapTexture(), metalness: 0.82, roughness: 0.14 });
+
+    // ── Can assembly ─────────────────────────────────────
+    var can = new THREE.Group();
+    scene.add(can);
+
+    var body = new THREE.Mesh(new THREE.CylinderGeometry(0.82, 0.82, 2.6, 80), matLabel);
+    can.add(body);
+
+    var shoulder = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.82, 0.38, 80), matSilver);
+    shoulder.position.y = 1.49;
+    can.add(shoulder);
+
+    var neck = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.52, 0.2, 80), matSilver);
+    neck.position.y = 1.78;
+    can.add(neck);
+
+    var rim = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.04, 80), matCap);
+    rim.position.y = 1.90;
+    can.add(rim);
+
+    var topDisc = new THREE.Mesh(new THREE.CircleGeometry(0.44, 80), matCap);
+    topDisc.rotation.x = -Math.PI / 2;
+    topDisc.position.y = 1.92;
+    can.add(topDisc);
+
+    var tab = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.026, 8, 28, Math.PI), matSilver);
+    tab.position.set(0.20, 1.97, 0);
+    tab.rotation.x = -Math.PI / 2;
+    can.add(tab);
+
+    var handle = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.019, 6, 18), matSilver);
+    handle.position.set(0.35, 1.98, 0);
+    handle.rotation.x = -Math.PI / 2;
+    can.add(handle);
+
+    var botTaper = new THREE.Mesh(new THREE.CylinderGeometry(0.80, 0.74, 0.14, 80), matSilver);
+    botTaper.position.y = -1.37;
+    can.add(botTaper);
+
+    var botDisc = new THREE.Mesh(new THREE.CircleGeometry(0.74, 80), matSilver);
+    botDisc.rotation.x = Math.PI / 2;
+    botDisc.position.y = -1.44;
+    can.add(botDisc);
+
+    var baseRing = new THREE.Mesh(new THREE.TorusGeometry(0.77, 0.055, 10, 80), matDark);
+    baseRing.rotation.x = Math.PI / 2;
+    baseRing.position.y = -1.39;
+    can.add(baseRing);
+
+    // ── Animation proxy (GSAP → plain object → Three.js) ──
+    var proxy = { rotX: 0.25, rotY: -0.3, scale: 1.0, neon: 0.0 };
+
+    function applyProxy() {
+      can.rotation.x = proxy.rotX;
+      can.rotation.y = proxy.rotY;
+      can.scale.set(proxy.scale, proxy.scale, proxy.scale);
+      neonLight.intensity = proxy.neon;
+    }
+
+    applyProxy();
+
+    // ── GSAP Timeline ────────────────────────────────────
+    var tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: '.scroll-container',
+        start: 'top top',
+        end: 'bottom bottom',
+        scrub: 1.8,
+        onUpdate: function (self) {
+          document.getElementById('progressBar').style.width = (self.progress * 100) + '%';
+        }
+      }
+    });
+
+    // 0–8%: initial hero pose
+    tl.to(proxy, { rotX: 0.25, rotY: -0.3, scale: 1, duration: 0.08 }, 0);
+
+    // 8–12%: fade hero UI
+    tl.to('#heroText',        { opacity: 0, duration: 0.04 }, 0.08);
+    tl.to('#scrollIndicator', { opacity: 0, duration: 0.04 }, 0.08);
+    tl.to('#heroBgText',      { opacity: 0, duration: 0.04 }, 0.08);
+
+    // 12–26%: Section 1 — Organic Energy
+    tl.to(proxy, { rotX: 0.04, rotY: 0.6, duration: 0.14 }, 0.12);
+    tl.to('#s1', { opacity: 1, duration: 0.04, ease: 'power2.out' }, 0.13);
+    tl.to('#s1', { opacity: 0, duration: 0.03, ease: 'power2.in'  }, 0.23);
+
+    // 26–38%: Section 2 — Natural Ingredients (back of can)
+    tl.to(proxy, { rotX: 0.04, rotY: Math.PI, duration: 0.12 }, 0.26);
+    tl.to('#s2', { opacity: 1, duration: 0.04, ease: 'power2.out' }, 0.27);
+    tl.to('#s2', { opacity: 0, duration: 0.03, ease: 'power2.in'  }, 0.35);
+
+    // 38–50%: Section 3 — Premium Aluminum
+    tl.to(proxy, { rotX: 0.04, rotY: Math.PI * 1.5, duration: 0.12 }, 0.38);
+    tl.to('#s3',  { opacity: 1, duration: 0.04, ease: 'power2.out' }, 0.39);
+    tl.to('#s3r', { opacity: 1, duration: 0.04, ease: 'power2.out' }, 0.39);
+    tl.to('#s3',  { opacity: 0, duration: 0.03, ease: 'power2.in'  }, 0.47);
+    tl.to('#s3r', { opacity: 0, duration: 0.03, ease: 'power2.in'  }, 0.47);
+
+    // 50–60%: Section 4 — Zero Sugar
+    tl.to(proxy, { rotX: -0.2, rotY: Math.PI * 2, duration: 0.10 }, 0.50);
+    tl.to('#s4', { opacity: 1, duration: 0.04, ease: 'power2.out' }, 0.51);
+    tl.to('#s4', { opacity: 0, duration: 0.03, ease: 'power2.in'  }, 0.57);
+
+    // 60–70%: Section 5 — Natural Caffeine
+    tl.to(proxy, { rotX: -0.1, rotY: Math.PI * 2.6, scale: 1.08, duration: 0.10 }, 0.60);
+    tl.to('#s5', { opacity: 1, duration: 0.04, ease: 'power2.out' }, 0.61);
+    tl.to('#s5', { opacity: 0, duration: 0.03, ease: 'power2.in'  }, 0.67);
+
+    // 70–84%: Section 6 — Neon / Energy Capacity
+    tl.to(proxy,      { rotX: -0.9, rotY: Math.PI * 3.2, scale: 1.35, neon: 3.5, duration: 0.14 }, 0.70);
+    tl.to('#neonGlow',{ opacity: 1, duration: 0.10, ease: 'power2.out' }, 0.72);
+    tl.to('#s6',      { opacity: 1, duration: 0.04, ease: 'power2.out' }, 0.71);
+    tl.to('#s6',      { opacity: 0, duration: 0.04, ease: 'power2.in'  }, 0.80);
+
+    // 84–100%: Section 7 — Goodbye Artificial
+    tl.to(proxy,      { rotX: 0.04, rotY: Math.PI * 4, scale: 1, neon: 0, duration: 0.16 }, 0.84);
+    tl.to('#neonGlow',{ opacity: 0, duration: 0.08, ease: 'power2.in' }, 0.84);
+    tl.to('#s7',      { opacity: 1, duration: 0.05, ease: 'power2.out' }, 0.86);
+    tl.to('#s7r',     { opacity: 1, duration: 0.05, ease: 'power2.out' }, 0.87);
+    tl.to('#s7',      { opacity: 0, duration: 0.04, ease: 'power2.in'  }, 0.95);
+    tl.to('#s7r',     { opacity: 0, duration: 0.04, ease: 'power2.in'  }, 0.95);
+
+    // ── Render loop ──────────────────────────────────────
+    var frame      = 0;
+    var lastScroll = 0;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      frame++;
+
+      applyProxy();
+
+      // Gentle float when idle
+      var dy = window.scrollY - lastScroll;
+      lastScroll = window.scrollY;
+      if (Math.abs(dy) < 0.5) {
+        can.position.y = Math.sin(frame * 0.012) * 0.04;
+      } else {
+        can.position.y *= 0.92;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // ── Resize ───────────────────────────────────────────
+    window.addEventListener('resize', function () {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  }
+
+  if (document.readyState === 'complete') {
+    init();
+  } else {
+    window.addEventListener('load', init);
+  }
+}());
+</script>
+</body>
+</html>
