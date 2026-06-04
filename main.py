@@ -86,6 +86,10 @@ if not os.getenv("PLATFORM_SECRET"):
 # CORS
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
+# Service preview Node.js (novalis-production.up.railway.app)
+PREVIEW_SERVICE_URL = os.getenv("PREVIEW_SERVICE_URL", "https://novalis-production.up.railway.app")
+PREVIEW_API_KEY     = os.getenv("PREVIEW_API_KEY", "")
+
 # Facebook
 FB_VERIFY_TOKEN = os.getenv("FB_VERIFY_TOKEN", "novalis_verify_token")
 FB_APP_SECRET   = os.getenv("FB_APP_SECRET", "")
@@ -2427,9 +2431,8 @@ async def _auto_outreach_loop():
 
                     # Add CASL-compliant unsubscribe link + preview personnalisé
                     unsubscribe_url = f"https://novalisia.ca/unsubscribe?id={p['id']}"
-                    _slug = _slugify(p.get("name", "entreprise"))
-                    preview_url = f"https://novalisia.ca/preview/{_slug}/{p['id']}"
-                    body_text = email1["body"].replace("{PROSPECT_ID}", f"{_slug}/{p['id']}")
+                    preview_url = await _call_preview_service(p)
+                    body_text = email1["body"].replace("{PROSPECT_ID}", preview_url)
                     html_body = _build_prospect_email_html(body_text, preview_url, unsubscribe_url, p.get("name", ""))
 
                     # Triple vérification anti-doublon
@@ -2711,7 +2714,7 @@ async def _smart_lead_escalation_loop():
                     city = p.get("city", "")
                     industry = p.get("industry", "")
                     views = int(p.get("preview_views") or 2)
-                    preview_url = f"https://novalisia.ca/preview/{p['id']}"
+                    preview_url = await _call_preview_service(p)
 
                     if claude_client:
                         ai_resp = await asyncio.to_thread(
@@ -6567,6 +6570,49 @@ def _research_business_sync(name: str, city: str) -> dict:
         logging.error(f"Research error for {name}: {e}")
         return {"snippets": "", "rating": "", "review_count": ""}
 
+async def _call_preview_service(prospect: dict) -> str:
+    """Génère un site cinématique via le service Node.js et retourne l'URL publique."""
+    fallback_slug = _slugify(prospect.get("name", "entreprise"))
+    fallback_url  = f"https://novalisia.ca/preview/{fallback_slug}/{prospect.get('id', 'demo')}"
+    if not PREVIEW_SERVICE_URL:
+        return fallback_url
+    try:
+        brand_meta   = json.loads(prospect.get("brand_meta") or "{}")
+        web_issues   = json.loads(prospect.get("web_issues") or "[]")
+        pain_points  = json.loads(prospect.get("pain_points") or "[]")
+        payload = {
+            "nom":           prospect.get("name", ""),
+            "secteur":       prospect.get("industry", "garage"),
+            "ville":         prospect.get("city", "Québec"),
+            "adresse":       brand_meta.get("address", ""),
+            "telephone":     prospect.get("phone", ""),
+            "description":   prospect.get("insights", ""),
+            "avisGoogle":    str(prospect.get("rating", "")),
+            "avisCount":     str(prospect.get("review_count", "")),
+            "auditScore":    prospect.get("web_score", 0),
+            "auditProblemes": (web_issues + pain_points)[:6],
+            "brandColor":    brand_meta.get("brand_color", "#2563EB"),
+        }
+        headers = {"Content-Type": "application/json"}
+        if PREVIEW_API_KEY:
+            headers["Authorization"] = f"Bearer {PREVIEW_API_KEY}"
+        loop = asyncio.get_event_loop()
+        resp = await loop.run_in_executor(None, lambda: http_requests.post(
+            f"{PREVIEW_SERVICE_URL}/generate",
+            json=payload,
+            headers=headers,
+            timeout=20,
+        ))
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get("success") and data.get("url"):
+                logging.info(f"Preview généré: {data['url']}")
+                return data["url"]
+    except Exception as e:
+        logging.warning(f"Preview service indisponible: {e}")
+    return fallback_url
+
+
 def _slugify(text: str) -> str:
     import unicodedata
     text = unicodedata.normalize("NFD", text.lower())
@@ -7514,9 +7560,8 @@ async def _try_send_now(prospect_id: str, table: str, name: str, email: str, cit
         logging.warning(f"_try_send_now skip {name}: no email1 subject/body in generated emails")
         return
     unsubscribe_url = f"https://novalisia.ca/unsubscribe?id={prospect_id}"
-    _slug = _slugify(name)
-    preview_url = f"https://novalisia.ca/preview/{_slug}/{prospect_id}"
-    body_text = email1["body"].replace("{PROSPECT_ID}", f"{_slug}/{prospect_id}")
+    preview_url = await _call_preview_service({"name": name, "id": prospect_id, "industry": industry, "city": city})
+    body_text = email1["body"].replace("{PROSPECT_ID}", preview_url)
     html_body = _build_prospect_email_html(body_text, preview_url, unsubscribe_url, name)
     try:
         await send_email(email, email1["subject"], html_body)
@@ -8368,9 +8413,8 @@ async def outreach_send_now(username: str = Depends(verify_admin)):
                     debug["errors"].append(f"{p['name']}: déjà contacté — ignoré")
                     continue
             unsubscribe_url = f"https://novalisia.ca/unsubscribe?id={p['id']}"
-            _slug2 = _slugify(p.get("name", "entreprise"))
-            _preview_url2 = f"https://novalisia.ca/preview/{_slug2}/{p['id']}"
-            _body2 = email1["body"].replace("{PROSPECT_ID}", f"{_slug2}/{p['id']}")
+            _preview_url2 = await _call_preview_service(p)
+            _body2 = email1["body"].replace("{PROSPECT_ID}", _preview_url2)
             html_body = _build_prospect_email_html(_body2, _preview_url2, unsubscribe_url, p.get("name", ""))
             await send_email(p["email"], email1["subject"], html_body)
             _sent_emails_session.add(email_addr)
