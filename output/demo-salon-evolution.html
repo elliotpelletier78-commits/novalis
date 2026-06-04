@@ -6,1670 +6,697 @@
   <title>Salon Évolution — Coiffure & beauté haut de gamme · Saint-Roch, Québec</title>
   <meta name="description" content="Salon Évolution, coiffure et beauté haut de gamme à Saint-Roch, Québec. Note 4.9/5 — 124 avis Google. Découvrez nos services signature." />
 
-  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet" />
 
-  <!-- GSAP 3.12.2 + ScrollTrigger -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
 
   <style>
-    /* ========================================================
-       DESIGN TOKENS
-    ======================================================== */
-    :root {
-      --bg:          #070608;
-      --card-bg:     #0F0D10;
-      --accent:      #C9A0C4;
-      --accent-sec:  #8B5E9E;
-      --text:        #F5F0F8;
-      --muted:       #7A6B80;
-      --border:      rgba(201, 160, 196, 0.15);
-      --border-hover:rgba(201, 160, 196, 0.45);
-      --glow:        rgba(201, 160, 196, 0.06);
-      --glow-hover:  rgba(201, 160, 196, 0.14);
-      --font-head:   'Playfair Display', Georgia, serif;
-      --font-body:   'DM Sans', system-ui, sans-serif;
-      --ease:        cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    /* ========================================================
-       RESET & BASE
-    ======================================================== */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html {
-      scroll-behavior: smooth;
-      font-size: 16px;
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: auto; }
+    body {
+      background: #070608;
+      color: #F5F0F8;
+      font-family: 'DM Sans', sans-serif;
+      overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
     }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font-body);
-      font-weight: 300;
-      line-height: 1.65;
-      overflow-x: hidden;
+    /* =========================================================
+       LAYOUT
+    ========================================================= */
+    .scroll-container { height: 900vh; position: relative; }
+    .sticky-wrapper   { position: sticky; top: 0; height: 100vh; overflow: hidden; }
+
+    /* =========================================================
+       BACKGROUNDS
+    ========================================================= */
+    .bg {
+      position: absolute; inset: 0;
+      background-size: cover; background-position: center;
+      opacity: 0; z-index: 0;
     }
-
-    img { display: block; max-width: 100%; }
-    a { text-decoration: none; color: inherit; }
-    button { border: none; background: none; font-family: inherit; }
-
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    #bg1 {
+      background-image: url('https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1920&q=80');
+      opacity: 1;
     }
-
-    /* ========================================================
-       PROGRESS BAR
-    ======================================================== */
-    #progress-bar {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      width: 0%;
-      height: 1px;
-      background: var(--accent);
-      z-index: 1000;
-      transition: width 0.1s linear;
+    #bg2 {
+      background-image: url('https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1920&q=80');
     }
-
-    /* ========================================================
-       NAVIGATION
-    ======================================================== */
-    nav {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 900;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 clamp(1.5rem, 5vw, 4rem);
-      height: 72px;
-      background: rgba(7, 6, 8, 0.85);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--border);
+    #bg3 {
+      background-image: url('https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?auto=format&fit=crop&w=1920&q=80');
     }
-
-    .nav-brand {
-      font-family: var(--font-head);
-      font-style: italic;
-      font-size: clamp(0.95rem, 2vw, 1.15rem);
-      font-weight: 400;
-      letter-spacing: 0.08em;
-      color: var(--text);
-      cursor: pointer;
-    }
-
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: clamp(1.5rem, 3vw, 2.5rem);
-      list-style: none;
-    }
-
-    .nav-links a {
-      font-size: 0.78rem;
-      font-weight: 400;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--muted);
-      transition: color 0.3s var(--ease);
-      cursor: pointer;
-    }
-
-    .nav-links a:hover { color: var(--text); }
-
-    .nav-cta {
-      font-size: 0.78rem;
-      font-weight: 400;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--accent);
-      border: 1px solid rgba(201, 160, 196, 0.5);
-      padding: 0.55rem 1.4rem;
-      border-radius: 2px;
-      cursor: pointer;
-      transition: background 0.4s var(--ease), color 0.4s var(--ease), border-color 0.4s var(--ease);
-    }
-
-    .nav-cta:hover {
-      background: var(--accent);
-      color: var(--bg);
-      border-color: var(--accent);
-    }
-
-    /* Mobile nav */
-    .nav-hamburger {
-      display: none;
-      flex-direction: column;
-      gap: 5px;
-      cursor: pointer;
-      padding: 4px;
-    }
-    .nav-hamburger span {
-      display: block;
-      width: 22px;
-      height: 1px;
-      background: var(--text);
-      transition: all 0.3s var(--ease);
-    }
-
-    @media (max-width: 768px) {
-      .nav-links { display: none; }
-      .nav-cta { display: none; }
-      .nav-hamburger { display: flex; }
-    }
-
-    /* ========================================================
-       HERO SECTION
-    ======================================================== */
-    #hero {
-      position: relative;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      padding-top: 72px;
-    }
-
-    .hero-glow {
-      position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(ellipse 70% 60% at 50% 40%, rgba(139, 94, 158, 0.08) 0%, transparent 65%),
-        radial-gradient(ellipse 40% 30% at 30% 70%, rgba(201, 160, 196, 0.04) 0%, transparent 55%);
-      pointer-events: none;
-    }
-
-    .hero-content {
-      position: relative;
+    .bg-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(7,6,8,0.75) 0%, rgba(12,9,14,0.65) 100%);
       z-index: 1;
-      text-align: center;
-      padding: clamp(3rem, 8vw, 6rem) clamp(1.5rem, 5vw, 4rem);
-      max-width: 860px;
     }
 
-    .hero-eyebrow {
-      font-size: 0.68rem;
-      font-weight: 400;
-      letter-spacing: 0.28em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 2.5rem;
+    /* =========================================================
+       PHASES
+    ========================================================= */
+    .phase {
+      position: absolute; inset: 0; z-index: 2;
       opacity: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 100px 48px 60px;
+      text-align: center;
     }
+    #phase-hero { opacity: 1; }
 
-    .hero-h1 {
-      font-family: var(--font-head);
+    /* =========================================================
+       NAV
+    ========================================================= */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 48px;
+      transition: background 0.3s, backdrop-filter 0.3s;
+    }
+    nav.scrolled {
+      background: rgba(7,6,8,0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    nav a { color: rgba(245,240,248,0.55); text-decoration: none; font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; cursor: pointer; transition: color 0.2s; }
+    nav a:hover { color: #C9A0C4; }
+    nav ul { display: flex; gap: 28px; list-style: none; }
+
+    /* =========================================================
+       PROGRESS BAR
+    ========================================================= */
+    .progress-bar { position: fixed; bottom: 0; left: 0; width: 0%; height: 1px; background: #C9A0C4; z-index: 200; }
+
+    /* =========================================================
+       HERO PHASE
+    ========================================================= */
+    .hero-headline {
+      font-family: 'Playfair Display', serif;
+      font-weight: 400;
+      font-style: italic;
+      font-size: clamp(3rem, 9vw, 8rem);
+      color: #F5F0F8;
       line-height: 1.05;
-      margin-bottom: 2.5rem;
     }
-
-    .hero-line-1 {
-      display: block;
-      font-style: italic;
-      font-weight: 400;
-      font-size: clamp(3.2rem, 9vw, 7rem);
-      color: var(--text);
-      opacity: 0;
-    }
-
-    .hero-line-2 {
-      display: block;
+    .hero-headline-bold {
+      font-family: 'Playfair Display', serif;
+      font-weight: 900;
       font-style: normal;
-      font-weight: 900;
-      font-size: clamp(3.8rem, 11vw, 8.5rem);
-      color: var(--text);
-      opacity: 0;
+      font-size: clamp(3rem, 9vw, 8rem);
+      color: #F5F0F8;
+      line-height: 1.05;
     }
-
-    .hero-accent-dot {
-      color: var(--accent);
+    .hero-headline-bold .period { color: #C9A0C4; }
+    .hero-divider {
+      width: 60px; height: 1px; background: #C9A0C4;
+      margin: 22px auto; border: none;
     }
-
+    .hero-location {
+      font-size: 9px; letter-spacing: 5px; text-transform: uppercase;
+      opacity: 0.5; color: #F5F0F8;
+    }
     .hero-rating {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.75rem;
-      font-size: 0.82rem;
-      color: var(--muted);
-      opacity: 0;
+      font-size: 14px; color: #C9A0C4; margin-top: 10px;
     }
 
-    .hero-stars {
-      color: var(--accent);
-      font-size: 0.9rem;
-      letter-spacing: 0.05em;
+    /* Scroll hint */
+    .scroll-hint {
+      position: absolute; bottom: 8%; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+    }
+    .scroll-hint-label {
+      font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+      color: rgba(245,240,248,0.35);
+    }
+    .scroll-line {
+      width: 1px; height: 40px;
+      background: rgba(255,255,255,0.2);
+      position: relative; overflow: hidden;
+    }
+    .scroll-line::after {
+      content: '';
+      position: absolute; top: -100%; left: 0;
+      width: 100%; height: 100%;
+      background: #C9A0C4;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%   { top: -100%; }
+      100% { top: 100%;  }
     }
 
-    .hero-rating-score {
-      font-weight: 400;
-      color: var(--text);
-    }
-
-    .hero-scroll {
-      position: absolute;
-      bottom: 2.5rem;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-      opacity: 0;
-    }
-
-    .hero-scroll-label {
-      font-size: 0.65rem;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    .hero-scroll-line {
-      width: 1px;
-      height: 40px;
-      background: linear-gradient(to bottom, var(--accent), transparent);
-      animation: scroll-pulse 2s ease-in-out infinite;
-    }
-
-    @keyframes scroll-pulse {
-      0%, 100% { opacity: 0.4; transform: scaleY(1); }
-      50% { opacity: 1; transform: scaleY(1.1); }
-    }
-
-    /* ========================================================
-       SECTION BASE
-    ======================================================== */
-    section {
-      position: relative;
-      padding: clamp(5rem, 12vh, 9rem) clamp(1.5rem, 5vw, 4rem);
-    }
-
-    .section-inner {
-      max-width: 1120px;
-      margin: 0 auto;
-    }
-
-    .section-label {
-      display: inline-block;
-      font-size: 0.65rem;
-      font-weight: 400;
-      letter-spacing: 0.28em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 1.25rem;
-    }
-
-    .section-h2 {
-      font-family: var(--font-head);
+    /* =========================================================
+       SECTION HEADINGS (shared)
+    ========================================================= */
+    .section-heading {
+      font-family: 'Playfair Display', serif;
       font-weight: 700;
-      font-size: clamp(2rem, 5vw, 3.5rem);
-      line-height: 1.15;
-      color: var(--text);
-      margin-bottom: 1rem;
+      font-size: clamp(1.6rem, 4vw, 3rem);
+      color: #F5F0F8;
+      margin-bottom: 10px;
+      line-height: 1.2;
     }
-
-    .section-h2 em {
-      font-style: italic;
-      font-weight: 400;
-      color: var(--accent);
-    }
-
     .section-sub {
-      font-size: 1rem;
-      color: var(--muted);
-      max-width: 560px;
-      line-height: 1.7;
+      font-size: clamp(0.8rem, 1.5vw, 0.95rem);
+      color: rgba(245,240,248,0.5);
+      margin-bottom: 36px;
+      max-width: 540px;
+    }
+    .accent-bar {
+      width: 40px; height: 2px; background: #C9A0C4;
+      margin: 0 auto 28px; border: none;
     }
 
-    /* ========================================================
-       AUDIT SECTION
-    ======================================================== */
-    #audit {
-      border-top: 1px solid var(--border);
-    }
-
-    .audit-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: clamp(3rem, 6vw, 6rem);
-      align-items: start;
-      margin-top: 4rem;
-    }
-
-    @media (max-width: 768px) {
-      .audit-grid { grid-template-columns: 1fr; gap: 3rem; }
-    }
-
-    .audit-score-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 3rem 2rem;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      text-align: center;
-    }
-
-    .audit-score-num {
-      font-family: var(--font-head);
-      font-size: clamp(5rem, 12vw, 8rem);
-      font-weight: 900;
-      line-height: 1;
-      color: var(--accent);
-      display: block;
-    }
-
-    .audit-score-label {
-      font-size: 0.72rem;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-top: 0.75rem;
-    }
-
-    .audit-score-bar-track {
-      width: 100%;
-      height: 3px;
-      background: rgba(201, 160, 196, 0.1);
-      border-radius: 2px;
-      margin-top: 1.5rem;
-      overflow: hidden;
-    }
-
-    .audit-score-bar-fill {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(to right, var(--accent-sec), var(--accent));
-      border-radius: 2px;
-      transition: width 1.8s var(--ease);
-    }
-
-    .audit-score-note {
-      font-size: 0.75rem;
-      color: var(--muted);
-      margin-top: 0.75rem;
-    }
-
-    .audit-points {
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
-
-    .audit-point {
-      display: flex;
-      gap: 1.25rem;
-      padding: 1.5rem;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--accent);
-      border-radius: 4px;
-      transition: border-color 0.4s var(--ease), box-shadow 0.4s var(--ease);
-    }
-
-    .audit-point:hover {
-      border-color: var(--border-hover);
-      border-left-color: var(--accent);
-      box-shadow: 0 0 24px var(--glow);
-    }
-
-    .audit-point-icon {
-      flex-shrink: 0;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: rgba(201, 160, 196, 0.08);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .audit-point-icon svg {
-      width: 16px;
-      height: 16px;
-      stroke: var(--accent);
-      fill: none;
-      stroke-width: 1.5;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    .audit-point-title {
-      font-family: var(--font-head);
-      font-size: 1rem;
+    /* =========================================================
+       AUDIT PHASE
+    ========================================================= */
+    #phase-audit { justify-content: center; }
+    .audit-heading {
+      font-family: 'Playfair Display', serif;
       font-weight: 700;
-      color: var(--text);
-      margin-bottom: 0.35rem;
+      font-size: clamp(1.3rem, 3vw, 2rem);
+      color: #F5F0F8;
+      max-width: 580px;
+      margin: 0 auto 28px;
+      line-height: 1.3;
+    }
+    .audit-score-wrap {
+      display: flex; flex-direction: column; align-items: center;
+      margin-bottom: 32px;
+    }
+    .audit-score-number {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(5rem, 12vw, 9rem);
+      font-weight: 700;
+      color: #C9A0C4;
+      line-height: 1;
+    }
+    .audit-score-denom {
+      font-size: clamp(1rem, 2.5vw, 1.5rem);
+      color: rgba(245,240,248,0.4);
+      margin-top: -8px;
+    }
+    .audit-score-label {
+      font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+      color: rgba(245,240,248,0.4);
+      margin-top: 6px;
+    }
+    .audit-cards {
+      display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+      max-width: 900px; width: 100%;
+    }
+    .audit-card {
+      background: #0F0D10;
+      border-left: 2px solid #C9A0C4;
+      border-radius: 4px;
+      padding: 18px 20px;
+      flex: 1; min-width: 220px; max-width: 280px;
+      text-align: left;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .audit-card-icon { color: #C9A0C4; flex-shrink: 0; }
+    .audit-card-title {
+      font-size: 0.9rem; font-weight: 400; color: #F5F0F8;
+    }
+    .audit-card-desc {
+      font-size: 0.78rem; color: rgba(245,240,248,0.5); line-height: 1.5;
     }
 
-    .audit-point-desc {
-      font-size: 0.82rem;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-
-    /* ========================================================
-       SERVICES SECTION
-    ======================================================== */
-    #services {
-      border-top: 1px solid var(--border);
-    }
-
+    /* =========================================================
+       SERVICES PHASE
+    ========================================================= */
     .services-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.25rem;
-      margin-top: 3.5rem;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      max-width: 760px; width: 100%;
     }
-
-    @media (max-width: 600px) {
-      .services-grid { grid-template-columns: 1fr; }
-    }
-
     .service-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-top: 2px solid var(--accent);
+      background: #0F0D10;
+      border-top: 2px solid #C9A0C4;
       border-radius: 4px;
-      padding: 2rem 1.75rem;
-      cursor: pointer;
-      transition: box-shadow 0.5s var(--ease), border-color 0.5s var(--ease), transform 0.5s var(--ease);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .service-card::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(201, 160, 196, 0.07) 0%, transparent 70%);
-      opacity: 0;
-      transition: opacity 0.5s var(--ease);
-    }
-
-    .service-card:hover::before { opacity: 1; }
-
-    .service-card:hover {
-      box-shadow: 0 0 40px rgba(201, 160, 196, 0.12), 0 4px 24px rgba(0,0,0,0.4);
-      border-color: rgba(201, 160, 196, 0.35);
-      transform: translateY(-3px);
-    }
-
-    .service-icon {
-      width: 44px;
-      height: 44px;
-      margin-bottom: 1.25rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(201, 160, 196, 0.06);
-      border-radius: 50%;
-    }
-
-    .service-icon svg {
-      width: 20px;
-      height: 20px;
-      stroke: var(--accent);
-      fill: none;
-      stroke-width: 1.5;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    .service-name {
-      font-family: var(--font-head);
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 0.6rem;
-    }
-
-    .service-desc {
-      font-size: 0.82rem;
-      color: var(--muted);
-      line-height: 1.65;
-      margin-bottom: 1.25rem;
-    }
-
-    .service-price {
-      font-size: 0.72rem;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: var(--accent);
-      font-weight: 400;
-    }
-
-    /* ========================================================
-       TEAM SECTION
-    ======================================================== */
-    #equipe {
-      border-top: 1px solid var(--border);
-    }
-
-    .team-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1.25rem;
-      margin-top: 3.5rem;
-    }
-
-    @media (max-width: 768px) {
-      .team-grid { grid-template-columns: 1fr; max-width: 380px; }
-    }
-
-    .team-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 2rem 1.5rem 1.75rem;
-      text-align: center;
+      padding: 22px 20px;
+      text-align: left;
+      transition: box-shadow 0.3s;
       cursor: default;
-      transition: box-shadow 0.5s var(--ease), border-color 0.5s var(--ease);
+    }
+    .service-card:hover {
+      box-shadow: 0 0 0 1px rgba(201,160,196,0.3), 0 4px 24px rgba(201,160,196,0.08);
+    }
+    .service-card-icon { color: #C9A0C4; margin-bottom: 10px; }
+    .service-card-name {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(0.95rem, 1.5vw, 1.1rem);
+      font-weight: 700; color: #F5F0F8; margin-bottom: 6px;
+    }
+    .service-card-desc {
+      font-size: 0.78rem; color: rgba(245,240,248,0.5); line-height: 1.5; margin-bottom: 12px;
+    }
+    .service-card-price {
+      font-size: 0.78rem; color: #C9A0C4; letter-spacing: 0.5px;
     }
 
-    .team-card:hover {
-      box-shadow: 0 0 30px rgba(201, 160, 196, 0.08);
-      border-color: rgba(201, 160, 196, 0.25);
+    /* =========================================================
+       TEAM PHASE
+    ========================================================= */
+    .team-grid {
+      display: flex; gap: 18px; flex-wrap: wrap; justify-content: center;
+      max-width: 900px; width: 100%;
     }
-
-    .team-photo {
-      width: 88px;
-      height: 88px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--accent-sec) 0%, rgba(201, 160, 196, 0.25) 60%, var(--bg) 100%);
-      margin: 0 auto 1.5rem;
-      border: 1px solid rgba(201, 160, 196, 0.2);
-      position: relative;
-      overflow: hidden;
+    .team-card {
+      background: #0F0D10;
+      border-radius: 8px;
+      padding: 28px 22px;
+      flex: 1; min-width: 220px; max-width: 260px;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      text-align: center;
     }
-
-    .team-photo::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.06), transparent 60%);
+    .team-avatar {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: linear-gradient(135deg, #C9A0C4 0%, #3B2345 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Playfair Display', serif;
+      font-size: 1.4rem; font-weight: 700;
+      color: #F5F0F8;
+      flex-shrink: 0;
     }
-
-    .team-divider {
-      width: 32px;
-      height: 1px;
-      background: var(--accent);
-      opacity: 0.35;
-      margin: 1rem auto;
-    }
-
     .team-name {
-      font-family: var(--font-head);
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 0.35rem;
+      font-size: 1rem; font-weight: 400; color: #F5F0F8;
     }
-
     .team-title {
-      font-size: 0.78rem;
-      color: var(--muted);
-      line-height: 1.55;
+      font-size: 0.8rem; color: #C9A0C4; letter-spacing: 0.5px;
+    }
+    .team-exp {
+      font-size: 0.75rem; color: rgba(245,240,248,0.45);
+      font-weight: 300; line-height: 1.5;
     }
 
-    .team-spec {
-      font-size: 0.72rem;
-      color: rgba(201, 160, 196, 0.7);
-      margin-top: 0.25rem;
-      letter-spacing: 0.05em;
-    }
-
-    /* ========================================================
-       STATS BAR
-    ======================================================== */
-    #stats {
-      padding: clamp(3.5rem, 8vh, 6rem) clamp(1.5rem, 5vw, 4rem);
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      background: var(--card-bg);
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 2rem;
-      max-width: 1120px;
-      margin: 0 auto;
-      text-align: center;
-    }
-
-    @media (max-width: 640px) {
-      .stats-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    .stat-value {
-      font-family: var(--font-head);
-      font-size: clamp(2.5rem, 6vw, 4rem);
-      font-weight: 900;
-      color: var(--accent);
-      line-height: 1;
-      display: block;
-    }
-
-    .stat-label {
-      font-size: 0.75rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-top: 0.6rem;
-    }
-
-    /* ========================================================
-       REVIEWS SECTION
-    ======================================================== */
-    #avis {
-      border-top: 1px solid var(--border);
-    }
-
+    /* =========================================================
+       REVIEWS PHASE
+    ========================================================= */
     .reviews-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1.25rem;
-      margin-top: 3.5rem;
+      display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+      max-width: 900px; width: 100%;
     }
-
-    @media (max-width: 768px) {
-      .reviews-grid { grid-template-columns: 1fr; }
-    }
-
     .review-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 2rem 1.75rem;
-      transition: box-shadow 0.5s var(--ease), border-color 0.5s var(--ease);
+      background: #0F0D10;
+      border-radius: 6px;
+      padding: 24px 22px;
+      flex: 1; min-width: 240px; max-width: 280px;
+      text-align: left;
     }
-
-    .review-card:hover {
-      box-shadow: 0 0 28px rgba(201, 160, 196, 0.09);
-      border-color: rgba(201, 160, 196, 0.25);
-    }
-
     .review-stars {
-      color: var(--accent);
-      font-size: 0.82rem;
-      letter-spacing: 0.06em;
-      margin-bottom: 1rem;
+      color: #C9A0C4; font-size: 0.9rem; letter-spacing: 2px; margin-bottom: 12px;
     }
-
-    .review-text {
-      font-size: 0.88rem;
-      color: var(--text);
-      line-height: 1.75;
+    .review-quote {
+      font-family: 'Playfair Display', serif;
       font-style: italic;
-      margin-bottom: 1.25rem;
+      font-size: clamp(0.82rem, 1.2vw, 0.92rem);
+      color: rgba(245,240,248,0.85);
+      line-height: 1.65;
+      margin-bottom: 16px;
     }
-
-    .review-divider {
-      width: 100%;
-      height: 1px;
-      background: var(--border);
-      margin-bottom: 1rem;
-    }
-
     .review-author {
-      font-size: 0.78rem;
-      color: var(--muted);
+      font-size: 0.75rem; color: rgba(245,240,248,0.4); letter-spacing: 0.3px;
+    }
+
+    /* =========================================================
+       CTA PHASE
+    ========================================================= */
+    .cta-heading {
+      font-family: 'Playfair Display', serif;
       font-weight: 400;
-      letter-spacing: 0.05em;
-    }
-
-    .review-google-badge {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      margin-top: 0.35rem;
-      font-size: 0.68rem;
-      color: rgba(201, 160, 196, 0.5);
-      letter-spacing: 0.08em;
-    }
-
-    .review-google-badge svg {
-      width: 12px;
-      height: 12px;
-      fill: rgba(201, 160, 196, 0.5);
-    }
-
-    /* ========================================================
-       CTA SECTION
-    ======================================================== */
-    #cta {
-      border-top: 1px solid var(--border);
-      text-align: center;
-    }
-
-    .cta-inner {
-      max-width: 720px;
-      margin: 0 auto;
-    }
-
-    .cta-h2 {
-      font-family: var(--font-head);
-      font-size: clamp(2rem, 5vw, 3.2rem);
-      font-weight: 700;
-      line-height: 1.2;
-      color: var(--text);
-      margin-bottom: 1.25rem;
-    }
-
-    .cta-h2 em {
       font-style: italic;
-      font-weight: 400;
-      color: var(--accent);
-    }
-
-    .cta-sub {
-      font-size: 0.95rem;
-      color: var(--muted);
-      line-height: 1.75;
-      max-width: 540px;
-      margin: 0 auto 3rem;
-    }
-
-    .cta-buttons {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-
-    .btn-primary {
-      font-family: var(--font-body);
-      font-size: 0.8rem;
-      font-weight: 400;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--bg);
-      background: var(--accent);
-      border: 1px solid var(--accent);
-      padding: 0.85rem 2.2rem;
-      border-radius: 2px;
-      cursor: pointer;
-      transition: background 0.4s var(--ease), color 0.4s var(--ease), box-shadow 0.4s var(--ease);
-    }
-
-    .btn-primary:hover {
-      background: var(--accent-sec);
-      border-color: var(--accent-sec);
-      box-shadow: 0 0 30px rgba(139, 94, 158, 0.3);
-    }
-
-    .btn-outline {
-      font-family: var(--font-body);
-      font-size: 0.8rem;
-      font-weight: 400;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--accent);
-      background: transparent;
-      border: 1px solid rgba(201, 160, 196, 0.4);
-      padding: 0.85rem 2.2rem;
-      border-radius: 2px;
-      cursor: pointer;
-      transition: border-color 0.4s var(--ease), color 0.4s var(--ease), background 0.4s var(--ease);
-    }
-
-    .btn-outline:hover {
-      border-color: var(--accent);
-      background: rgba(201, 160, 196, 0.05);
-    }
-
-    /* ========================================================
-       FOOTER
-    ======================================================== */
-    footer {
-      padding: 2.5rem clamp(1.5rem, 5vw, 4rem);
-      border-top: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1.5rem;
-      flex-wrap: wrap;
-    }
-
-    .footer-brand {
-      font-family: var(--font-head);
-      font-style: italic;
-      font-size: 1rem;
-      color: var(--muted);
-    }
-
-    .footer-info {
-      font-size: 0.75rem;
-      color: var(--muted);
-      text-align: right;
-      line-height: 1.7;
-    }
-
-    @media (max-width: 600px) {
-      footer { flex-direction: column; text-align: center; }
-      .footer-info { text-align: center; }
-    }
-
-    /* ========================================================
-       GALLERY STRIP (between team and stats)
-    ======================================================== */
-    #galerie {
-      padding: clamp(4rem, 10vh, 7rem) clamp(1.5rem, 5vw, 4rem);
-      border-top: 1px solid var(--border);
-    }
-
-    .gallery-strip {
-      display: grid;
-      grid-template-columns: 2fr 1fr 1fr;
-      gap: 1px;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      overflow: hidden;
-      margin-top: 3rem;
-    }
-
-    @media (max-width: 640px) {
-      .gallery-strip { grid-template-columns: 1fr 1fr; }
-      .gallery-item:first-child { grid-column: span 2; }
-    }
-
-    .gallery-item {
-      aspect-ratio: 4/3;
-      background: var(--card-bg);
-      position: relative;
-      overflow: hidden;
-      cursor: pointer;
-    }
-
-    .gallery-item:first-child { aspect-ratio: auto; min-height: 300px; }
-
-    .gallery-item-inner {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.7s var(--ease);
-    }
-
-    .gallery-item:hover .gallery-item-inner {
-      transform: scale(1.04);
-    }
-
-    /* Gallery placeholder patterns */
-    .gallery-item:nth-child(1) .gallery-item-inner {
-      background: linear-gradient(145deg, rgba(139,94,158,0.25) 0%, rgba(201,160,196,0.08) 45%, rgba(7,6,8,0.6) 100%);
-    }
-    .gallery-item:nth-child(2) .gallery-item-inner {
-      background: linear-gradient(200deg, rgba(201,160,196,0.15) 0%, rgba(7,6,8,0.8) 70%);
-    }
-    .gallery-item:nth-child(3) .gallery-item-inner {
-      background: linear-gradient(20deg, rgba(139,94,158,0.2) 0%, rgba(7,6,8,0.75) 70%);
-    }
-
-    .gallery-label {
-      font-size: 0.68rem;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: rgba(245, 240, 248, 0.3);
-      text-align: center;
-      padding: 1rem;
-    }
-
-    /* ========================================================
-       AUDIT SECTION HEADING
-    ======================================================== */
-    .audit-heading {
+      font-size: clamp(1.6rem, 4.5vw, 3.2rem);
+      color: #F5F0F8;
       max-width: 640px;
+      margin: 0 auto 16px;
+      line-height: 1.2;
+    }
+    .cta-sub {
+      font-size: clamp(0.82rem, 1.4vw, 0.95rem);
+      color: rgba(245,240,248,0.5);
+      max-width: 480px;
+      margin: 0 auto 36px;
+      line-height: 1.6;
+    }
+    .cta-buttons {
+      display: flex; gap: 14px; flex-wrap: wrap; justify-content: center;
+      margin-bottom: 24px;
+    }
+    .btn-primary {
+      padding: 14px 32px;
+      background: #C9A0C4;
+      color: #070608;
+      border: none;
+      font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 400;
+      transition: opacity 0.2s;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-secondary {
+      padding: 14px 32px;
+      background: transparent;
+      color: #C9A0C4;
+      border: 1px solid rgba(201,160,196,0.5);
+      font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 400;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .btn-secondary:hover {
+      border-color: #C9A0C4;
+      background: rgba(201,160,196,0.06);
+    }
+    .cta-phone {
+      font-size: 0.85rem;
+      color: rgba(245,240,248,0.35);
+      letter-spacing: 1px;
     }
 
-    .audit-heading .section-h2 {
-      font-size: clamp(1.8rem, 4.5vw, 3rem);
+    /* =========================================================
+       RESPONSIVE
+    ========================================================= */
+    @media (max-width: 680px) {
+      nav { padding: 16px 20px; }
+      nav ul { display: none; }
+      .phase { padding: 90px 20px 50px; }
+      .services-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .service-card { padding: 16px 14px; }
+      .team-card { min-width: 180px; }
+      .audit-card { min-width: 180px; }
+      .review-card { min-width: 200px; }
     }
-
-    /* ========================================================
-       UTILITY
-    ======================================================== */
-    .visually-hidden {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
+    @media (max-width: 480px) {
+      .services-grid { grid-template-columns: 1fr; }
+      .audit-cards { flex-direction: column; align-items: center; }
+      .audit-card { max-width: 100%; }
     }
-
-    /* fade-up initial state for JS */
-    .fade-up {
-      opacity: 0;
-      transform: translateY(28px);
-    }
-
   </style>
 </head>
 <body>
 
-<!-- ============================================================
-     PROGRESS BAR
-============================================================ -->
-<div id="progress-bar" role="progressbar" aria-hidden="true"></div>
+  <!-- PROGRESS BAR -->
+  <div class="progress-bar" id="progressBar"></div>
 
-<!-- ============================================================
-     NAVIGATION
-============================================================ -->
-<nav role="navigation" aria-label="Navigation principale">
-  <span class="nav-brand" onclick="window.scrollTo({top:0,behavior:'smooth'})" tabindex="0" role="link" aria-label="Retour en haut">Salon Évolution</span>
+  <!-- NAV -->
+  <nav id="mainNav">
+    <div style="font-family:'Playfair Display',serif;font-style:italic;font-size:18px;letter-spacing:1px;color:#C9A0C4">Salon Évolution</div>
+    <ul>
+      <li><a href="#">Services</a></li>
+      <li><a href="#">Équipe</a></li>
+      <li><a href="#">Réserver</a></li>
+    </ul>
+    <button style="padding:8px 20px;border:1px solid #C9A0C4;background:transparent;color:#C9A0C4;font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;font-family:'DM Sans',sans-serif;transition:background 0.2s" onmouseover="this.style.background='rgba(201,160,196,0.08)'" onmouseout="this.style.background='transparent'">Prendre rendez-vous</button>
+  </nav>
 
-  <ul class="nav-links" role="list">
-    <li><a href="#services">Services</a></li>
-    <li><a href="#equipe">Équipe</a></li>
-    <li><a href="#galerie">Galerie</a></li>
-    <li><a href="#cta">Réserver</a></li>
-  </ul>
+  <!-- CINEMATIC SCROLL CONTAINER -->
+  <div class="scroll-container">
+    <div class="sticky-wrapper">
 
-  <button class="nav-cta" aria-label="Prendre rendez-vous">Prendre rendez-vous</button>
-  <button class="nav-hamburger" aria-label="Ouvrir le menu" aria-expanded="false">
-    <span></span><span></span><span></span>
-  </button>
-</nav>
+      <!-- BACKGROUND LAYERS -->
+      <div class="bg" id="bg1"></div>
+      <div class="bg" id="bg2"></div>
+      <div class="bg" id="bg3"></div>
+      <div class="bg-overlay"></div>
 
-<!-- ============================================================
-     HERO
-============================================================ -->
-<section id="hero" aria-label="Présentation du salon">
-  <div class="hero-glow" aria-hidden="true"></div>
+      <!-- ===================================================
+           PHASE 1 — HERO
+      =================================================== -->
+      <div class="phase" id="phase-hero">
+        <p class="hero-headline hero-line">Votre beauté,</p>
+        <p class="hero-headline-bold hero-line">réinventée<span class="period">.</span></p>
+        <hr class="hero-divider hero-line" />
+        <p class="hero-location hero-line">Saint-Roch · Québec · Depuis 2016</p>
+        <p class="hero-rating hero-line">&#9733;&#9733;&#9733;&#9733;&#9733;&nbsp; 4.9 — 124 avis Google</p>
 
-  <div class="hero-content">
-    <p class="hero-eyebrow">Saint-Roch&nbsp;&nbsp;·&nbsp;&nbsp;Québec&nbsp;&nbsp;·&nbsp;&nbsp;Depuis 2016</p>
-
-    <h1 class="hero-h1" aria-label="Votre beauté, réinventée.">
-      <span class="hero-line-1">Votre beauté,</span>
-      <span class="hero-line-2">réinventée<span class="hero-accent-dot">.</span></span>
-    </h1>
-
-    <div class="hero-rating" aria-label="Note 4.9 sur 5 — 124 avis Google">
-      <span class="hero-stars" aria-hidden="true">★★★★★</span>
-      <span class="hero-rating-score">4.9</span>
-      <span style="color:var(--muted)">—</span>
-      <span>124 avis Google</span>
-    </div>
-  </div>
-
-  <div class="hero-scroll" aria-hidden="true">
-    <span class="hero-scroll-label">Découvrir</span>
-    <span class="hero-scroll-line"></span>
-  </div>
-</section>
-
-<!-- ============================================================
-     AUDIT
-============================================================ -->
-<section id="audit" aria-labelledby="audit-heading">
-  <div class="section-inner">
-    <div class="audit-heading fade-up">
-      <span class="section-label">Analyse · Présence numérique</span>
-      <h2 id="audit-heading" class="section-h2">Vos clients potentiels partent chez <em>la concurrence.</em></h2>
-      <p class="section-sub">Voici pourquoi votre salon mérite une vitrine numérique à la hauteur de votre savoir-faire.</p>
-    </div>
-
-    <div class="audit-grid">
-      <!-- Score -->
-      <div class="audit-score-wrap fade-up">
-        <span class="audit-score-num" id="score-counter" aria-label="Score de présence en ligne: 28 sur 100">0</span>
-        <span class="audit-score-label">Score de présence en ligne</span>
-        <div class="audit-score-bar-track" aria-hidden="true">
-          <div class="audit-score-bar-fill" id="score-bar"></div>
+        <!-- Scroll indicator -->
+        <div class="scroll-hint">
+          <span class="scroll-hint-label">Défiler</span>
+          <div class="scroll-line"></div>
         </div>
-        <p class="audit-score-note">Potentiel d'amélioration: <strong style="color:var(--accent)">72 points</strong></p>
       </div>
 
-      <!-- Pain points -->
-      <div class="audit-points">
-        <div class="audit-point fade-up" role="article">
-          <div class="audit-point-icon" aria-hidden="true">
-            <!-- Smartphone icon -->
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="5" y="2" width="14" height="20" rx="2"/>
-              <line x1="12" y1="18" x2="12" y2="18.01"/>
-            </svg>
-          </div>
-          <div>
-            <p class="audit-point-title">Pas de réservation en ligne</p>
-            <p class="audit-point-desc">84&nbsp;% de votre clientèle cible réserve depuis son téléphone. Chaque appel manqué est un rendez-vous perdu.</p>
-          </div>
+      <!-- ===================================================
+           PHASE 2 — AUDIT
+      =================================================== -->
+      <div class="phase" id="phase-audit">
+        <h2 class="audit-heading">Vos clients potentiels vous cherchent... et ne vous trouvent pas.</h2>
+
+        <div class="audit-score-wrap">
+          <span class="audit-score-number">28</span>
+          <span class="audit-score-denom">/ 100</span>
+          <span class="audit-score-label">Score de présence en ligne</span>
         </div>
 
-        <div class="audit-point fade-up" role="article">
-          <div class="audit-point-icon" aria-hidden="true">
-            <!-- Calendar icon -->
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="3" y="4" width="18" height="18" rx="2"/>
-              <line x1="3" y1="9" x2="21" y2="9"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-            </svg>
+        <div class="audit-cards">
+          <!-- Card 1 -->
+          <div class="audit-card">
+            <div class="audit-card-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="5" y="2" width="14" height="20" rx="2"/>
+                <line x1="12" y1="18" x2="12.01" y2="18"/>
+              </svg>
+            </div>
+            <div class="audit-card-title">Pas de réservation en ligne</div>
+            <div class="audit-card-desc">84&nbsp;% de votre clientèle réserve depuis son téléphone</div>
           </div>
-          <div>
-            <p class="audit-point-title">Site web créé en 2017</p>
-            <p class="audit-point-desc">Votre site n'est pas adapté aux standards actuels. Un site daté nuit à votre crédibilité et votre référencement.</p>
+          <!-- Card 2 -->
+          <div class="audit-card">
+            <div class="audit-card-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </div>
+            <div class="audit-card-title">Site web créé en 2017</div>
+            <div class="audit-card-desc">Votre site n'est pas adapté aux standards 2024</div>
           </div>
-        </div>
-
-        <div class="audit-point fade-up" role="article">
-          <div class="audit-point-icon" aria-hidden="true">
-            <!-- Camera icon -->
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-              <circle cx="12" cy="13" r="4"/>
-            </svg>
-          </div>
-          <div>
-            <p class="audit-point-title">Photos de qualité insuffisante</p>
-            <p class="audit-point-desc">La première impression se fait en 0,05 seconde. Des visuels haut de gamme multiplient vos demandes par 3.</p>
+          <!-- Card 3 -->
+          <div class="audit-card">
+            <div class="audit-card-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+            </div>
+            <div class="audit-card-title">Photos de qualité insuffisante</div>
+            <div class="audit-card-desc">La première impression se fait en 0,05 secondes</div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
-</section>
 
-<!-- ============================================================
-     SERVICES
-============================================================ -->
-<section id="services" aria-labelledby="services-heading">
-  <div class="section-inner">
-    <div class="fade-up">
-      <span class="section-label">Expertise · Ce que nous offrons</span>
-      <h2 id="services-heading" class="section-h2">Nos services <em>signature</em></h2>
-      <p class="section-sub">Chaque visite est une expérience pensée pour vous — du premier regard au résultat parfait.</p>
-    </div>
+      <!-- ===================================================
+           PHASE 3 — SERVICES
+      =================================================== -->
+      <div class="phase" id="phase-services">
+        <h2 class="section-heading">Nos services signature</h2>
+        <hr class="accent-bar" />
 
-    <div class="services-grid" role="list">
-
-      <!-- Coiffure & styling -->
-      <article class="service-card fade-up" role="listitem" tabindex="0" aria-label="Service Coiffure et styling">
-        <div class="service-icon" aria-hidden="true">
-          <!-- Scissors icon -->
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="6" cy="6" r="3"/>
-            <circle cx="6" cy="18" r="3"/>
-            <line x1="20" y1="4" x2="8.12" y2="15.88"/>
-            <line x1="14.47" y1="14.48" x2="20" y2="20"/>
-            <line x1="8.12" y1="8.12" x2="12" y2="12"/>
-          </svg>
-        </div>
-        <h3 class="service-name">Coiffure & styling</h3>
-        <p class="service-desc">Coupe, brushing, mise en plis et coiffures événementielles. Nos stylistes adaptent chaque création à votre morphologie et votre personnalité.</p>
-        <span class="service-price">Dès 65&nbsp;$</span>
-      </article>
-
-      <!-- Coloration & mèches -->
-      <article class="service-card fade-up" role="listitem" tabindex="0" aria-label="Service Coloration et mèches">
-        <div class="service-icon" aria-hidden="true">
-          <!-- Palette / droplet icon -->
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.1 0 2-.9 2-2 0-.53-.2-1.01-.52-1.38-.31-.36-.48-.84-.48-1.37 0-1.1.9-2 2-2h2.35C19.45 15.25 22 12.84 22 9.94 22 5.55 17.52 2 12 2z"/>
-            <circle cx="7" cy="12" r="1.5" fill="var(--accent)" stroke="none"/>
-            <circle cx="9" cy="7.5" r="1.5" fill="var(--accent)" stroke="none"/>
-            <circle cx="14" cy="7" r="1.5" fill="var(--accent)" stroke="none"/>
-          </svg>
-        </div>
-        <h3 class="service-name">Coloration & mèches</h3>
-        <p class="service-desc">Balayage, ombré, couleurs tendance et techniques de mèches. Camille, coloriste certifiée, sublime votre chevelure avec précision.</p>
-        <span class="service-price">Dès 95&nbsp;$</span>
-      </article>
-
-      <!-- Soins capillaires -->
-      <article class="service-card fade-up" role="listitem" tabindex="0" aria-label="Service Soins capillaires">
-        <div class="service-icon" aria-hidden="true">
-          <!-- Leaf / spa icon -->
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/>
-            <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
-          </svg>
-        </div>
-        <h3 class="service-name">Soins capillaires</h3>
-        <p class="service-desc">Traitements Kérastase, masques nourrissants et soins de restructuration. Retrouvez brillance, force et douceur à chaque visite.</p>
-        <span class="service-price">Dès 55&nbsp;$</span>
-      </article>
-
-      <!-- Manucure & pédicure -->
-      <article class="service-card fade-up" role="listitem" tabindex="0" aria-label="Service Manucure et pédicure">
-        <div class="service-icon" aria-hidden="true">
-          <!-- Hand icon -->
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/>
-            <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/>
-            <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/>
-            <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
-          </svg>
-        </div>
-        <h3 class="service-name">Manucure & pédicure</h3>
-        <p class="service-desc">Soins des mains et des pieds, pose de vernis gel, nail art et entretien. Des mains impeccables qui reflètent votre raffinement.</p>
-        <span class="service-price">Dès 45&nbsp;$</span>
-      </article>
-
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================
-     TEAM
-============================================================ -->
-<section id="equipe" aria-labelledby="equipe-heading">
-  <div class="section-inner">
-    <div class="fade-up">
-      <span class="section-label">L'équipe · Des expertes à votre service</span>
-      <h2 id="equipe-heading" class="section-h2">Notre <em>équipe</em></h2>
-      <p class="section-sub">Trois artisanes passionnées, unies par l'exigence du détail et l'amour du beau geste.</p>
-    </div>
-
-    <div class="team-grid" role="list">
-
-      <article class="team-card fade-up" role="listitem" aria-label="Élodie Martin, directrice artistique">
-        <div class="team-photo" aria-hidden="true" role="img" aria-label="Photo de profil d'Élodie Martin"></div>
-        <h3 class="team-name">Élodie Martin</h3>
-        <div class="team-divider" aria-hidden="true"></div>
-        <p class="team-title">Directrice artistique</p>
-        <p class="team-spec">12 ans d'expérience</p>
-      </article>
-
-      <article class="team-card fade-up" role="listitem" aria-label="Camille Roy, coloriste certifiée">
-        <div class="team-photo" aria-hidden="true" role="img" aria-label="Photo de profil de Camille Roy"></div>
-        <h3 class="team-name">Camille Roy</h3>
-        <div class="team-divider" aria-hidden="true"></div>
-        <p class="team-title">Coloriste certifiée</p>
-        <p class="team-spec">Spécialiste balayage</p>
-      </article>
-
-      <article class="team-card fade-up" role="listitem" aria-label="Jade Ouellet, styliste et soins">
-        <div class="team-photo" aria-hidden="true" role="img" aria-label="Photo de profil de Jade Ouellet"></div>
-        <h3 class="team-name">Jade Ouellet</h3>
-        <div class="team-divider" aria-hidden="true"></div>
-        <p class="team-title">Styliste &amp; soins</p>
-        <p class="team-spec">Experte Kérastase</p>
-      </article>
-
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================
-     GALERIE
-============================================================ -->
-<section id="galerie" aria-labelledby="galerie-heading">
-  <div class="section-inner">
-    <div class="fade-up">
-      <span class="section-label">Galerie · Notre univers</span>
-      <h2 id="galerie-heading" class="section-h2">L'atmosphère <em>Évolution</em></h2>
-      <p class="section-sub">Un espace pensé pour la détente et la transformation — où chaque détail est soigné avec intention.</p>
-    </div>
-
-    <div class="gallery-strip fade-up" role="list" aria-label="Galerie du salon">
-      <div class="gallery-item" role="listitem" aria-label="Ambiance salon">
-        <div class="gallery-item-inner">
-          <span class="gallery-label">Ambiance salon</span>
+        <div class="services-grid">
+          <!-- Coiffure -->
+          <div class="service-card">
+            <div class="service-card-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="6" cy="6" r="3"/>
+                <circle cx="6" cy="18" r="3"/>
+                <line x1="20" y1="4" x2="8.12" y2="15.88"/>
+                <line x1="14.47" y1="14.48" x2="20" y2="20"/>
+                <line x1="8.12" y1="8.12" x2="12" y2="12"/>
+              </svg>
+            </div>
+            <div class="service-card-name">Coiffure &amp; Styling</div>
+            <div class="service-card-desc">Coupes tendance, brushings et mises en forme personnalisées</div>
+            <div class="service-card-price">Dès 65&nbsp;$</div>
+          </div>
+          <!-- Coloration -->
+          <div class="service-card">
+            <div class="service-card-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+                <circle cx="7.5" cy="10.5" r="1"/>
+                <circle cx="12" cy="7.5" r="1"/>
+                <circle cx="16.5" cy="10.5" r="1"/>
+              </svg>
+            </div>
+            <div class="service-card-name">Coloration &amp; Mèches</div>
+            <div class="service-card-desc">Balayage, ombré hair et colorations permanentes</div>
+            <div class="service-card-price">Dès 110&nbsp;$</div>
+          </div>
+          <!-- Soins -->
+          <div class="service-card">
+            <div class="service-card-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22c4.97 0 9-3.134 9-7s-4.03-7-9-7S3 11.134 3 15s4.03 7 9 7z"/>
+                <path d="M12 8c0-2.209-1.791-4-4-4"/>
+                <path d="M12 8c0-2.209 1.791-4 4-4"/>
+                <line x1="12" y1="8" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <div class="service-card-name">Soins Capillaires</div>
+            <div class="service-card-desc">Soins Kérastase, masques nutritifs et traitements restructurants</div>
+            <div class="service-card-price">Dès 45&nbsp;$</div>
+          </div>
+          <!-- Manucure -->
+          <div class="service-card">
+            <div class="service-card-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/>
+                <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/>
+                <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/>
+                <path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+              </svg>
+            </div>
+            <div class="service-card-name">Manucure &amp; Pédicure</div>
+            <div class="service-card-desc">Gel, vernis semi-permanent et soins des mains</div>
+            <div class="service-card-price">Dès 40&nbsp;$</div>
+          </div>
         </div>
       </div>
-      <div class="gallery-item" role="listitem" aria-label="Résultats coiffure">
-        <div class="gallery-item-inner">
-          <span class="gallery-label">Résultats</span>
+
+      <!-- ===================================================
+           PHASE 4 — TEAM
+      =================================================== -->
+      <div class="phase" id="phase-team">
+        <h2 class="section-heading">Notre équipe</h2>
+        <hr class="accent-bar" />
+
+        <div class="team-grid">
+          <!-- Élodie -->
+          <div class="team-card">
+            <div class="team-avatar">EM</div>
+            <div class="team-name">Élodie Martin</div>
+            <div class="team-title">Directrice artistique</div>
+            <div class="team-exp">12 ans d'expérience<br/>Spécialiste en transformations capillaires haut de gamme</div>
+          </div>
+          <!-- Camille -->
+          <div class="team-card">
+            <div class="team-avatar">CR</div>
+            <div class="team-name">Camille Roy</div>
+            <div class="team-title">Coloriste certifiée</div>
+            <div class="team-exp">Experte balayage et ombré hair<br/>Formations Wella et Kérastase</div>
+          </div>
+          <!-- Jade -->
+          <div class="team-card">
+            <div class="team-avatar">JO</div>
+            <div class="team-name">Jade Ouellet</div>
+            <div class="team-title">Styliste &amp; Soins</div>
+            <div class="team-exp">Spécialiste extensions et traitements<br/>Certifiée Great Lengths</div>
+          </div>
         </div>
       </div>
-      <div class="gallery-item" role="listitem" aria-label="Produits et soins">
-        <div class="gallery-item-inner">
-          <span class="gallery-label">Produits &amp; soins</span>
+
+      <!-- ===================================================
+           PHASE 5 — REVIEWS
+      =================================================== -->
+      <div class="phase" id="phase-reviews">
+        <h2 class="section-heading">Ce que nos clientes disent</h2>
+        <hr class="accent-bar" />
+
+        <div class="reviews-grid">
+          <!-- Review 1 -->
+          <div class="review-card">
+            <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+            <p class="review-quote">"Élodie a transformé mes cheveux! Résultat parfait, exactement ce que je demandais. Je ne vais nulle part ailleurs!"</p>
+            <div class="review-author">Ariane Gagnon &nbsp;·&nbsp; il y a 2 semaines</div>
+          </div>
+          <!-- Review 2 -->
+          <div class="review-card">
+            <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+            <p class="review-quote">"Meilleur salon de Québec. Camille est une vraie magicienne de la couleur. Mon balayage est sublime."</p>
+            <div class="review-author">Maude Tremblay &nbsp;·&nbsp; il y a 1 mois</div>
+          </div>
+          <!-- Review 3 -->
+          <div class="review-card">
+            <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+            <p class="review-quote">"Ambiance chaleureuse, service impeccable. Jade a pris soin de mes cheveux fragilisés avec expertise."</p>
+            <div class="review-author">Émilie Côté &nbsp;·&nbsp; il y a 3 semaines</div>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
-</section>
 
-<!-- ============================================================
-     STATS
-============================================================ -->
-<section id="stats" aria-labelledby="stats-heading">
-  <h2 id="stats-heading" class="visually-hidden">Chiffres clés</h2>
-  <div class="stats-grid" role="list">
-
-    <div class="stat-item fade-up" role="listitem" aria-label="8 ans d'expérience">
-      <span class="stat-value" data-target="8" data-suffix="+" aria-live="polite">0</span>
-      <p class="stat-label">Ans d'expérience</p>
-    </div>
-
-    <div class="stat-item fade-up" role="listitem" aria-label="Note Google 4.9 étoiles">
-      <span class="stat-value" data-target="4.9" data-suffix="★" aria-live="polite">0</span>
-      <p class="stat-label">Note Google</p>
-    </div>
-
-    <div class="stat-item fade-up" role="listitem" aria-label="124 avis vérifiés">
-      <span class="stat-value" data-target="124" data-suffix="" aria-live="polite">0</span>
-      <p class="stat-label">Avis vérifiés</p>
-    </div>
-
-    <div class="stat-item fade-up" role="listitem" aria-label="3 stylistes expertes">
-      <span class="stat-value" data-target="3" data-suffix="" aria-live="polite">0</span>
-      <p class="stat-label">Stylistes expertes</p>
-    </div>
-
-  </div>
-</section>
-
-<!-- ============================================================
-     GOOGLE REVIEWS
-============================================================ -->
-<section id="avis" aria-labelledby="avis-heading">
-  <div class="section-inner">
-    <div class="fade-up">
-      <span class="section-label">Témoignages · Ce que disent nos clientes</span>
-      <h2 id="avis-heading" class="section-h2">Avis <em>vérifiés</em></h2>
-      <p class="section-sub">Des clientes satisfaites, des résultats qui parlent. Voici ce qu'elles disent de leur expérience chez Salon Évolution.</p>
-    </div>
-
-    <div class="reviews-grid" role="list">
-
-      <article class="review-card fade-up" role="listitem" aria-label="Avis d'Ariane Gagnon">
-        <div class="review-stars" aria-label="Cinq étoiles" aria-hidden="true">★★★★★</div>
-        <blockquote>
-          <p class="review-text">"Élodie a transformé mes cheveux&nbsp;! Résultat parfait, exactement ce que je voulais. L'équipe est attentive, professionnelle et l'ambiance est tellement apaisante. Je repars à chaque fois comblée."</p>
-        </blockquote>
-        <div class="review-divider" aria-hidden="true"></div>
-        <p class="review-author">Ariane Gagnon</p>
-        <div class="review-google-badge" aria-label="Avis Google vérifié">
-          <!-- Google G icon simplified -->
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-          Avis Google vérifié
+      <!-- ===================================================
+           PHASE 6 — CTA
+      =================================================== -->
+      <div class="phase" id="phase-cta">
+        <h2 class="cta-heading">Une vitrine en ligne aussi élégante que votre salon.</h2>
+        <p class="cta-sub">Site web avec réservation en ligne, galerie photos et fiche Google optimisée — livré en 7 jours.</p>
+        <div class="cta-buttons">
+          <button class="btn-primary">Voir la démonstration</button>
+          <button class="btn-secondary">Nous appeler</button>
         </div>
-      </article>
+        <p class="cta-phone">(418) 555-0312</p>
+      </div>
 
-      <article class="review-card fade-up" role="listitem" aria-label="Avis de Maude Tremblay">
-        <div class="review-stars" aria-label="Cinq étoiles" aria-hidden="true">★★★★★</div>
-        <blockquote>
-          <p class="review-text">"Meilleur salon de Québec. Camille est une magicienne de la couleur — mon balayage est absolument sublime. Je ne ferais confiance à personne d'autre pour ma coloration. Service cinq étoiles."</p>
-        </blockquote>
-        <div class="review-divider" aria-hidden="true"></div>
-        <p class="review-author">Maude Tremblay</p>
-        <div class="review-google-badge" aria-label="Avis Google vérifié">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-          Avis Google vérifié
-        </div>
-      </article>
+    </div><!-- /sticky-wrapper -->
+  </div><!-- /scroll-container -->
 
-      <article class="review-card fade-up" role="listitem" aria-label="Avis d'Émilie Côté">
-        <div class="review-stars" aria-label="Cinq étoiles" aria-hidden="true">★★★★★</div>
-        <blockquote>
-          <p class="review-text">"Ambiance chaleureuse, service impeccable. Je ne vais nulle part ailleurs depuis que j'ai découvert Salon Évolution. Jade est incroyable pour les soins — mes cheveux n'ont jamais été aussi beaux."</p>
-        </blockquote>
-        <div class="review-divider" aria-hidden="true"></div>
-        <p class="review-author">Émilie Côté</p>
-        <div class="review-google-badge" aria-label="Avis Google vérifié">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-          Avis Google vérifié
-        </div>
-      </article>
+  <script>
+    window.addEventListener('load', function() {
+      gsap.registerPlugin(ScrollTrigger);
 
-    </div>
-  </div>
-</section>
+      var progressBar = document.getElementById('progressBar');
 
-<!-- ============================================================
-     CTA
-============================================================ -->
-<section id="cta" aria-labelledby="cta-heading">
-  <div class="cta-inner fade-up">
-    <span class="section-label">Passez à l'action · Votre présence numérique</span>
-    <h2 id="cta-heading" class="cta-h2">Une vitrine en ligne aussi <em>élégante</em> que votre salon.</h2>
-    <p class="cta-sub">Site web avec réservation en ligne, galerie photos et fiche Google optimisée — livré en 7 jours.</p>
-    <div class="cta-buttons">
-      <button class="btn-primary" aria-label="Voir la démonstration du site web">Voir la démonstration</button>
-      <button class="btn-outline" aria-label="Nous appeler au (418) 555-0312">Nous appeler</button>
-    </div>
-    <p style="margin-top:2rem; font-size:0.75rem; color:var(--muted); letter-spacing:0.08em;">(418)&nbsp;555-0312&nbsp;&nbsp;·&nbsp;&nbsp;Saint-Roch, Québec</p>
-  </div>
-</section>
-
-<!-- ============================================================
-     FOOTER
-============================================================ -->
-<footer role="contentinfo">
-  <span class="footer-brand">Salon Évolution</span>
-  <div class="footer-info">
-    <p>Coiffure &amp; beauté haut de gamme · Saint-Roch, Québec</p>
-    <p style="margin-top:0.25rem; font-size:0.68rem; color:rgba(122,107,128,0.5);">&copy; 2016–2026 Salon Évolution · Tous droits réservés</p>
-  </div>
-</footer>
-
-<!-- ============================================================
-     JAVASCRIPT
-============================================================ -->
-<script>
-window.addEventListener('load', function () {
-
-  /* -------------------------------------------------------
-     Plugin registration
-  ------------------------------------------------------- */
-  gsap.registerPlugin(ScrollTrigger);
-
-  /* -------------------------------------------------------
-     Progress bar
-  ------------------------------------------------------- */
-  const progressBar = document.getElementById('progress-bar');
-
-  window.addEventListener('scroll', function () {
-    const scrollTop = window.scrollY || document.documentElement.scrollTop;
-    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-    const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
-    progressBar.style.width = progress + '%';
-  }, { passive: true });
-
-  /* -------------------------------------------------------
-     Hero entrance animation
-  ------------------------------------------------------- */
-  var heroTl = gsap.timeline({ delay: 0.15 });
-
-  heroTl
-    .to('.hero-eyebrow', {
-      opacity: 1,
-      y: 0,
-      duration: 0.9,
-      ease: 'power2.out'
-    })
-    .to('.hero-line-1', {
-      opacity: 1,
-      y: 0,
-      duration: 1.0,
-      ease: 'power2.out'
-    }, '-=0.5')
-    .to('.hero-line-2', {
-      opacity: 1,
-      y: 0,
-      duration: 1.0,
-      ease: 'power2.out'
-    }, '-=0.65')
-    .to('.hero-rating', {
-      opacity: 1,
-      y: 0,
-      duration: 0.8,
-      ease: 'power2.out'
-    }, '-=0.5')
-    .to('.hero-scroll', {
-      opacity: 1,
-      duration: 0.8,
-      ease: 'power2.out'
-    }, '-=0.3');
-
-  // Set initial states for hero elements
-  gsap.set('.hero-line-1', { y: 30 });
-  gsap.set('.hero-line-2', { y: 30 });
-  gsap.set('.hero-rating', { y: 20 });
-
-  /* -------------------------------------------------------
-     Global fade-up for all sections
-  ------------------------------------------------------- */
-  gsap.utils.toArray('.fade-up').forEach(function (el) {
-    gsap.fromTo(el,
-      { opacity: 0, y: 28 },
-      {
-        opacity: 1,
-        y: 0,
-        duration: 0.85,
-        ease: 'power2.out',
-        scrollTrigger: {
-          trigger: el,
-          start: 'top 88%',
-          toggleActions: 'play none none none'
-        }
-      }
-    );
-  });
-
-  /* -------------------------------------------------------
-     Audit score counter animation
-  ------------------------------------------------------- */
-  var scoreEl = document.getElementById('score-counter');
-  var scoreBar = document.getElementById('score-bar');
-  var scoreTriggered = false;
-
-  ScrollTrigger.create({
-    trigger: '#audit',
-    start: 'top 70%',
-    onEnter: function () {
-      if (scoreTriggered) return;
-      scoreTriggered = true;
-
-      gsap.to({ val: 0 }, {
-        val: 28,
-        duration: 2.2,
-        ease: 'power2.out',
-        onUpdate: function () {
-          scoreEl.textContent = Math.round(this.targets()[0].val);
-        }
+      // Hero lines on load (not scrubbed) — slow, elegant
+      gsap.from('.hero-line', {
+        y: 50, opacity: 0,
+        stagger: 0.22, duration: 1.4,
+        ease: 'power3.out', delay: 0.4
       });
 
-      // Animate bar to 28%
-      setTimeout(function () {
-        scoreBar.style.width = '28%';
-      }, 80);
-    }
-  });
+      // Nav scroll class
+      window.addEventListener('scroll', function() {
+        document.getElementById('mainNav').classList.toggle('scrolled', window.scrollY > 50);
+      }, { passive: true });
 
-  /* -------------------------------------------------------
-     Stats count-up animation
-  ------------------------------------------------------- */
-  var statsTriggered = false;
-
-  ScrollTrigger.create({
-    trigger: '#stats',
-    start: 'top 75%',
-    onEnter: function () {
-      if (statsTriggered) return;
-      statsTriggered = true;
-
-      var statEls = document.querySelectorAll('.stat-value[data-target]');
-
-      statEls.forEach(function (el, i) {
-        var target = parseFloat(el.getAttribute('data-target'));
-        var suffix = el.getAttribute('data-suffix') || '';
-        var isDecimal = target % 1 !== 0;
-
-        gsap.to({ val: 0 }, {
-          val: target,
-          duration: 2.0,
-          delay: i * 0.12,
-          ease: 'power2.out',
-          onUpdate: function () {
-            var v = this.targets()[0].val;
-            el.textContent = (isDecimal ? v.toFixed(1) : Math.round(v)) + suffix;
-          },
-          onComplete: function () {
-            el.textContent = (isDecimal ? target.toFixed(1) : target) + suffix;
+      // SCRUB TIMELINE
+      var tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: '.scroll-container',
+          start: 'top top',
+          end: 'bottom bottom',
+          scrub: 1.5,
+          onUpdate: function(self) {
+            progressBar.style.width = (self.progress * 100) + '%';
           }
-        });
+        }
       });
-    }
-  });
 
-  /* -------------------------------------------------------
-     Section scroll animations (stagger for grids)
-  ------------------------------------------------------- */
-  // Service cards stagger
-  gsap.utils.toArray('.service-card').forEach(function (card, i) {
-    gsap.fromTo(card,
-      { opacity: 0, y: 32 },
-      {
-        opacity: 1,
-        y: 0,
-        duration: 0.8,
-        delay: i * 0.1,
-        ease: 'power2.out',
-        scrollTrigger: {
-          trigger: '#services',
-          start: 'top 75%',
-          toggleActions: 'play none none none'
-        }
-      }
-    );
-  });
+      // Hero → Audit (15%)
+      tl.to('#phase-hero',  { opacity: 0, duration: 0.05 }, 0.13);
+      tl.to('#bg1',         { opacity: 0, duration: 0.06 }, 0.13);
+      tl.to('#bg2',         { opacity: 1, duration: 0.06 }, 0.14);
+      tl.to('#phase-audit', { opacity: 1, duration: 0.05 }, 0.18);
 
-  // Team cards stagger
-  gsap.utils.toArray('.team-card').forEach(function (card, i) {
-    gsap.fromTo(card,
-      { opacity: 0, y: 32 },
-      {
-        opacity: 1,
-        y: 0,
-        duration: 0.8,
-        delay: i * 0.12,
-        ease: 'power2.out',
-        scrollTrigger: {
-          trigger: '#equipe',
-          start: 'top 75%',
-          toggleActions: 'play none none none'
-        }
-      }
-    );
-  });
+      // Audit → Services (33%)
+      tl.to('#phase-audit',    { opacity: 0, duration: 0.05 }, 0.31);
+      tl.to('#phase-services', { opacity: 1, duration: 0.05 }, 0.35);
 
-  // Review cards stagger
-  gsap.utils.toArray('.review-card').forEach(function (card, i) {
-    gsap.fromTo(card,
-      { opacity: 0, y: 28 },
-      {
-        opacity: 1,
-        y: 0,
-        duration: 0.8,
-        delay: i * 0.12,
-        ease: 'power2.out',
-        scrollTrigger: {
-          trigger: '#avis',
-          start: 'top 78%',
-          toggleActions: 'play none none none'
-        }
-      }
-    );
-  });
+      // Services → Team (50%)
+      tl.to('#phase-services', { opacity: 0, duration: 0.05 }, 0.48);
+      tl.to('#bg2',            { opacity: 0, duration: 0.06 }, 0.48);
+      tl.to('#bg3',            { opacity: 1, duration: 0.06 }, 0.49);
+      tl.to('#phase-team',     { opacity: 1, duration: 0.05 }, 0.53);
 
-  // Audit points stagger
-  gsap.utils.toArray('.audit-point').forEach(function (el, i) {
-    gsap.fromTo(el,
-      { opacity: 0, x: 24 },
-      {
-        opacity: 1,
-        x: 0,
-        duration: 0.75,
-        delay: i * 0.15,
-        ease: 'power2.out',
-        scrollTrigger: {
-          trigger: '#audit',
-          start: 'top 70%',
-          toggleActions: 'play none none none'
-        }
-      }
-    );
-  });
+      // Team → Reviews (67%)
+      tl.to('#phase-team',    { opacity: 0, duration: 0.05 }, 0.65);
+      tl.to('#phase-reviews', { opacity: 1, duration: 0.05 }, 0.69);
 
-  // Gallery strip
-  gsap.fromTo('.gallery-strip',
-    { opacity: 0, y: 24 },
-    {
-      opacity: 1,
-      y: 0,
-      duration: 0.9,
-      ease: 'power2.out',
-      scrollTrigger: {
-        trigger: '#galerie',
-        start: 'top 78%',
-        toggleActions: 'play none none none'
-      }
-    }
-  );
+      // Reviews → CTA (84%)
+      tl.to('#phase-reviews', { opacity: 0, duration: 0.05 }, 0.82);
+      tl.to('#phase-cta',     { opacity: 1, duration: 0.05 }, 0.86);
 
-  /* -------------------------------------------------------
-     Hamburger menu (mobile)
-  ------------------------------------------------------- */
-  var hamburger = document.querySelector('.nav-hamburger');
-  var navLinks = document.querySelector('.nav-links');
-  var navCta = document.querySelector('.nav-cta');
-  var menuOpen = false;
-
-  if (hamburger) {
-    hamburger.addEventListener('click', function () {
-      menuOpen = !menuOpen;
-      hamburger.setAttribute('aria-expanded', menuOpen);
-
-      if (menuOpen) {
-        navLinks.style.display = 'flex';
-        navLinks.style.flexDirection = 'column';
-        navLinks.style.position = 'fixed';
-        navLinks.style.top = '72px';
-        navLinks.style.left = '0';
-        navLinks.style.right = '0';
-        navLinks.style.background = 'rgba(7, 6, 8, 0.97)';
-        navLinks.style.padding = '1.5rem 2rem 2rem';
-        navLinks.style.borderBottom = '1px solid rgba(201, 160, 196, 0.12)';
-        navLinks.style.gap = '1.25rem';
-        navLinks.style.zIndex = '899';
-        navLinks.style.backdropFilter = 'blur(20px)';
-      } else {
-        navLinks.style.display = 'none';
-      }
+      window.addEventListener('resize', function() { ScrollTrigger.refresh(); });
     });
-
-    // Close menu on link click
-    document.querySelectorAll('.nav-links a').forEach(function (link) {
-      link.addEventListener('click', function () {
-        menuOpen = false;
-        hamburger.setAttribute('aria-expanded', 'false');
-        navLinks.style.display = 'none';
-      });
-    });
-  }
-
-  /* -------------------------------------------------------
-     Subtle nav background on scroll
-  ------------------------------------------------------- */
-  var navEl = document.querySelector('nav');
-  window.addEventListener('scroll', function () {
-    if (window.scrollY > 60) {
-      navEl.style.borderBottomColor = 'rgba(201, 160, 196, 0.2)';
-    } else {
-      navEl.style.borderBottomColor = 'rgba(201, 160, 196, 0.1)';
-    }
-  }, { passive: true });
-
-  /* -------------------------------------------------------
-     Keyboard accessibility — Enter triggers click on cards
-  ------------------------------------------------------- */
-  document.querySelectorAll('.service-card[tabindex]').forEach(function (card) {
-    card.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        card.click();
-      }
-    });
-  });
-
-});
-</script>
-
+  </script>
 </body>
 </html>
