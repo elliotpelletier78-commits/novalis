@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mécano Expert — Laval, QC</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@300;400&display=swap" rel="stylesheet" />
+
+  <!-- GSAP 3.12.2 + ScrollTrigger -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+  <style>
+    /* =============================================
+       RESET & BASE
+    ============================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg:        #050505;
+      --card-bg:   #0F0F0F;
+      --accent:    #FF4500;
+      --accent2:   #FFB300;
+      --text:      #F0F0F0;
+      --muted:     #666666;
+      --border:    #1A1A1A;
+      --green:     #00C853;
+      --font-head: 'Rajdhani', sans-serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      overflow-x: hidden;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-weight: 400;
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button, a {
+      cursor: pointer;
+    }
+
+    /* =============================================
+       PROGRESS BAR
+    ============================================= */
+    #progress-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      height: 2px;
+      width: 0%;
+      background: var(--green);
+      z-index: 9999;
+      transition: width 0.05s linear;
+    }
+
+    /* =============================================
+       NAVIGATION
+    ============================================= */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 0 2rem;
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: transparent;
+      transition: background 0.35s ease, backdrop-filter 0.35s ease, border-bottom 0.35s ease;
+    }
+
+    nav.scrolled {
+      background: rgba(5, 5, 5, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: 1.25rem;
+      letter-spacing: 0.12em;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .nav-logo span {
+      color: var(--accent);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2.5rem;
+      list-style: none;
+      font-family: var(--font-body);
+      font-weight: 400;
+      font-size: 0.875rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      transition: color 0.2s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .nav-cta {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.55rem 1.4rem;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .nav-cta:hover {
+      background: #e03d00;
+      transform: translateY(-1px);
+    }
+
+    /* Mobile nav */
+    .nav-hamburger {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .nav-hamburger span {
+      display: block;
+      width: 24px;
+      height: 2px;
+      background: var(--text);
+      transition: transform 0.2s ease;
+    }
+
+    @media (max-width: 768px) {
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: 68px;
+        left: 0;
+        right: 0;
+        background: rgba(5, 5, 5, 0.98);
+        flex-direction: column;
+        gap: 0;
+        padding: 1rem 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .nav-links.open {
+        display: flex;
+      }
+
+      .nav-links li {
+        width: 100%;
+      }
+
+      .nav-links a {
+        display: block;
+        padding: 0.85rem 2rem;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+      }
+
+      .nav-hamburger {
+        display: flex;
+      }
+
+      .nav-cta {
+        font-size: 0.8rem;
+        padding: 0.45rem 1rem;
+      }
+    }
+
+    /* =============================================
+       HERO
+    ============================================= */
+    #hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: #000;
+    }
+
+    /* Diagonal texture */
+    #hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 40px,
+        rgba(255, 69, 0, 0.025) 40px,
+        rgba(255, 69, 0, 0.025) 41px
+      );
+      pointer-events: none;
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      padding: 0 1.5rem;
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    .hero-word {
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: clamp(5rem, 18vw, 14rem);
+      line-height: 0.9;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+      display: block;
+      overflow: hidden;
+    }
+
+    .hero-word.word-mecano {
+      color: var(--text);
+    }
+
+    .hero-word.word-expert {
+      color: var(--accent);
+    }
+
+    .hero-word-inner {
+      display: block;
+      transform: translateY(120px);
+      opacity: 0;
+    }
+
+    .hero-meta {
+      margin-top: 2.5rem;
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-size: 0.8rem;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--muted);
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    .hero-rule {
+      width: 80px;
+      height: 2px;
+      background: var(--accent);
+      margin: 1.5rem auto;
+      opacity: 0;
+      transform: scaleX(0);
+      transform-origin: left center;
+    }
+
+    .hero-tagline {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-size: 0.75rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-variant: small-caps;
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    .scroll-indicator {
+      position: absolute;
+      bottom: 2.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      opacity: 0;
+      animation: fadeInUp 1s ease 2s forwards;
+    }
+
+    .scroll-indicator-text {
+      font-family: var(--font-body);
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .scroll-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      animation: bounce 2s ease-in-out infinite;
+    }
+
+    .scroll-arrow svg {
+      color: var(--accent);
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(6px); }
+    }
+
+    @keyframes fadeInUp {
+      to { opacity: 1; }
+    }
+
+    /* =============================================
+       SECTION SHARED
+    ============================================= */
+    section {
+      padding: 7rem 2rem;
+    }
+
+    .section-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-size: 0.7rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    .section-title {
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      line-height: 1.1;
+      letter-spacing: -0.01em;
+      text-transform: uppercase;
+      color: var(--text);
+      margin-bottom: 3rem;
+    }
+
+    /* =============================================
+       AUDIT SECTION
+    ============================================= */
+    #audit {
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+    }
+
+    .audit-top {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+      margin-bottom: 4rem;
+    }
+
+    .audit-score-block {
+      text-align: center;
+      padding: 3rem 2rem;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      position: relative;
+    }
+
+    .audit-score-block::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent2);
+    }
+
+    .audit-score-number {
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: clamp(5rem, 12vw, 8rem);
+      line-height: 1;
+      color: var(--accent2);
+      letter-spacing: -0.03em;
+    }
+
+    .audit-score-denom {
+      font-family: var(--font-head);
+      font-weight: 600;
+      font-size: 1.5rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+    }
+
+    .audit-score-label {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 1rem;
+    }
+
+    .audit-headline {
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      line-height: 1.15;
+      text-transform: uppercase;
+      letter-spacing: -0.01em;
+    }
+
+    .audit-headline em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .audit-sub {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-size: 1rem;
+      color: var(--muted);
+      margin-top: 1.25rem;
+      line-height: 1.7;
+    }
+
+    .problem-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+
+    .problem-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      padding: 1.75rem 1.5rem;
+      opacity: 0;
+      transform: translateY(30px);
+    }
+
+    .problem-card-icon {
+      width: 36px;
+      height: 36px;
+      margin-bottom: 1rem;
+      color: var(--accent);
+    }
+
+    .problem-card-title {
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 0.6rem;
+      color: var(--text);
+    }
+
+    .problem-card-desc {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    @media (max-width: 900px) {
+      .audit-top {
+        grid-template-columns: 1fr;
+        gap: 2.5rem;
+      }
+
+      .problem-cards {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* =============================================
+       SERVICES
+    ============================================= */
+    #services {
+      background: #080808;
+      border-top: 1px solid var(--border);
+    }
+
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+
+    .service-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--accent);
+      padding: 2.25rem 2rem;
+      cursor: pointer;
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-top-color 0.25s ease;
+      opacity: 0;
+      transform: translateY(40px);
+    }
+
+    .service-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 16px 40px rgba(255, 69, 0, 0.18);
+      border-top-color: var(--accent);
+    }
+
+    .service-icon {
+      width: 44px;
+      height: 44px;
+      color: var(--accent);
+      margin-bottom: 1.25rem;
+    }
+
+    .service-title {
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: 1.3rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 0.65rem;
+      color: var(--text);
+    }
+
+    .service-desc {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    @media (max-width: 640px) {
+      .services-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* =============================================
+       STATS BAR
+    ============================================= */
+    #stats {
+      padding: 5rem 2rem;
+      background: var(--card-bg);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stats-bar {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+    }
+
+    .stat-item {
+      text-align: center;
+      padding: 2rem 1.5rem;
+      border-right: 1px solid var(--border);
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    .stat-item:last-child {
+      border-right: none;
+    }
+
+    .stat-number {
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: clamp(2.5rem, 5vw, 3.5rem);
+      line-height: 1;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+    }
+
+    .stat-suffix {
+      font-family: var(--font-head);
+      font-weight: 600;
+      font-size: 1.5rem;
+      color: var(--accent);
+    }
+
+    .stat-label {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 0.6rem;
+      display: block;
+    }
+
+    @media (max-width: 768px) {
+      .stats-bar {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .stat-item:nth-child(2) {
+        border-right: none;
+      }
+
+      .stat-item:nth-child(3) {
+        border-right: 1px solid var(--border);
+      }
+
+      .stat-item {
+        border-bottom: 1px solid var(--border);
+      }
+
+      .stat-item:last-child {
+        border-bottom: none;
+      }
+
+      .stat-item:nth-child(3) {
+        border-bottom: 1px solid var(--border);
+      }
+    }
+
+    @media (max-width: 480px) {
+      .stats-bar {
+        grid-template-columns: 1fr;
+      }
+
+      .stat-item {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .stat-item:last-child {
+        border-bottom: none;
+      }
+    }
+
+    /* =============================================
+       REVIEWS
+    ============================================= */
+    #avis {
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+    }
+
+    .reviews-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+
+    .review-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 2rem 1.75rem;
+      position: relative;
+      opacity: 0;
+      transform: translateY(30px);
+      transition: border-color 0.25s ease;
+      cursor: default;
+    }
+
+    .review-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.35s ease;
+    }
+
+    .review-card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .review-stars {
+      display: flex;
+      gap: 3px;
+      margin-bottom: 1rem;
+    }
+
+    .review-stars svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .star-filled {
+      color: var(--accent2);
+    }
+
+    .star-empty {
+      color: var(--border);
+    }
+
+    .review-google-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .review-google-icon {
+      width: 18px;
+      height: 18px;
+    }
+
+    .review-google-text {
+      font-family: var(--font-body);
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .review-text {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.7;
+      margin-bottom: 1.5rem;
+    }
+
+    .review-author {
+      font-family: var(--font-head);
+      font-weight: 600;
+      font-size: 0.95rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .review-date {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+    }
+
+    @media (max-width: 900px) {
+      .reviews-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* =============================================
+       CTA SECTION
+    ============================================= */
+    #contact {
+      background: var(--card-bg);
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 8rem 2rem;
+    }
+
+    .cta-eyebrow {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-size: 0.7rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1.25rem;
+    }
+
+    .cta-title {
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: clamp(2.2rem, 5.5vw, 4rem);
+      line-height: 1.1;
+      text-transform: uppercase;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin-bottom: 1.5rem;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .cta-title span {
+      color: var(--accent);
+    }
+
+    .cta-sub {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-size: 1rem;
+      color: var(--muted);
+      max-width: 520px;
+      margin: 0 auto 3rem;
+      line-height: 1.7;
+    }
+
+    .cta-buttons {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: 2px solid var(--accent);
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.9rem 2rem;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.15s ease;
+      display: inline-block;
+    }
+
+    .btn-primary:hover {
+      background: #e03d00;
+      border-color: #e03d00;
+      transform: translateY(-2px);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 2px solid var(--border);
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.9rem 2rem;
+      cursor: pointer;
+      transition: border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+      display: inline-block;
+    }
+
+    .btn-outline:hover {
+      border-color: var(--text);
+      color: var(--text);
+      transform: translateY(-2px);
+    }
+
+    /* =============================================
+       FOOTER
+    ============================================= */
+    footer {
+      background: #000;
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 2rem;
+      text-align: center;
+    }
+
+    .footer-logo {
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .footer-logo span {
+      color: var(--accent);
+    }
+
+    .footer-info {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+
+    /* =============================================
+       REDUCED MOTION
+    ============================================= */
+    @media (prefers-reduced-motion: reduce) {
+      .hero-word-inner {
+        transform: none;
+        opacity: 1;
+      }
+
+      .scroll-indicator {
+        animation: none;
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PROGRESS BAR -->
+  <div id="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+
+  <!-- ============================================================
+       NAVIGATION
+  ============================================================ -->
+  <nav id="main-nav" role="navigation" aria-label="Navigation principale">
+    <a class="nav-logo" href="#hero" aria-label="Mécano Expert - retour en haut">
+      MÉCANO&nbsp;<span>EXPERT</span>
+    </a>
+
+    <ul class="nav-links" id="nav-links" role="list">
+      <li><a href="#services">Services</a></li>
+      <li><a href="#avis">Avis</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+
+    <div style="display:flex; align-items:center; gap:1rem;">
+      <button class="nav-cta" onclick="window.location.href='tel:+14505550187'" aria-label="Appeler Mécano Expert">
+        Nous appeler
+      </button>
+      <button class="nav-hamburger" id="hamburger" aria-label="Menu navigation" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ============================================================
+       HERO
+  ============================================================ -->
+  <section id="hero" aria-label="Présentation Mécano Expert">
+    <div class="hero-inner">
+      <h1>
+        <span class="hero-word word-mecano" aria-label="Mécano">
+          <span class="hero-word-inner" id="hero-word-1">MÉCANO</span>
+        </span>
+        <span class="hero-word word-expert" aria-label="Expert">
+          <span class="hero-word-inner" id="hero-word-2">EXPERT</span>
+        </span>
+      </h1>
+
+      <p class="hero-meta" id="hero-meta">Laval, Québec&nbsp;·&nbsp;Depuis 2008</p>
+      <div class="hero-rule" id="hero-rule" aria-hidden="true"></div>
+      <p class="hero-tagline" id="hero-tagline">Votre garage de confiance depuis 2008</p>
+    </div>
+
+    <div class="scroll-indicator" aria-hidden="true">
+      <span class="scroll-indicator-text">Défiler</span>
+      <span class="scroll-arrow">
+        <!-- Chevron down arrow -->
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </span>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       AUDIT SECTION
+  ============================================================ -->
+  <section id="audit" aria-labelledby="audit-heading">
+    <div class="section-inner">
+      <div class="audit-top">
+        <div>
+          <p class="section-label">Analyse de votre présence web</p>
+          <h2 class="audit-headline" id="audit-heading">
+            Votre site actuel vous fait <em>perdre des clients.</em>
+          </h2>
+          <p class="audit-sub">
+            Notre audit révèle des lacunes critiques qui freinent votre croissance. Chaque jour sans correction, c'est des clients qui se tournent vers vos concurrents.
+          </p>
+        </div>
+
+        <div class="audit-score-block" aria-label="Score web actuel: 34 sur 100">
+          <div class="audit-score-number" id="score-counter">0</div>
+          <div class="audit-score-denom">/ 100</div>
+          <p class="audit-score-label">Score Web Actuel</p>
+        </div>
+      </div>
+
+      <!-- Problem Cards -->
+      <div class="problem-cards" role="list">
+
+        <div class="problem-card" id="pcard-1" role="listitem">
+          <!-- Mobile / smartphone icon -->
+          <svg class="problem-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+          </svg>
+          <h3 class="problem-card-title">Site non adapté mobile</h3>
+          <p class="problem-card-desc">67&nbsp;% de vos clients cherchent un garage depuis leur téléphone. Un site non responsive les fait fuir immédiatement.</p>
+        </div>
+
+        <div class="problem-card" id="pcard-2" role="listitem">
+          <!-- Clock / speed icon -->
+          <svg class="problem-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <h3 class="problem-card-title">Temps de chargement&nbsp;: 8,4&nbsp;s</h3>
+          <p class="problem-card-desc">Google pénalise les sites lents dans ses résultats. Au-delà de 3 secondes, 53&nbsp;% des visiteurs abandonnent la page.</p>
+        </div>
+
+        <div class="problem-card" id="pcard-3" role="listitem">
+          <!-- Map pin / location icon -->
+          <svg class="problem-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+          </svg>
+          <h3 class="problem-card-title">Fiche Google non optimisée</h3>
+          <p class="problem-card-desc">Vous perdez 40&nbsp;% des recherches locales de type "garage près de moi". Une fiche optimisée multiplie votre visibilité.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       SERVICES SECTION
+  ============================================================ -->
+  <section id="services" aria-labelledby="services-heading">
+    <div class="section-inner">
+      <p class="section-label">Ce que nous faisons</p>
+      <h2 class="section-title" id="services-heading">Nos services</h2>
+
+      <div class="services-grid">
+
+        <!-- Mécanique générale -->
+        <article class="service-card" id="scard-1" tabindex="0" aria-label="Mécanique générale">
+          <!-- Wrench icon -->
+          <svg class="service-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+          </svg>
+          <h3 class="service-title">Mécanique générale</h3>
+          <p class="service-desc">Entretien complet, vidange d'huile, remplacement de courroies, diagnostic électronique — tout ce dont votre véhicule a besoin pour rouler en toute sécurité.</p>
+        </article>
+
+        <!-- Pneus & alignement -->
+        <article class="service-card" id="scard-2" tabindex="0" aria-label="Pneus et alignement">
+          <!-- Circle / tire icon -->
+          <svg class="service-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"></circle>
+            <circle cx="12" cy="12" r="4"></circle>
+            <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line>
+            <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line>
+            <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line>
+            <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line>
+          </svg>
+          <h3 class="service-title">Pneus &amp; alignement</h3>
+          <p class="service-desc">Montage, équilibrage et remplacement de pneus 4 saisons ou d'hiver. Alignement de précision pour une conduite stable et sécuritaire.</p>
+        </article>
+
+        <!-- Freins & suspension -->
+        <article class="service-card" id="scard-3" tabindex="0" aria-label="Freins et suspension">
+          <!-- Shield / brake icon -->
+          <svg class="service-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            <polyline points="9 12 11 14 15 10"></polyline>
+          </svg>
+          <h3 class="service-title">Freins &amp; suspension</h3>
+          <p class="service-desc">Inspection, remplacement de plaquettes, disques et amortisseurs. Votre sécurité est notre priorité absolue sur chaque intervention.</p>
+        </article>
+
+        <!-- Inspection pré-achat -->
+        <article class="service-card" id="scard-4" tabindex="0" aria-label="Inspection pré-achat">
+          <!-- Clipboard / checklist icon -->
+          <svg class="service-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path>
+            <rect x="9" y="3" width="6" height="4" rx="1" ry="1"></rect>
+            <line x1="9" y1="12" x2="15" y2="12"></line>
+            <line x1="9" y1="16" x2="11" y2="16"></line>
+            <polyline points="13 16 14.5 17.5 17 15"></polyline>
+          </svg>
+          <h3 class="service-title">Inspection pré-achat</h3>
+          <p class="service-desc">Avant d'acheter un véhicule d'occasion, faites-le inspecter par nos techniciens certifiés. Rapport détaillé remis en main propre.</p>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       STATS BAR
+  ============================================================ -->
+  <div id="stats" role="region" aria-label="Statistiques Mécano Expert">
+    <div class="stats-bar">
+
+      <div class="stat-item" id="stat-1" aria-label="15 ans d'expérience et plus">
+        <div class="stat-number">
+          <span class="stat-count" data-target="15">0</span><span class="stat-suffix">+</span>
+        </div>
+        <span class="stat-label">Ans d'expérience</span>
+      </div>
+
+      <div class="stat-item" id="stat-2" aria-label="Note Google 4.8 étoiles">
+        <div class="stat-number">
+          <span class="stat-count" data-target="4.8" data-decimal="1">0</span><span class="stat-suffix" style="color:var(--accent2);">&#9733;</span>
+        </div>
+        <span class="stat-label">Note Google</span>
+      </div>
+
+      <div class="stat-item" id="stat-3" aria-label="2400 clients servis et plus">
+        <div class="stat-number">
+          <span class="stat-count" data-target="2400" data-format="spaced">0</span><span class="stat-suffix">+</span>
+        </div>
+        <span class="stat-label">Clients servis</span>
+      </div>
+
+      <div class="stat-item" id="stat-4" aria-label="12 techniciens certifiés">
+        <div class="stat-number">
+          <span class="stat-count" data-target="12">0</span>
+        </div>
+        <span class="stat-label">Techniciens certifiés</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================
+       GOOGLE REVIEWS
+  ============================================================ -->
+  <section id="avis" aria-labelledby="avis-heading">
+    <div class="section-inner">
+      <p class="section-label">187 avis Google · Note moyenne 4,8 / 5</p>
+      <h2 class="section-title" id="avis-heading">Ce que disent nos clients</h2>
+
+      <div class="reviews-grid">
+
+        <!-- Review 1 -->
+        <article class="review-card" id="rcard-1" aria-label="Avis de Martin Côté">
+          <div class="review-google-badge">
+            <!-- Google G icon (SVG) -->
+            <svg class="review-google-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            <span class="review-google-text">Avis Google vérifié</span>
+          </div>
+
+          <div class="review-stars" aria-label="5 étoiles sur 5">
+            <svg class="star-filled" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg class="star-filled" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg class="star-filled" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg class="star-filled" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg class="star-filled" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+
+          <p class="review-text">
+            "Excellent service&nbsp;! Mon véhicule était prêt en moins de 24&nbsp;h. L'équipe est transparente sur les travaux effectués et les prix sont très compétitifs. Je recommande sans hésiter."
+          </p>
+          <div>
+            <p class="review-author">Martin Côté</p>
+            <p class="review-date">Il y a 2 semaines</p>
+          </div>
+        </article>
+
+        <!-- Review 2 -->
+        <article class="review-card" id="rcard-2" aria-label="Avis de Sophie Tremblay">
+          <div class="review-google-badge">
+            <svg class="review-google-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            <span class="review-google-text">Avis Google vérifié</span>
+          </div>
+
+          <div class="review-stars" aria-label="5 étoiles sur 5">
+            <svg class="star-filled" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg class="star-filled" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg class="star-filled" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg class="star-filled" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg class="star-filled" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+
+          <p class="review-text">
+            "Personnel très professionnel, prix honnêtes et travail soigné. J'ai amené ma voiture pour un bruit suspect — diagnostiqué en 30 minutes, réparé le lendemain. Je ne vais nulle part ailleurs."
+          </p>
+          <div>
+            <p class="review-author">Sophie Tremblay</p>
+            <p class="review-date">Il y a 1 mois</p>
+          </div>
+        </article>
+
+        <!-- Review 3 -->
+        <article class="review-card" id="rcard-3" aria-label="Avis de Jean-François Roy">
+          <div class="review-google-badge">
+            <svg class="review-google-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            <span class="review-google-text">Avis Google vérifié</span>
+          </div>
+
+          <div class="review-stars" aria-label="4 étoiles sur 5">
+            <svg class="star-filled" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg class="star-filled" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg class="star-filled" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg class="star-filled" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg class="star-empty" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+
+          <p class="review-text">
+            "Bon travail, rapide et efficace. J'ai fait faire mon inspection pré-achat ici — rapport très complet avec photos. Légère attente à l'accueil mais rien de grave. Je reviendrai pour l'entretien régulier."
+          </p>
+          <div>
+            <p class="review-author">Jean-François Roy</p>
+            <p class="review-date">Il y a 3 semaines</p>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       CTA SECTION
+  ============================================================ -->
+  <section id="contact" aria-labelledby="cta-heading">
+    <div class="section-inner" style="max-width:900px;">
+      <p class="cta-eyebrow">Prêt à passer au niveau supérieur&nbsp;?</p>
+      <h2 class="cta-title" id="cta-heading">
+        Transformons votre<br><span>présence en ligne</span>
+      </h2>
+      <p class="cta-sub">
+        Un nouveau site web professionnel pour Mécano Expert — livré en 7&nbsp;jours. Design premium, optimisé Google, adapté mobile.
+      </p>
+      <div class="cta-buttons">
+        <button class="btn-primary" onclick="window.location.href='#contact'" aria-label="Voir la démonstration complète">
+          Voir la démonstration complète
+        </button>
+        <button class="btn-outline" onclick="window.location.href='tel:+14505550187'" aria-label="Nous contacter par téléphone">
+          Nous contacter
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       FOOTER
+  ============================================================ -->
+  <footer role="contentinfo">
+    <p class="footer-logo">MÉCANO&nbsp;<span>EXPERT</span></p>
+    <p class="footer-info">Laval, Québec &nbsp;·&nbsp; (450)&nbsp;555-0187 &nbsp;·&nbsp; Garage de confiance depuis 2008</p>
+  </footer>
+
+  <!-- ============================================================
+       JAVASCRIPT
+  ============================================================ -->
+  <script>
+  window.addEventListener('load', function () {
+
+    // ─── GSAP + ScrollTrigger ────────────────────────────────────────────────
+    gsap.registerPlugin(ScrollTrigger);
+
+    // ─── NAV: scroll state ───────────────────────────────────────────────────
+    var nav = document.getElementById('main-nav');
+    window.addEventListener('scroll', function () {
+      if (window.scrollY > 60) {
+        nav.classList.add('scrolled');
+      } else {
+        nav.classList.remove('scrolled');
+      }
+    }, { passive: true });
+
+    // ─── HAMBURGER MENU ──────────────────────────────────────────────────────
+    var hamburger = document.getElementById('hamburger');
+    var navLinks  = document.getElementById('nav-links');
+    hamburger.addEventListener('click', function () {
+      var isOpen = navLinks.classList.toggle('open');
+      hamburger.setAttribute('aria-expanded', isOpen.toString());
+    });
+
+    // Close menu on link click (mobile)
+    navLinks.querySelectorAll('a').forEach(function (link) {
+      link.addEventListener('click', function () {
+        navLinks.classList.remove('open');
+        hamburger.setAttribute('aria-expanded', 'false');
+      });
+    });
+
+    // ─── PROGRESS BAR ────────────────────────────────────────────────────────
+    var progressBar = document.getElementById('progress-bar');
+    window.addEventListener('scroll', function () {
+      var scrollTop  = window.scrollY;
+      var docHeight  = document.documentElement.scrollHeight - window.innerHeight;
+      var pct        = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+      progressBar.style.width = pct.toFixed(2) + '%';
+      progressBar.setAttribute('aria-valuenow', Math.round(pct));
+    }, { passive: true });
+
+    // ─── HERO ANIMATIONS ─────────────────────────────────────────────────────
+    var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (!reducedMotion) {
+      var heroTl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+
+      heroTl
+        .to('#hero-word-1', { y: 0, opacity: 1, duration: 0.9, delay: 0.2 })
+        .to('#hero-word-2', { y: 0, opacity: 1, duration: 0.9 }, '-=0.6')
+        .to('#hero-meta',   { y: 0, opacity: 1, duration: 0.6 }, '-=0.4')
+        .to('#hero-rule',   { scaleX: 1, opacity: 1, duration: 0.5 }, '-=0.3')
+        .to('#hero-tagline',{ y: 0, opacity: 1, duration: 0.5 }, '-=0.2');
+    } else {
+      // Instant reveal for reduced motion
+      ['#hero-word-1','#hero-word-2','#hero-meta','#hero-rule','#hero-tagline'].forEach(function(sel){
+        var el = document.querySelector(sel);
+        if (el) { el.style.transform = 'none'; el.style.opacity = '1'; }
+      });
+    }
+
+    // ─── AUDIT SECTION ───────────────────────────────────────────────────────
+
+    // Score counter
+    ScrollTrigger.create({
+      trigger: '#audit',
+      start: 'top 70%',
+      once: true,
+      onEnter: function () {
+        var el = document.getElementById('score-counter');
+        var obj = { val: 0 };
+        gsap.to(obj, {
+          val: 34,
+          duration: 1.8,
+          ease: 'power2.out',
+          onUpdate: function () {
+            el.textContent = Math.round(obj.val);
+          }
+        });
+      }
+    });
+
+    // Problem cards stagger
+    var pcards = ['#pcard-1', '#pcard-2', '#pcard-3'];
+    pcards.forEach(function (sel, i) {
+      gsap.to(sel, {
+        scrollTrigger: { trigger: sel, start: 'top 85%', once: true },
+        opacity: 1,
+        y: 0,
+        duration: 0.65,
+        delay: i * 0.15,
+        ease: 'power2.out'
+      });
+    });
+
+    // Audit top fade-in
+    gsap.from('.audit-headline', {
+      scrollTrigger: { trigger: '#audit', start: 'top 75%', once: true },
+      opacity: 0, y: 30, duration: 0.7, ease: 'power2.out'
+    });
+
+    gsap.from('.audit-sub', {
+      scrollTrigger: { trigger: '#audit', start: 'top 70%', once: true },
+      opacity: 0, y: 20, duration: 0.6, delay: 0.2, ease: 'power2.out'
+    });
+
+    gsap.from('.audit-score-block', {
+      scrollTrigger: { trigger: '.audit-score-block', start: 'top 80%', once: true },
+      opacity: 0, scale: 0.95, duration: 0.6, ease: 'power2.out'
+    });
+
+    // ─── SERVICES SECTION ────────────────────────────────────────────────────
+    gsap.from('#services .section-label, #services .section-title', {
+      scrollTrigger: { trigger: '#services', start: 'top 75%', once: true },
+      opacity: 0, y: 25, duration: 0.6, stagger: 0.15, ease: 'power2.out'
+    });
+
+    ['#scard-1','#scard-2','#scard-3','#scard-4'].forEach(function (sel, i) {
+      gsap.to(sel, {
+        scrollTrigger: { trigger: sel, start: 'top 88%', once: true },
+        opacity: 1,
+        y: 0,
+        duration: 0.65,
+        delay: i * 0.12,
+        ease: 'power2.out'
+      });
+    });
+
+    // ─── STATS BAR ───────────────────────────────────────────────────────────
+    var statItems = document.querySelectorAll('.stat-item');
+    var statsDone = false;
+
+    ScrollTrigger.create({
+      trigger: '#stats',
+      start: 'top 80%',
+      once: true,
+      onEnter: function () {
+        if (statsDone) return;
+        statsDone = true;
+
+        statItems.forEach(function (item, i) {
+          // Fade in stat item
+          gsap.to(item, { opacity: 1, y: 0, duration: 0.5, delay: i * 0.1, ease: 'power2.out' });
+
+          // Count-up animation
+          var countEl  = item.querySelector('.stat-count');
+          var target   = parseFloat(countEl.getAttribute('data-target'));
+          var decimals = parseInt(countEl.getAttribute('data-decimal') || '0', 10);
+          var format   = countEl.getAttribute('data-format');
+          var obj      = { val: 0 };
+
+          gsap.to(obj, {
+            val: target,
+            duration: 2,
+            delay: i * 0.1,
+            ease: 'power2.out',
+            onUpdate: function () {
+              var v = obj.val.toFixed(decimals);
+              if (format === 'spaced') {
+                // Format 2400 → "2 400"
+                v = Math.round(obj.val).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+              }
+              countEl.textContent = v;
+            },
+            onComplete: function () {
+              // Ensure exact final value
+              var finalVal = target.toFixed(decimals);
+              if (format === 'spaced') {
+                finalVal = target.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+              }
+              countEl.textContent = finalVal;
+            }
+          });
+        });
+      }
+    });
+
+    // ─── REVIEWS SECTION ─────────────────────────────────────────────────────
+    gsap.from('#avis .section-label, #avis .section-title', {
+      scrollTrigger: { trigger: '#avis', start: 'top 75%', once: true },
+      opacity: 0, y: 25, duration: 0.6, stagger: 0.15, ease: 'power2.out'
+    });
+
+    ['#rcard-1','#rcard-2','#rcard-3'].forEach(function (sel, i) {
+      gsap.to(sel, {
+        scrollTrigger: { trigger: sel, start: 'top 88%', once: true },
+        opacity: 1,
+        y: 0,
+        duration: 0.65,
+        delay: i * 0.15,
+        ease: 'power2.out'
+      });
+    });
+
+    // ─── CTA SECTION ─────────────────────────────────────────────────────────
+    gsap.from('#contact .cta-eyebrow, #contact .cta-title, #contact .cta-sub, #contact .cta-buttons', {
+      scrollTrigger: { trigger: '#contact', start: 'top 75%', once: true },
+      opacity: 0, y: 30, duration: 0.65, stagger: 0.15, ease: 'power2.out'
+    });
+
+    // ─── FOOTER ──────────────────────────────────────────────────────────────
+    gsap.from('footer', {
+      scrollTrigger: { trigger: 'footer', start: 'top 90%', once: true },
+      opacity: 0, duration: 0.5, ease: 'power1.out'
+    });
+
+  }); // end load
+  </script>
+
+</body>
+</html>

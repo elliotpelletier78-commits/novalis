@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Le Bouchon de Liège — Bistro Gastronomique · Plateau-Mont-Royal</title>
+  <meta name="description" content="Le Bouchon de Liège — Bistro gastronomique franco-belge au coeur du Plateau-Mont-Royal, Montréal. Cuisine d'exception, ambiance raffinée." />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Lato:wght@300;400&display=swap" rel="stylesheet" />
+
+  <!-- GSAP + ScrollTrigger -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+  <style>
+    /* ============================================
+       RESET & BASE
+    ============================================ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg:        #060302;
+      --card-bg:   #0E0A07;
+      --gold:      #C4952A;
+      --gold-dim:  rgba(196, 149, 42, 0.12);
+      --gold-line: rgba(196, 149, 42, 0.35);
+      --brown:     #8B4513;
+      --text:      #F2EEE8;
+      --muted:     #6B5B4E;
+      --muted-lt:  #9A8A7D;
+      --serif:     'Cormorant Garamond', Georgia, serif;
+      --sans:      'Lato', sans-serif;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      font-size: 16px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-weight: 300;
+      line-height: 1.65;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    ::selection {
+      background: rgba(196, 149, 42, 0.25);
+      color: var(--text);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* ============================================
+       PROGRESS BAR
+    ============================================ */
+    #progress-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 0%;
+      height: 1px;
+      background: var(--gold);
+      z-index: 9999;
+      transition: width 0.05s linear;
+    }
+
+    /* ============================================
+       NAVIGATION
+    ============================================ */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      padding: 20px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background 0.4s ease, padding 0.4s ease, backdrop-filter 0.4s ease;
+    }
+
+    nav.scrolled {
+      background: rgba(6, 3, 2, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 14px 48px;
+      border-bottom: 1px solid var(--gold-line);
+    }
+
+    .nav-brand {
+      font-family: var(--serif);
+      font-size: 15px;
+      font-weight: 400;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      text-transform: uppercase;
+      text-decoration: none;
+      font-variant: small-caps;
+      white-space: nowrap;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 36px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-family: var(--sans);
+      font-size: 12px;
+      font-weight: 400;
+      letter-spacing: 0.18em;
+      color: var(--muted-lt);
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: color 0.25s ease;
+      cursor: pointer;
+    }
+
+    .nav-links a:hover {
+      color: var(--gold);
+    }
+
+    .nav-cta {
+      font-family: var(--sans);
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--gold);
+      border: 1px solid var(--gold);
+      padding: 10px 22px;
+      background: transparent;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.25s ease, color 0.25s ease;
+    }
+
+    .nav-cta:hover {
+      background: var(--gold);
+      color: var(--bg);
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    /* Mobile nav */
+    .nav-hamburger {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .nav-hamburger span {
+      display: block;
+      width: 24px;
+      height: 1px;
+      background: var(--gold);
+      transition: all 0.3s ease;
+    }
+
+    @media (max-width: 768px) {
+      nav {
+        padding: 16px 24px;
+      }
+
+      nav.scrolled {
+        padding: 12px 24px;
+      }
+
+      .nav-brand {
+        font-size: 12px;
+        letter-spacing: 0.14em;
+      }
+
+      .nav-right {
+        display: none;
+      }
+
+      .nav-hamburger {
+        display: flex;
+      }
+    }
+
+    /* ============================================
+       HERO SECTION
+    ============================================ */
+    #hero {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    /* Centered gold radial glow */
+    #hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 55% at 50% 50%, rgba(196, 149, 42, 0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* Subtle grain texture overlay */
+    #hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .hero-heading {
+      font-family: var(--serif);
+      font-weight: 300;
+      font-size: clamp(70px, 10vw, 130px);
+      line-height: 0.92;
+      color: var(--text);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .hero-heading .line-2 {
+      color: rgba(242, 238, 232, 0.88);
+    }
+
+    .hero-sep {
+      width: 80px;
+      height: 1px;
+      background: var(--gold);
+      margin: 28px auto 24px;
+      opacity: 0.7;
+    }
+
+    .hero-tagline {
+      font-family: var(--sans);
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--muted-lt);
+    }
+
+    .hero-rating {
+      margin-top: 16px;
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: 0.12em;
+      color: var(--gold);
+    }
+
+    .hero-rating .stars {
+      font-size: 12px;
+      letter-spacing: 0.04em;
+    }
+
+    .hero-scroll-hint {
+      position: absolute;
+      bottom: 36px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      opacity: 0.45;
+      z-index: 2;
+    }
+
+    .hero-scroll-hint span {
+      font-family: var(--sans);
+      font-size: 9px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted-lt);
+    }
+
+    .scroll-arrow {
+      width: 1px;
+      height: 32px;
+      background: linear-gradient(to bottom, var(--gold), transparent);
+      animation: scrollPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes scrollPulse {
+      0%, 100% { opacity: 0.3; transform: scaleY(1); }
+      50% { opacity: 0.7; transform: scaleY(1.1); }
+    }
+
+    @media (max-width: 480px) {
+      .hero-heading {
+        font-size: clamp(54px, 14vw, 80px);
+      }
+
+      .hero-tagline {
+        font-size: 9px;
+        letter-spacing: 0.2em;
+        padding: 0 16px;
+        text-align: center;
+      }
+    }
+
+    /* ============================================
+       SCROLL WRAPPER (holds all sections after hero)
+    ============================================ */
+    #scroll-content {
+      position: relative;
+      z-index: 10;
+      background: var(--bg);
+    }
+
+    /* ============================================
+       SECTION SHARED
+    ============================================ */
+    section {
+      padding: 100px 48px;
+    }
+
+    .section-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-family: var(--sans);
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 20px;
+      display: block;
+    }
+
+    .section-title {
+      font-family: var(--serif);
+      font-weight: 300;
+      font-size: clamp(32px, 4.5vw, 56px);
+      line-height: 1.12;
+      color: var(--text);
+      margin-bottom: 56px;
+    }
+
+    .gold-line {
+      width: 48px;
+      height: 1px;
+      background: var(--gold);
+      margin-bottom: 48px;
+      opacity: 0.6;
+    }
+
+    @media (max-width: 768px) {
+      section {
+        padding: 72px 24px;
+      }
+    }
+
+    /* ============================================
+       AUDIT SECTION
+    ============================================ */
+    #audit {
+      background: var(--card-bg);
+      border-top: 1px solid rgba(196, 149, 42, 0.1);
+      border-bottom: 1px solid rgba(196, 149, 42, 0.1);
+    }
+
+    .audit-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: start;
+    }
+
+    .audit-left .section-title {
+      margin-bottom: 36px;
+    }
+
+    .audit-subtitle {
+      font-family: var(--sans);
+      font-size: 14px;
+      color: var(--muted-lt);
+      line-height: 1.7;
+      max-width: 400px;
+    }
+
+    /* Score gauge */
+    .score-gauge {
+      margin-top: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .score-label {
+      font-family: var(--sans);
+      font-size: 10px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .score-number {
+      font-family: var(--serif);
+      font-weight: 600;
+      font-size: 80px;
+      line-height: 1;
+      color: var(--gold);
+      letter-spacing: -0.02em;
+    }
+
+    .score-bar-track {
+      width: 100%;
+      max-width: 220px;
+      height: 2px;
+      background: rgba(107, 91, 78, 0.3);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .score-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--gold);
+      border-radius: 2px;
+      transition: width 1.8s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .score-caption {
+      font-family: var(--sans);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+
+    /* Pain points */
+    .pain-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .pain-item {
+      padding: 28px 0;
+      border-bottom: 1px solid rgba(107, 91, 78, 0.2);
+      opacity: 0;
+      transform: translateY(16px);
+    }
+
+    .pain-item:first-child {
+      border-top: 1px solid rgba(107, 91, 78, 0.2);
+    }
+
+    .pain-item.visible {
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+
+    .pain-icon {
+      width: 18px;
+      height: 18px;
+      color: var(--gold);
+      margin-bottom: 10px;
+    }
+
+    .pain-title {
+      font-family: var(--serif);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+      letter-spacing: 0.01em;
+    }
+
+    .pain-desc {
+      font-family: var(--sans);
+      font-size: 13px;
+      color: var(--muted-lt);
+      font-weight: 300;
+    }
+
+    @media (max-width: 768px) {
+      .audit-grid {
+        grid-template-columns: 1fr;
+        gap: 48px;
+      }
+
+      .score-number {
+        font-size: 60px;
+      }
+    }
+
+    /* ============================================
+       MENU SHOWCASE
+    ============================================ */
+    #menu {
+      background: var(--bg);
+    }
+
+    .menu-header {
+      text-align: center;
+      margin-bottom: 72px;
+    }
+
+    .menu-header .section-label {
+      display: block;
+      text-align: center;
+    }
+
+    .menu-header .section-title {
+      margin-bottom: 0;
+    }
+
+    .menu-header .gold-line {
+      margin: 28px auto 0;
+    }
+
+    .menu-columns {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: rgba(107, 91, 78, 0.15);
+      border: 1px solid rgba(107, 91, 78, 0.15);
+    }
+
+    .menu-col {
+      background: var(--bg);
+      padding: 40px 36px;
+    }
+
+    .menu-col-title {
+      font-family: var(--serif);
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 32px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(196, 149, 42, 0.25);
+    }
+
+    .menu-dish {
+      padding: 20px 0;
+      border-bottom: 1px solid rgba(107, 91, 78, 0.15);
+    }
+
+    .menu-dish:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .menu-dish-name {
+      font-family: var(--serif);
+      font-size: 19px;
+      font-weight: 600;
+      color: var(--gold);
+      margin-bottom: 5px;
+      letter-spacing: 0.01em;
+    }
+
+    .menu-dish-desc {
+      font-family: var(--sans);
+      font-size: 12px;
+      color: var(--muted-lt);
+      font-weight: 300;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 900px) {
+      .menu-columns {
+        grid-template-columns: 1fr;
+      }
+
+      .menu-col {
+        padding: 32px 24px;
+      }
+    }
+
+    /* ============================================
+       STATS BAR
+    ============================================ */
+    #stats {
+      background: var(--card-bg);
+      padding: 72px 48px;
+      border-top: 1px solid rgba(196, 149, 42, 0.12);
+      border-bottom: 1px solid rgba(196, 149, 42, 0.12);
+    }
+
+    .stats-grid {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: rgba(107, 91, 78, 0.15);
+    }
+
+    .stat-item {
+      background: var(--card-bg);
+      padding: 40px 36px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-family: var(--serif);
+      font-weight: 300;
+      font-size: clamp(42px, 5vw, 62px);
+      color: var(--text);
+      line-height: 1;
+      margin-bottom: 4px;
+      letter-spacing: -0.01em;
+    }
+
+    .stat-number .stat-suffix {
+      font-size: 0.55em;
+      color: var(--gold);
+      vertical-align: super;
+      font-weight: 400;
+    }
+
+    .stat-number .stat-star {
+      font-size: 0.45em;
+      color: var(--gold);
+      vertical-align: super;
+    }
+
+    .stat-label {
+      font-family: var(--sans);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    @media (max-width: 768px) {
+      #stats {
+        padding: 48px 24px;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .stat-item {
+        padding: 28px 20px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* ============================================
+       REVIEWS
+    ============================================ */
+    #reviews {
+      background: var(--bg);
+    }
+
+    .reviews-header {
+      text-align: center;
+      margin-bottom: 64px;
+    }
+
+    .reviews-header .section-label {
+      display: block;
+      text-align: center;
+    }
+
+    .reviews-header .section-title {
+      margin-bottom: 0;
+    }
+
+    .reviews-header .gold-line {
+      margin: 24px auto 0;
+    }
+
+    .reviews-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .review-card {
+      background: var(--card-bg);
+      border: 1px solid rgba(107, 91, 78, 0.2);
+      padding: 36px 32px;
+      transition: border-color 0.3s ease;
+    }
+
+    .review-card:hover {
+      border-color: rgba(196, 149, 42, 0.3);
+    }
+
+    .review-stars {
+      font-size: 13px;
+      color: var(--gold);
+      letter-spacing: 0.06em;
+      margin-bottom: 20px;
+    }
+
+    .review-stars .star-empty {
+      opacity: 0.3;
+    }
+
+    .review-text {
+      font-family: var(--serif);
+      font-size: 17px;
+      font-weight: 300;
+      font-style: italic;
+      color: var(--text);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .review-sep {
+      width: 24px;
+      height: 1px;
+      background: var(--gold-line);
+      margin-bottom: 16px;
+    }
+
+    .review-author {
+      font-family: var(--sans);
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted-lt);
+    }
+
+    /* Google badge */
+    .google-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .google-badge svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    .google-badge span {
+      font-family: var(--sans);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    @media (max-width: 900px) {
+      .reviews-grid {
+        grid-template-columns: 1fr;
+        max-width: 520px;
+        margin: 0 auto;
+      }
+    }
+
+    /* ============================================
+       CTA SECTION
+    ============================================ */
+    #cta {
+      background: var(--card-bg);
+      border-top: 1px solid rgba(196, 149, 42, 0.12);
+      text-align: center;
+      padding: 120px 48px;
+    }
+
+    .cta-inner {
+      max-width: 740px;
+      margin: 0 auto;
+    }
+
+    .cta-label {
+      font-family: var(--sans);
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 24px;
+      display: block;
+    }
+
+    .cta-title {
+      font-family: var(--serif);
+      font-weight: 300;
+      font-size: clamp(32px, 4.5vw, 52px);
+      line-height: 1.15;
+      color: var(--text);
+      margin-bottom: 28px;
+    }
+
+    .cta-sub {
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 300;
+      color: var(--muted-lt);
+      line-height: 1.7;
+      max-width: 540px;
+      margin: 0 auto 48px;
+    }
+
+    .cta-sep {
+      width: 48px;
+      height: 1px;
+      background: var(--gold);
+      margin: 0 auto 48px;
+      opacity: 0.5;
+    }
+
+    .cta-buttons {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      font-family: var(--sans);
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--bg);
+      background: var(--gold);
+      border: 1px solid var(--gold);
+      padding: 16px 36px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+      display: inline-block;
+    }
+
+    .btn-primary:hover {
+      background: transparent;
+      color: var(--gold);
+    }
+
+    .btn-secondary {
+      font-family: var(--sans);
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text);
+      background: transparent;
+      border: 1px solid rgba(242, 238, 232, 0.25);
+      padding: 16px 36px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: border-color 0.25s ease, color 0.25s ease;
+      display: inline-block;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    @media (max-width: 480px) {
+      #cta {
+        padding: 80px 24px;
+      }
+
+      .cta-buttons {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .btn-primary,
+      .btn-secondary {
+        width: 100%;
+        text-align: center;
+      }
+    }
+
+    /* ============================================
+       FOOTER
+    ============================================ */
+    footer {
+      background: var(--bg);
+      padding: 48px;
+      border-top: 1px solid rgba(107, 91, 78, 0.2);
+    }
+
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 24px;
+    }
+
+    .footer-brand {
+      font-family: var(--serif);
+      font-size: 13px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      font-variant: small-caps;
+    }
+
+    .footer-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      text-align: right;
+    }
+
+    .footer-info span {
+      font-family: var(--sans);
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+
+    .footer-info a {
+      color: var(--muted-lt);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .footer-info a:hover {
+      color: var(--gold);
+    }
+
+    .footer-copy {
+      width: 100%;
+      text-align: center;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(107, 91, 78, 0.12);
+    }
+
+    .footer-copy span {
+      font-family: var(--sans);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+    }
+
+    @media (max-width: 600px) {
+      footer {
+        padding: 36px 24px;
+      }
+
+      .footer-inner {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .footer-info {
+        text-align: center;
+      }
+    }
+
+    /* ============================================
+       SCROLL-REVEAL BASE STATE
+    ============================================ */
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+
+    .reveal-left {
+      opacity: 0;
+      transform: translateX(-24px);
+    }
+
+    .reveal-right {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================================
+     PROGRESS BAR
+============================================ -->
+<div id="progress-bar" role="progressbar" aria-label="Progression de lecture"></div>
+
+<!-- ============================================
+     NAVIGATION
+============================================ -->
+<nav id="main-nav" role="navigation" aria-label="Navigation principale">
+  <a href="#hero" class="nav-brand" aria-label="Le Bouchon de Liège — Accueil">
+    Le Bouchon de Liège
+  </a>
+
+  <div class="nav-right">
+    <ul class="nav-links" role="list">
+      <li><a href="#menu" aria-label="Notre menu">Menu</a></li>
+      <li><a href="#reviews" aria-label="Réservations">Réservations</a></li>
+      <li><a href="#cta" aria-label="À propos">À propos</a></li>
+    </ul>
+    <a href="#cta" class="nav-cta" aria-label="Réserver une table au Bouchon de Liège">Réserver une table</a>
+  </div>
+
+  <!-- Mobile -->
+  <button class="nav-hamburger" aria-label="Menu de navigation" aria-expanded="false">
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+</nav>
+
+<!-- ============================================
+     HERO
+============================================ -->
+<section id="hero" aria-label="Section principale">
+  <div class="hero-inner">
+    <h1 class="hero-heading">
+      <span class="line-1">Le Bouchon</span>
+      <span class="line-2">de Liège</span>
+    </h1>
+    <div class="hero-sep" aria-hidden="true"></div>
+    <p class="hero-tagline">Bistro gastronomique &middot; Plateau-Mont-Royal &middot; Montr&eacute;al</p>
+    <p class="hero-rating" aria-label="Note de 4.7 sur 5, 342 avis Google">
+      <span class="stars" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+      &nbsp;4.7 &middot; 342 avis Google
+    </p>
+  </div>
+
+  <div class="hero-scroll-hint" aria-hidden="true">
+    <span>D&eacute;couvrir</span>
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
+
+<!-- ============================================
+     SCROLL CONTENT
+============================================ -->
+<div id="scroll-content">
+
+  <!-- ==========================================
+       AUDIT SECTION
+  ========================================== -->
+  <section id="audit" aria-labelledby="audit-title">
+    <div class="section-inner">
+      <div class="audit-grid">
+
+        <!-- Left: headline + score -->
+        <div class="audit-left">
+          <span class="section-label reveal">Diagnostic num&eacute;rique</span>
+          <h2 class="section-title reveal" id="audit-title">
+            Votre client&egrave;le cherche&hellip;<br />
+            et ne vous trouve pas.
+          </h2>
+          <p class="audit-subtitle reveal">
+            Nous avons analys&eacute; votre pr&eacute;sence en ligne. Les r&eacute;sultats r&eacute;v&egrave;lent
+            des opportunit&eacute;s importantes pour attirer plus de clients et
+            maximiser vos r&eacute;servations.
+          </p>
+
+          <div class="score-gauge reveal">
+            <span class="score-label">Visibilit&eacute; en ligne actuelle</span>
+            <div class="score-number" id="score-counter" aria-live="polite" aria-atomic="true">0</div>
+            <div class="score-bar-track" aria-hidden="true">
+              <div class="score-bar-fill" id="score-bar"></div>
+            </div>
+            <span class="score-caption">Score sur 100 &mdash; &Agrave; am&eacute;liorer</span>
+          </div>
+        </div>
+
+        <!-- Right: pain points -->
+        <div class="audit-right">
+          <div class="pain-list" role="list">
+
+            <div class="pain-item" role="listitem">
+              <svg class="pain-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 8.25h3m-3 3.75h3M9 21h6" />
+              </svg>
+              <div class="pain-title">Pas de syst&egrave;me de r&eacute;servation en ligne</div>
+              <div class="pain-desc">78&nbsp;% des clients r&eacute;servent depuis leur t&eacute;l&eacute;phone &mdash; vous perdez ces r&eacute;servations.</div>
+            </div>
+
+            <div class="pain-item" role="listitem">
+              <svg class="pain-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
+              <div class="pain-title">Menu en PDF illisible sur mobile</div>
+              <div class="pain-desc">Votre menu se charge en 11 secondes &mdash; 53&nbsp;% des visiteurs abandonnent apr&egrave;s 3 secondes.</div>
+            </div>
+
+            <div class="pain-item" role="listitem">
+              <svg class="pain-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+              </svg>
+              <div class="pain-title">Photos non optimis&eacute;es</div>
+              <div class="pain-desc">Vos plats m&eacute;ritent une meilleure pr&eacute;sentation &mdash; des visuels de qualit&eacute; augmentent les r&eacute;servations de 40&nbsp;%.</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       MENU SHOWCASE
+  ========================================== -->
+  <section id="menu" aria-labelledby="menu-title">
+    <div class="section-inner">
+      <div class="menu-header">
+        <span class="section-label reveal">Notre carte</span>
+        <h2 class="section-title reveal" id="menu-title">Une exp&eacute;rience culinaire r&eacute;invent&eacute;e</h2>
+        <div class="gold-line reveal" aria-hidden="true"></div>
+      </div>
+
+      <div class="menu-columns" role="list" aria-label="Carte du restaurant">
+
+        <!-- Entrées -->
+        <div class="menu-col reveal-left" role="listitem">
+          <div class="menu-col-title">Entr&eacute;es</div>
+
+          <div class="menu-dish">
+            <div class="menu-dish-name">Tartare de boeuf wagyu</div>
+            <div class="menu-dish-desc">Condiments maison, cornichons artisanaux, jaune d&rsquo;&oelig;uf conflit, toast brioché</div>
+          </div>
+
+          <div class="menu-dish">
+            <div class="menu-dish-name">Bisque de homard</div>
+            <div class="menu-dish-desc">Homard des Maritimes, cr&egrave;me fra&icirc;che, cognac, herbes fra&icirc;ches du march&eacute;</div>
+          </div>
+
+          <div class="menu-dish">
+            <div class="menu-dish-name">Foie gras po&ecirc;l&eacute;</div>
+            <div class="menu-dish-desc">R&eacute;duction de porto, compot&eacute;e de figues, brioche toastée, fleur de sel</div>
+          </div>
+        </div>
+
+        <!-- Plats principaux -->
+        <div class="menu-col reveal" role="listitem" style="transition-delay: 0.1s;">
+          <div class="menu-col-title">Plats principaux</div>
+
+          <div class="menu-dish">
+            <div class="menu-dish-name">Filet de boeuf</div>
+            <div class="menu-dish-desc">Boeuf AAA de l&rsquo;Estrie, sauce p&eacute;rigueux, pommes dauphines, haricots verts</div>
+          </div>
+
+          <div class="menu-dish">
+            <div class="menu-dish-name">Sole meuni&egrave;re</div>
+            <div class="menu-dish-desc">Sole de Dover, beurre noisette, c&acirc;pres de Sicile, citron conf&icirc;t, persil plat</div>
+          </div>
+
+          <div class="menu-dish">
+            <div class="menu-dish-name">Magret de canard</div>
+            <div class="menu-dish-desc">Canard du Lac-Brome, cerise Amarena, purée de céleri-rave, jus corsé</div>
+          </div>
+        </div>
+
+        <!-- Desserts -->
+        <div class="menu-col reveal-right" role="listitem">
+          <div class="menu-col-title">Desserts</div>
+
+          <div class="menu-dish">
+            <div class="menu-dish-name">Cr&egrave;me br&ucirc;l&eacute;e vanille</div>
+            <div class="menu-dish-desc">Vanille de Madagascar, sucre caram&eacute;lis&eacute; &agrave; la flamme, tuile dentelle</div>
+          </div>
+
+          <div class="menu-dish">
+            <div class="menu-dish-name">Fondant au chocolat</div>
+            <div class="menu-dish-desc">Valrhona Guanaja 70&nbsp;%, coeur coulant, glace vanille, &eacute;clats de cacao</div>
+          </div>
+
+          <div class="menu-dish">
+            <div class="menu-dish-name">Tarte tatin</div>
+            <div class="menu-dish-desc">Pommes Cortland du Qu&eacute;bec, caramel au beurre sal&eacute;, cr&egrave;me fra&icirc;che fouett&eacute;e</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       STATS BAR
+  ========================================== -->
+  <section id="stats" aria-label="Chiffres cl&eacute;s">
+    <div class="stats-grid" role="list">
+
+      <div class="stat-item reveal" role="listitem">
+        <div class="stat-number" aria-label="Plus de 10 ans d&apos;exp&eacute;rience">
+          <span class="stat-val" data-target="10" data-suffix="+">0</span><span class="stat-suffix">+</span>
+        </div>
+        <div class="stat-label">Ans d&rsquo;exp&eacute;rience</div>
+      </div>
+
+      <div class="stat-item reveal" role="listitem" style="transition-delay: 0.08s;">
+        <div class="stat-number" aria-label="Note Google de 4.7">
+          <span class="stat-val" data-target="4.7" data-decimal="true">0</span><span class="stat-star">&#9733;</span>
+        </div>
+        <div class="stat-label">Note Google</div>
+      </div>
+
+      <div class="stat-item reveal" role="listitem" style="transition-delay: 0.16s;">
+        <div class="stat-number" aria-label="342 avis v&eacute;rifi&eacute;s">
+          <span class="stat-val" data-target="342">0</span>
+        </div>
+        <div class="stat-label">Avis v&eacute;rifi&eacute;s</div>
+      </div>
+
+      <div class="stat-item reveal" role="listitem" style="transition-delay: 0.24s;">
+        <div class="stat-number" aria-label="60 couverts par service">
+          <span class="stat-val" data-target="60">0</span>
+        </div>
+        <div class="stat-label">Couverts par service</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==========================================
+       REVIEWS
+  ========================================== -->
+  <section id="reviews" aria-labelledby="reviews-title">
+    <div class="section-inner">
+      <div class="reviews-header">
+        <span class="section-label reveal">T&eacute;moignages</span>
+        <h2 class="section-title reveal" id="reviews-title">Ce que disent nos clients</h2>
+        <div class="gold-line reveal" aria-hidden="true"></div>
+      </div>
+
+      <div class="reviews-grid" role="list">
+
+        <!-- Review 1 -->
+        <article class="review-card reveal-left" role="listitem">
+          <div class="review-stars" aria-label="5 &eacute;toiles sur 5">
+            <span aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+          </div>
+          <blockquote class="review-text">
+            &ldquo;Une exp&eacute;rience inoubliable. Le tartare &eacute;tait parfait, le service impeccable. On se sent transport&eacute; dans un bistro parisien au c&oelig;ur du Plateau.&rdquo;
+          </blockquote>
+          <div class="review-sep" aria-hidden="true"></div>
+          <div class="review-author">Isabelle Fontaine</div>
+          <div class="google-badge">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            <span>Avis Google v&eacute;rifi&eacute;</span>
+          </div>
+        </article>
+
+        <!-- Review 2 -->
+        <article class="review-card reveal" role="listitem" style="transition-delay: 0.1s;">
+          <div class="review-stars" aria-label="5 &eacute;toiles sur 5">
+            <span aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+          </div>
+          <blockquote class="review-text">
+            &ldquo;Meilleur restaurant du Plateau selon moi. La carte des vins est remarquable, le sommelier vous guide avec passion et pr&eacute;cision. J&rsquo;y retourne chaque mois.&rdquo;
+          </blockquote>
+          <div class="review-sep" aria-hidden="true"></div>
+          <div class="review-author">Marc-Andr&eacute; Dubois</div>
+          <div class="google-badge">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            <span>Avis Google v&eacute;rifi&eacute;</span>
+          </div>
+        </article>
+
+        <!-- Review 3 -->
+        <article class="review-card reveal-right" role="listitem">
+          <div class="review-stars" aria-label="4 &eacute;toiles sur 5">
+            <span aria-hidden="true">&#9733;&#9733;&#9733;&#9733;<span class="star-empty">&#9733;</span></span>
+          </div>
+          <blockquote class="review-text">
+            &ldquo;Cadre magnifique, cuisine raffin&eacute;e. Je recommande vivement le foie gras po&ecirc;l&eacute; et la tarte tatin en saison. Le personnel est d&rsquo;une gentillesse rare.&rdquo;
+          </blockquote>
+          <div class="review-sep" aria-hidden="true"></div>
+          <div class="review-author">Camille Beaulieu</div>
+          <div class="google-badge">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            <span>Avis Google v&eacute;rifi&eacute;</span>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       CTA SECTION
+  ========================================== -->
+  <section id="cta" aria-labelledby="cta-title">
+    <div class="cta-inner">
+      <span class="cta-label reveal">Passez &agrave; l&rsquo;&eacute;tape suivante</span>
+      <h2 class="cta-title reveal" id="cta-title">
+        Une pr&eacute;sence en ligne<br />
+        &agrave; la hauteur de votre cuisine.
+      </h2>
+      <div class="cta-sep reveal" aria-hidden="true"></div>
+      <p class="cta-sub reveal">
+        Nouveau site web avec r&eacute;servation en ligne, menu interactif et galerie photo
+        &mdash; livr&eacute; en 7&nbsp;jours. Sans frais cach&eacute;s.
+      </p>
+      <div class="cta-buttons reveal">
+        <a href="#" class="btn-primary" aria-label="Voir la d&eacute;monstration du site">Voir la d&eacute;monstration</a>
+        <a href="tel:5145550234" class="btn-secondary" aria-label="Nous joindre par t&eacute;l&eacute;phone">Nous joindre</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       FOOTER
+  ========================================== -->
+  <footer role="contentinfo">
+    <div class="footer-inner">
+      <div class="footer-brand">Le Bouchon de Li&egrave;ge</div>
+      <div class="footer-info">
+        <span>Plateau-Mont-Royal &middot; Montr&eacute;al, QC</span>
+        <span><a href="tel:5145550234">(514) 555-0234</a></span>
+        <span>Fond&eacute; en 2014</span>
+      </div>
+    </div>
+    <div class="footer-copy">
+      <span>&copy; 2024 Le Bouchon de Li&egrave;ge &mdash; Bistro gastronomique franco-belge</span>
+    </div>
+  </footer>
+
+</div><!-- end #scroll-content -->
+
+<!-- ============================================
+     JAVASCRIPT
+============================================ -->
+<script>
+window.addEventListener('load', function () {
+
+  // ─── GSAP + ScrollTrigger ───────────────────
+  gsap.registerPlugin(ScrollTrigger);
+
+  // ─── PROGRESS BAR ───────────────────────────
+  var progressBar = document.getElementById('progress-bar');
+
+  window.addEventListener('scroll', function () {
+    var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    var pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    progressBar.style.width = pct.toFixed(2) + '%';
+  }, { passive: true });
+
+  // ─── NAV SCROLL STATE ───────────────────────
+  var nav = document.getElementById('main-nav');
+
+  window.addEventListener('scroll', function () {
+    if (window.pageYOffset > 60) {
+      nav.classList.add('scrolled');
+    } else {
+      nav.classList.remove('scrolled');
+    }
+  }, { passive: true });
+
+  // ─── HERO ENTRANCE ──────────────────────────
+  var heroTl = gsap.timeline({ delay: 0.3 });
+  heroTl
+    .from('.hero-heading .line-1', {
+      y: 40,
+      opacity: 0,
+      duration: 1.1,
+      ease: 'power3.out'
+    })
+    .from('.hero-heading .line-2', {
+      y: 40,
+      opacity: 0,
+      duration: 1.1,
+      ease: 'power3.out'
+    }, '-=0.7')
+    .from('.hero-sep', {
+      scaleX: 0,
+      opacity: 0,
+      duration: 0.8,
+      ease: 'power2.out'
+    }, '-=0.5')
+    .from('.hero-tagline', {
+      y: 16,
+      opacity: 0,
+      duration: 0.8,
+      ease: 'power2.out'
+    }, '-=0.4')
+    .from('.hero-rating', {
+      y: 12,
+      opacity: 0,
+      duration: 0.7,
+      ease: 'power2.out'
+    }, '-=0.5')
+    .from('.hero-scroll-hint', {
+      opacity: 0,
+      duration: 0.8,
+      ease: 'power2.out'
+    }, '-=0.2');
+
+  // ─── SCROLL REVEAL HELPER ───────────────────
+  function revealOnScroll(selector, xFrom, yFrom, delay) {
+    var elements = document.querySelectorAll(selector);
+    elements.forEach(function (el) {
+      gsap.fromTo(el,
+        {
+          opacity: 0,
+          x: xFrom || 0,
+          y: yFrom || 0
+        },
+        {
+          opacity: 1,
+          x: 0,
+          y: 0,
+          duration: 0.9,
+          ease: 'power3.out',
+          delay: delay || 0,
+          scrollTrigger: {
+            trigger: el,
+            start: 'top 88%',
+            toggleActions: 'play none none none'
+          }
+        }
+      );
+    });
+  }
+
+  revealOnScroll('.reveal', 0, 28);
+  revealOnScroll('.reveal-left', -28, 0);
+  revealOnScroll('.reveal-right', 28, 0);
+
+  // ─── AUDIT: SCORE COUNTER ───────────────────
+  var scoreCounter = document.getElementById('score-counter');
+  var scoreBar     = document.getElementById('score-bar');
+  var scoreStarted = false;
+
+  ScrollTrigger.create({
+    trigger: '#audit',
+    start: 'top 70%',
+    onEnter: function () {
+      if (scoreStarted) return;
+      scoreStarted = true;
+
+      // Bar fill animation
+      setTimeout(function () {
+        scoreBar.style.width = '41%';
+      }, 200);
+
+      // Number count-up
+      var start = 0;
+      var end   = 41;
+      var dur   = 1800;
+      var step  = Math.ceil(dur / end);
+      var timer = setInterval(function () {
+        start += 1;
+        scoreCounter.textContent = start;
+        if (start >= end) clearInterval(timer);
+      }, step);
+    }
+  });
+
+  // ─── AUDIT: PAIN POINTS STAGGER ─────────────
+  ScrollTrigger.create({
+    trigger: '.pain-list',
+    start: 'top 80%',
+    onEnter: function () {
+      var items = document.querySelectorAll('.pain-item');
+      items.forEach(function (item, i) {
+        setTimeout(function () {
+          item.classList.add('visible');
+        }, i * 220);
+      });
+    }
+  });
+
+  // ─── STATS COUNTER ──────────────────────────
+  var statsStarted = false;
+
+  ScrollTrigger.create({
+    trigger: '#stats',
+    start: 'top 80%',
+    onEnter: function () {
+      if (statsStarted) return;
+      statsStarted = true;
+
+      var statVals = document.querySelectorAll('.stat-val');
+      statVals.forEach(function (el) {
+        var target  = parseFloat(el.getAttribute('data-target'));
+        var decimal = el.getAttribute('data-decimal') === 'true';
+        var dur     = 1600;
+
+        if (decimal) {
+          // e.g. 4.7
+          var obj = { val: 0 };
+          gsap.to(obj, {
+            val: target,
+            duration: dur / 1000,
+            ease: 'power2.out',
+            onUpdate: function () {
+              el.textContent = obj.val.toFixed(1);
+            },
+            onComplete: function () {
+              el.textContent = target.toFixed(1);
+            }
+          });
+        } else {
+          var steps = Math.ceil(target);
+          var stepTime = dur / steps;
+          var current = 0;
+          var timer = setInterval(function () {
+            current = Math.min(current + Math.ceil(steps / 60), target);
+            el.textContent = Math.round(current);
+            if (current >= target) {
+              el.textContent = target;
+              clearInterval(timer);
+            }
+          }, stepTime);
+        }
+      });
+    }
+  });
+
+  // ─── MENU COLUMNS STAGGER ───────────────────
+  gsap.utils.toArray('.menu-col').forEach(function (col, i) {
+    gsap.from(col, {
+      opacity: 0,
+      y: 32,
+      duration: 0.85,
+      ease: 'power3.out',
+      delay: i * 0.12,
+      scrollTrigger: {
+        trigger: col,
+        start: 'top 85%',
+        toggleActions: 'play none none none'
+      }
+    });
+  });
+
+  // ─── REVIEW CARDS STAGGER ───────────────────
+  gsap.utils.toArray('.review-card').forEach(function (card, i) {
+    gsap.from(card, {
+      opacity: 0,
+      y: 28,
+      duration: 0.85,
+      ease: 'power3.out',
+      delay: i * 0.14,
+      scrollTrigger: {
+        trigger: card,
+        start: 'top 88%',
+        toggleActions: 'play none none none'
+      }
+    });
+  });
+
+  // ─── STAT ITEMS STAGGER ─────────────────────
+  gsap.utils.toArray('.stat-item').forEach(function (item, i) {
+    gsap.from(item, {
+      opacity: 0,
+      y: 20,
+      duration: 0.75,
+      ease: 'power3.out',
+      delay: i * 0.1,
+      scrollTrigger: {
+        trigger: item,
+        start: 'top 88%',
+        toggleActions: 'play none none none'
+      }
+    });
+  });
+
+  // ─── MOBILE NAV TOGGLE ──────────────────────
+  var hamburger = document.querySelector('.nav-hamburger');
+  if (hamburger) {
+    hamburger.addEventListener('click', function () {
+      var expanded = this.getAttribute('aria-expanded') === 'true';
+      this.setAttribute('aria-expanded', !expanded);
+    });
+  }
+
+  // ─── SMOOTH ANCHOR SCROLL ───────────────────
+  document.querySelectorAll('a[href^="#"]').forEach(function (anchor) {
+    anchor.addEventListener('click', function (e) {
+      var target = document.querySelector(this.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        var offset = 80;
+        var top = target.getBoundingClientRect().top + window.pageYOffset - offset;
+        window.scrollTo({ top: top, behavior: 'smooth' });
+      }
+    });
+  });
+
+  // ─── REFRESH SCROLLTRIGGER ON RESIZE ────────
+  var resizeTimer;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      ScrollTrigger.refresh();
+    }, 200);
+  });
+
+});
+</script>
+
+</body>
+</html>
