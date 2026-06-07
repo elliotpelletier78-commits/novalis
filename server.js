@@ -22,10 +22,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// Fichiers statiques — les démos HTML générées
-app.use('/demo', express.static(path.join(__dirname, 'output'), {
-  setHeaders: (res) => res.setHeader('X-Frame-Options', 'SAMEORIGIN'),
-}));
+// Fichiers statiques — démos générées (volume) puis démos bundlées (git repo)
+const staticOpts = { setHeaders: (res) => res.setHeader('X-Frame-Options', 'SAMEORIGIN') };
+app.use('/demo', express.static(path.join(__dirname, 'output'), staticOpts));
+app.use('/demo', express.static(path.join(__dirname, 'demos'),  staticOpts));
 
 // ── Health check ─────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true, ts: Date.now() }));

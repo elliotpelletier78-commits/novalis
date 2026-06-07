@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mécano Expert — Laval, Québec</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: auto; }
+    body { background: #050505; color: #F0F0F0; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+
+    .scroll-container { height: 900vh; position: relative; }
+    .sticky-wrapper { position: sticky; top: 0; height: 100vh; overflow: hidden; }
+
+    .bg {
+      position: absolute; inset: 0;
+      background-size: cover; background-position: center;
+      opacity: 0; z-index: 0;
+    }
+    #bg1 {
+      background-image: url('https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1920&q=80');
+      opacity: 1;
+    }
+    #bg2 {
+      background-image: url('https://images.unsplash.com/photo-1625047509252-ab38fb5c7343?auto=format&fit=crop&w=1920&q=80');
+    }
+    #bg3 {
+      background-image: url('https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?auto=format&fit=crop&w=1920&q=80');
+    }
+    .bg-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(0,0,0,0.72) 0%, rgba(5,0,0,0.62) 100%);
+      z-index: 1;
+    }
+
+    .phase {
+      position: absolute; inset: 0; z-index: 2;
+      opacity: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 100px 48px 60px;
+      text-align: center;
+    }
+    #phase-hero { opacity: 1; }
+
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 48px;
+      transition: background 0.3s, backdrop-filter 0.3s;
+    }
+    nav.scrolled { background: rgba(5,5,5,0.85); backdrop-filter: blur(12px); }
+
+    nav ul a:hover { color: #fff !important; }
+
+    .progress-bar { position: fixed; bottom: 0; left: 0; width: 0%; height: 2px; background: #FF4500; z-index: 200; }
+
+    /* Hero */
+    .hero-content { display: flex; flex-direction: column; align-items: center; }
+    .scroll-hint {
+      position: absolute; bottom: 8%; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+    }
+    .scroll-line {
+      width: 1px; height: 40px; background: rgba(255,255,255,0.2);
+      position: relative; overflow: hidden;
+    }
+    .scroll-line::after {
+      content: ''; position: absolute; top: -100%; left: 0;
+      width: 100%; height: 100%; background: #fff;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes pulse { 0% { top: -100%; } 100% { top: 100%; } }
+
+    /* Audit phase problem cards */
+    .problem-card {
+      display: flex; align-items: flex-start; gap: 14px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px; padding: 16px 20px;
+    }
+    .problem-card svg { flex-shrink: 0; margin-top: 2px; }
+    .problem-card-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .problem-card-desc { font-size: 12px; opacity: 0.55; }
+
+    /* Services grid */
+    .services-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 20px; max-width: 720px; width: 100%; margin-top: 36px;
+    }
+    .service-card {
+      background: #0F0F0F; border-top: 2px solid #FF4500;
+      border-radius: 8px; padding: 28px 24px;
+      text-align: left; transition: transform 0.25s ease, box-shadow 0.25s ease;
+      cursor: pointer;
+    }
+    .service-card:hover { transform: translateY(-4px); box-shadow: 0 8px 32px rgba(255,69,0,0.25); }
+    .service-card-icon { margin-bottom: 16px; }
+    .service-card-title { font-weight: 600; font-size: 15px; margin-bottom: 8px; }
+    .service-card-desc { font-size: 12px; opacity: 0.55; line-height: 1.5; }
+
+    /* Stats */
+    .stats-row {
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 40px 60px; max-width: 800px; width: 100%; margin-top: 36px;
+    }
+    .stat-item { display: flex; flex-direction: column; align-items: center; }
+    .stat-number { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: clamp(3.5rem, 8vw, 6rem); color: #FF4500; line-height: 1; }
+    .stat-label { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; opacity: 0.45; margin-top: 6px; }
+
+    /* Reviews */
+    .reviews-row {
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 20px; max-width: 900px; width: 100%; margin-top: 36px;
+    }
+    .review-card {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px; padding: 24px 22px; flex: 1; min-width: 240px; max-width: 280px;
+      text-align: left;
+    }
+    .review-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .review-stars { color: #FFB300; font-size: 12px; margin-bottom: 10px; }
+    .review-quote { font-size: 13px; line-height: 1.65; opacity: 0.8; margin-bottom: 14px; }
+    .review-author { font-size: 11px; font-weight: 600; }
+    .review-date { font-size: 10px; opacity: 0.45; margin-top: 2px; }
+
+    /* CTA */
+    .cta-buttons { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; margin-top: 36px; }
+    .btn-primary {
+      padding: 14px 32px; background: #FF4500; color: #fff; border: none;
+      font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+      cursor: pointer; border-radius: 4px;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .btn-primary:hover { background: #e03d00; transform: translateY(-2px); }
+    .btn-secondary {
+      padding: 14px 32px; background: transparent; color: #fff;
+      border: 1px solid rgba(255,255,255,0.4);
+      font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+      cursor: pointer; border-radius: 4px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .btn-secondary:hover { border-color: rgba(255,255,255,0.8); transform: translateY(-2px); }
+
+    /* Divider */
+    .divider { width: 80px; height: 2px; background: #FF4500; margin: 20px auto 32px; }
+
+    /* Section headings */
+    .phase-heading {
+      font-family: 'Rajdhani', sans-serif; font-weight: 600;
+      font-size: clamp(1.8rem, 4vw, 3rem); letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 600px) {
+      nav { padding: 16px 20px; }
+      nav ul { display: none; }
+      .phase { padding: 80px 20px 40px; }
+      .services-grid { grid-template-columns: 1fr; max-width: 340px; gap: 14px; margin-top: 20px; }
+      .stats-row { gap: 28px 36px; margin-top: 20px; }
+      .reviews-row { flex-direction: column; align-items: center; margin-top: 20px; }
+      .review-card { min-width: unset; max-width: 100%; }
+      .cta-buttons { flex-direction: column; align-items: center; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .scroll-line::after { animation: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav id="mainNav">
+    <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:20px;letter-spacing:3px;color:#fff">
+      MÉCANO <span style="color:#FF4500">EXPERT</span>
+    </div>
+    <ul style="display:flex;gap:28px;list-style:none">
+      <li><a href="#" style="color:rgba(255,255,255,0.55);text-decoration:none;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;transition:color 0.2s">Services</a></li>
+      <li><a href="#" style="color:rgba(255,255,255,0.55);text-decoration:none;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;transition:color 0.2s">Avis</a></li>
+      <li><a href="#" style="color:rgba(255,255,255,0.55);text-decoration:none;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;transition:color 0.2s">Contact</a></li>
+    </ul>
+    <button
+      style="padding:8px 20px;border:1px solid #FF4500;background:transparent;color:#FF4500;font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all 0.2s"
+      onmouseover="this.style.background='#FF4500';this.style.color='#fff'"
+      onmouseout="this.style.background='transparent';this.style.color='#FF4500'">
+      Nous appeler
+    </button>
+  </nav>
+
+  <!-- PROGRESS BAR -->
+  <div class="progress-bar" id="progressBar"></div>
+
+  <!-- SCROLL CONTAINER -->
+  <div class="scroll-container">
+    <div class="sticky-wrapper">
+
+      <!-- BACKGROUNDS -->
+      <div class="bg" id="bg1"></div>
+      <div class="bg" id="bg2"></div>
+      <div class="bg" id="bg3"></div>
+      <div class="bg-overlay"></div>
+
+      <!-- PHASE: HERO -->
+      <div class="phase" id="phase-hero">
+        <div class="hero-content">
+          <div class="hero-line" style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:clamp(4.5rem,16vw,13rem);line-height:0.85;text-transform:uppercase;color:#fff">MÉCANO</div>
+          <div class="hero-line" style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:clamp(4.5rem,16vw,13rem);line-height:0.85;text-transform:uppercase;color:#FF4500">EXPERT</div>
+          <div style="width:80px;height:2px;background:#FF4500;margin:28px auto"></div>
+          <div class="hero-line" style="font-size:11px;letter-spacing:5px;text-transform:uppercase;opacity:0.55;margin-bottom:14px">LAVAL, QUÉBEC · DEPUIS 2008</div>
+          <div class="hero-line" style="font-size:15px;color:#FFB300;letter-spacing:1px">&#9733;&#9733;&#9733;&#9733;&#9733; &nbsp;4.8 — 187 avis Google</div>
+        </div>
+        <div class="scroll-hint">
+          <span style="font-size:9px;letter-spacing:3px;text-transform:uppercase;opacity:0.4">Défiler</span>
+          <div class="scroll-line"></div>
+        </div>
+      </div>
+
+      <!-- PHASE: AUDIT -->
+      <div class="phase" id="phase-audit">
+        <h2 style="font-family:'Rajdhani',sans-serif;font-weight:600;font-size:clamp(1.6rem,3.5vw,2.8rem);max-width:700px;line-height:1.15;margin-bottom:40px">
+          Votre site actuel vous fait perdre des clients.
+        </h2>
+        <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:40px">
+          <div style="font-family:'Rajdhani',sans-serif;font-size:clamp(5rem,12vw,9rem);font-weight:700;color:#FFB300;line-height:1">34</div>
+          <div style="font-size:11px;letter-spacing:4px;text-transform:uppercase;opacity:0.5">Score Web Actuel / 100</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px;max-width:560px;width:100%;text-align:left">
+
+          <div class="problem-card">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF4500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+              <line x1="12" y1="18" x2="12.01" y2="18"/>
+            </svg>
+            <div>
+              <div class="problem-card-title">Site non adapté mobile</div>
+              <div class="problem-card-desc">67% de vos clients cherchent sur téléphone</div>
+            </div>
+          </div>
+
+          <div class="problem-card">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF4500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <div>
+              <div class="problem-card-title">Chargement: 8.4 secondes</div>
+              <div class="problem-card-desc">Google pénalise les sites lents</div>
+            </div>
+          </div>
+
+          <div class="problem-card">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF4500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+            <div>
+              <div class="problem-card-title">Fiche Google non optimisée</div>
+              <div class="problem-card-desc">Vous perdez 40% des recherches locales</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- PHASE: SERVICES -->
+      <div class="phase" id="phase-services">
+        <h2 class="phase-heading">Nos services</h2>
+        <div class="divider"></div>
+        <div class="services-grid">
+
+          <div class="service-card">
+            <div class="service-card-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF4500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+              </svg>
+            </div>
+            <div class="service-card-title">Mécanique générale</div>
+            <div class="service-card-desc">De l'entretien courant aux réparations complexes</div>
+          </div>
+
+          <div class="service-card">
+            <div class="service-card-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF4500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </div>
+            <div class="service-card-title">Pneus &amp; alignement</div>
+            <div class="service-card-desc">Tous types de pneus, géométrie garantie</div>
+          </div>
+
+          <div class="service-card">
+            <div class="service-card-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF4500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <div class="service-card-title">Freins &amp; suspension</div>
+            <div class="service-card-desc">Sécurité et confort en priorité</div>
+          </div>
+
+          <div class="service-card">
+            <div class="service-card-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF4500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <div class="service-card-title">Inspection pré-achat</div>
+            <div class="service-card-desc">Avant tout achat de véhicule d'occasion</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- PHASE: STATS -->
+      <div class="phase" id="phase-stats">
+        <h2 class="phase-heading">Notre bilan</h2>
+        <div class="divider"></div>
+        <div class="stats-row">
+
+          <div class="stat-item">
+            <div class="stat-number"><span id="stat-years">0</span>+</div>
+            <div class="stat-label">Ans d'expérience</div>
+          </div>
+
+          <div class="stat-item">
+            <div class="stat-number"><span id="stat-rating">0.0</span>&#9733;</div>
+            <div class="stat-label">Note Google</div>
+          </div>
+
+          <div class="stat-item">
+            <div class="stat-number"><span id="stat-clients">0</span>+</div>
+            <div class="stat-label">Clients servis</div>
+          </div>
+
+          <div class="stat-item">
+            <div class="stat-number"><span id="stat-techs">0</span></div>
+            <div class="stat-label">Techniciens certifiés</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- PHASE: REVIEWS -->
+      <div class="phase" id="phase-reviews">
+        <h2 class="phase-heading">Ce que nos clients disent</h2>
+        <div class="divider"></div>
+        <div class="reviews-row">
+
+          <div class="review-card">
+            <div class="review-header">
+              <svg width="20" height="20" viewBox="0 0 24 24" aria-label="Google" role="img">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              </svg>
+              <div>
+                <div class="review-author">Martin Côté</div>
+                <div class="review-date">il y a 2 semaines</div>
+              </div>
+            </div>
+            <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+            <div class="review-quote">Excellent service! Mon véhicule était prêt en moins de 24h. Équipe professionnelle et prix très honnêtes. Je recommande fortement!</div>
+          </div>
+
+          <div class="review-card">
+            <div class="review-header">
+              <svg width="20" height="20" viewBox="0 0 24 24" aria-label="Google" role="img">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              </svg>
+              <div>
+                <div class="review-author">Sophie Tremblay</div>
+                <div class="review-date">il y a 1 mois</div>
+              </div>
+            </div>
+            <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+            <div class="review-quote">Personnel attentionné, explication claire des travaux à effectuer. Pas de mauvaises surprises sur la facture. Mon garage de confiance!</div>
+          </div>
+
+          <div class="review-card">
+            <div class="review-header">
+              <svg width="20" height="20" viewBox="0 0 24 24" aria-label="Google" role="img">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              </svg>
+              <div>
+                <div class="review-author">Jean-François Roy</div>
+                <div class="review-date">il y a 3 semaines</div>
+              </div>
+            </div>
+            <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+            <div class="review-quote">Rapide, efficace et honnête. Ils ont trouvé le problème que deux autres garages n'avaient pas réussi à identifier.</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- PHASE: CTA -->
+      <div class="phase" id="phase-cta">
+        <h2 style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:clamp(2rem,4.5vw,3.4rem);max-width:680px;line-height:1.1;margin-bottom:20px">
+          Mécano Expert mérite un site à sa hauteur.
+        </h2>
+        <p style="font-size:14px;opacity:0.65;max-width:460px;line-height:1.7;margin-bottom:0">
+          Nouveau site web professionnel avec réservation en ligne — livré en 7 jours.
+        </p>
+        <div class="cta-buttons">
+          <button class="btn-primary">Voir la démonstration complète</button>
+          <button class="btn-secondary">Nous appeler</button>
+        </div>
+        <div style="font-size:12px;opacity:0.5;margin-top:24px;letter-spacing:1px">(450) 555-0187</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <script>
+    window.addEventListener('load', function() {
+      var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      gsap.registerPlugin(ScrollTrigger);
+
+      var progressBar = document.getElementById('progressBar');
+
+      if (!reducedMotion) {
+        // Hero words animate in on load (NOT scrubbed)
+        gsap.from('.hero-line', { y: 80, opacity: 0, stagger: 0.18, duration: 1.1, ease: 'power3.out', delay: 0.3 });
+      }
+
+      // Nav scroll effect
+      window.addEventListener('scroll', function() {
+        document.querySelector('nav').classList.toggle('scrolled', window.scrollY > 50);
+      }, { passive: true });
+
+      if (reducedMotion) {
+        // Show all phases at once, skip animations
+        document.querySelectorAll('.phase').forEach(function(p) { p.style.opacity = '1'; });
+        document.querySelectorAll('.bg').forEach(function(b) { b.style.opacity = '1'; });
+        document.getElementById('stat-years').textContent = '15';
+        document.getElementById('stat-rating').textContent = '4.8';
+        document.getElementById('stat-clients').textContent = '2 400';
+        document.getElementById('stat-techs').textContent = '12';
+        return;
+      }
+
+      // SCRUB TIMELINE (phase transitions)
+      var tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: '.scroll-container',
+          start: 'top top',
+          end: 'bottom bottom',
+          scrub: 1.5,
+          onUpdate: function(self) {
+            progressBar.style.width = (self.progress * 100) + '%';
+          }
+        }
+      });
+
+      // Hero -> Audit (at ~15% scroll)
+      tl.to('#phase-hero', { opacity: 0, duration: 0.05 }, 0.13);
+      tl.to('#bg1', { opacity: 0, duration: 0.06 }, 0.13);
+      tl.to('#bg2', { opacity: 1, duration: 0.06 }, 0.14);
+      tl.to('#phase-audit', { opacity: 1, duration: 0.05 }, 0.18);
+
+      // Audit -> Services (at ~33% scroll)
+      tl.to('#phase-audit', { opacity: 0, duration: 0.05 }, 0.31);
+      tl.to('#phase-services', { opacity: 1, duration: 0.05 }, 0.35);
+
+      // Services -> Stats (at ~52% scroll)
+      tl.to('#phase-services', { opacity: 0, duration: 0.05 }, 0.50);
+      tl.to('#bg2', { opacity: 0, duration: 0.06 }, 0.50);
+      tl.to('#bg3', { opacity: 1, duration: 0.06 }, 0.51);
+      tl.to('#phase-stats', { opacity: 1, duration: 0.05 }, 0.55);
+
+      // Stats -> Reviews (at ~68% scroll)
+      tl.to('#phase-stats', { opacity: 0, duration: 0.05 }, 0.66);
+      tl.to('#phase-reviews', { opacity: 1, duration: 0.05 }, 0.70);
+
+      // Reviews -> CTA (at ~84% scroll)
+      tl.to('#phase-reviews', { opacity: 0, duration: 0.05 }, 0.82);
+      tl.to('#phase-cta', { opacity: 1, duration: 0.05 }, 0.86);
+
+      // COUNTER ANIMATIONS (fire once when stats section appears, NOT scrubbed)
+      ScrollTrigger.create({
+        trigger: '.scroll-container',
+        start: '52% top',
+        onEnter: function() {
+          var obj1 = { val: 0 };
+          gsap.to(obj1, { val: 15, duration: 2, ease: 'power2.out', onUpdate: function() {
+            document.getElementById('stat-years').textContent = Math.round(obj1.val);
+          }});
+          var obj2 = { val: 0 };
+          gsap.to(obj2, { val: 4.8, duration: 2, ease: 'power2.out', onUpdate: function() {
+            document.getElementById('stat-rating').textContent = obj2.val.toFixed(1);
+          }});
+          var obj3 = { val: 0 };
+          gsap.to(obj3, { val: 2400, duration: 2.2, ease: 'power2.out', onUpdate: function() {
+            document.getElementById('stat-clients').textContent = Math.round(obj3.val).toLocaleString('fr-CA');
+          }});
+          var obj4 = { val: 0 };
+          gsap.to(obj4, { val: 12, duration: 1.8, ease: 'power2.out', onUpdate: function() {
+            document.getElementById('stat-techs').textContent = Math.round(obj4.val);
+          }});
+        },
+        once: true
+      });
+
+      // Set initial stat display to 0
+      document.getElementById('stat-years').textContent = '0';
+      document.getElementById('stat-rating').textContent = '0.0';
+      document.getElementById('stat-clients').textContent = '0';
+      document.getElementById('stat-techs').textContent = '0';
+
+      // Resize
+      window.addEventListener('resize', function() { ScrollTrigger.refresh(); });
+    });
+  </script>
+
+</body>
+</html>

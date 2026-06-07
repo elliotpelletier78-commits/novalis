@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taverne 1855 | Magog</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0a0a;
+            color: #f3f4f6;
+            overflow-x: hidden;
+        }
+        h1, h2, h3, .serif { font-family: 'Playfair Display', serif; }
+
+        .hero-bg {
+            background-image: url('https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=2000&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+        ::-webkit-scrollbar { display: none; }
+        .text-copper { color: #b87333; }
+        .border-copper { border-color: #b87333; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <nav class="fixed w-full z-50 top-0 flex justify-between items-center p-8 mix-blend-difference">
+        <div class="text-xl serif font-bold tracking-wider">TAVERNE 1855</div>
+        <div class="space-x-8 text-xs tracking-[0.2em] uppercase font-light hidden md:block">
+            <a href="#" class="hover:text-gray-400 transition">Le Menu</a>
+            <a href="#" class="hover:text-gray-400 transition">La Cave</a>
+            <a href="#" class="hover:text-gray-400 transition">Contact</a>
+        </div>
+        <button class="border border-white px-6 py-2 text-xs tracking-widest uppercase hover:bg-white hover:text-black transition duration-500">
+            Réserver
+        </button>
+    </nav>
+
+    <section class="hero-section relative h-screen flex items-center justify-center overflow-hidden">
+        <div class="hero-bg absolute inset-0 z-0 opacity-50 scale-110 image-parallax"></div>
+        <div class="absolute inset-0 bg-gradient-to-b from-transparent to-[#0a0a0a] z-0"></div>
+        <div class="z-10 text-center px-4 mt-20">
+            <p class="hero-sub text-copper uppercase tracking-[0.3em] text-sm mb-6 opacity-0 translate-y-10">Magog, Estrie</p>
+            <h1 class="hero-title text-7xl md:text-9xl font-bold mb-6 opacity-0 translate-y-20">L'élégance<br><span class="italic font-light">brute.</span></h1>
+        </div>
+    </section>
+
+    <section class="pinned-section h-screen flex items-center justify-center relative bg-[#0a0a0a] overflow-hidden">
+        <div class="container mx-auto px-8 flex flex-col md:flex-row items-center justify-between">
+            <div class="w-full md:w-1/2 z-20 pr-0 md:pr-12">
+                <h2 class="reveal-text text-4xl md:text-6xl mb-8 leading-tight">Une histoire de<br><span class="text-copper italic">terroir.</span></h2>
+                <p class="reveal-text text-gray-400 text-lg font-light leading-relaxed mb-8 max-w-md">
+                    Des viandes vieillies sur place, des arrivages d'huîtres fraîches, et une carte des vins bâtie pour prolonger la soirée. Le service en salle se fait sans précipitation, dans une ambiance où le temps s'arrête.
+                </p>
+            </div>
+
+            <div class="w-full md:w-1/2 h-[60vh] relative image-stack z-10 mt-12 md:mt-0">
+                <img src="https://images.unsplash.com/photo-1544025162-811114cd354c?q=80&w=1000&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover rounded-sm shadow-2xl img-1">
+                <img src="https://images.unsplash.com/photo-1590189182193-1fd44f2b4048?q=80&w=1000&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover rounded-sm shadow-2xl img-2 translate-y-full">
+            </div>
+        </div>
+    </section>
+
+    <section class="h-[80vh] relative overflow-hidden flex items-center justify-center">
+        <img src="https://images.unsplash.com/photo-1507652313519-d4e9174996dd?q=80&w=2000&auto=format&fit=crop" class="parallax-img absolute inset-0 w-full h-[130%] object-cover opacity-60">
+        <h2 class="relative z-10 text-4xl md:text-7xl text-white text-center leading-tight">
+            Le verre de trop<br><span class="italic text-copper">n'existe pas.</span>
+        </h2>
+    </section>
+
+    <section class="h-[30vh] bg-[#0a0a0a] flex items-center justify-center">
+        <p class="text-gray-600 text-xs tracking-widest uppercase">Fin de la démo</p>
+    </section>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script>
+        gsap.registerPlugin(ScrollTrigger);
+
+        const tl = gsap.timeline();
+        tl.to(".hero-sub", { y: 0, opacity: 1, duration: 1, ease: "power3.out", delay: 0.5 })
+          .to(".hero-title", { y: 0, opacity: 1, duration: 1.2, ease: "power4.out" }, "-=0.7");
+
+        gsap.to(".image-parallax", {
+            y: "20%",
+            ease: "none",
+            scrollTrigger: { trigger: ".hero-section", start: "top top", end: "bottom top", scrub: true }
+        });
+
+        gsap.utils.toArray(".reveal-text").forEach(text => {
+            gsap.fromTo(text,
+                { y: 50, opacity: 0 },
+                { y: 0, opacity: 1, duration: 1, ease: "power3.out", scrollTrigger: {
+                    trigger: text, start: "top 85%"
+                }}
+            );
+        });
+
+        ScrollTrigger.create({
+            trigger: ".pinned-section",
+            start: "top top",
+            end: "+=100%",
+            pin: true,
+            animation: gsap.to(".img-2", { y: "0%", ease: "none" }),
+            scrub: 1
+        });
+
+        gsap.to(".parallax-img", {
+            y: "-20%",
+            ease: "none",
+            scrollTrigger: { trigger: ".parallax-img", start: "top bottom", end: "bottom top", scrub: true }
+        });
+    </script>
+</body>
+</html>
