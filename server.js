@@ -22,13 +22,31 @@ app.use((req, res, next) => {
   next();
 });
 
-// Fichiers statiques — démos générées (volume) puis démos bundlées (git repo)
+// Au démarrage : copier les démos bundlées (demos/) dans le volume (output/)
+const outputDir = path.join(__dirname, 'output');
+const demosDir  = path.join(__dirname, 'demos');
+if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+if (fs.existsSync(demosDir)) {
+  for (const f of fs.readdirSync(demosDir).filter(f => f.endsWith('.html'))) {
+    const dest = path.join(outputDir, f);
+    fs.copyFileSync(path.join(demosDir, f), dest);
+    console.log(`[seed] ${f} → output/`);
+  }
+}
+
+// Fichiers statiques — volume output/ (inclut maintenant les démos seedées)
 const staticOpts = { setHeaders: (res) => res.setHeader('X-Frame-Options', 'SAMEORIGIN') };
-app.use('/demo', express.static(path.join(__dirname, 'output'), staticOpts));
-app.use('/demo', express.static(path.join(__dirname, 'demos'),  staticOpts));
+app.use('/demo', express.static(outputDir, staticOpts));
 
 // ── Health check ─────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true, ts: Date.now() }));
+
+// ── Debug — lister les fichiers dans output/ et demos/ ───────
+app.get('/debug', (req, res) => {
+  const out   = fs.existsSync(outputDir) ? fs.readdirSync(outputDir).filter(f => f.endsWith('.html')) : [];
+  const demos = fs.existsSync(demosDir)  ? fs.readdirSync(demosDir).filter(f => f.endsWith('.html'))  : [];
+  res.json({ output: out, demos, version: 'seed-v2' });
+});
 
 // ── Accueil — liste des démos ─────────────────────────────────
 app.get('/', (req, res) => {
