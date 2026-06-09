@@ -65,7 +65,8 @@
         /* SCÈNE 2 — Intérieur (révélé par clip-path porte) */
         #s-int {
             clip-path: inset(18% 40% 0% 40%);
-            will-change: clip-path;
+            opacity: 0;
+            will-change: clip-path, opacity;
         }
 
         #s-int .scene-bg {
@@ -118,6 +119,7 @@
             border-bottom: none;
             border-radius: 3px 3px 0 0;
             pointer-events: none;
+            opacity: 0;
             will-change: transform, opacity;
         }
 
@@ -902,6 +904,9 @@
             .to('#s-ext .scene-bg', { scale: 2.0, ease: 'none', duration: 4 }, 0)
             .to('#jt-addr',  { opacity: 0, duration: 0.4 }, 0.4)
             .to('#jt-title', { opacity: 0, duration: 0.6 }, 0.5)
+            /* La porte apparaît graduellement pendant l'approche */
+            .to('#s-int',    { opacity: 1, duration: 0.5 }, 1.2)
+            .to('#doorFrame',{ opacity: 1, duration: 0.5 }, 1.2)
 
         /* ─ Phase 2 : porte qui s'ouvre (1.8 → 3.4s) ─
            clip-path expand de la forme de porte
