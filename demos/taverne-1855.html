@@ -3,116 +3,1012 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Taverne 1855 | Magog</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <title>Taverne 1855 | Magog, Estrie</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400;1,600&family=Karla:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0a0a0a;
-            color: #f3f4f6;
-            overflow-x: hidden;
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --black:   #0B0906;
+            --dark:    #131009;
+            --gold:    #C4953A;
+            --gold-lt: #E8B86D;
+            --cream:   #F0E6CF;
+            --muted:   #7A7060;
+            --brick:   #4A1F0A;
         }
-        h1, h2, h3, .serif { font-family: 'Playfair Display', serif; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Karla', sans-serif;
+            background: var(--black);
+            color: var(--cream);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        ::-webkit-scrollbar { display: none; }
+
+        h1, h2, h3, .serif {
+            font-family: 'Playfair Display SC', serif;
+            font-weight: 400;
+        }
+
+        /* ── NAVBAR ── */
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 28px 48px;
+            mix-blend-mode: difference;
+        }
+
+        .nav-logo {
+            font-family: 'Playfair Display SC', serif;
+            font-size: 15px;
+            letter-spacing: 0.2em;
+            color: #fff;
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 40px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            font-size: 11px;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: #fff;
+            text-decoration: none;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+            cursor: pointer;
+        }
+
+        .nav-links a:hover { opacity: 1; }
+
+        .nav-reserve {
+            font-size: 11px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.6);
+            padding: 10px 22px;
+            text-decoration: none;
+            transition: all 0.4s;
+            cursor: pointer;
+        }
+
+        .nav-reserve:hover { background: #fff; color: #000; }
+
+        /* ── HERO ── */
+        .hero-container { height: 900vh; position: relative; }
+
+        .hero-sticky {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
 
         .hero-bg {
-            background-image: url('https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=2000&auto=format&fit=crop');
+            position: absolute;
+            inset: 0;
             background-size: cover;
             background-position: center;
+            will-change: transform, opacity;
         }
-        ::-webkit-scrollbar { display: none; }
-        .text-copper { color: #b87333; }
-        .border-copper { border-color: #b87333; }
+
+        .hero-bg-1 {
+            background-image: url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=85&w=2400&auto=format&fit=crop');
+            opacity: 1;
+        }
+
+        .hero-bg-2 {
+            background-image: url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=85&w=2400&auto=format&fit=crop');
+            opacity: 0;
+        }
+
+        .hero-bg-3 {
+            background-image: url('https://images.unsplash.com/photo-1559339352-11d035aa65de?q=85&w=2400&auto=format&fit=crop');
+            opacity: 0;
+        }
+
+        .hero-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, rgba(11,9,6,0.1) 0%, rgba(11,9,6,0.4) 55%, rgba(11,9,6,0.9) 100%);
+            z-index: 1;
+        }
+
+        .hero-content {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 0 8vw 10vh;
+        }
+
+        .hero-label {
+            font-size: 11px;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 20px;
+            opacity: 0;
+            transform: translateY(12px);
+        }
+
+        .hero-title {
+            font-size: clamp(56px, 8vw, 120px);
+            line-height: 0.92;
+            color: var(--cream);
+            margin-bottom: 28px;
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        .hero-title em {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            font-weight: 400;
+            color: var(--gold-lt);
+        }
+
+        .hero-desc {
+            font-size: 16px;
+            font-weight: 300;
+            color: rgba(240,230,207,0.65);
+            max-width: 460px;
+            line-height: 1.65;
+            margin-bottom: 36px;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .hero-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 12px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--gold);
+            text-decoration: none;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .hero-cta svg { transition: transform 0.3s; }
+        .hero-cta:hover svg { transform: translateX(6px); }
+
+        .scroll-indicator {
+            position: absolute;
+            bottom: 40px;
+            right: 48px;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .scroll-line {
+            width: 1px;
+            height: 60px;
+            background: var(--gold);
+            transform-origin: top;
+            animation: scrollPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes scrollPulse {
+            0%, 100% { transform: scaleY(1); opacity: 0.4; }
+            50% { transform: scaleY(0.4); opacity: 1; }
+        }
+
+        .scroll-label {
+            font-size: 9px;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: var(--gold);
+            opacity: 0.5;
+            writing-mode: vertical-rl;
+        }
+
+        .hero-phase {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0 8vw;
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        .hero-phase .phase-tag {
+            font-size: 11px;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 24px;
+        }
+
+        .hero-phase .phase-title {
+            font-size: clamp(36px, 5vw, 80px);
+            line-height: 1.05;
+            color: var(--cream);
+            margin-bottom: 24px;
+            max-width: 700px;
+        }
+
+        .hero-phase .phase-body {
+            font-size: 15px;
+            font-weight: 300;
+            color: rgba(240,230,207,0.6);
+            max-width: 400px;
+            line-height: 1.7;
+        }
+
+        /* ── L'ÂME ── */
+        .section-ame {
+            padding: 140px 8vw;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
+            background: var(--dark);
+        }
+
+        .section-tag {
+            font-family: 'Karla', sans-serif;
+            font-size: 10px;
+            letter-spacing: 0.4em;
+            text-transform: uppercase;
+            color: var(--gold);
+            display: block;
+            margin-bottom: 24px;
+            font-weight: 600;
+        }
+
+        .ame-text h2 {
+            font-size: clamp(30px, 4vw, 54px);
+            line-height: 1.1;
+            margin-bottom: 28px;
+            color: var(--cream);
+        }
+
+        .ame-text h2 span {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            color: var(--gold-lt);
+        }
+
+        .ame-text p {
+            font-size: 16px;
+            font-weight: 300;
+            line-height: 1.75;
+            color: rgba(240,230,207,0.6);
+            margin-bottom: 18px;
+        }
+
+        .divider { width: 40px; height: 1px; background: var(--gold); margin: 32px 0; }
+
+        .ame-image {
+            position: relative;
+            height: 560px;
+        }
+
+        .ame-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .ame-image-accent {
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            width: 180px;
+            height: 180px;
+            border: 1px solid var(--gold);
+            opacity: 0.25;
+            z-index: -1;
+        }
+
+        /* ── MENU ── */
+        .section-menu {
+            padding: 120px 8vw;
+            background: var(--black);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 64px;
+        }
+
+        .section-header h2 {
+            font-size: clamp(28px, 4vw, 52px);
+            color: var(--cream);
+            line-height: 1.1;
+        }
+
+        .see-all {
+            font-size: 11px;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--gold);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: gap 0.3s;
+        }
+
+        .see-all:hover { gap: 14px; }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2px;
+        }
+
+        .menu-card {
+            position: relative;
+            overflow: hidden;
+            aspect-ratio: 3/4;
+            cursor: pointer;
+        }
+
+        .menu-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            filter: brightness(0.72);
+        }
+
+        .menu-card:hover img {
+            transform: scale(1.07);
+            filter: brightness(0.55);
+        }
+
+        .menu-card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(11,9,6,0.94) 0%, transparent 52%);
+        }
+
+        .menu-card-content {
+            position: absolute;
+            bottom: 0;
+            left: 0; right: 0;
+            padding: 28px 24px;
+        }
+
+        .menu-card-tag {
+            font-size: 9px;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: var(--gold);
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .menu-card-name {
+            font-family: 'Playfair Display SC', serif;
+            font-size: 17px;
+            color: var(--cream);
+            margin-bottom: 6px;
+        }
+
+        .menu-card-desc {
+            font-size: 12px;
+            font-weight: 300;
+            color: rgba(240,230,207,0.55);
+            line-height: 1.5;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease, opacity 0.4s;
+            opacity: 0;
+        }
+
+        .menu-card:hover .menu-card-desc {
+            max-height: 60px;
+            opacity: 1;
+        }
+
+        /* ── LA CAVE ── */
+        .section-cave {
+            position: relative;
+            height: 70vh;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cave-bg {
+            position: absolute;
+            inset: 0;
+            background-image: url('https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?q=85&w=2400&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            filter: brightness(0.3) saturate(0.7);
+        }
+
+        .cave-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 0 8vw;
+        }
+
+        .cave-quote {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            font-size: clamp(28px, 4vw, 60px);
+            color: var(--cream);
+            line-height: 1.2;
+            max-width: 740px;
+            margin: 0 auto 32px;
+        }
+
+        .cave-quote em {
+            color: var(--gold-lt);
+            font-style: normal;
+        }
+
+        .cave-sub {
+            font-size: 13px;
+            font-weight: 300;
+            color: rgba(240,230,207,0.45);
+            letter-spacing: 0.08em;
+        }
+
+        /* ── AMBIANCE ── */
+        .section-ambiance {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 4px;
+            background: var(--dark);
+        }
+
+        .ambiance-main { aspect-ratio: 4/5; overflow: hidden; }
+        .ambiance-main img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: brightness(0.82) saturate(0.85);
+        }
+
+        .ambiance-side { display: flex; flex-direction: column; gap: 4px; }
+        .ambiance-side-top { aspect-ratio: 5/4; overflow: hidden; }
+        .ambiance-side-top img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: brightness(0.78) saturate(0.85);
+        }
+
+        .ambiance-side-bottom {
+            background: var(--black);
+            padding: 48px 40px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .ambiance-side-bottom h3 {
+            font-size: 28px;
+            color: var(--cream);
+            line-height: 1.15;
+            margin-bottom: 16px;
+        }
+
+        .ambiance-side-bottom p {
+            font-size: 14px;
+            font-weight: 300;
+            color: rgba(240,230,207,0.5);
+            line-height: 1.65;
+        }
+
+        /* ── RÉSERVATION ── */
+        .section-reserve {
+            padding: 160px 8vw;
+            text-align: center;
+            background: var(--black);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .reserve-bg-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Playfair Display SC', serif;
+            font-size: clamp(80px, 16vw, 240px);
+            color: rgba(196,149,58,0.035);
+            white-space: nowrap;
+            pointer-events: none;
+            line-height: 1;
+            user-select: none;
+        }
+
+        .section-reserve h2 {
+            font-size: clamp(32px, 5vw, 72px);
+            color: var(--cream);
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .section-reserve p {
+            font-size: 16px;
+            font-weight: 300;
+            color: rgba(240,230,207,0.5);
+            max-width: 400px;
+            margin: 0 auto 48px;
+            line-height: 1.65;
+        }
+
+        .btn-reserve {
+            display: inline-block;
+            padding: 18px 52px;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            font-family: 'Karla', sans-serif;
+            font-size: 12px;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            text-decoration: none;
+            cursor: pointer;
+            position: relative;
+            background: transparent;
+            transition: color 0.45s;
+        }
+
+        .btn-reserve::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--gold);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .btn-reserve:hover { color: var(--black); }
+        .btn-reserve:hover::before { transform: scaleX(1); }
+        .btn-reserve span { position: relative; z-index: 1; }
+
+        /* ── FOOTER ── */
+        footer {
+            background: #070503;
+            border-top: 1px solid rgba(196,149,58,0.12);
+            padding: 80px 8vw 48px;
+        }
+
+        .footer-top {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1fr 1fr;
+            gap: 60px;
+            margin-bottom: 64px;
+        }
+
+        .footer-brand .logo-text {
+            font-family: 'Playfair Display SC', serif;
+            font-size: 22px;
+            color: var(--cream);
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .footer-brand .logo-sub {
+            font-size: 10px;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: var(--gold);
+        }
+
+        .footer-brand p {
+            font-size: 13px;
+            font-weight: 300;
+            color: var(--muted);
+            line-height: 1.65;
+            margin-top: 20px;
+            max-width: 240px;
+        }
+
+        .footer-col h4 {
+            font-family: 'Karla', sans-serif;
+            font-size: 10px;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .footer-col ul { list-style: none; }
+        .footer-col ul li { margin-bottom: 10px; }
+        .footer-col ul li a,
+        .footer-col ul li span {
+            font-size: 13px;
+            font-weight: 300;
+            color: var(--muted);
+            text-decoration: none;
+            transition: color 0.2s;
+            line-height: 1.5;
+        }
+        .footer-col ul li a:hover { color: var(--cream); }
+        .footer-col ul li strong {
+            font-weight: 500;
+            color: rgba(240,230,207,0.65);
+        }
+
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 32px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .footer-bottom span { font-size: 12px; color: rgba(122,112,96,0.45); }
+        .footer-gold-line { width: 40px; height: 1px; background: var(--gold); opacity: 0.35; }
+
+        /* ── REVEALS ── */
+        .reveal {
+            opacity: 0;
+            transform: translateY(36px);
+            transition: opacity 0.85s cubic-bezier(0.25,0.46,0.45,0.94),
+                        transform 0.85s cubic-bezier(0.25,0.46,0.45,0.94);
+        }
+
+        .reveal.visible { opacity: 1; transform: translateY(0); }
+        .reveal-d1 { transition-delay: 0.1s; }
+        .reveal-d2 { transition-delay: 0.22s; }
+        .reveal-d3 { transition-delay: 0.38s; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .reveal { opacity: 1; transform: none; transition: none; }
+            .scroll-line { animation: none; }
+        }
+
+        @media (max-width: 768px) {
+            nav { padding: 20px 24px; }
+            .nav-links { display: none; }
+            .section-ame { grid-template-columns: 1fr; padding: 80px 6vw; }
+            .ame-image { height: 360px; }
+            .menu-grid { grid-template-columns: repeat(2, 1fr); }
+            .section-ambiance { grid-template-columns: 1fr; }
+            .footer-top { grid-template-columns: 1fr 1fr; gap: 36px; }
+            .section-reserve { padding: 100px 6vw; }
+        }
     </style>
 </head>
-<body class="antialiased">
+<body>
 
-    <nav class="fixed w-full z-50 top-0 flex justify-between items-center p-8 mix-blend-difference">
-        <div class="text-xl serif font-bold tracking-wider">TAVERNE 1855</div>
-        <div class="space-x-8 text-xs tracking-[0.2em] uppercase font-light hidden md:block">
-            <a href="#" class="hover:text-gray-400 transition">Le Menu</a>
-            <a href="#" class="hover:text-gray-400 transition">La Cave</a>
-            <a href="#" class="hover:text-gray-400 transition">Contact</a>
-        </div>
-        <button class="border border-white px-6 py-2 text-xs tracking-widest uppercase hover:bg-white hover:text-black transition duration-500">
-            Réserver
-        </button>
+    <nav>
+        <a href="#" class="nav-logo">Taverne 1855</a>
+        <ul class="nav-links">
+            <li><a href="#menu">Le Menu</a></li>
+            <li><a href="#cave">La Cave</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul>
+        <a href="#reserve" class="nav-reserve">Réserver</a>
     </nav>
 
-    <section class="hero-section relative h-screen flex items-center justify-center overflow-hidden">
-        <div class="hero-bg absolute inset-0 z-0 opacity-50 scale-110 image-parallax"></div>
-        <div class="absolute inset-0 bg-gradient-to-b from-transparent to-[#0a0a0a] z-0"></div>
-        <div class="z-10 text-center px-4 mt-20">
-            <p class="hero-sub text-copper uppercase tracking-[0.3em] text-sm mb-6 opacity-0 translate-y-10">Magog, Estrie</p>
-            <h1 class="hero-title text-7xl md:text-9xl font-bold mb-6 opacity-0 translate-y-20">L'élégance<br><span class="italic font-light">brute.</span></h1>
-        </div>
-    </section>
+    <!-- HERO -->
+    <section class="hero-container">
+        <div class="hero-sticky">
+            <div class="hero-bg hero-bg-1" id="bg1"></div>
+            <div class="hero-bg hero-bg-2" id="bg2"></div>
+            <div class="hero-bg hero-bg-3" id="bg3"></div>
+            <div class="hero-overlay"></div>
 
-    <section class="pinned-section h-screen flex items-center justify-center relative bg-[#0a0a0a] overflow-hidden">
-        <div class="container mx-auto px-8 flex flex-col md:flex-row items-center justify-between">
-            <div class="w-full md:w-1/2 z-20 pr-0 md:pr-12">
-                <h2 class="reveal-text text-4xl md:text-6xl mb-8 leading-tight">Une histoire de<br><span class="text-copper italic">terroir.</span></h2>
-                <p class="reveal-text text-gray-400 text-lg font-light leading-relaxed mb-8 max-w-md">
-                    Des viandes vieillies sur place, des arrivages d'huîtres fraîches, et une carte des vins bâtie pour prolonger la soirée. Le service en salle se fait sans précipitation, dans une ambiance où le temps s'arrête.
+            <div class="hero-content" id="phase1">
+                <div class="hero-label" id="hero-label">428 Rue Principale &nbsp;·&nbsp; Magog, Estrie</div>
+                <h1 class="hero-title" id="hero-title">
+                    Taverne<br><em>1855</em>
+                </h1>
+                <p class="hero-desc" id="hero-desc">
+                    Sans fla-fla, avec saveurs.<br>
+                    Une cuisine de caractère au cœur de Magog.
+                </p>
+                <a href="#menu" class="hero-cta" id="hero-cta">
+                    Découvrir le menu
+                    <svg width="20" height="8" viewBox="0 0 20 8" fill="none">
+                        <path d="M0 4H18M15 1l3 3-3 3" stroke="currentColor" stroke-width="1"/>
+                    </svg>
+                </a>
+            </div>
+
+            <div class="hero-phase" id="phase2">
+                <span class="phase-tag">La Table</span>
+                <h2 class="phase-title serif">
+                    Viandes vieillies.<br>
+                    Huîtres fraîches.<br>
+                    Vins de caractère.
+                </h2>
+                <p class="phase-body">
+                    Des produits qui parlent d'eux-mêmes, travaillés avec respect.
+                    Le service se fait sans précipitation.
                 </p>
             </div>
 
-            <div class="w-full md:w-1/2 h-[60vh] relative image-stack z-10 mt-12 md:mt-0">
-                <img src="https://images.unsplash.com/photo-1544025162-811114cd354c?q=80&w=1000&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover rounded-sm shadow-2xl img-1">
-                <img src="https://images.unsplash.com/photo-1590189182193-1fd44f2b4048?q=80&w=1000&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover rounded-sm shadow-2xl img-2 translate-y-full">
+            <div class="hero-phase" id="phase3">
+                <span class="phase-tag">Ce soir</span>
+                <h2 class="phase-title" style="font-family:'Playfair Display',serif;font-style:italic;font-weight:400;font-size:clamp(36px,5vw,80px);line-height:1.1;">
+                    « Le verre de trop<br>n'existe pas. »
+                </h2>
+                <p class="phase-body">
+                    Ouvert du mardi au dimanche, dès 17h.<br>
+                    Réservations recommandées.
+                </p>
+            </div>
+
+            <div class="scroll-indicator">
+                <div class="scroll-line"></div>
+                <span class="scroll-label">Scroll</span>
             </div>
         </div>
     </section>
 
-    <section class="h-[80vh] relative overflow-hidden flex items-center justify-center">
-        <img src="https://images.unsplash.com/photo-1507652313519-d4e9174996dd?q=80&w=2000&auto=format&fit=crop" class="parallax-img absolute inset-0 w-full h-[130%] object-cover opacity-60">
-        <h2 class="relative z-10 text-4xl md:text-7xl text-white text-center leading-tight">
-            Le verre de trop<br><span class="italic text-copper">n'existe pas.</span>
-        </h2>
+    <!-- L'ÂME -->
+    <section class="section-ame" id="about">
+        <div class="ame-text">
+            <span class="section-tag reveal">L'histoire</span>
+            <h2 class="reveal reveal-d1">
+                Un lieu de <span>vie,</span><br>
+                pas un décor.
+            </h2>
+            <div class="divider reveal reveal-d2"></div>
+            <p class="reveal reveal-d2">
+                Au cœur du vieux Magog, la Taverne 1855 perpétue une tradition simple :
+                bien manger, bien boire, et prendre le temps. Pas de chichi.
+                Des assiettes honnêtes, élaborées avec des produits qui ont du sens.
+            </p>
+            <p class="reveal reveal-d3">
+                La salle, avec ses briques apparentes et ses lumières tamisées,
+                crée une chaleur que les grandes tables ont souvent perdu.
+                Ici, le service connaît votre verre.
+            </p>
+        </div>
+        <div class="ame-image reveal reveal-d2">
+            <img src="https://images.unsplash.com/photo-1525610553991-2bede1a236e2?q=85&w=1200&auto=format&fit=crop"
+                 alt="Ambiance chaleureuse Taverne 1855">
+            <div class="ame-image-accent"></div>
+        </div>
     </section>
 
-    <section class="h-[30vh] bg-[#0a0a0a] flex items-center justify-center">
-        <p class="text-gray-600 text-xs tracking-widest uppercase">Fin de la démo</p>
+    <!-- MENU -->
+    <section class="section-menu" id="menu">
+        <div class="section-header">
+            <div>
+                <span class="section-tag reveal">Les Signatures</span>
+                <h2 class="reveal reveal-d1">Ce qu'on<br>commande toujours</h2>
+            </div>
+            <a href="#" class="see-all reveal reveal-d2">
+                Menu complet
+                <svg width="18" height="7" viewBox="0 0 18 7" fill="none">
+                    <path d="M0 3.5H16M13 1l3 2.5-3 2.5" stroke="currentColor" stroke-width="1"/>
+                </svg>
+            </a>
+        </div>
+
+        <div class="menu-grid">
+            <div class="menu-card reveal">
+                <img src="https://images.unsplash.com/photo-1544025162-811114cd354c?q=80&w=800&auto=format&fit=crop" alt="Côte de bœuf vieillie" loading="lazy">
+                <div class="menu-card-overlay"></div>
+                <div class="menu-card-content">
+                    <span class="menu-card-tag">Du boucher</span>
+                    <div class="menu-card-name">Côte de bœuf</div>
+                    <p class="menu-card-desc">Vieillie 45 jours sur place. Beurre composé, jus au vin rouge.</p>
+                </div>
+            </div>
+            <div class="menu-card reveal reveal-d1">
+                <img src="https://images.unsplash.com/photo-1559847844-5315695dadae?q=80&w=800&auto=format&fit=crop" alt="Plateau d'huîtres fraîches" loading="lazy">
+                <div class="menu-card-overlay"></div>
+                <div class="menu-card-content">
+                    <span class="menu-card-tag">De la mer</span>
+                    <div class="menu-card-name">Huîtres fraîches</div>
+                    <p class="menu-card-desc">Arrivage bi-hebdomadaire. Mignonette ou vodka-citron.</p>
+                </div>
+            </div>
+            <div class="menu-card reveal reveal-d2">
+                <img src="https://images.unsplash.com/photo-1571091718767-18b5b1457add?q=80&w=800&auto=format&fit=crop" alt="Tartare de bœuf" loading="lazy">
+                <div class="menu-card-overlay"></div>
+                <div class="menu-card-content">
+                    <span class="menu-card-tag">La maison</span>
+                    <div class="menu-card-name">Tartare 1855</div>
+                    <p class="menu-card-desc">Bœuf coupé au couteau, câpres, moutarde à l'ancienne.</p>
+                </div>
+            </div>
+            <div class="menu-card reveal reveal-d3">
+                <img src="https://images.unsplash.com/photo-1452195100486-9cc805987862?q=80&w=800&auto=format&fit=crop" alt="Fromages du Québec" loading="lazy">
+                <div class="menu-card-overlay"></div>
+                <div class="menu-card-content">
+                    <span class="menu-card-tag">Pour finir</span>
+                    <div class="menu-card-name">Fromages du Québec</div>
+                    <p class="menu-card-desc">Sélection de fromageries locales. Confiture maison.</p>
+                </div>
+            </div>
+        </div>
     </section>
+
+    <!-- LA CAVE -->
+    <section class="section-cave" id="cave">
+        <div class="cave-bg" id="caveBg"></div>
+        <div class="cave-content">
+            <span class="section-tag reveal" style="text-align:center;">La Cave</span>
+            <p class="cave-quote reveal reveal-d1">
+                Une carte des vins bâtie pour<br>
+                <em>prolonger la soirée.</em>
+            </p>
+            <p class="cave-sub reveal reveal-d2">
+                250+ références &nbsp;·&nbsp; Naturels & conventionnels &nbsp;·&nbsp; Importations privées
+            </p>
+        </div>
+    </section>
+
+    <!-- AMBIANCE -->
+    <section class="section-ambiance">
+        <div class="ambiance-main reveal">
+            <img src="https://images.unsplash.com/photo-1543007631-283050bb3e8c?q=85&w=1200&auto=format&fit=crop" alt="Bar de la Taverne 1855" loading="lazy">
+        </div>
+        <div class="ambiance-side">
+            <div class="ambiance-side-top reveal reveal-d1">
+                <img src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=85&w=1200&auto=format&fit=crop" alt="Salle à manger" loading="lazy">
+            </div>
+            <div class="ambiance-side-bottom">
+                <span class="section-tag reveal">L'atmosphère</span>
+                <h3 class="reveal reveal-d1">Briques apparentes.<br>Guirlandes tamisées.</h3>
+                <p class="reveal reveal-d2">
+                    Une salle où l'on reste plus longtemps que prévu.
+                    Parce que c'est exactement ça, l'idée.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- RÉSERVATION -->
+    <section class="section-reserve" id="reserve">
+        <div class="reserve-bg-text">1855</div>
+        <span class="section-tag reveal">Votre table</span>
+        <h2 class="reveal reveal-d1">Réservez ce soir.</h2>
+        <p class="reveal reveal-d2">
+            Mardi au vendredi dès 17h<br>
+            Samedi &amp; dimanche dès 11h30
+        </p>
+        <a href="tel:+18198431855" class="btn-reserve reveal reveal-d3">
+            <span>Appeler le restaurant</span>
+        </a>
+    </section>
+
+    <!-- FOOTER -->
+    <footer id="contact">
+        <div class="footer-top">
+            <div class="footer-brand">
+                <span class="logo-text">Taverne 1855</span>
+                <span class="logo-sub">Magog · Estrie</span>
+                <p>Sans fla-fla, avec saveurs. Une adresse incontournable sur la rue Principale de Magog.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Nous trouver</h4>
+                <ul>
+                    <li><span>428 rue Principale</span></li>
+                    <li><span>Magog, QC J1X 2B4</span></li>
+                    <li><a href="https://taverne1855.ca" target="_blank">taverne1855.ca</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Heures</h4>
+                <ul>
+                    <li><span><strong>Mar – Ven</strong> &nbsp;17h –</span></li>
+                    <li><span><strong>Sam – Dim</strong> &nbsp;11h30 –</span></li>
+                    <li><span style="color:rgba(122,112,96,0.35)">Lundi : fermé</span></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Nous joindre</h4>
+                <ul>
+                    <li><a href="tel:+18198431855">819 843-1855</a></li>
+                    <li><a href="mailto:info@taverne1855.ca">info@taverne1855.ca</a></li>
+                    <li><a href="https://www.instagram.com/taverne1855" target="_blank">@taverne1855</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© 2025 Taverne 1855. Tous droits réservés.</span>
+            <div class="footer-gold-line"></div>
+            <span>Magog, Cantons-de-l'Est</span>
+        </div>
+    </footer>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
     <script>
         gsap.registerPlugin(ScrollTrigger);
 
-        const tl = gsap.timeline();
-        tl.to(".hero-sub", { y: 0, opacity: 1, duration: 1, ease: "power3.out", delay: 0.5 })
-          .to(".hero-title", { y: 0, opacity: 1, duration: 1.2, ease: "power4.out" }, "-=0.7");
+        /* Entrée hero */
+        gsap.timeline({ delay: 0.3 })
+            .to('#hero-label', { y: 0, opacity: 1, duration: 0.9, ease: 'power3.out' })
+            .to('#hero-title', { y: 0, opacity: 1, duration: 1.1, ease: 'power4.out' }, '-=0.6')
+            .to('#hero-desc',  { y: 0, opacity: 1, duration: 0.9, ease: 'power3.out' }, '-=0.7')
+            .to('#hero-cta',   { opacity: 1, duration: 0.7 }, '-=0.4');
 
-        gsap.to(".image-parallax", {
-            y: "20%",
-            ease: "none",
-            scrollTrigger: { trigger: ".hero-section", start: "top top", end: "bottom top", scrub: true }
+        /* Sticky scroll */
+        const tl = gsap.timeline({
+            scrollTrigger: {
+                trigger: '.hero-container',
+                start: 'top top',
+                end: 'bottom bottom',
+                scrub: 1.4
+            }
         });
 
-        gsap.utils.toArray(".reveal-text").forEach(text => {
-            gsap.fromTo(text,
-                { y: 50, opacity: 0 },
-                { y: 0, opacity: 1, duration: 1, ease: "power3.out", scrollTrigger: {
-                    trigger: text, start: "top 85%"
-                }}
-            );
+        tl
+            .to('#phase1', { opacity: 0, duration: 0.5 }, 0.6)
+            .to('#bg1',    { opacity: 0, duration: 0.9 }, 0.7)
+            .to('#bg2',    { opacity: 1, duration: 0.9 }, 0.7)
+            .to('#phase2', { opacity: 1, duration: 0.5 }, 0.9)
+            .to('#phase2', { opacity: 0, duration: 0.5 }, 2.2)
+            .to('#bg2',    { opacity: 0, duration: 0.9 }, 2.3)
+            .to('#bg3',    { opacity: 1, duration: 0.9 }, 2.3)
+            .to('#phase3', { opacity: 1, duration: 0.5 }, 2.5)
+            .to('#phase3', { opacity: 0, duration: 0.4 }, 3.8);
+
+        /* Parallax bgs */
+        gsap.to([document.getElementById('bg1'), document.getElementById('bg2'), document.getElementById('bg3')], {
+            y: '14%',
+            ease: 'none',
+            scrollTrigger: {
+                trigger: '.hero-container',
+                start: 'top top',
+                end: 'bottom bottom',
+                scrub: true
+            }
         });
 
-        ScrollTrigger.create({
-            trigger: ".pinned-section",
-            start: "top top",
-            end: "+=100%",
-            pin: true,
-            animation: gsap.to(".img-2", { y: "0%", ease: "none" }),
-            scrub: 1
+        /* Parallax cave */
+        gsap.to('#caveBg', {
+            y: '-15%',
+            ease: 'none',
+            scrollTrigger: {
+                trigger: '.section-cave',
+                start: 'top bottom',
+                end: 'bottom top',
+                scrub: true
+            }
         });
 
-        gsap.to(".parallax-img", {
-            y: "-20%",
-            ease: "none",
-            scrollTrigger: { trigger: ".parallax-img", start: "top bottom", end: "bottom top", scrub: true }
-        });
+        /* Reveal on scroll */
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.isIntersecting) {
+                    e.target.classList.add('visible');
+                    observer.unobserve(e.target);
+                }
+            });
+        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
     </script>
 </body>
 </html>
