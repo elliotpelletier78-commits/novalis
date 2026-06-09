@@ -3,7 +3,7 @@ const path    = require('path');
 const fs      = require('fs');
 
 const app = express();
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '20mb' }));
 
 // CORS — permet au CRM Python (novalisia.ca) d'appeler ce service
 app.use((req, res, next) => {
@@ -40,6 +40,139 @@ app.use('/demo', express.static(outputDir, staticOpts));
 
 // ── Health check ─────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true, ts: Date.now() }));
+
+// ── Upload d'images (base64 JSON) ────────────────────────────
+// POST /upload-image  { filename: "exterior.jpg", data: "base64..." }
+app.post('/upload-image', (req, res) => {
+  const { filename, data } = req.body || {};
+  if (!filename || !data) return res.status(400).json({ error: 'filename + data requis' });
+  const safe = path.basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
+  const imagesDir = path.join(outputDir, 'images');
+  if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
+  const buf = Buffer.from(data.replace(/^data:[^;]+;base64,/, ''), 'base64');
+  fs.writeFileSync(path.join(imagesDir, safe), buf);
+  res.json({ ok: true, url: `/demo/images/${safe}` });
+});
+
+// ── Page d'upload ─────────────────────────────────────────────
+app.get('/upload', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Upload photos — Novalis</title>
+<style>
+  body{font-family:system-ui,sans-serif;background:#07090F;color:#F1F5FF;padding:40px;max-width:700px;margin:0 auto}
+  h1{font-size:22px;margin-bottom:8px}
+  p{color:#64748B;font-size:14px;margin-bottom:32px}
+  .slots{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:32px}
+  .slot{background:#111827;border:2px dashed rgba(255,255,255,0.1);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:border-color .2s;position:relative;min-height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+  .slot:hover{border-color:#3B82F6}
+  .slot.done{border-color:#10B981;border-style:solid}
+  .slot img{width:100%;height:120px;object-fit:cover;border-radius:6px;display:none}
+  .slot.done img{display:block}
+  .slot.done .placeholder{display:none}
+  .slot-name{font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:.1em}
+  .slot-status{font-size:12px;color:#10B981;display:none}
+  .slot.done .slot-status{display:block}
+  input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .btn{background:#3B82F6;color:#fff;border:none;padding:14px 36px;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600;transition:background .2s}
+  .btn:hover{background:#2563EB}
+  .btn:disabled{background:#374151;cursor:not-allowed}
+  .log{margin-top:20px;font-size:13px;color:#64748B;line-height:1.6}
+  .ok{color:#10B981}
+  .err{color:#EF4444}
+</style>
+</head>
+<body>
+<h1>Upload des photos — Taverne 1855</h1>
+<p>Glisse ou clique sur chaque zone pour choisir la photo correspondante.</p>
+<div class="slots">
+  <div class="slot" id="slot-exterior" data-name="exterior.jpg">
+    <input type="file" accept="image/*" onchange="handleFile(this,'exterior.jpg','slot-exterior')">
+    <img id="prev-exterior">
+    <div class="placeholder">
+      <div style="font-size:28px">🏠</div>
+      <div class="slot-name">Extérieur nuit</div>
+    </div>
+    <div class="slot-status">✓ Prêt</div>
+  </div>
+  <div class="slot" id="slot-bar" data-name="bar.jpg">
+    <input type="file" accept="image/*" onchange="handleFile(this,'bar.jpg','slot-bar')">
+    <img id="prev-bar">
+    <div class="placeholder">
+      <div style="font-size:28px">🍷</div>
+      <div class="slot-name">Intérieur / Bar</div>
+    </div>
+    <div class="slot-status">✓ Prêt</div>
+  </div>
+  <div class="slot" id="slot-chef" data-name="chef.jpg">
+    <input type="file" accept="image/*" onchange="handleFile(this,'chef.jpg','slot-chef')">
+    <img id="prev-chef">
+    <div class="placeholder">
+      <div style="font-size:28px">👨‍🍳</div>
+      <div class="slot-name">Chef / Cuisine</div>
+    </div>
+    <div class="slot-status">✓ Prêt</div>
+  </div>
+  <div class="slot" id="slot-logo" data-name="logo.png">
+    <input type="file" accept="image/*" onchange="handleFile(this,'logo.png','slot-logo')">
+    <img id="prev-logo">
+    <div class="placeholder">
+      <div style="font-size:28px">🔵</div>
+      <div class="slot-name">Logo</div>
+    </div>
+    <div class="slot-status">✓ Prêt</div>
+  </div>
+</div>
+<button class="btn" id="uploadBtn" onclick="uploadAll()" disabled>Uploader les photos</button>
+<div class="log" id="log"></div>
+<script>
+  const files = {};
+  function handleFile(input, name, slotId) {
+    const file = input.files[0];
+    if (!file) return;
+    files[name] = file;
+    const prev = document.getElementById('prev-' + slotId.replace('slot-',''));
+    const reader = new FileReader();
+    reader.onload = e => { prev.src = e.target.result; document.getElementById(slotId).classList.add('done'); };
+    reader.readAsDataURL(file);
+    document.getElementById('uploadBtn').disabled = false;
+  }
+  async function uploadAll() {
+    const btn = document.getElementById('uploadBtn');
+    btn.disabled = true; btn.textContent = 'Upload en cours...';
+    const log = document.getElementById('log');
+    log.innerHTML = '';
+    for (const [name, file] of Object.entries(files)) {
+      const b64 = await toB64(file);
+      try {
+        const r = await fetch('/upload-image', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({filename: name, data: b64})
+        });
+        const j = await r.json();
+        if (j.ok) log.innerHTML += '<div class="ok">✓ ' + name + ' → ' + j.url + '</div>';
+        else log.innerHTML += '<div class="err">✗ ' + name + ': ' + j.error + '</div>';
+      } catch(e) { log.innerHTML += '<div class="err">✗ ' + name + ': ' + e.message + '</div>'; }
+    }
+    btn.textContent = 'Voir la démo';
+    btn.onclick = () => location.href = '/demo/taverne-1855.html';
+    btn.disabled = false;
+  }
+  function toB64(file) {
+    return new Promise(resolve => {
+      const r = new FileReader();
+      r.onload = e => resolve(e.target.result);
+      r.readAsDataURL(file);
+    });
+  }
+</script>
+</body>
+</html>`);
+});
 
 // ── Debug — lister les fichiers dans output/ et demos/ ───────
 app.get('/debug', (req, res) => {
