@@ -233,6 +233,15 @@
             padding: 0 6vw;
         }
 
+        .splash-logo-img {
+            width: clamp(120px, 18vw, 220px);
+            max-height: 110px;
+            object-fit: contain;
+            filter: brightness(1.1);
+            opacity: 0;
+            transform: translateY(24px);
+        }
+
         .splash-logo {
             font-family: 'Playfair Display SC', serif;
             font-size: clamp(44px, 7vw, 100px);
@@ -707,6 +716,7 @@
             <div class="scene" id="s-svc"><div class="scene-bg"></div></div>
             <div class="scene" id="s-site">
                 <div class="site-splash">
+                    <img src="/demo/images/logo.png" alt="Taverne 1855" class="splash-logo-img" onerror="this.style.display='none'">
                     <div class="splash-logo">Taverne 1855</div>
                     <div class="splash-tagline">Sans fla-fla, avec saveurs.</div>
                     <div class="splash-scroll">
@@ -926,6 +936,7 @@
         /* ─ Phase 5 : écran site web (6.5 → 8s) ─            */
             .to('#s-svc',    { opacity: 0, duration: 0.7 }, 6.8)
             .to('#s-site',   { opacity: 1, duration: 0.9 }, 6.8)
+            .to('.splash-logo-img', { y: 0, opacity: 1, duration: 0.7 }, 6.9)
             .to('.splash-logo',    { y: 0, opacity: 1, duration: 0.7 }, 7.0)
             .to('.splash-tagline', { y: 0, opacity: 1, duration: 0.6 }, 7.2)
             .to('.splash-scroll',  { opacity: 1, duration: 0.6 }, 7.5);
