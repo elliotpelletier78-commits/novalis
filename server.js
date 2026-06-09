@@ -1,9 +1,40 @@
 const express = require('express');
 const path    = require('path');
 const fs      = require('fs');
+const Database = require('better-sqlite3');
 
 const app = express();
 app.use(express.json({ limit: '20mb' }));
+
+// ── SQLite — prospects & tracking ────────────────────────────
+const dbPath = path.join(__dirname, 'output', 'novalis.db');
+if (!fs.existsSync(path.join(__dirname, 'output'))) fs.mkdirSync(path.join(__dirname, 'output'), { recursive: true });
+const db = new Database(dbPath);
+db.exec(`
+  CREATE TABLE IF NOT EXISTS prospects (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug        TEXT    UNIQUE NOT NULL,
+    name        TEXT,
+    industry    TEXT,
+    phone       TEXT,
+    address     TEXT,
+    city        TEXT,
+    color       TEXT,
+    status      TEXT DEFAULT 'nouveau',
+    views       INTEGER DEFAULT 0,
+    last_viewed INTEGER,
+    created_at  INTEGER DEFAULT (strftime('%s','now')),
+    demo_url    TEXT
+  );
+`);
+
+// ── Admin auth middleware ─────────────────────────────────────
+const ADMIN_PASS = process.env.ADMIN_PASS || 'novalis2025';
+function requireAdmin(req, res, next) {
+  const auth = (req.headers.authorization || '').replace('Bearer ', '');
+  if (auth === ADMIN_PASS) return next();
+  return res.status(401).json({ success: false, error: 'Non autorisé' });
+}
 
 // CORS — permet au CRM Python (novalisia.ca) d'appeler ce service
 app.use((req, res, next) => {
@@ -274,6 +305,80 @@ app.post('/generate', async (req, res) => {
     console.error('[generate error]', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// ── Admin auth check ─────────────────────────────────────────
+app.post('/admin-auth', (req, res) => {
+  const { key } = req.body || {};
+  res.json({ ok: key === ADMIN_PASS });
+});
+
+// ── Admin panel ───────────────────────────────────────────────
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+// ── Générer démo cinématique personnalisée ────────────────────
+app.post('/generate-cinematic', requireAdmin, async (req, res) => {
+  try {
+    const { generateCinematic } = require('./generate-cinematic');
+    const data   = { ...req.body };
+    const base   = `${req.protocol}://${req.get('host')}`;
+    const result = generateCinematic({ ...data, baseUrl: base });
+
+    const dest = path.join(outputDir, `${result.slug}.html`);
+    fs.writeFileSync(dest, result.html, 'utf8');
+
+    const demoUrl = `${base}/demo/${result.slug}.html`;
+
+    // Persist prospect
+    const city = (data.address || '').split(',').slice(-2)[0]?.trim() || '';
+    db.prepare(`
+      INSERT INTO prospects (slug,name,industry,phone,address,city,color,demo_url)
+      VALUES (?,?,?,?,?,?,?,?)
+      ON CONFLICT(slug) DO UPDATE SET
+        name=excluded.name, industry=excluded.industry,
+        phone=excluded.phone, address=excluded.address,
+        city=excluded.city, color=excluded.color, demo_url=excluded.demo_url
+    `).run(result.slug, data.name, data.industry||'restaurant', data.phone||'', data.address||'', city, data.color||'', demoUrl);
+
+    console.log(`[cinematic] ${result.slug} → ${demoUrl}`);
+    res.json({ success: true, url: demoUrl, slug: result.slug });
+  } catch (err) {
+    console.error('[generate-cinematic]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── Tracking pixel ────────────────────────────────────────────
+// Pixel 1×1 GIF transparent — compté à chaque vue de démo
+const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+app.get('/t/:slug', (req, res) => {
+  const { slug } = req.params;
+  try {
+    db.prepare(`
+      INSERT INTO prospects (slug, views, last_viewed) VALUES (?, 1, strftime('%s','now'))
+      ON CONFLICT(slug) DO UPDATE SET
+        views = views + 1,
+        last_viewed = strftime('%s','now')
+    `).run(slug);
+  } catch(e) { /* ignore */ }
+  res.setHeader('Content-Type', 'image/gif');
+  res.setHeader('Cache-Control', 'no-store');
+  res.send(PIXEL);
+});
+
+// ── Liste des prospects ───────────────────────────────────────
+app.get('/prospects', requireAdmin, (req, res) => {
+  const prospects = db.prepare('SELECT * FROM prospects ORDER BY created_at DESC').all();
+  res.json({ prospects });
+});
+
+// ── Mettre à jour statut prospect ────────────────────────────
+app.post('/prospects/:slug/status', requireAdmin, (req, res) => {
+  const { status } = req.body || {};
+  db.prepare('UPDATE prospects SET status=? WHERE slug=?').run(status, req.params.slug);
+  res.json({ ok: true });
 });
 
 // ── Récupérer l'URL d'une démo existante ─────────────────────
