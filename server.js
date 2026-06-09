@@ -307,6 +307,117 @@ app.post('/generate', async (req, res) => {
   }
 });
 
+// ── Photo scraper — extrait et télécharge les vraies photos du site PME ──────
+async function scrapePhotos(websiteUrl, slug) {
+  const imagesDir = path.join(outputDir, 'images');
+  if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
+  const KEYS = ['exterior', 'interior', 'service', 'about'];
+  let saved = 0;
+
+  function fetchHtml(url, timeout = 8000) {
+    const https_ = require('https'), http_ = require('http');
+    return new Promise((resolve, reject) => {
+      const mod = url.startsWith('https') ? https_ : http_;
+      const timer = setTimeout(() => reject(new Error('timeout')), timeout);
+      mod.get(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15', 'Accept-Language': 'fr-CA,fr;q=0.9', 'Accept': 'text/html' },
+        timeout,
+      }, (res) => {
+        if ([301,302,303,307,308].includes(res.statusCode) && res.headers.location) {
+          clearTimeout(timer);
+          const loc = res.headers.location.startsWith('http') ? res.headers.location : new URL(res.headers.location, url).href;
+          return resolve(fetchHtml(loc, timeout));
+        }
+        let body = '';
+        res.on('data', c => body += c);
+        res.on('end', () => { clearTimeout(timer); resolve(body); });
+      }).on('error', e => { clearTimeout(timer); reject(e); });
+    });
+  }
+
+  function downloadBuf(url, timeout = 6000) {
+    const https_ = require('https'), http_ = require('http');
+    return new Promise((resolve, reject) => {
+      const mod = url.startsWith('https') ? https_ : http_;
+      const timer = setTimeout(() => reject(new Error('timeout')), timeout);
+      const chunks = [];
+      mod.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible)' }, timeout }, (res) => {
+        if ([301,302,303,307,308].includes(res.statusCode) && res.headers.location) {
+          clearTimeout(timer);
+          return resolve(downloadBuf(res.headers.location, timeout));
+        }
+        if (res.statusCode !== 200) { clearTimeout(timer); return reject(new Error(`HTTP ${res.statusCode}`)); }
+        res.on('data', c => chunks.push(c));
+        res.on('end', () => { clearTimeout(timer); resolve(Buffer.concat(chunks)); });
+      }).on('error', e => { clearTimeout(timer); reject(e); });
+    });
+  }
+
+  function extractImages(html, baseUrl) {
+    const seen = new Set(), images = [];
+    function add(src) {
+      if (!src) return;
+      try {
+        const u = src.startsWith('//') ? 'https:' + src : src.startsWith('/') ? new URL(baseUrl).origin + src : src.startsWith('http') ? src : new URL(src, baseUrl).href;
+        if (!u.startsWith('http')) return;
+        if (/\.(svg|gif|ico)(\?|$)/i.test(u)) return;
+        if (/icon|logo|badge|pixel|1x1|sprite|arrow|favicon|btn-|loading/i.test(u)) return;
+        if (seen.has(u)) return;
+        seen.add(u); images.push(u);
+      } catch(e) {}
+    }
+    // og:image first (best quality, main business photo)
+    const ogM = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+    if (ogM) add(ogM[1]);
+    const twM = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
+    if (twM) add(twM[1]);
+    // All img tags
+    const imgRe = /<img[^>]+src=["']([^"'#][^"']+)["'][^>]*/gi;
+    let m;
+    while ((m = imgRe.exec(html)) !== null) {
+      const tag = m[0];
+      const wm = tag.match(/width=["']?(\d+)/i);
+      if (wm && parseInt(wm[1]) < 150) continue;
+      add(m[1]);
+      if (images.length >= 14) break;
+    }
+    return images;
+  }
+
+  try {
+    const html = await fetchHtml(websiteUrl, 8000);
+    const images = extractImages(html, websiteUrl);
+    // Enrich with 2 subpages for variety
+    for (const sub of ['/a-propos', '/about', '/services', '/galerie', '/gallery']) {
+      if (images.length >= 10) break;
+      try {
+        const origin = new URL(websiteUrl).origin;
+        const subHtml = await fetchHtml(origin + sub, 4000);
+        for (const img of extractImages(subHtml, origin + sub)) {
+          if (!images.includes(img)) images.push(img);
+        }
+      } catch(e) {}
+    }
+    // Download best images
+    let keyIdx = 0;
+    for (const imgUrl of images) {
+      if (keyIdx >= KEYS.length) break;
+      try {
+        const buf = await downloadBuf(imgUrl, 5000);
+        if (buf.length < 8192) continue; // skip tiny/blank
+        fs.writeFileSync(path.join(imagesDir, `${slug}-${KEYS[keyIdx]}.jpg`), buf);
+        console.log(`[photos] ${KEYS[keyIdx]}: ${imgUrl.slice(0, 70)} (${Math.round(buf.length/1024)}kb)`);
+        keyIdx++; saved++;
+      } catch(e) {
+        console.warn(`[photos] skip: ${e.message}`);
+      }
+    }
+  } catch(e) {
+    console.warn(`[photos] scrape error: ${e.message}`);
+  }
+  return saved;
+}
+
 // ── Admin auth check ─────────────────────────────────────────
 app.post('/admin-auth', (req, res) => {
   const { key } = req.body || {};
@@ -342,8 +453,17 @@ app.post('/generate-cinematic', requireAdmin, async (req, res) => {
         city=excluded.city, color=excluded.color, demo_url=excluded.demo_url
     `).run(result.slug, data.name, data.industry||'restaurant', data.phone||'', data.address||'', city, data.color||'', demoUrl);
 
+    // Scraper les vraies photos si un site est fourni
+    let photosFound = 0;
+    if (data.website) {
+      try {
+        photosFound = await scrapePhotos(data.website, result.slug);
+        if (photosFound > 0) console.log(`[cinematic] ${photosFound} photos importées pour ${result.slug}`);
+      } catch(e) { console.warn('[photos]', e.message); }
+    }
+
     console.log(`[cinematic] ${result.slug} → ${demoUrl}`);
-    res.json({ success: true, url: demoUrl, slug: result.slug });
+    res.json({ success: true, url: demoUrl, slug: result.slug, photosFound });
   } catch (err) {
     console.error('[generate-cinematic]', err);
     res.status(500).json({ success: false, error: err.message });

@@ -192,6 +192,7 @@
     <div id="resultCard">
         <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Démo créée</div>
         <div class="result-url" id="rUrl"></div>
+        <div id="rPhotoInfo" style="font-size:11px;margin-bottom:12px;display:none"></div>
         <div class="result-actions">
             <button class="btn-sm" onclick="copyUrl()">Copier le lien</button>
             <a id="rOpen" href="#" target="_blank" class="btn-sm" style="text-decoration:none">Ouvrir ↗</a>
@@ -302,7 +303,8 @@ async function doGenerate() {
 
     const btn = document.getElementById('genBtn');
     btn.disabled = true;
-    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Génération…';
+    const hasWebsite = document.getElementById('f-website').value.trim();
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> ' + (hasWebsite ? 'Génération + photos…' : 'Génération…');
 
     const payload = {
         industry: CurInd,
@@ -324,6 +326,18 @@ async function doGenerate() {
         LastUrl = d.url; LastSlug = d.slug; LastName = name;
         document.getElementById('rUrl').textContent = d.url;
         document.getElementById('rOpen').href = d.url;
+        const photoEl = document.getElementById('rPhotoInfo');
+        if (d.photosFound > 0) {
+            photoEl.style.display = 'block';
+            photoEl.style.color = 'var(--ok)';
+            photoEl.textContent = '✓ ' + d.photosFound + ' photo' + (d.photosFound > 1 ? 's' : '') + ' importée' + (d.photosFound > 1 ? 's' : '') + ' du site';
+        } else if (hasWebsite) {
+            photoEl.style.display = 'block';
+            photoEl.style.color = 'var(--muted)';
+            photoEl.textContent = '⚠ Photos non extraites — images Unsplash utilisées';
+        } else {
+            photoEl.style.display = 'none';
+        }
         document.getElementById('resultCard').classList.add('show');
         toast('Démo créée !');
         loadProspects();
