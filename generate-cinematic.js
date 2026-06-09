@@ -300,6 +300,7 @@ function gsapScript(anim) {
             .to('#jt-svc', { opacity: 0, duration: 0.5 }, 6.4)
             .to('#s-svc',  { opacity: 0, duration: 0.7 }, 6.8)
             .to('#s-site', { opacity: 1, duration: 0.9 }, 6.8)
+            .to('.splash-logo-img', { y: 0, opacity: 1, duration: 0.6 }, 6.85)
             .to('.splash-logo',    { y: 0, opacity: 1, duration: 0.7 }, 7.0)
             .to('.splash-tagline', { y: 0, opacity: 1, duration: 0.6 }, 7.2)
             .to('.splash-scroll',  { opacity: 1, duration: 0.6 }, 7.5);`;
@@ -325,6 +326,7 @@ function gsapScript(anim) {
             .to('#s-svc',  { opacity: 0, duration: 0.6 }, 6.5)
             .to('#s-site', { opacity: 1, duration: 0.8 }, 6.5)
             .to('.splash-badge',   { y: 0, opacity: 1, duration: 0.5 }, 6.7)
+            .to('.splash-logo-img', { y: 0, opacity: 1, duration: 0.5 }, 6.75)
             .to('.splash-logo',    { y: 0, opacity: 1, duration: 0.6 }, 6.9)
             .to('.splash-tagline', { y: 0, opacity: 1, duration: 0.5 }, 7.1)
             .to('.splash-scroll',  { opacity: 1, duration: 0.5 }, 7.4);`;
@@ -350,6 +352,7 @@ function gsapScript(anim) {
             .to('#jt-svc', { opacity: 0, duration: 0.4 }, 6.3)
             .to('#s-svc',  { opacity: 0, duration: 0.6 }, 6.7)
             .to('#s-site', { opacity: 1, duration: 0.8 }, 6.7)
+            .to('.splash-logo-img', { y: 0, opacity: 1, duration: 0.6 }, 6.75)
             .to('.splash-logo',    { y: 0, opacity: 1, duration: 0.7 }, 6.9)
             .to('.splash-tagline', { y: 0, opacity: 1, duration: 0.6 }, 7.1)
             .to('.splash-scroll',  { opacity: 1, duration: 0.6 }, 7.4);`;
@@ -375,6 +378,7 @@ function gsapScript(anim) {
             .to('#jt-svc', { opacity: 0, duration: 0.4 }, 6.3)
             .to('#s-svc',  { opacity: 0, duration: 0.6 }, 6.7)
             .to('#s-site', { opacity: 1, duration: 0.8 }, 6.7)
+            .to('.splash-logo-img', { y: 0, opacity: 1, duration: 0.6 }, 6.75)
             .to('.splash-logo',    { y: 0, opacity: 1, duration: 0.7 }, 6.9)
             .to('.splash-tagline', { y: 0, opacity: 1, duration: 0.6 }, 7.1)
             .to('.splash-scroll',  { opacity: 1, duration: 0.6 }, 7.4);`;
@@ -390,7 +394,9 @@ function generateCinematic(rawData) {
   const slug      = rawData.slug || slugify(name);
   const tagline   = rawData.tagline || cfg.taglineDefault;
   const phone     = rawData.phone || '';
+  const phoneClean = phone.replace(/\D/g, '');
   const address   = rawData.address || '';
+  const city      = rawData.city || address.split(',').slice(-2)[0]?.trim() || '';
   const founded   = rawData.founded || '';
   const color     = rawData.color || cfg.palette.primary;
   const p         = { ...cfg.palette, primary: color, light: color };
@@ -410,6 +416,9 @@ function generateCinematic(rawData) {
   const isLight = (anim === 'swing' || anim === 'curtain' || anim === 'glass');
   const contactBg = isLight ? p.primary : p.dark;
   const contactText = isLight ? '#0a0a0a' : p.text;
+  const aboutText = rawData.aboutText || `${esc(name)} est né d'une passion simple : bien faire, honnêtement, avec des gens de ${city || 'notre région'}. ${founded ? `Fondé en ${founded}, l'équipe` : 'Notre équipe'} continue de grandir grâce à la confiance de clients fidèles et de nouveaux visages chaque année.`;
+  const mapsQuery = encodeURIComponent(`${address}${city ? ', ' + city : ''}, Québec`);
+  const mapBrightness = isLight ? '1.05' : '0.45';
 
   const insideParts = cfg.insideText.split('\n');
   const svcParts    = cfg.svcText.split('\n');
@@ -472,6 +481,7 @@ function generateCinematic(rawData) {
         /* Splash screen */
         .site-splash { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; height: 100%; padding: 0 8vw 11vh; }
         .splash-badge { font-family: ${cfg.fontH}; font-size: clamp(10px, 1vw, 13px); letter-spacing: 0.36em; text-transform: uppercase; color: var(--primary); margin-bottom: 14px; opacity: 0; transform: translateY(16px); }
+        .splash-logo-img { display: block; max-height: 54px; width: auto; max-width: 200px; object-fit: contain; filter: brightness(0) invert(1); margin-bottom: 16px; opacity: 0; transform: translateY(16px); }
         .splash-logo { font-family: ${cfg.fontH}; font-weight: ${cfg.fontHW}; font-size: clamp(44px, 7.5vw, 110px); text-transform: uppercase; line-height: 0.88; letter-spacing: -0.01em; opacity: 0; transform: translateY(24px); }
         .splash-logo span { color: var(--primary); }
         .splash-tagline { font-family: ${cfg.fontB}; font-weight: 300; font-size: clamp(14px, 1.5vw, 20px); color: var(--muted); margin-top: 20px; letter-spacing: 0.04em; opacity: 0; transform: translateY(16px); }
@@ -479,6 +489,18 @@ function generateCinematic(rawData) {
         .splash-scroll span { font-family: ${cfg.fontH}; font-size: 10px; letter-spacing: 0.36em; text-transform: uppercase; color: var(--primary); }
         .splash-line { width: 1px; height: 54px; background: linear-gradient(to bottom, var(--primary), transparent); animation: lineDown 1.8s ease-in-out infinite; }
         @keyframes lineDown { 0%{transform:scaleY(0);transform-origin:top} 49%{transform:scaleY(1);transform-origin:top} 50%{transform:scaleY(1);transform-origin:bottom} 100%{transform:scaleY(0);transform-origin:bottom} }
+
+        /* Floating CTA mobile */
+        .float-cta { display: none; position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 200; background: var(--primary); color: #fff; font-family: ${cfg.fontH}; font-size: 13px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; padding: 15px 36px; text-decoration: none; box-shadow: 0 8px 40px rgba(0,0,0,0.55); white-space: nowrap; border-radius: 1px; opacity: 0; pointer-events: none; transition: opacity .3s; }
+        @media (max-width: 768px) { .float-cta { display: block; } }
+
+        /* Scroll-reveal */
+        .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.65s cubic-bezier(.22,1,.36,1), transform 0.65s cubic-bezier(.22,1,.36,1); }
+        .reveal.visible { opacity: 1; transform: none; }
+        .reveal-d1 { transition-delay: 0.08s; }
+        .reveal-d2 { transition-delay: 0.16s; }
+        .reveal-d3 { transition-delay: 0.24s; }
+        .reveal-d4 { transition-delay: 0.32s; }
 
         /* Navbar */
         .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 22px 6vw; transition: background .4s, padding .3s; }
@@ -536,6 +558,8 @@ function generateCinematic(rawData) {
         .hour-item { text-align: center; }
         .hour-day { font-family: ${cfg.fontH}; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; color: ${isLight ? 'rgba(0,0,0,.45)' : 'var(--muted)'}; }
         .hour-time { font-family: ${cfg.fontH}; font-weight: 700; font-size: 20px; color: ${contactText}; margin-top: 5px; }
+        .contact-map { margin: 44px auto 0; max-width: 620px; overflow: hidden; border: 1px solid ${isLight ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.06)'}; }
+        .contact-map iframe { display: block; width: 100%; height: 240px; border: none; filter: grayscale(100%) contrast(80%) brightness(${mapBrightness}); }
 
         /* Footer */
         footer { background: ${p.bg}; padding: 34px 7vw; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; border-top: 1px solid rgba(255,255,255,.05); }
@@ -560,8 +584,11 @@ function generateCinematic(rawData) {
         <li><a href="#about">À propos</a></li>
         <li><a href="#contact">Contact</a></li>
     </ul>
-    <a href="tel:${phone.replace(/\D/g,'')}" class="nav-cta">Appeler</a>
+    <a href="tel:${phoneClean}" class="nav-cta">Appeler</a>
 </nav>
+${phoneClean ? `<a href="tel:${phoneClean}" class="float-cta" id="floatCta">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="margin-right:7px;vertical-align:-1px;flex-shrink:0"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>${esc(phone)}
+</a>` : ''}
 
 <div class="journey">
     <div class="journey-sticky">
@@ -570,7 +597,8 @@ function generateCinematic(rawData) {
         <div class="scene" id="s-svc"><div class="scene-bg"></div></div>
         <div class="scene" id="s-site">
             <div class="site-splash">
-                ${(anim === 'garage' || anim === 'gate') ? `<div class="splash-badge">${esc(address.split(',').pop().trim())}${founded ? ` · depuis ${founded}` : ''}</div>` : ''}
+                ${(anim === 'garage' || anim === 'gate') ? `<div class="splash-badge">${esc(city || address.split(',').pop().trim())}${founded ? ` · depuis ${founded}` : ''}</div>` : ''}
+                <img class="splash-logo-img" src="/demo/images/${slug}-logo.png" onerror="this.style.display='none'" alt="${esc(name)}">
                 <div class="splash-logo">${esc(name)}</div>
                 <div class="splash-tagline">${esc(tagline)}</div>
                 <div class="splash-scroll"><span>Explorer</span><div class="splash-line"></div></div>
@@ -595,11 +623,11 @@ function generateCinematic(rawData) {
 </div>
 
 <section id="services">
-    <div class="sec-label">Nos expertises</div>
-    <h2 class="sec-title">Ce qu'on<br>fait le mieux</h2>
-    <p class="svc-intro">${esc(tagline)} Notre équipe est là pour vous servir avec rigueur et passion.</p>
+    <div class="sec-label reveal">Nos expertises</div>
+    <h2 class="sec-title reveal reveal-d1">Ce qu'on<br>fait le mieux</h2>
+    <p class="svc-intro reveal reveal-d2">${esc(tagline)} Notre équipe est là pour vous servir avec rigueur et passion.</p>
     <div class="svc-grid">
-        ${services.map((s,i) => `<div class="svc-card">
+        ${services.map((s,i) => `<div class="svc-card reveal reveal-d${Math.min(i+1,4)}">
             <div class="svc-num">0${i+1}</div>
             <div class="svc-title">${esc(s.title)}</div>
             <div class="svc-desc">${esc(s.desc)}</div>
@@ -608,12 +636,12 @@ function generateCinematic(rawData) {
 </section>
 
 <section id="about">
-    <div class="about-img"></div>
+    <div class="about-img reveal"></div>
     <div>
-        <div class="sec-label">Notre histoire</div>
-        <h2 class="sec-title">${founded ? `Depuis ${founded},<br>` : ''}on est là pour vous</h2>
-        <p class="about-body">${rawData.aboutText || `${esc(name)} est né d'une passion simple : bien faire, honnêtement, avec des gens du coin. ${founded ? `Depuis ${founded}, nous` : 'Nous'} continuons de grandir grâce à la confiance de nos clients.`}</p>
-        <div class="stats-grid">
+        <div class="sec-label reveal">Notre histoire</div>
+        <h2 class="sec-title reveal reveal-d1">${founded ? `Depuis ${founded},<br>` : ''}on est là pour vous</h2>
+        <p class="about-body reveal reveal-d2">${aboutText}</p>
+        <div class="stats-grid reveal reveal-d3">
             ${stats.map(s => `<div>
                 <div class="stat-num">${esc(s.num)}</div>
                 <div class="stat-label">${esc(s.label)}</div>
@@ -623,10 +651,10 @@ function generateCinematic(rawData) {
 </section>
 
 <section id="testimonials">
-    <div class="sec-label">Ce qu'ils en disent</div>
-    <h2 class="sec-title">La confiance,<br>ça se mérite</h2>
+    <div class="sec-label reveal">Ce qu'ils en disent</div>
+    <h2 class="sec-title reveal reveal-d1">La confiance,<br>ça se mérite</h2>
     <div class="testi-grid">
-        ${testi.map(t => `<div class="testi-card">
+        ${testi.map((t,i) => `<div class="testi-card reveal reveal-d${Math.min(i+1,4)}">
             <div class="testi-stars">★★★★★</div>
             <div class="testi-text">${esc(t.text)}</div>
             <div class="testi-author">${esc(t.author)}</div>
@@ -635,16 +663,17 @@ function generateCinematic(rawData) {
 </section>
 
 <section id="contact">
-    <div class="sec-label">Prenez contact</div>
-    <h2 class="sec-title">On est là<br>pour vous</h2>
-    <a href="tel:${phone.replace(/\D/g,'')}" class="contact-phone">${esc(phone)}</a>
-    <div class="contact-addr">${esc(address)}</div>
-    <a href="tel:${phone.replace(/\D/g,'')}" class="btn-cta">${esc(cfg.ctaLabel)}</a>
-    <div class="hours-grid">
+    <div class="sec-label reveal">Prenez contact</div>
+    <h2 class="sec-title reveal reveal-d1">On est là<br>pour vous</h2>
+    <a href="tel:${phoneClean}" class="contact-phone reveal reveal-d2">${esc(phone)}</a>
+    <div class="contact-addr reveal reveal-d3">${esc(address)}</div>
+    <a href="tel:${phoneClean}" class="btn-cta reveal reveal-d3">${esc(cfg.ctaLabel)}</a>
+    <div class="hours-grid reveal">
         <div class="hour-item"><div class="hour-day">Lun — Ven</div><div class="hour-time">${esc(hours.weekdays)}</div></div>
         <div class="hour-item"><div class="hour-day">Samedi</div><div class="hour-time">${esc(hours.saturday)}</div></div>
         <div class="hour-item"><div class="hour-day">Dimanche</div><div class="hour-time">${esc(hours.sunday)}</div></div>
     </div>
+    ${address ? `<div class="contact-map reveal"><iframe src="https://maps.google.com/maps?q=${mapsQuery}&output=embed&hl=fr" loading="lazy" title="Localisation ${esc(name)}"></iframe></div>` : ''}
 </section>
 
 <footer>
@@ -659,9 +688,13 @@ function generateCinematic(rawData) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script>
     gsap.registerPlugin(ScrollTrigger);
+
+    // Navbar scroll
     window.addEventListener('scroll', () => {
         document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 60);
     }, { passive: true });
+
+    // GSAP cinematic journey
     const tl = gsap.timeline({
         scrollTrigger: {
             trigger: '.journey',
@@ -671,6 +704,26 @@ function generateCinematic(rawData) {
         }
     });
     ${gsapScript(anim)}
+
+    // Scroll-reveal via IntersectionObserver
+    const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+            if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); }
+        });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+    ${phoneClean ? `// Floating CTA — appears after journey section
+    const floatCta = document.getElementById('floatCta');
+    if (floatCta) {
+        const journeyEl = document.querySelector('.journey');
+        function updateFloat() {
+            const pastJourney = window.scrollY > journeyEl.offsetTop + journeyEl.offsetHeight - window.innerHeight * 0.5;
+            floatCta.style.opacity = pastJourney ? '1' : '0';
+            floatCta.style.pointerEvents = pastJourney ? 'auto' : 'none';
+        }
+        window.addEventListener('scroll', updateFloat, { passive: true });
+    }` : ''}
 </script>
 </body>
 </html>`;
