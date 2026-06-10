@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novalis · Admin</title>
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        :root{
+            --bg:#080808;--surf:#111;--surf2:#1a1a1a;--border:#252525;
+            --red:#E53935;--text:#eee;--muted:#666;--ok:#22c55e;
+        }
+        body{background:var(--bg);color:var(--text);font-family:-apple-system,system-ui,sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
+
+        /* ── Login ── */
+        #loginScreen{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center}
+        .login-box{background:var(--surf);border:1px solid var(--border);padding:48px;width:360px}
+        .login-box h1{font-size:22px;font-weight:700;margin-bottom:6px;letter-spacing:.05em}
+        .login-box h1 span{color:var(--red)}
+        .login-box p{color:var(--muted);margin-bottom:28px;font-size:13px}
+
+        /* ── Shared inputs ── */
+        label{display:block;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+        input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px 14px;font-size:14px;font-family:inherit;outline:none;transition:border-color .18s}
+        input:focus,select:focus,textarea:focus{border-color:var(--red)}
+        textarea{resize:vertical;min-height:80px}
+        input[type="color"]{padding:2px;width:44px;height:44px;cursor:pointer}
+
+        /* ── Buttons ── */
+        .btn{display:inline-flex;align-items:center;gap:8px;background:var(--red);color:#fff;border:none;padding:12px 28px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:opacity .18s;justify-content:center}
+        .btn:hover{opacity:.85}
+        .btn:disabled{opacity:.35;cursor:not-allowed}
+        .btn-sm{background:transparent;border:1px solid var(--border);color:var(--muted);padding:7px 14px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:border-color .18s,color .18s;white-space:nowrap}
+        .btn-sm:hover{border-color:var(--text);color:var(--text)}
+
+        /* ── Header ── */
+        header{border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(8,8,8,.95);backdrop-filter:blur(12px);z-index:50}
+        .brand{font-size:15px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+        .brand span{color:var(--red)}
+
+        /* ── Layout ── */
+        main{max-width:1120px;margin:0 auto;padding:40px 32px}
+
+        .sec-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:28px}
+        .sec-num{width:26px;height:26px;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:2px}
+        .sec-head h2{font-size:17px;font-weight:600}
+        .sec-head p{font-size:13px;color:var(--muted);margin-top:2px}
+
+        /* ── Industry buttons ── */
+        .ind-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:28px}
+        .ind-btn{background:var(--surf);border:1px solid var(--border);padding:16px 10px;text-align:center;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:9px;align-items:center}
+        .ind-btn:hover{border-color:var(--red)}
+        .ind-btn.active{border-color:var(--red);background:rgba(229,57,53,.07)}
+        .ind-btn svg{width:26px;height:26px;color:var(--muted);transition:color .15s}
+        .ind-btn.active svg{color:var(--red)}
+        .ind-btn span{font-size:11px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+        .ind-btn.active span{color:var(--text)}
+
+        /* ── Form grid ── */
+        .fg{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+        .fg .g{display:flex;flex-direction:column;gap:6px}
+        .fg .g.full{grid-column:1/-1}
+        .color-row{display:flex;gap:8px;align-items:center}
+        .color-row input[type="text"]{flex:1}
+
+        /* ── Generate area ── */
+        .gen-area{margin-top:24px;padding-top:24px;border-top:1px solid var(--border);display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+        #resultCard{display:none;background:var(--surf);border:1px solid var(--border);border-left:3px solid var(--red);padding:18px 20px;flex:1;min-width:300px}
+        #resultCard.show{display:block}
+        .result-url{font-family:monospace;font-size:12px;color:var(--red);word-break:break-all;margin-bottom:14px;line-height:1.6}
+        .result-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+        /* ── Outreach ── */
+        #outreachSec{display:none;margin-top:40px;padding-top:40px;border-top:1px solid var(--border)}
+        #outreachSec.show{display:block}
+        .msg-box{background:var(--surf);border:1px solid var(--border);padding:20px;margin-top:14px;font-size:14px;line-height:1.9;white-space:pre-wrap;color:var(--text)}
+
+        /* ── Separator ── */
+        .sep{border:none;border-top:1px solid var(--border);margin:56px 0}
+
+        /* ── Table ── */
+        .tbl-wrap{overflow-x:auto}
+        table{width:100%;border-collapse:collapse}
+        th{text-align:left;padding:10px 12px;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap}
+        td{padding:12px 12px;border-bottom:1px solid #1a1a1a;font-size:13px;vertical-align:middle}
+        tr:hover td{background:var(--surf)}
+        .badge{display:inline-block;padding:2px 9px;font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+        .b-restaurant{background:rgba(196,149,58,.15);color:#C4953A}
+        .b-garage{background:rgba(204,43,43,.15);color:#E04545}
+        .b-salon{background:rgba(201,149,106,.15);color:#C9956A}
+        .b-clinique{background:rgba(14,142,168,.15);color:#16B8D6}
+        .b-construction{background:rgba(232,137,26,.15);color:#F5A535}
+        .status-sel{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 8px;font-size:12px;cursor:pointer;outline:none}
+        .views{color:var(--muted);font-size:12px}
+        .views.hot{color:var(--ok);font-weight:600}
+        .lnk{color:var(--red);text-decoration:none;font-size:12px;cursor:pointer;white-space:nowrap}
+        .lnk:hover{text-decoration:underline}
+        .empty{text-align:center;padding:56px 20px;color:var(--muted)}
+
+        /* ── Discovery ── */
+        .disc-bar{display:grid;grid-template-columns:180px 1fr auto;gap:10px;align-items:end;margin-bottom:20px}
+        .disc-results{display:flex;flex-direction:column;gap:8px}
+        .disc-card{background:var(--surf);border:1px solid var(--border);padding:14px 18px;display:flex;gap:16px;align-items:center;justify-content:space-between}
+        .disc-card:hover{border-color:#3a3a3a}
+        .disc-info{min-width:0;flex:1}
+        .disc-title{font-size:14px;font-weight:600;margin-bottom:2px}
+        .disc-url{font-family:monospace;font-size:11px;color:var(--red);word-break:break-all}
+        .disc-snippet{font-size:12px;color:var(--muted);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .disc-done{font-size:11px;color:var(--ok)}
+        @media(max-width:768px){.disc-bar{grid-template-columns:1fr}.disc-card{flex-direction:column;align-items:flex-start}}
+
+        /* ── Toast ── */
+        #toast{position:fixed;bottom:24px;right:24px;background:var(--ok);color:#fff;padding:11px 22px;font-size:13px;font-weight:500;transform:translateY(70px);opacity:0;transition:all .28s;pointer-events:none;z-index:200}
+        #toast.show{transform:translateY(0);opacity:1}
+
+        @media(max-width:768px){
+            .fg{grid-template-columns:1fr}
+            .ind-grid{grid-template-columns:repeat(3,1fr)}
+            main{padding:24px 16px}
+            header{padding:12px 16px}
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="loginScreen">
+    <div class="login-box">
+        <h1>Novalis <span>Admin</span></h1>
+        <p>Entrez votre clé d'accès pour continuer.</p>
+        <div class="g" style="margin-bottom:14px">
+            <label>Clé d'accès</label>
+            <input type="password" id="loginInput" placeholder="••••••••" autocomplete="off">
+        </div>
+        <button class="btn" style="width:100%" onclick="doLogin()">Accéder →</button>
+        <div id="loginErr" style="color:var(--red);font-size:12px;margin-top:10px;display:none">Clé incorrecte.</div>
+    </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app" style="display:none">
+
+<header>
+    <div class="brand">Novalis <span>Studio</span> · Admin</div>
+    <div style="display:flex;gap:10px;align-items:center">
+        <span id="demoCount" style="font-size:12px;color:var(--muted)">— démos</span>
+        <button class="btn-sm" onclick="loadProspects()">↺</button>
+    </div>
+</header>
+
+<main>
+
+<!-- ─ 1. DÉCOUVERTE ─ -->
+<div class="sec-head">
+    <div class="sec-num">1</div>
+    <div><h2>Découvrir des PME</h2><p>Recherchez des entreprises québécoises — démo générée en 1 clic, photos importées automatiquement.</p></div>
+</div>
+
+<div class="disc-bar">
+    <div>
+        <label>Industrie</label>
+        <select id="d-industry">
+            <option value="restaurant">Restaurant</option>
+            <option value="garage">Garage</option>
+            <option value="salon">Salon / Spa</option>
+            <option value="clinique">Clinique</option>
+            <option value="construction">Construction</option>
+        </select>
+    </div>
+    <div>
+        <label>Recherche <span style="color:var(--muted);text-transform:none;letter-spacing:0">(type d'entreprise + ville)</span></label>
+        <input id="d-query" type="text" placeholder="ex: garage mécanique Sherbrooke">
+    </div>
+    <button class="btn" id="discBtn" onclick="doDiscover()" style="height:44px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        Rechercher
+    </button>
+</div>
+
+<div class="disc-results" id="discResults"></div>
+
+<hr class="sep">
+
+<!-- ─ 2. GÉNÉRER ─ -->
+<div class="sec-head">
+    <div class="sec-num">2</div>
+    <div><h2>Créer une démo personnalisée</h2><p>Remplissez les infos — la démo est prête en quelques secondes.</p></div>
+</div>
+
+<div style="margin-bottom:8px"><label>Type d'entreprise</label></div>
+<div class="ind-grid">
+    <div class="ind-btn active" onclick="selInd('restaurant',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 3v18M3 9h6M9 3v18M14 3c0 4-2 7-2 9s2 5 2 9m4-18v18"/></svg>
+        <span>Restaurant</span>
+    </div>
+    <div class="ind-btn" onclick="selInd('garage',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+        <span>Garage</span>
+    </div>
+    <div class="ind-btn" onclick="selInd('salon',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+        <span>Salon / Spa</span>
+    </div>
+    <div class="ind-btn" onclick="selInd('clinique',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+        <span>Clinique</span>
+    </div>
+    <div class="ind-btn" onclick="selInd('construction',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20M4 20V10l8-6 8 6v10M9 20v-5h6v5"/></svg>
+        <span>Construction</span>
+    </div>
+</div>
+
+<div class="fg">
+    <div class="g"><label>Nom de l'entreprise *</label><input id="f-name" type="text" placeholder="ex: Garage Tremblay"></div>
+    <div class="g"><label>Téléphone *</label><input id="f-phone" type="tel" placeholder="ex: 819 555-1234"></div>
+    <div class="g full"><label>Adresse complète *</label><input id="f-address" type="text" placeholder="ex: 428 Rue Principale Ouest, Magog, QC J1X 2A9"></div>
+    <div class="g"><label>Année de fondation</label><input id="f-founded" type="text" placeholder="ex: 1998"></div>
+    <div class="g"><label>Site existant <span style="color:var(--muted);text-transform:none;letter-spacing:0">(pour scraper les photos)</span></label><input id="f-website" type="text" placeholder="https://..."></div>
+    <div class="g full"><label>Tagline <span style="color:var(--muted);text-transform:none;letter-spacing:0">(optionnel)</span></label><input id="f-tagline" type="text" placeholder="Généré automatiquement si vide"></div>
+    <div class="g">
+        <label>Couleur de marque</label>
+        <div class="color-row">
+            <input type="color" id="f-cpicker" value="#C4953A">
+            <input type="text" id="f-color" value="#C4953A" maxlength="7" placeholder="#RRGGBB">
+        </div>
+    </div>
+</div>
+
+<div class="gen-area">
+    <button class="btn" id="genBtn" onclick="doGenerate()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Générer la démo
+    </button>
+    <div id="resultCard">
+        <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Démo créée</div>
+        <div class="result-url" id="rUrl"></div>
+        <div id="rPhotoInfo" style="font-size:11px;margin-bottom:12px;display:none"></div>
+        <div class="result-actions">
+            <button class="btn-sm" onclick="copyUrl()">Copier le lien</button>
+            <a id="rOpen" href="#" target="_blank" class="btn-sm" style="text-decoration:none">Ouvrir ↗</a>
+            <button class="btn-sm" onclick="showOutreach()">✉ Message prospect</button>
+        </div>
+    </div>
+</div>
+
+<!-- Message outreach -->
+<div id="outreachSec">
+    <div class="sec-head" style="margin-top:0">
+        <div class="sec-num" style="background:var(--surf);border:1px solid var(--border);color:var(--text)">✉</div>
+        <div><h2>Message de prospection</h2><p>Prêt à copier-coller — SMS, email, DM Instagram.</p></div>
+    </div>
+    <div class="msg-box" id="outMsg"></div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn-sm" onclick="copyMsg()">Copier le message</button>
+        <button class="btn-sm" onclick="copyMsgSms()">Version courte SMS</button>
+    </div>
+</div>
+
+<hr class="sep">
+
+<!-- ─ 3. PROSPECTS ─ -->
+<div class="sec-head">
+    <div class="sec-num">3</div>
+    <div><h2>Tous les prospects</h2><p>Vues en temps réel, statuts, liens directs.</p></div>
+</div>
+
+<div class="tbl-wrap">
+<table>
+    <thead>
+        <tr>
+            <th>Entreprise</th>
+            <th>Industrie</th>
+            <th>Téléphone</th>
+            <th>Vues</th>
+            <th>Statut</th>
+            <th>Démo</th>
+            <th>Créé</th>
+        </tr>
+    </thead>
+    <tbody id="ptable">
+        <tr><td colspan="7" class="empty">Aucune démo générée.</td></tr>
+    </tbody>
+</table>
+</div>
+
+</main>
+</div>
+
+<div id="toast">Copié !</div>
+
+<script>
+const AKEY = 'nv-admin-key';
+let CurInd = 'restaurant';
+let LastUrl = '';
+let LastName = '';
+let LastSlug = '';
+
+const IND_DEF = {
+    restaurant: { color: '#C4953A', tagline: 'Une expérience culinaire mémorable.' },
+    garage:      { color: '#CC2B2B', tagline: "L'excellence mécanique à votre service." },
+    salon:       { color: '#C9956A', tagline: 'Parce que vous méritez le meilleur.' },
+    clinique:    { color: '#0E8EA8', tagline: 'Votre santé, entre des mains de confiance.' },
+    construction:{ color: '#E8891A', tagline: 'Du rêve au concret — on bâtit avec vous.' },
+};
+
+/* ── Auth ── */
+function doLogin() {
+    const k = document.getElementById('loginInput').value;
+    fetch('/admin-auth', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({key:k}) })
+        .then(r => r.json()).then(d => {
+            if (d.ok) { localStorage.setItem(AKEY, k); showApp(); }
+            else document.getElementById('loginErr').style.display = 'block';
+        }).catch(() => { localStorage.setItem(AKEY, k); showApp(); });
+}
+function showApp() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadProspects();
+}
+window.addEventListener('load', () => {
+    const s = localStorage.getItem(AKEY);
+    if (s) showApp();
+    document.getElementById('loginInput').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+});
+
+/* ── Industry select ── */
+function selInd(ind, el) {
+    document.querySelectorAll('.ind-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    CurInd = ind;
+    const d = IND_DEF[ind];
+    document.getElementById('f-cpicker').value = d.color;
+    document.getElementById('f-color').value = d.color;
+    document.getElementById('f-tagline').placeholder = d.tagline;
+}
+document.getElementById('d-query').addEventListener('keydown', e => { if (e.key==='Enter') doDiscover(); });
+document.getElementById('f-cpicker').addEventListener('input', e => document.getElementById('f-color').value = e.target.value);
+document.getElementById('f-color').addEventListener('input', e => { if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) document.getElementById('f-cpicker').value = e.target.value; });
+
+/* ── Generate ── */
+async function doGenerate() {
+    const name = document.getElementById('f-name').value.trim();
+    const phone = document.getElementById('f-phone').value.trim();
+    const address = document.getElementById('f-address').value.trim();
+    if (!name || !phone || !address) { alert('Nom, téléphone et adresse sont requis.'); return; }
+
+    const btn = document.getElementById('genBtn');
+    btn.disabled = true;
+    const hasWebsite = document.getElementById('f-website').value.trim();
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> ' + (hasWebsite ? 'Génération + photos…' : 'Génération…');
+
+    const payload = {
+        industry: CurInd,
+        name, phone, address,
+        founded: document.getElementById('f-founded').value.trim(),
+        website: document.getElementById('f-website').value.trim(),
+        tagline: document.getElementById('f-tagline').value.trim(),
+        color: document.getElementById('f-color').value.trim() || IND_DEF[CurInd].color,
+    };
+
+    try {
+        const r = await fetch('/generate-cinematic', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem(AKEY)||'') },
+            body: JSON.stringify(payload)
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error);
+        LastUrl = d.url; LastSlug = d.slug; LastName = name;
+        document.getElementById('rUrl').textContent = d.url;
+        document.getElementById('rOpen').href = d.url;
+        const photoEl = document.getElementById('rPhotoInfo');
+        if (d.photosFound > 0) {
+            photoEl.style.display = 'block';
+            photoEl.style.color = 'var(--ok)';
+            photoEl.textContent = '✓ ' + d.photosFound + ' photo' + (d.photosFound > 1 ? 's' : '') + ' importée' + (d.photosFound > 1 ? 's' : '') + ' du site';
+        } else if (hasWebsite) {
+            photoEl.style.display = 'block';
+            photoEl.style.color = 'var(--muted)';
+            photoEl.textContent = '⚠ Photos non extraites — images Unsplash utilisées';
+        } else {
+            photoEl.style.display = 'none';
+        }
+        document.getElementById('resultCard').classList.add('show');
+        toast('Démo créée !');
+        loadProspects();
+    } catch (err) { alert('Erreur : ' + err.message); }
+    finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke-linecap="round" stroke-linejoin="round"/></svg> Générer la démo';
+    }
+}
+
+/* ── Discovery ── */
+let DiscResults = [];
+
+async function doDiscover() {
+    const q = document.getElementById('d-query').value.trim();
+    if (!q) { alert('Entrez une recherche (ex: garage mécanique Sherbrooke)'); return; }
+    const btn = document.getElementById('discBtn');
+    btn.disabled = true; btn.textContent = 'Recherche…';
+    const box = document.getElementById('discResults');
+    box.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:14px">Recherche en cours…</div>';
+    try {
+        const r = await fetch('/discover-search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem(AKEY)||'') },
+            body: JSON.stringify({ query: q })
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error);
+        DiscResults = d.results || [];
+        if (!DiscResults.length) {
+            box.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:14px">Aucun résultat — essayez d\'autres mots-clés.</div>';
+            return;
+        }
+        box.innerHTML = DiscResults.map((res, i) => `
+            <div class="disc-card" id="dcard-${i}">
+                <div class="disc-info">
+                    <div class="disc-title">${esc(res.title)}</div>
+                    <div class="disc-url">${esc(res.url)}</div>
+                    ${res.snippet ? `<div class="disc-snippet">${esc(res.snippet)}</div>` : ''}
+                </div>
+                <button class="btn-sm" id="dbtn-${i}" onclick="discGenerate(${i})">⚡ Générer la démo</button>
+            </div>`).join('');
+    } catch (err) {
+        box.innerHTML = '<div style="color:var(--red);font-size:13px;padding:14px">Erreur : ' + esc(err.message) + '</div>';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg> Rechercher';
+    }
+}
+
+async function discGenerate(i) {
+    const res = DiscResults[i];
+    if (!res) return;
+    const btn = document.getElementById('dbtn-' + i);
+    btn.disabled = true; btn.textContent = 'Génération + photos…';
+    const industry = document.getElementById('d-industry').value;
+    // Extraire la ville depuis la requête (dernier mot capitalisé fréquent au Québec)
+    const q = document.getElementById('d-query').value.trim();
+    const cityGuess = (q.match(/(Montréal|Québec|Laval|Gatineau|Longueuil|Sherbrooke|Lévis|Trois-Rivières|Terrebonne|Saguenay|Drummondville|Granby|Magog|Boucherville|Repentigny|Saint-Jérôme|Brossard|Saint-Jean-sur-Richelieu|Shawinigan|Rimouski|Victoriaville|Joliette|Sorel-Tracy|Vaudreuil|Alma|Rouyn-Noranda|Val-d'Or|Sept-Îles|Baie-Comeau|Thetford Mines)/i) || [])[0] || '';
+    try {
+        const r = await fetch('/discover-generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem(AKEY)||'') },
+            body: JSON.stringify({ url: res.url, industry, city: cityGuess, title: res.title })
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error);
+        const card = document.getElementById('dcard-' + i);
+        const photoTxt = d.photosFound > 0
+            ? `✓ ${d.photosFound} photo(s) du vrai site`
+            : '⚠ photos Unsplash (site protégé)';
+        card.innerHTML = `
+            <div class="disc-info">
+                <div class="disc-title">${esc(d.name)} <span class="disc-done">✓ démo créée</span></div>
+                <div class="disc-url">${esc(d.url)}</div>
+                <div class="disc-snippet">${esc(d.phone || 'téléphone non trouvé')} · ${esc(d.address || 'adresse non trouvée')} · ${photoTxt}</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-shrink:0">
+                <a href="${d.url}" target="_blank" class="btn-sm" style="text-decoration:none">Ouvrir ↗</a>
+                <button class="btn-sm" onclick="cp('${d.url}')">Copier</button>
+            </div>`;
+        LastUrl = d.url; LastSlug = d.slug; LastName = d.name;
+        toast('Démo créée !');
+        loadProspects();
+    } catch (err) {
+        btn.disabled = false; btn.textContent = '⚡ Générer la démo';
+        alert('Erreur : ' + err.message);
+    }
+}
+
+function copyUrl() { navigator.clipboard.writeText(LastUrl); toast('Lien copié !'); }
+
+function showOutreach() {
+    const msg = `Bonjour,
+
+Je me permets de vous contacter — j'ai préparé une prévisualisation gratuite de ce que pourrait être le nouveau site de ${LastName}.
+
+Consultez-la ici (30 secondes) :
+${LastUrl}
+
+On a voulu que ça ressemble vraiment à votre entreprise, pas à un modèle générique.
+
+Si ça vous intéresse, je serais ravi d'en discuter brièvement — sans engagement.
+
+Bonne journée,
+[Votre prénom]
+Novalis Studio`;
+    document.getElementById('outMsg').textContent = msg;
+    document.getElementById('outreachSec').classList.add('show');
+    document.getElementById('outreachSec').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function copyMsg() { navigator.clipboard.writeText(document.getElementById('outMsg').textContent); toast('Message copié !'); }
+
+function copyMsgSms() {
+    const sms = `Bonjour ! J'ai préparé une prévisualisation du nouveau site de ${LastName} : ${LastUrl}. Ça prend 30 sec à regarder. Intéressé(e) ?`;
+    navigator.clipboard.writeText(sms); toast('SMS copié !');
+}
+
+/* ── Prospects ── */
+async function loadProspects() {
+    try {
+        const r = await fetch('/prospects', { headers:{'Authorization':'Bearer '+(localStorage.getItem(AKEY)||'')} });
+        const d = await r.json();
+        if (!d.prospects) return;
+        const n = d.prospects.length;
+        document.getElementById('demoCount').textContent = n + ' démo' + (n!==1?'s':'');
+        const tb = document.getElementById('ptable');
+        if (!n) { tb.innerHTML = '<tr><td colspan="7" class="empty">Aucune démo générée.</td></tr>'; return; }
+        tb.innerHTML = d.prospects.map(p => {
+            const v = p.views||0;
+            const vCls = v>0?'hot':'';
+            const vTxt = v>0 ? `${v} vue${v>1?'s':''}` + (p.last_viewed ? ` · ${ago(p.last_viewed*1000)}` : '') : '—';
+            const dt = p.created_at ? new Date(p.created_at*1000).toLocaleDateString('fr-CA',{month:'short',day:'numeric'}) : '—';
+            const url = `/demo/${p.slug}.html`;
+            return `<tr>
+            <td><strong>${esc(p.name)}</strong>${p.city?`<br><span style="color:var(--muted);font-size:11px">${esc(p.city)}</span>`:''}</td>
+            <td><span class="badge b-${p.industry}">${p.industry}</span></td>
+            <td style="font-family:monospace;font-size:12px">${esc(p.phone||'—')}</td>
+            <td class="views ${vCls}">${vTxt}</td>
+            <td><select class="status-sel" onchange="setStatus('${p.slug}',this.value)">${['nouveau','envoyé','vu','en discussion','vendu','refusé'].map(s=>`<option${p.status===s?' selected':''}>${s}</option>`).join('')}</select></td>
+            <td><a href="${url}" target="_blank" class="lnk">Ouvrir ↗</a> · <span class="lnk" onclick="cp('${location.origin+url}')">Copier</span></td>
+            <td style="color:var(--muted);white-space:nowrap;font-size:12px">${dt}</td>
+            </tr>`;
+        }).join('');
+    } catch(e){ console.warn(e.message); }
+}
+
+async function setStatus(slug, status) {
+    await fetch('/prospects/'+slug+'/status', {
+        method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem(AKEY)||'')},
+        body: JSON.stringify({status})
+    });
+}
+
+/* ── Utils ── */
+function cp(t){ navigator.clipboard.writeText(t); toast('Copié !'); }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2400); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function ago(ts){ const d=(Date.now()-ts)/1000; if(d<60) return 'maintenant'; if(d<3600) return Math.floor(d/60)+'min'; if(d<86400) return Math.floor(d/3600)+'h'; return Math.floor(d/86400)+'j'; }
+
+// Refresh views every 30s
+setInterval(loadProspects, 30000);
+</script>
+</body>
+</html>
