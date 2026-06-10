@@ -97,6 +97,18 @@
         .lnk:hover{text-decoration:underline}
         .empty{text-align:center;padding:56px 20px;color:var(--muted)}
 
+        /* ── Discovery ── */
+        .disc-bar{display:grid;grid-template-columns:180px 1fr auto;gap:10px;align-items:end;margin-bottom:20px}
+        .disc-results{display:flex;flex-direction:column;gap:8px}
+        .disc-card{background:var(--surf);border:1px solid var(--border);padding:14px 18px;display:flex;gap:16px;align-items:center;justify-content:space-between}
+        .disc-card:hover{border-color:#3a3a3a}
+        .disc-info{min-width:0;flex:1}
+        .disc-title{font-size:14px;font-weight:600;margin-bottom:2px}
+        .disc-url{font-family:monospace;font-size:11px;color:var(--red);word-break:break-all}
+        .disc-snippet{font-size:12px;color:var(--muted);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .disc-done{font-size:11px;color:var(--ok)}
+        @media(max-width:768px){.disc-bar{grid-template-columns:1fr}.disc-card{flex-direction:column;align-items:flex-start}}
+
         /* ── Toast ── */
         #toast{position:fixed;bottom:24px;right:24px;background:var(--ok);color:#fff;padding:11px 22px;font-size:13px;font-weight:500;transform:translateY(70px);opacity:0;transition:all .28s;pointer-events:none;z-index:200}
         #toast.show{transform:translateY(0);opacity:1}
@@ -138,9 +150,40 @@
 
 <main>
 
-<!-- ─ 1. GÉNÉRER ─ -->
+<!-- ─ 1. DÉCOUVERTE ─ -->
 <div class="sec-head">
     <div class="sec-num">1</div>
+    <div><h2>Découvrir des PME</h2><p>Recherchez des entreprises québécoises — démo générée en 1 clic, photos importées automatiquement.</p></div>
+</div>
+
+<div class="disc-bar">
+    <div>
+        <label>Industrie</label>
+        <select id="d-industry">
+            <option value="restaurant">Restaurant</option>
+            <option value="garage">Garage</option>
+            <option value="salon">Salon / Spa</option>
+            <option value="clinique">Clinique</option>
+            <option value="construction">Construction</option>
+        </select>
+    </div>
+    <div>
+        <label>Recherche <span style="color:var(--muted);text-transform:none;letter-spacing:0">(type d'entreprise + ville)</span></label>
+        <input id="d-query" type="text" placeholder="ex: garage mécanique Sherbrooke">
+    </div>
+    <button class="btn" id="discBtn" onclick="doDiscover()" style="height:44px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        Rechercher
+    </button>
+</div>
+
+<div class="disc-results" id="discResults"></div>
+
+<hr class="sep">
+
+<!-- ─ 2. GÉNÉRER ─ -->
+<div class="sec-head">
+    <div class="sec-num">2</div>
     <div><h2>Créer une démo personnalisée</h2><p>Remplissez les infos — la démo est prête en quelques secondes.</p></div>
 </div>
 
@@ -216,9 +259,9 @@
 
 <hr class="sep">
 
-<!-- ─ 2. PROSPECTS ─ -->
+<!-- ─ 3. PROSPECTS ─ -->
 <div class="sec-head">
-    <div class="sec-num">2</div>
+    <div class="sec-num">3</div>
     <div><h2>Tous les prospects</h2><p>Vues en temps réel, statuts, liens directs.</p></div>
 </div>
 
@@ -291,6 +334,7 @@ function selInd(ind, el) {
     document.getElementById('f-color').value = d.color;
     document.getElementById('f-tagline').placeholder = d.tagline;
 }
+document.getElementById('d-query').addEventListener('keydown', e => { if (e.key==='Enter') doDiscover(); });
 document.getElementById('f-cpicker').addEventListener('input', e => document.getElementById('f-color').value = e.target.value);
 document.getElementById('f-color').addEventListener('input', e => { if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) document.getElementById('f-cpicker').value = e.target.value; });
 
@@ -345,6 +389,86 @@ async function doGenerate() {
     finally {
         btn.disabled = false;
         btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke-linecap="round" stroke-linejoin="round"/></svg> Générer la démo';
+    }
+}
+
+/* ── Discovery ── */
+let DiscResults = [];
+
+async function doDiscover() {
+    const q = document.getElementById('d-query').value.trim();
+    if (!q) { alert('Entrez une recherche (ex: garage mécanique Sherbrooke)'); return; }
+    const btn = document.getElementById('discBtn');
+    btn.disabled = true; btn.textContent = 'Recherche…';
+    const box = document.getElementById('discResults');
+    box.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:14px">Recherche en cours…</div>';
+    try {
+        const r = await fetch('/discover-search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem(AKEY)||'') },
+            body: JSON.stringify({ query: q })
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error);
+        DiscResults = d.results || [];
+        if (!DiscResults.length) {
+            box.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:14px">Aucun résultat — essayez d\'autres mots-clés.</div>';
+            return;
+        }
+        box.innerHTML = DiscResults.map((res, i) => `
+            <div class="disc-card" id="dcard-${i}">
+                <div class="disc-info">
+                    <div class="disc-title">${esc(res.title)}</div>
+                    <div class="disc-url">${esc(res.url)}</div>
+                    ${res.snippet ? `<div class="disc-snippet">${esc(res.snippet)}</div>` : ''}
+                </div>
+                <button class="btn-sm" id="dbtn-${i}" onclick="discGenerate(${i})">⚡ Générer la démo</button>
+            </div>`).join('');
+    } catch (err) {
+        box.innerHTML = '<div style="color:var(--red);font-size:13px;padding:14px">Erreur : ' + esc(err.message) + '</div>';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg> Rechercher';
+    }
+}
+
+async function discGenerate(i) {
+    const res = DiscResults[i];
+    if (!res) return;
+    const btn = document.getElementById('dbtn-' + i);
+    btn.disabled = true; btn.textContent = 'Génération + photos…';
+    const industry = document.getElementById('d-industry').value;
+    // Extraire la ville depuis la requête (dernier mot capitalisé fréquent au Québec)
+    const q = document.getElementById('d-query').value.trim();
+    const cityGuess = (q.match(/(Montréal|Québec|Laval|Gatineau|Longueuil|Sherbrooke|Lévis|Trois-Rivières|Terrebonne|Saguenay|Drummondville|Granby|Magog|Boucherville|Repentigny|Saint-Jérôme|Brossard|Saint-Jean-sur-Richelieu|Shawinigan|Rimouski|Victoriaville|Joliette|Sorel-Tracy|Vaudreuil|Alma|Rouyn-Noranda|Val-d'Or|Sept-Îles|Baie-Comeau|Thetford Mines)/i) || [])[0] || '';
+    try {
+        const r = await fetch('/discover-generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem(AKEY)||'') },
+            body: JSON.stringify({ url: res.url, industry, city: cityGuess, title: res.title })
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error);
+        const card = document.getElementById('dcard-' + i);
+        const photoTxt = d.photosFound > 0
+            ? `✓ ${d.photosFound} photo(s) du vrai site`
+            : '⚠ photos Unsplash (site protégé)';
+        card.innerHTML = `
+            <div class="disc-info">
+                <div class="disc-title">${esc(d.name)} <span class="disc-done">✓ démo créée</span></div>
+                <div class="disc-url">${esc(d.url)}</div>
+                <div class="disc-snippet">${esc(d.phone || 'téléphone non trouvé')} · ${esc(d.address || 'adresse non trouvée')} · ${photoTxt}</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-shrink:0">
+                <a href="${d.url}" target="_blank" class="btn-sm" style="text-decoration:none">Ouvrir ↗</a>
+                <button class="btn-sm" onclick="cp('${d.url}')">Copier</button>
+            </div>`;
+        LastUrl = d.url; LastSlug = d.slug; LastName = d.name;
+        toast('Démo créée !');
+        loadProspects();
+    } catch (err) {
+        btn.disabled = false; btn.textContent = '⚡ Générer la démo';
+        alert('Erreur : ' + err.message);
     }
 }
 

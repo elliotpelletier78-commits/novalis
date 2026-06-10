@@ -470,6 +470,78 @@ app.post('/generate-cinematic', requireAdmin, async (req, res) => {
   }
 });
 
+// ── Découverte de PME — recherche DuckDuckGo ──────────────────
+// POST /discover-search { query } → liste de sites candidats
+app.post('/discover-search', requireAdmin, async (req, res) => {
+  try {
+    const { query } = req.body || {};
+    if (!query || !query.trim()) {
+      return res.status(400).json({ success: false, error: 'query requis' });
+    }
+    const { ddgSearch } = require('./discover');
+    const results = await ddgSearch(query.trim() + ' Québec', 10);
+    // Marquer les sites dont une démo existe déjà (par domaine)
+    const existing = db.prepare('SELECT slug, name FROM prospects').all();
+    res.json({ success: true, results, existingCount: existing.length });
+  } catch (err) {
+    console.error('[discover-search]', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /discover-generate { url, industry, city, title } →
+// scrape le site, génère la démo cinématique + photos, ajoute le prospect
+app.post('/discover-generate', requireAdmin, async (req, res) => {
+  try {
+    const { url, industry, city, title } = req.body || {};
+    if (!url) return res.status(400).json({ success: false, error: 'url requis' });
+
+    const { scrapeSite, extractName } = require('./discover');
+    const scraped = await scrapeSite(url);
+    const name = extractName(title, scraped.title);
+
+    const { generateCinematic } = require('./generate-cinematic');
+    const base = `${req.protocol}://${req.get('host')}`;
+    const result = generateCinematic({
+      industry: industry || 'restaurant',
+      name,
+      phone: scraped.phone || '',
+      address: scraped.address || (city ? `${city}, QC` : ''),
+      city: city || '',
+      founded: scraped.founded || '',
+      website: url,
+      baseUrl: base,
+    });
+
+    fs.writeFileSync(path.join(outputDir, `${result.slug}.html`), result.html, 'utf8');
+    const demoUrl = `${base}/demo/${result.slug}.html`;
+
+    db.prepare(`
+      INSERT INTO prospects (slug,name,industry,phone,address,city,demo_url)
+      VALUES (?,?,?,?,?,?,?)
+      ON CONFLICT(slug) DO UPDATE SET
+        name=excluded.name, industry=excluded.industry,
+        phone=excluded.phone, address=excluded.address,
+        city=excluded.city, demo_url=excluded.demo_url
+    `).run(result.slug, name, industry || 'restaurant', scraped.phone || '', scraped.address || '', city || '', demoUrl);
+
+    let photosFound = 0;
+    try {
+      photosFound = await scrapePhotos(url, result.slug);
+      if (photosFound > 0) console.log(`[discover] ${photosFound} photos importées pour ${result.slug}`);
+    } catch(e) { console.warn('[discover photos]', e.message); }
+
+    console.log(`[discover] ${name} → ${demoUrl}`);
+    res.json({
+      success: true, url: demoUrl, slug: result.slug, photosFound,
+      name, phone: scraped.phone || '', address: scraped.address || '',
+    });
+  } catch (err) {
+    console.error('[discover-generate]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── Tracking pixel ────────────────────────────────────────────
 // Pixel 1×1 GIF transparent — compté à chaque vue de démo
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
