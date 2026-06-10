@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chez Boulay — Bistro Boréal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700&family=Playfair+Display:ital,wght@0,400;1,400&family=Karla:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg:    #0B0906;
+            --dark:  #131009;
+            --panel: #1a1512;
+            --primary: #C4953A;
+            --light: #C4953A;
+            --text:  #F0E6CF;
+            --muted: #7A7060;
+        }
+        html { scroll-behavior: smooth; }
+        body { background: var(--bg); color: var(--text); font-family: 'Karla', sans-serif; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+        ::-webkit-scrollbar { display: none; }
+
+        /* ══ JOURNEY ══ */
+        .journey { height: 700vh; position: relative; }
+        .journey-sticky { position: sticky; top: 0; height: 100vh; overflow: hidden; background: #000; }
+        .scene { position: absolute; inset: 0; }
+        .scene-bg { position: absolute; inset: -8%; background-size: cover; background-position: center; will-change: transform, opacity; }
+
+        /* Scènes */
+        #s-ext .scene-bg { background-image: url('/demo/images/chez-boulay-bistro-boreal-exterior.jpg'), url('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=90&w=2400&auto=format&fit=crop'); }
+        #s-svc { opacity: 0; z-index: 3; }
+        #s-svc .scene-bg { background-image: url('/demo/images/chez-boulay-bistro-boreal-service.jpg'), url('https://images.unsplash.com/photo-1544025162-811114cd354c?q=90&w=2400&auto=format&fit=crop'); }
+        #s-site { opacity: 0; z-index: 4; background: var(--bg); display: flex; align-items: flex-end; justify-content: flex-start; }
+        #s-int .scene-bg { background-image: url('/demo/images/chez-boulay-bistro-boreal-interior.jpg'), url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=90&w=2400&auto=format&fit=crop'); }
+        
+        #s-int { clip-path: inset(18% 38% 0% 38%); opacity: 0; will-change: clip-path, opacity; }
+        .door-frame {
+            position: absolute; z-index: 3;
+            top: 18%; left: 38%; right: 38%; bottom: 0;
+            border: 1.5px solid rgba(255,255,255,0.35);
+            border-bottom: none; border-radius: 3px 3px 0 0;
+            opacity: 0; pointer-events: none; will-change: transform, opacity;
+        }
+        .door-frame::after {
+            content: ''; position: absolute;
+            right: 14%; top: 52%; width: 4px; height: 14px;
+            border-radius: 2px; background: rgba(255,255,255,0.5);
+        }
+
+        /* Overlays */
+        .vignette { position: absolute; inset: 0; z-index: 9; pointer-events: none; background: radial-gradient(ellipse at center, transparent 28%, rgba(0,0,0,0.72) 100%); }
+        .grad-bottom { position: absolute; bottom: 0; left: 0; right: 0; z-index: 9; height: 33%; pointer-events: none; background: linear-gradient(to top, #000, transparent); }
+        .grain { position: absolute; inset: 0; z-index: 10; pointer-events: none; opacity: 0.04; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-size: 180px 180px; }
+
+        /* Journey texts */
+        .jt { position: absolute; z-index: 20; pointer-events: none; }
+        #jt-addr { top: 7vh; left: 7vw; font-family: 'Playfair Display SC', serif; font-size: clamp(10px, 1.1vw, 14px); letter-spacing: 0.32em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+        #jt-title { bottom: 10vh; left: 7vw; }
+        .jt-name { font-family: 'Playfair Display SC', serif; font-weight: 400; font-size: clamp(58px, 10vw, 140px); line-height: 0.88; color: var(--text); text-transform: uppercase; letter-spacing: -0.01em; }
+        .jt-name em { color: var(--primary); font-style: normal; }
+        .jt-sub { font-family: 'Playfair Display SC', serif; font-weight: 600; font-size: clamp(11px, 1.4vw, 18px); letter-spacing: 0.26em; text-transform: uppercase; color: var(--muted); margin-top: 14px; }
+        #jt-inside { top: 40%; left: 50%; transform: translate(-50%,-50%); text-align: center; opacity: 0; }
+        .jt-inside-text { font-family: 'Playfair Display SC', serif; font-weight: 400; font-size: clamp(26px, 4vw, 58px); text-transform: uppercase; letter-spacing: 0.12em; line-height: 1.1; }
+        .jt-inside-text span { color: var(--primary); }
+        #jt-svc { bottom: 14vh; right: 8vw; text-align: right; opacity: 0; }
+        .jt-svc-text { font-family: 'Playfair Display SC', serif; font-weight: 400; font-size: clamp(28px, 4.5vw, 64px); text-transform: uppercase; line-height: 0.92; letter-spacing: 0.03em; }
+        .jt-svc-text strong { display: block; color: var(--primary); }
+
+        /* Splash screen */
+        .site-splash { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; height: 100%; padding: 0 8vw 11vh; }
+        .splash-badge { font-family: 'Playfair Display SC', serif; font-size: clamp(10px, 1vw, 13px); letter-spacing: 0.36em; text-transform: uppercase; color: var(--primary); margin-bottom: 14px; opacity: 0; transform: translateY(16px); }
+        .splash-logo-img { display: block; max-height: 54px; width: auto; max-width: 200px; object-fit: contain; filter: brightness(0) invert(1); margin-bottom: 16px; opacity: 0; transform: translateY(16px); }
+        .splash-logo { font-family: 'Playfair Display SC', serif; font-weight: 400; font-size: clamp(44px, 7.5vw, 110px); text-transform: uppercase; line-height: 0.88; letter-spacing: -0.01em; opacity: 0; transform: translateY(24px); }
+        .splash-logo span { color: var(--primary); }
+        .splash-tagline { font-family: 'Karla', sans-serif; font-weight: 300; font-size: clamp(14px, 1.5vw, 20px); color: var(--muted); margin-top: 20px; letter-spacing: 0.04em; opacity: 0; transform: translateY(16px); }
+        .splash-scroll { margin-top: 50px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; opacity: 0; }
+        .splash-scroll span { font-family: 'Playfair Display SC', serif; font-size: 10px; letter-spacing: 0.36em; text-transform: uppercase; color: var(--primary); }
+        .splash-line { width: 1px; height: 54px; background: linear-gradient(to bottom, var(--primary), transparent); animation: lineDown 1.8s ease-in-out infinite; }
+        @keyframes lineDown { 0%{transform:scaleY(0);transform-origin:top} 49%{transform:scaleY(1);transform-origin:top} 50%{transform:scaleY(1);transform-origin:bottom} 100%{transform:scaleY(0);transform-origin:bottom} }
+
+        /* Floating CTA mobile */
+        .float-cta { display: none; position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 200; background: var(--primary); color: #fff; font-family: 'Playfair Display SC', serif; font-size: 13px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; padding: 15px 36px; text-decoration: none; box-shadow: 0 8px 40px rgba(0,0,0,0.55); white-space: nowrap; border-radius: 1px; opacity: 0; pointer-events: none; transition: opacity .3s; }
+        @media (max-width: 768px) { .float-cta { display: block; } }
+
+        /* Scroll-reveal */
+        .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.65s cubic-bezier(.22,1,.36,1), transform 0.65s cubic-bezier(.22,1,.36,1); }
+        .reveal.visible { opacity: 1; transform: none; }
+        .reveal-d1 { transition-delay: 0.08s; }
+        .reveal-d2 { transition-delay: 0.16s; }
+        .reveal-d3 { transition-delay: 0.24s; }
+        .reveal-d4 { transition-delay: 0.32s; }
+
+        /* Navbar */
+        .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 22px 6vw; transition: background .4s, padding .3s; }
+        .navbar.scrolled { background: rgba(11,9,6, 0.96); backdrop-filter: blur(16px); padding: 14px 6vw; }
+        .nav-logo { font-family: 'Playfair Display SC', serif; font-weight: 400; font-size: 16px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text); text-decoration: none; }
+        .nav-logo span { color: var(--primary); }
+        .nav-links { display: flex; gap: 36px; list-style: none; }
+        .nav-links a { font-family: 'Playfair Display SC', serif; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,.6); text-decoration: none; transition: color .2s; }
+        .nav-links a:hover { color: var(--text); }
+        .nav-cta { font-family: 'Playfair Display SC', serif; font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text); border: 1.5px solid var(--primary); padding: 9px 22px; text-decoration: none; transition: background .2s; }
+        .nav-cta:hover { background: var(--primary); }
+
+        /* Sections */
+        section { padding: 96px 7vw; }
+        .sec-label { font-family: 'Playfair Display SC', serif; font-size: 10px; letter-spacing: 0.42em; text-transform: uppercase; color: var(--primary); margin-bottom: 20px; }
+        .sec-title { font-family: 'Playfair Display SC', serif; font-weight: 400; font-size: clamp(36px, 5.5vw, 74px); text-transform: uppercase; line-height: 0.92; margin-bottom: 32px; }
+
+        /* Services */
+        #services { background: var(--dark); }
+        .svc-intro { max-width: 500px; font-size: 16px; line-height: 1.8; color: var(--muted); margin-bottom: 0; }
+        .svc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 2px; margin-top: 56px; }
+        .svc-card { background: var(--panel); padding: 42px 34px; border-top: 2px solid var(--primary); transition: background .2s; cursor: default; }
+        .svc-card:hover { background: var(--dark); }
+        .svc-num { font-family: 'Playfair Display SC', serif; font-size: 10px; letter-spacing: 0.32em; color: var(--primary); margin-bottom: 22px; text-transform: uppercase; }
+        .svc-title { font-family: 'Playfair Display SC', serif; font-weight: 400; font-size: clamp(18px, 2vw, 24px); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
+        .svc-desc { font-size: 14px; line-height: 1.75; color: var(--muted); }
+
+        /* About */
+        #about { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+        .about-img { aspect-ratio: 4/3; background: var(--panel); background-image: url('/demo/images/chez-boulay-bistro-boreal-about.jpg'), url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=90&w=1400&auto=format&fit=crop'); background-size: cover; background-position: center; position: relative; }
+        .about-img::after { content: 'Fondé 2012'; position: absolute; bottom: 18px; right: 18px; font-family: 'Playfair Display SC', serif; font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: rgba(255,255,255,.5); background: rgba(0,0,0,.6); padding: 5px 12px; backdrop-filter: blur(6px); }
+        .about-body { font-size: 15px; line-height: 1.85; color: var(--muted); margin-bottom: 44px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+        .stat-num { font-family: 'Playfair Display SC', serif; font-weight: 400; font-size: clamp(38px, 4vw, 60px); color: var(--primary); line-height: 1; }
+        .stat-label { font-size: 12px; letter-spacing: 0.05em; color: var(--muted); margin-top: 5px; }
+
+        /* Testimonials */
+        #testimonials { background: var(--dark); }
+        .testi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2px; margin-top: 52px; }
+        .testi-card { background: var(--panel); padding: 36px 32px; border-left: 2px solid var(--primary); }
+        .testi-stars { color: var(--primary); font-size: 13px; letter-spacing: 2px; margin-bottom: 14px; }
+        .testi-text { font-size: 15px; line-height: 1.8; color: rgba(255,255,255,.75); font-style: italic; }
+        .testi-author { font-family: 'Playfair Display SC', serif; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-top: 20px; }
+
+        /* Contact */
+        #contact { background: #C4953A; text-align: center; }
+        #contact .sec-label { color: rgba(0,0,0,0.45); }
+        #contact .sec-title { color: #0a0a0a; margin-bottom: 6px; }
+        .contact-phone { display: block; font-family: 'Playfair Display SC', serif; font-weight: 400; font-size: clamp(38px, 6vw, 90px); letter-spacing: -0.02em; color: #0a0a0a; text-decoration: none; margin: 24px 0 14px; transition: opacity .2s; }
+        .contact-phone:hover { opacity: .75; }
+        .contact-addr { font-size: 16px; color: rgba(0,0,0,.55); line-height: 1.7; margin-bottom: 48px; }
+        .btn-cta { display: inline-block; font-family: 'Playfair Display SC', serif; font-size: 12px; font-weight: 700; letter-spacing: 0.28em; text-transform: uppercase; background: #0B0906; color: #F0E6CF; padding: 18px 54px; text-decoration: none; transition: opacity .2s; }
+        .btn-cta:hover { opacity: .82; }
+        .hours-grid { display: flex; gap: 44px; justify-content: center; flex-wrap: wrap; margin-top: 56px; padding-top: 44px; border-top: 1px solid rgba(0,0,0,.15); }
+        .hour-item { text-align: center; }
+        .hour-day { font-family: 'Playfair Display SC', serif; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; color: rgba(0,0,0,.45); }
+        .hour-time { font-family: 'Playfair Display SC', serif; font-weight: 700; font-size: 20px; color: #0a0a0a; margin-top: 5px; }
+        .contact-map { margin: 44px auto 0; max-width: 620px; overflow: hidden; border: 1px solid rgba(0,0,0,.12); }
+        .contact-map iframe { display: block; width: 100%; height: 240px; border: none; filter: grayscale(100%) contrast(80%) brightness(1.05); }
+
+        /* Footer */
+        footer { background: #0B0906; padding: 34px 7vw; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; border-top: 1px solid rgba(255,255,255,.05); }
+        .foot-logo { font-family: 'Playfair Display SC', serif; font-weight: 400; font-size: 17px; text-transform: uppercase; }
+        .foot-logo span { color: var(--primary); }
+        footer p { font-size: 12px; color: var(--muted); letter-spacing: 0.07em; }
+
+        @media (max-width: 768px) {
+            #about { grid-template-columns: 1fr; gap: 40px; }
+            .nav-links { display: none; }
+            .about-img { aspect-ratio: 16/9; }
+            .hours-grid { gap: 24px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar" id="navbar">
+    <a href="#" class="nav-logo">Chez Boulay — Bistro Boréal</a>
+    <ul class="nav-links">
+        <li><a href="#services">Services</a></li>
+        <li><a href="#about">À propos</a></li>
+        <li><a href="#contact">Contact</a></li>
+    </ul>
+    <a href="tel:4183808166" class="nav-cta">Appeler</a>
+</nav>
+<a href="tel:4183808166" class="float-cta" id="floatCta">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="margin-right:7px;vertical-align:-1px;flex-shrink:0"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>418 380-8166
+</a>
+
+<div class="journey">
+    <div class="journey-sticky">
+        <div class="scene" id="s-ext"><div class="scene-bg"></div></div>
+        <div class="scene" id="s-int"><div class="scene-bg"></div></div>
+        <div class="scene" id="s-svc"><div class="scene-bg"></div></div>
+        <div class="scene" id="s-site">
+            <div class="site-splash">
+                
+                <img class="splash-logo-img" src="/demo/images/chez-boulay-bistro-boreal-logo.png" onerror="this.style.display='none'" alt="Chez Boulay — Bistro Boréal">
+                <div class="splash-logo">Chez Boulay — Bistro Boréal</div>
+                <div class="splash-tagline">Une cuisine boréale au cœur du Vieux-Québec.</div>
+                <div class="splash-scroll"><span>Explorer</span><div class="splash-line"></div></div>
+            </div>
+        </div>
+        <div class="door-frame" id="doorFrame"></div>
+        <div class="vignette"></div>
+        <div class="grad-bottom"></div>
+        <div class="grain"></div>
+        <div class="jt" id="jt-addr">1110 Rue Saint-Jean, Québec</div>
+        <div class="jt" id="jt-title">
+            <div class="jt-name">Chez&lt;br&gt;Boulay&lt;br&gt;—</div>
+            <div class="jt-sub">Fondé en 2012 · Une cuisine boréale au cœur</div>
+        </div>
+        <div class="jt" id="jt-inside">
+            <div class="jt-inside-text">Bonsoir,<br><span>bienvenue</span></div>
+        </div>
+        <div class="jt" id="jt-svc">
+            <div class="jt-svc-text">Une cuisine<br><strong>d'auteur.</strong></div>
+        </div>
+    </div>
+</div>
+
+<section id="services">
+    <div class="sec-label reveal">Nos expertises</div>
+    <h2 class="sec-title reveal reveal-d1">Ce qu'on<br>fait le mieux</h2>
+    <p class="svc-intro reveal reveal-d2">Une cuisine boréale au cœur du Vieux-Québec. Notre équipe est là pour vous servir avec rigueur et passion.</p>
+    <div class="svc-grid">
+        <div class="svc-card reveal reveal-d1">
+            <div class="svc-num">01</div>
+            <div class="svc-title">Menu dégustation</div>
+            <div class="svc-desc">Un voyage en plusieurs services, orchestré par notre chef selon les saisons et les arrivages.</div>
+        </div>
+        <div class="svc-card reveal reveal-d2">
+            <div class="svc-num">02</div>
+            <div class="svc-title">Table d'hôte</div>
+            <div class="svc-desc">Entrée, plat, dessert — fraîcheur locale, inspiration quotidienne.</div>
+        </div>
+        <div class="svc-card reveal reveal-d3">
+            <div class="svc-num">03</div>
+            <div class="svc-title">Brunch &amp; midi</div>
+            <div class="svc-desc">Formules généreuses pour les matins de week-end et les pauses du midi.</div>
+        </div>
+        <div class="svc-card reveal reveal-d4">
+            <div class="svc-num">04</div>
+            <div class="svc-title">Privatisation</div>
+            <div class="svc-desc">Anniversaire, lancement, fête de bureau — votre événement, notre salle.</div>
+        </div>
+    </div>
+</section>
+
+<section id="about">
+    <div class="about-img reveal"></div>
+    <div>
+        <div class="sec-label reveal">Notre histoire</div>
+        <h2 class="sec-title reveal reveal-d1">Depuis 2012,<br>on est là pour vous</h2>
+        <p class="about-body reveal reveal-d2">Chez Boulay — Bistro Boréal est né d'une passion simple : bien faire, honnêtement, avec des gens de Québec. Fondé en 2012, l'équipe continue de grandir grâce à la confiance de clients fidèles et de nouveaux visages chaque année.</p>
+        <div class="stats-grid reveal reveal-d3">
+            <div>
+                <div class="stat-num">15+</div>
+                <div class="stat-label">ans d'expérience</div>
+            </div>
+            <div>
+                <div class="stat-num">2 400+</div>
+                <div class="stat-label">couverts par an</div>
+            </div>
+            <div>
+                <div class="stat-num">4.8★</div>
+                <div class="stat-label">note Google</div>
+            </div>
+            <div>
+                <div class="stat-num">100%</div>
+                <div class="stat-label">produits locaux</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="testimonials">
+    <div class="sec-label reveal">Ce qu'ils en disent</div>
+    <h2 class="sec-title reveal reveal-d1">La confiance,<br>ça se mérite</h2>
+    <div class="testi-grid">
+        <div class="testi-card reveal reveal-d1">
+            <div class="testi-stars">★★★★★</div>
+            <div class="testi-text">Un repas dont on se souvient longtemps. Produits frais, service attentionné, ambiance chaleureuse. On y retourne sans hésiter.</div>
+            <div class="testi-author">— Marie-Ève T.</div>
+        </div>
+        <div class="testi-card reveal reveal-d2">
+            <div class="testi-stars">★★★★★</div>
+            <div class="testi-text">Enfin un endroit où les portions sont généreuses et les saveurs au rendez-vous. Notre table préférée depuis deux ans.</div>
+            <div class="testi-author">— François B.</div>
+        </div>
+        <div class="testi-card reveal reveal-d3">
+            <div class="testi-stars">★★★★★</div>
+            <div class="testi-text">Parfait pour l'anniversaire de ma femme. L'équipe a été aux petits soins toute la soirée. Merci !</div>
+            <div class="testi-author">— Jean-Pierre L.</div>
+        </div>
+    </div>
+</section>
+
+<section id="contact">
+    <div class="sec-label reveal">Prenez contact</div>
+    <h2 class="sec-title reveal reveal-d1">On est là<br>pour vous</h2>
+    <a href="tel:4183808166" class="contact-phone reveal reveal-d2">418 380-8166</a>
+    <div class="contact-addr reveal reveal-d3">1110 Rue Saint-Jean, Québec, QC G1R 1S4</div>
+    <a href="tel:4183808166" class="btn-cta reveal reveal-d3">Réserver ma table</a>
+    <div class="hours-grid reveal">
+        <div class="hour-item"><div class="hour-day">Lun — Ven</div><div class="hour-time">11 h 00 — 22 h 00</div></div>
+        <div class="hour-item"><div class="hour-day">Samedi</div><div class="hour-time">10 h 00 — 23 h 00</div></div>
+        <div class="hour-item"><div class="hour-day">Dimanche</div><div class="hour-time">10 h 00 — 15 h 00</div></div>
+    </div>
+    <div class="contact-map reveal"><iframe src="https://maps.google.com/maps?q=1110%20Rue%20Saint-Jean%2C%20Qu%C3%A9bec%2C%20QC%20G1R%201S4%2C%20Qu%C3%A9bec%2C%20Qu%C3%A9bec&output=embed&hl=fr" loading="lazy" title="Localisation Chez Boulay — Bistro Boréal"></iframe></div>
+</section>
+
+<footer>
+    <div class="foot-logo">Chez Boulay — Bistro Boréal</div>
+    <p>1110 Rue Saint-Jean, Québec, QC G1R 1S4 · 418 380-8166</p>
+    <p>© 2026 Chez Boulay — Bistro Boréal</p>
+</footer>
+
+<img src="/t/chez-boulay-bistro-boreal" width="1" height="1" style="position:fixed;top:0;left:0;opacity:0.001;pointer-events:none" alt="">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+    gsap.registerPlugin(ScrollTrigger);
+
+    // Navbar scroll
+    window.addEventListener('scroll', () => {
+        document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 60);
+    }, { passive: true });
+
+    // GSAP cinematic journey
+    const tl = gsap.timeline({
+        scrollTrigger: {
+            trigger: '.journey',
+            start: 'top top',
+            end: 'bottom bottom',
+            scrub: 1.6,
+        }
+    });
+    
+        tl
+            .to('#s-ext .scene-bg', { scale: 2.0, ease: 'none', duration: 4 }, 0)
+            .to('#jt-addr',  { opacity: 0, duration: 0.4 }, 0.4)
+            .to('#jt-title', { opacity: 0, duration: 0.6 }, 0.5)
+            .to('#s-int',      { opacity: 1, duration: 0.5 }, 1.2)
+            .to('#doorFrame',  { opacity: 1, duration: 0.5 }, 1.2)
+            .fromTo('#s-int', { clipPath: 'inset(18% 38% 0% 38%)' }, { clipPath: 'inset(0% 0% 0% 0%)', ease: 'power2.inOut', duration: 2 }, 1.8)
+            .fromTo('#s-int .scene-bg', { scale: 1.35 }, { scale: 1.0, ease: 'power1.out', duration: 2 }, 1.8)
+            .to('#doorFrame', { opacity: 0, scaleX: 4, scaleY: 1.5, transformOrigin: 'center bottom', ease: 'power1.in', duration: 0.8 }, 1.8)
+            .to('#s-ext', { opacity: 0, duration: 0.7 }, 2.5)
+            .to('#s-int .scene-bg', { scale: 1.18, ease: 'none', duration: 2 }, 3.5)
+            .to('#jt-inside', { opacity: 1, duration: 0.6 }, 3.6)
+            .to('#jt-inside', { opacity: 0, duration: 0.5 }, 4.6)
+            .to('#s-int',  { opacity: 0, duration: 0.7 }, 5.2)
+            .to('#s-svc',  { opacity: 1, duration: 0.7 }, 5.2)
+            .fromTo('#s-svc .scene-bg', { scale: 1.15 }, { scale: 1.0, duration: 1.5 }, 5.2)
+            .to('#jt-svc', { opacity: 1, duration: 0.6 }, 5.5)
+            .to('#jt-svc', { opacity: 0, duration: 0.5 }, 6.4)
+            .to('#s-svc',  { opacity: 0, duration: 0.7 }, 6.8)
+            .to('#s-site', { opacity: 1, duration: 0.9 }, 6.8)
+            .to('.splash-logo-img', { y: 0, opacity: 1, duration: 0.6 }, 6.85)
+            .to('.splash-logo',    { y: 0, opacity: 1, duration: 0.7 }, 7.0)
+            .to('.splash-tagline', { y: 0, opacity: 1, duration: 0.6 }, 7.2)
+            .to('.splash-scroll',  { opacity: 1, duration: 0.6 }, 7.5);
+
+    // Scroll-reveal via IntersectionObserver
+    const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+            if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); }
+        });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+    // Floating CTA — appears after journey section
+    const floatCta = document.getElementById('floatCta');
+    if (floatCta) {
+        const journeyEl = document.querySelector('.journey');
+        function updateFloat() {
+            const pastJourney = window.scrollY > journeyEl.offsetTop + journeyEl.offsetHeight - window.innerHeight * 0.5;
+            floatCta.style.opacity = pastJourney ? '1' : '0';
+            floatCta.style.pointerEvents = pastJourney ? 'auto' : 'none';
+        }
+        window.addEventListener('scroll', updateFloat, { passive: true });
+    }
+</script>
+</body>
+</html>
