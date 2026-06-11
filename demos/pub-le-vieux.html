@@ -294,7 +294,7 @@
         <div class="scene" id="s-site">
             <div class="site-splash">
                 
-                <img class="splash-logo-img" src="/demo/images/pub-le-vieux-logo.png" onerror="this.style.display='none'" alt="Pub Le Vieux">
+                <img class="splash-logo-img" src="/demo/images/pub-le-vieux-logo.png" data-logo="" onerror="const f=this.dataset.logo;if(f&&!this._t){this._t=1;this.src=f}else{this.style.display='none'}" alt="Pub Le Vieux">
                 <div class="splash-logo">Pub Le Vieux</div>
                 <div class="splash-tagline">L'institution de Boucherville depuis 20 ans.</div>
                 <div class="splash-scroll"><span>Explorer</span><div class="splash-line"></div></div>

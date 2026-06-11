@@ -294,7 +294,7 @@
         <div class="scene" id="s-site">
             <div class="site-splash">
                 <div class="splash-badge">Trois-Rivières · depuis 2008</div>
-                <img class="splash-logo-img" src="/demo/images/construction-cma-logo.png" onerror="this.style.display='none'" alt="Construction CMA">
+                <img class="splash-logo-img" src="/demo/images/construction-cma-logo.png" data-logo="" onerror="const f=this.dataset.logo;if(f&&!this._t){this._t=1;this.src=f}else{this.style.display='none'}" alt="Construction CMA">
                 <div class="splash-logo">Construction CMA</div>
                 <div class="splash-tagline">Construction et rénovation résidentielle en Mauricie depuis 2008.</div>
                 <div class="splash-scroll"><span>Explorer</span><div class="splash-line"></div></div>

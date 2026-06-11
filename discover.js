@@ -173,6 +173,16 @@ function extractBrand(html, baseUrl) {
     const luma = (0.299*r + 0.587*g + 0.114*b) / 255;
     if (luma > 0.08 && luma < 0.92) themeColor = tc;
   }
+  // Fallback — variables CSS courantes si pas de meta theme-color
+  if (!themeColor) {
+    const cssVarRe = /--(?:primary|brand|accent|main|color-primary|primary-color)[^:]*:\s*(#[0-9a-fA-F]{6})/i;
+    const cv = (html.match(cssVarRe) || [])[1];
+    if (cv) {
+      const r = parseInt(cv.slice(1,3),16), g = parseInt(cv.slice(3,5),16), b = parseInt(cv.slice(5,7),16);
+      const luma = (0.299*r + 0.587*g + 0.114*b) / 255;
+      if (luma > 0.08 && luma < 0.92) themeColor = cv;
+    }
+  }
 
   // Logo — img avec "logo" dans src/class/alt, sinon apple-touch-icon
   let logoUrl = '';

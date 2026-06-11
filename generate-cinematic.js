@@ -791,7 +791,7 @@ function generateCinematic(rawData) {
         <div class="scene" id="s-site">
             <div class="site-splash">
                 ${(anim === 'garage' || anim === 'gate') ? `<div class="splash-badge">${esc(city || address.split(',').pop().trim())}${founded ? ` · depuis ${founded}` : ''}</div>` : ''}
-                <img class="splash-logo-img" src="/demo/images/${slug}-logo.png" onerror="this.style.display='none'" alt="${esc(name)}">
+                <img class="splash-logo-img" src="/demo/images/${slug}-logo.png" data-logo="${rawData.logoUrl ? esc(rawData.logoUrl) : ''}" onerror="const f=this.dataset.logo;if(f&&!this._t){this._t=1;this.src=f}else{this.style.display='none'}" alt="${esc(name)}">
                 <div class="splash-logo">${esc(name)}</div>
                 <div class="splash-tagline">${esc(tagline)}</div>
                 <div class="splash-scroll"><span>Explorer</span><div class="splash-line"></div></div>

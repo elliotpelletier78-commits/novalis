@@ -294,7 +294,7 @@
         <div class="scene" id="s-site">
             <div class="site-splash">
                 
-                <img class="splash-logo-img" src="/demo/images/chez-boulay-bistro-boreal-logo.png" onerror="this.style.display='none'" alt="Chez Boulay — Bistro Boréal">
+                <img class="splash-logo-img" src="/demo/images/chez-boulay-bistro-boreal-logo.png" data-logo="" onerror="const f=this.dataset.logo;if(f&&!this._t){this._t=1;this.src=f}else{this.style.display='none'}" alt="Chez Boulay — Bistro Boréal">
                 <div class="splash-logo">Chez Boulay — Bistro Boréal</div>
                 <div class="splash-tagline">Une cuisine boréale au cœur du Vieux-Québec.</div>
                 <div class="splash-scroll"><span>Explorer</span><div class="splash-line"></div></div>

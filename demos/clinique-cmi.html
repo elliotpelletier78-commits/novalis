@@ -291,7 +291,7 @@
         <div class="scene" id="s-site">
             <div class="site-splash">
                 
-                <img class="splash-logo-img" src="/demo/images/clinique-cmi-logo.png" onerror="this.style.display='none'" alt="Clinique CMI">
+                <img class="splash-logo-img" src="/demo/images/clinique-cmi-logo.png" data-logo="" onerror="const f=this.dataset.logo;if(f&&!this._t){this._t=1;this.src=f}else{this.style.display='none'}" alt="Clinique CMI">
                 <div class="splash-logo">Clinique CMI</div>
                 <div class="splash-tagline">Physiothérapie, ergothérapie et soins intégrés à Longueuil.</div>
                 <div class="splash-scroll"><span>Explorer</span><div class="splash-line"></div></div>

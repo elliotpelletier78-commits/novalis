@@ -348,22 +348,29 @@ async function scrapePhotos(websiteUrl, slug, logoUrl) {
 
   function extractImages(html, baseUrl) {
     const seen = new Set(), images = [];
-    function add(src, hintText) {
-      if (!src) return;
+    function normalise(src) {
+      if (!src) return '';
       try {
-        const u = src.startsWith('//') ? 'https:' + src : src.startsWith('/') ? new URL(baseUrl).origin + src : src.startsWith('http') ? src : new URL(src, baseUrl).href;
-        if (!u.startsWith('http')) return;
-        if (/\.(svg|gif|ico)(\?|$)/i.test(u)) return;
-        if (/icon|logo|badge|pixel|1x1|sprite|arrow|favicon|btn-|loading/i.test(u)) return;
-        if (seen.has(u)) return;
-        seen.add(u); images.push({ url: u, text: (hintText || '') + ' ' + u });
-      } catch(e) {}
+        return src.startsWith('//') ? 'https:' + src
+          : src.startsWith('/') ? new URL(baseUrl).origin + src
+          : src.startsWith('http') ? src
+          : new URL(src, baseUrl).href;
+      } catch(e) { return ''; }
     }
-    // og:image first (best quality, main business photo)
+    function add(src, hintText, bypassFilter = false) {
+      const u = normalise(src);
+      if (!u.startsWith('http')) return;
+      if (/\.(svg|gif|ico)(\?|$)/i.test(u)) return;
+      if (!bypassFilter && /icon|logo|badge|pixel|1x1|sprite|arrow|favicon|btn-|loading/i.test(u)) return;
+      if (seen.has(u)) return;
+      seen.add(u); images.push({ url: u, text: (hintText || '') + ' ' + u });
+    }
+    // og:image / twitter:image : photo principale choisie par le propriétaire du site —
+    // bypass du filtre logo/icon car certains CDN ont "logo" dans le chemin
     const ogM = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-    if (ogM) add(ogM[1], 'exterior facade og');
+    if (ogM) add(ogM[1], 'exterior facade og', true);
     const twM = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
-    if (twM) add(twM[1]);
+    if (twM) add(twM[1], '', true);
     // All img tags — alt + class servent d'indices sémantiques.
     // Gère le lazy-loading moderne : data-src, data-lazy-src, srcset.
     const imgRe = /<img[^>]+>/gi;
@@ -434,7 +441,17 @@ async function scrapePhotos(websiteUrl, slug, logoUrl) {
       if (!assignment[key]) continue;
       try {
         const buf = await downloadBuf(assignment[key], 5000);
-        if (buf.length < 8192) continue; // skip tiny/blank
+        if (buf.length < 8192) continue; // trop petit ou placeholder
+        // Validation magic bytes — évite de sauvegarder une page HTML comme .jpg
+        const isImage =
+          (buf[0] === 0x89 && buf[1] === 0x50) ||          // PNG
+          (buf[0] === 0xFF && buf[1] === 0xD8) ||          // JPEG
+          (buf.slice(0,4).toString('ascii') === 'RIFF') || // WEBP
+          (buf.slice(0,3).toString('ascii') === 'GIF');    // GIF
+        if (!isImage) {
+          console.warn(`[photos] skip ${key}: pas une image (${buf.slice(0,4).toString('hex')})`);
+          continue;
+        }
         fs.writeFileSync(path.join(imagesDir, `${slug}-${key}.jpg`), buf);
         console.log(`[photos] ${key}: ${assignment[key].slice(0, 70)} (${Math.round(buf.length/1024)}kb)`);
         saved++;
@@ -443,20 +460,30 @@ async function scrapePhotos(websiteUrl, slug, logoUrl) {
       }
     }
 
-    // Logo de l'entreprise → affiché dans le splash + navbar
-    // Raster seulement (png/jpeg/webp/gif) — un SVG ne s'afficherait pas en .png
+    // Logo de l'entreprise → affiché dans le splash
     if (logoUrl) {
       try {
         const buf = await downloadBuf(logoUrl, 5000);
         const isRaster = buf.length > 800 && (
-          (buf[0] === 0x89 && buf[1] === 0x50) ||                  // PNG
-          (buf[0] === 0xFF && buf[1] === 0xD8) ||                  // JPEG
-          (buf.slice(0, 4).toString() === 'RIFF') ||               // WEBP
-          (buf.slice(0, 3).toString() === 'GIF')                   // GIF
+          (buf[0] === 0x89 && buf[1] === 0x50) ||
+          (buf[0] === 0xFF && buf[1] === 0xD8) ||
+          (buf.slice(0,4).toString('ascii') === 'RIFF') ||
+          (buf.slice(0,3).toString('ascii') === 'GIF')
+        );
+        const isSvg = buf.length > 100 && (
+          buf.slice(0,5).toString().includes('<svg') ||
+          buf.slice(0,6).toString().includes('<?xml')
         );
         if (isRaster) {
           fs.writeFileSync(path.join(imagesDir, `${slug}-logo.png`), buf);
-          console.log(`[photos] logo: ${logoUrl.slice(0, 70)}`);
+          console.log(`[photos] logo raster: ${logoUrl.slice(0, 70)}`);
+          saved++;
+        } else if (isSvg) {
+          fs.writeFileSync(path.join(imagesDir, `${slug}-logo.svg`), buf);
+          console.log(`[photos] logo SVG: ${logoUrl.slice(0, 70)}`);
+          saved++;
+        } else {
+          console.warn(`[photos] logo format inconnu, utilisation URL directe`);
         }
       } catch(e) { console.warn(`[photos] logo skip: ${e.message}`); }
     }
@@ -519,7 +546,11 @@ app.post('/generate-cinematic', requireAdmin, async (req, res) => {
     // Si un site existe : extraire leur identité (slogan, couleur, services, logo)
     const brand = await enrichWithBrand(data);
 
-    const result = generateCinematic({ ...data, baseUrl: base });
+    const result = generateCinematic({
+      ...data,
+      logoUrl: data.logoUrl || (brand && brand.logoUrl) || '',
+      baseUrl: base,
+    });
 
     const dest = path.join(outputDir, `${result.slug}.html`);
     fs.writeFileSync(dest, result.html, 'utf8');
@@ -604,6 +635,7 @@ app.post('/discover-generate', requireAdmin, async (req, res) => {
           }))
         : undefined,
       website: url,
+      logoUrl: scraped.logoUrl || '',
       baseUrl: base,
     });
 
@@ -624,6 +656,35 @@ app.post('/discover-generate', requireAdmin, async (req, res) => {
       photosFound = await scrapePhotos(url, result.slug, scraped.logoUrl);
       if (photosFound > 0) console.log(`[discover] ${photosFound} photos importées pour ${result.slug}`);
     } catch(e) { console.warn('[discover photos]', e.message); }
+
+    // Re-générer le HTML avec les chemins locaux confirmés + logo correct
+    if (photosFound > 0) {
+      const imagesDir2 = path.join(outputDir, 'images');
+      const confirmedPhotos = {};
+      for (const k of ['exterior','interior','service','about']) {
+        if (fs.existsSync(path.join(imagesDir2, `${result.slug}-${k}.jpg`)))
+          confirmedPhotos[k] = `/demo/images/${result.slug}-${k}.jpg`;
+      }
+      const logoExt = fs.existsSync(path.join(imagesDir2, `${result.slug}-logo.svg`)) ? 'svg' : 'png';
+      const logoLocal = fs.existsSync(path.join(imagesDir2, `${result.slug}-logo.${logoExt}`))
+        ? `/demo/images/${result.slug}-logo.${logoExt}` : '';
+      const result2 = generateCinematic({
+        industry: industry || 'restaurant', name,
+        phone: scraped.phone || '', address: scraped.address || (city ? `${city}, QC` : ''),
+        city: city || '', founded: scraped.founded || '',
+        tagline: scraped.description ? scraped.description.slice(0, 140) : '',
+        aboutText: (scraped.description && scraped.description.length > 60) ? scraped.description : '',
+        color: scraped.themeColor || '',
+        services: (scraped.services && scraped.services.length >= 3)
+          ? scraped.services.slice(0, 4).map((t, i) => ({ title: t, desc: (cfg.defaultServices[i] && cfg.defaultServices[i].desc) || 'Un travail soigné.' }))
+          : undefined,
+        website: url, baseUrl: base,
+        photos: confirmedPhotos,
+        logoUrl: logoLocal || scraped.logoUrl || '',
+      });
+      fs.writeFileSync(path.join(outputDir, `${result.slug}.html`), result2.html, 'utf8');
+      console.log(`[discover] HTML régénéré avec ${Object.keys(confirmedPhotos).length} photos locales`);
+    }
 
     console.log(`[discover] ${name} → ${demoUrl}`);
     res.json({
