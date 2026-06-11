@@ -314,26 +314,7 @@ async function scrapePhotos(websiteUrl, slug, logoUrl) {
   const KEYS = ['exterior', 'interior', 'service', 'about'];
   let saved = 0;
 
-  function fetchHtml(url, timeout = 8000) {
-    const https_ = require('https'), http_ = require('http');
-    return new Promise((resolve, reject) => {
-      const mod = url.startsWith('https') ? https_ : http_;
-      const timer = setTimeout(() => reject(new Error('timeout')), timeout);
-      mod.get(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15', 'Accept-Language': 'fr-CA,fr;q=0.9', 'Accept': 'text/html' },
-        timeout,
-      }, (res) => {
-        if ([301,302,303,307,308].includes(res.statusCode) && res.headers.location) {
-          clearTimeout(timer);
-          const loc = res.headers.location.startsWith('http') ? res.headers.location : new URL(res.headers.location, url).href;
-          return resolve(fetchHtml(loc, timeout));
-        }
-        let body = '';
-        res.on('data', c => body += c);
-        res.on('end', () => { clearTimeout(timer); resolve(body); });
-      }).on('error', e => { clearTimeout(timer); reject(e); });
-    });
-  }
+  const { fetchHtml, fetchSiteHtml } = require('./discover');
 
   function downloadBuf(url, timeout = 6000) {
     const https_ = require('https'), http_ = require('http');
@@ -341,7 +322,11 @@ async function scrapePhotos(websiteUrl, slug, logoUrl) {
       const mod = url.startsWith('https') ? https_ : http_;
       const timer = setTimeout(() => reject(new Error('timeout')), timeout);
       const chunks = [];
-      mod.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible)' }, timeout }, (res) => {
+      mod.get(url, { headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15',
+        'Accept': 'image/avif,image/webp,image/png,image/jpeg,*/*;q=0.8',
+        'Accept-Language': 'fr-CA,fr;q=0.9',
+      }, timeout }, (res) => {
         if ([301,302,303,307,308].includes(res.statusCode) && res.headers.location) {
           clearTimeout(timer);
           return resolve(downloadBuf(res.headers.location, timeout));
@@ -379,8 +364,9 @@ async function scrapePhotos(websiteUrl, slug, logoUrl) {
     if (ogM) add(ogM[1], 'exterior facade og');
     const twM = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
     if (twM) add(twM[1]);
-    // All img tags — alt + class servent d'indices sémantiques
-    const imgRe = /<img[^>]+src=["']([^"'#][^"']+)["'][^>]*/gi;
+    // All img tags — alt + class servent d'indices sémantiques.
+    // Gère le lazy-loading moderne : data-src, data-lazy-src, srcset.
+    const imgRe = /<img[^>]+>/gi;
     let m;
     while ((m = imgRe.exec(html)) !== null) {
       const tag = m[0];
@@ -388,25 +374,46 @@ async function scrapePhotos(websiteUrl, slug, logoUrl) {
       if (wm && parseInt(wm[1]) < 150) continue;
       const altM = tag.match(/alt=["']([^"']*)["']/i);
       const clsM = tag.match(/class=["']([^"']*)["']/i);
-      add(m[1], `${altM ? altM[1] : ''} ${clsM ? clsM[1] : ''}`);
+      const hint = `${altM ? altM[1] : ''} ${clsM ? clsM[1] : ''}`;
+      // Priorité au lazy-load (le src est souvent un placeholder vide)
+      const lazyM = tag.match(/data-(?:lazy-)?src=["']([^"'#][^"']+)["']/i);
+      const srcsetM = tag.match(/(?:data-)?srcset=["']([^"']+)["']/i);
+      const srcM = tag.match(/\ssrc=["']([^"'#][^"']+)["']/i);
+      if (srcsetM) {
+        // Prendre la plus grande candidate du srcset
+        const candidates = srcsetM[1].split(',').map(s => s.trim().split(/\s+/));
+        const best = candidates.sort((a, b) => (parseInt(b[1]) || 0) - (parseInt(a[1]) || 0))[0];
+        if (best && best[0]) add(best[0], hint);
+      }
+      if (lazyM) add(lazyM[1], hint);
+      else if (srcM && !/data:image|blank|placeholder|spacer/i.test(srcM[1])) add(srcM[1], hint);
       if (images.length >= 18) break;
+    }
+    // Images de fond CSS inline — très courant sur les sites de restos
+    const bgRe = /background(?:-image)?\s*:\s*url\(["']?([^"')]+)["']?\)/gi;
+    while ((m = bgRe.exec(html)) !== null) {
+      add(m[1], 'background hero');
+      if (images.length >= 22) break;
     }
     return images;
   }
 
   try {
-    const html = await fetchHtml(websiteUrl, 8000);
-    const images = extractImages(html, websiteUrl);
-    // Enrich with subpages for variety
-    for (const sub of ['/a-propos', '/about', '/services', '/galerie', '/gallery']) {
-      if (images.length >= 12) break;
-      try {
-        const origin = new URL(websiteUrl).origin;
-        const subHtml = await fetchHtml(origin + sub, 4000);
-        for (const img of extractImages(subHtml, origin + sub)) {
-          if (!images.some(i => i.url === img.url)) images.push(img);
-        }
-      } catch(e) {}
+    // Site direct, ou copie archive.org si le site bloque les robots
+    const { html, effectiveUrl, viaArchive } = await fetchSiteHtml(websiteUrl);
+    const images = extractImages(html, effectiveUrl);
+    // Enrich with subpages for variety (inutile via archive — chemins différents)
+    if (!viaArchive) {
+      for (const sub of ['/a-propos', '/about', '/services', '/galerie', '/gallery']) {
+        if (images.length >= 12) break;
+        try {
+          const origin = new URL(websiteUrl).origin;
+          const subHtml = await fetchHtml(origin + sub, 4000);
+          for (const img of extractImages(subHtml, origin + sub)) {
+            if (!images.some(i => i.url === img.url)) images.push(img);
+          }
+        } catch(e) {}
+      }
     }
 
     // Assigner chaque rôle à la photo qui lui correspond le mieux (alt/class/src),
@@ -437,10 +444,17 @@ async function scrapePhotos(websiteUrl, slug, logoUrl) {
     }
 
     // Logo de l'entreprise → affiché dans le splash + navbar
+    // Raster seulement (png/jpeg/webp/gif) — un SVG ne s'afficherait pas en .png
     if (logoUrl) {
       try {
         const buf = await downloadBuf(logoUrl, 5000);
-        if (buf.length > 800) {
+        const isRaster = buf.length > 800 && (
+          (buf[0] === 0x89 && buf[1] === 0x50) ||                  // PNG
+          (buf[0] === 0xFF && buf[1] === 0xD8) ||                  // JPEG
+          (buf.slice(0, 4).toString() === 'RIFF') ||               // WEBP
+          (buf.slice(0, 3).toString() === 'GIF')                   // GIF
+        );
+        if (isRaster) {
           fs.writeFileSync(path.join(imagesDir, `${slug}-logo.png`), buf);
           console.log(`[photos] logo: ${logoUrl.slice(0, 70)}`);
         }

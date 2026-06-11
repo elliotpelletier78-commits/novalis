@@ -8,8 +8,73 @@
 
 const https = require('https');
 const http  = require('http');
+const zlib  = require('zlib');
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15';
+
+const BROWSER_HEADERS = {
+  'User-Agent': UA,
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  'Accept-Language': 'fr-CA,fr;q=0.9,en-CA;q=0.8,en;q=0.7',
+  'Accept-Encoding': 'gzip, deflate',
+  'Cache-Control': 'no-cache',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'none',
+  'Upgrade-Insecure-Requests': '1',
+};
+
+// ── Fetch HTML — en-têtes navigateur, gzip, redirections ──────
+function fetchHtml(url, timeout = 9000, depth = 0) {
+  return new Promise((resolve, reject) => {
+    if (depth > 4) return reject(new Error('trop de redirections'));
+    const mod = url.startsWith('https') ? https : http;
+    let req;
+    const timer = setTimeout(() => { if (req) req.destroy(); reject(new Error('timeout')); }, timeout);
+    req = mod.get(url, { headers: BROWSER_HEADERS, timeout }, (res) => {
+      if ([301,302,303,307,308].includes(res.statusCode) && res.headers.location) {
+        clearTimeout(timer);
+        res.resume();
+        const loc = res.headers.location.startsWith('http') ? res.headers.location : new URL(res.headers.location, url).href;
+        return resolve(fetchHtml(loc, timeout, depth + 1));
+      }
+      if (res.statusCode !== 200) { clearTimeout(timer); res.resume(); return reject(new Error('HTTP ' + res.statusCode)); }
+      const enc = (res.headers['content-encoding'] || '').toLowerCase();
+      let stream = res;
+      if (enc.includes('gzip')) stream = res.pipe(zlib.createGunzip());
+      else if (enc.includes('deflate')) stream = res.pipe(zlib.createInflate());
+      else if (enc.includes('br')) stream = res.pipe(zlib.createBrotliDecompress());
+      let body = '';
+      stream.on('data', c => { body += c; if (body.length > 3_000_000) req.destroy(); });
+      stream.on('end', () => { clearTimeout(timer); resolve(body); });
+      stream.on('error', e => { clearTimeout(timer); reject(e); });
+    });
+    req.on('error', e => { clearTimeout(timer); reject(e); });
+    req.on('timeout', () => { clearTimeout(timer); req.destroy(); reject(new Error('timeout')); });
+  });
+}
+
+// ── Fetch avec repli archive.org pour les sites qui bloquent les robots ──────
+async function fetchSiteHtml(url) {
+  try {
+    const html = await fetchHtml(url);
+    return { html, effectiveUrl: url, viaArchive: false };
+  } catch (firstErr) {
+    try {
+      const domain = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      const api = 'https://archive.org/wayback/available?url=' + encodeURIComponent(domain);
+      const json = JSON.parse(await fetchHtml(api, 8000));
+      const snap = json && json.archived_snapshots && json.archived_snapshots.closest;
+      if (!snap || !snap.available || !snap.url) throw firstErr;
+      const snapUrl = snap.url.replace(/^http:/, 'https:');
+      const html = await fetchHtml(snapUrl, 12000);
+      console.log(`[fetch] ${url} bloqué (${firstErr.message}) → archive.org ${snap.timestamp || ''}`);
+      return { html, effectiveUrl: snapUrl, viaArchive: true };
+    } catch (e) {
+      throw firstErr;
+    }
+  }
+}
 
 // Annuaires et agrégateurs à exclure des résultats
 const SKIP_DOMAINS = [
@@ -58,47 +123,30 @@ function ddgSearch(query, maxResults = 8) {
 }
 
 // ── Scrape d'un site PME — nom, téléphone, adresse, année ─────
-function scrapeSite(url, depth = 0) {
-  return new Promise((resolve) => {
-    if (depth > 2) return resolve({});
-    const timer = setTimeout(() => resolve({}), 9000);
-    const mod = url.startsWith('https') ? https : http;
-    try {
-      const req = mod.get(url, {
-        headers: { 'User-Agent': UA, 'Accept-Language': 'fr-CA,fr;q=0.9' },
-        timeout: 8000,
-      }, (res) => {
-        if ([301, 302, 307, 308].includes(res.statusCode) && res.headers.location) {
-          clearTimeout(timer);
-          const next = res.headers.location.startsWith('http')
-            ? res.headers.location
-            : new URL(res.headers.location, url).href;
-          return resolve(scrapeSite(next, depth + 1));
-        }
-        let body = '';
-        res.on('data', c => { body += c; if (body.length > 2_000_000) req.destroy(); });
-        res.on('end', () => {
-          clearTimeout(timer);
-          const phoneRe = /(?:\+?1[\s\-]?)?\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}/g;
-          const phones = body.match(phoneRe) || [];
-          const addrRe = /\d+[,\s]+(?:rue|boulevard|boul\.?|avenue|av\.?|chemin|ch\.?|route|rang|montée|place|côte)[A-Za-zÀ-ÿ\s,.'-]{3,80}/gi;
-          const addrs = (body.match(addrRe) || []).filter(a => a.length > 10 && a.length < 120);
-          const titleMatch = body.match(/<title[^>]*>([^<]+)<\/title>/i);
-          const pageTitle = titleMatch ? titleMatch[1].trim() : '';
-          const foundedMatch = body.match(/(?:fondée?|établie?|depuis|en affaires depuis)\s*(?:en\s*)?((?:19|20)\d{2})/i);
-          resolve({
-            phone: phones[0] ? phones[0].trim() : '',
-            address: addrs[0] ? addrs[0].trim().replace(/\s+/g, ' ') : '',
-            title: pageTitle,
-            founded: foundedMatch ? foundedMatch[1] : '',
-            ...extractBrand(body, url),
-          });
-        });
-      });
-      req.on('error', () => { clearTimeout(timer); resolve({}); });
-      req.on('timeout', () => { clearTimeout(timer); req.destroy(); resolve({}); });
-    } catch(e) { clearTimeout(timer); resolve({}); }
-  });
+// Essaie le site direct ; s'il bloque les robots, lit la copie archive.org.
+async function scrapeSite(url) {
+  try {
+    const { html: body, effectiveUrl, viaArchive } = await fetchSiteHtml(url);
+    const phoneRe = /(?:\+?1[\s\-]?)?\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}/g;
+    const phones = body.match(phoneRe) || [];
+    const addrRe = /\d+[,\s]+(?:rue|boulevard|boul\.?|avenue|av\.?|chemin|ch\.?|route|rang|montée|place|côte)[A-Za-zÀ-ÿ\s,.'-]{3,80}/gi;
+    const addrs = (body.match(addrRe) || []).filter(a => a.length > 10 && a.length < 120);
+    const titleMatch = body.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const pageTitle = titleMatch ? titleMatch[1].trim() : '';
+    const foundedMatch = body.match(/(?:fondée?|établie?|depuis|en affaires depuis)\s*(?:en\s*)?((?:19|20)\d{2})/i);
+    return {
+      phone: phones[0] ? phones[0].trim() : '',
+      address: addrs[0] ? addrs[0].trim().replace(/\s+/g, ' ') : '',
+      title: pageTitle,
+      founded: foundedMatch ? foundedMatch[1] : '',
+      effectiveUrl,
+      viaArchive,
+      ...extractBrand(body, effectiveUrl),
+    };
+  } catch(e) {
+    console.warn(`[scrapeSite] ${url}: ${e.message}`);
+    return {};
+  }
 }
 
 // ── Identité de marque — slogan, couleur, logo, services réels ─
@@ -168,4 +216,4 @@ function extractName(ddgTitle, scrapedTitle) {
   return raw.replace(/\s*[-|–—|].*$/, '').trim().slice(0, 60) || 'Entreprise';
 }
 
-module.exports = { ddgSearch, scrapeSite, extractName, extractBrand, SKIP_DOMAINS };
+module.exports = { ddgSearch, scrapeSite, extractName, extractBrand, fetchHtml, fetchSiteHtml, SKIP_DOMAINS };
