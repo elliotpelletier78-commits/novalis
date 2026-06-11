@@ -44,6 +44,21 @@ const CONFIGS = {
     defaultHours: { weekdays: '11 h 00 — 22 h 00', saturday: '10 h 00 — 23 h 00', sunday: '10 h 00 — 15 h 00' },
     marquee: ['Cuisine du marché', 'Produits locaux', 'Carte des vins', "Table d'hôte", 'Brunch week-end'],
     galleryCaptions: ['La façade', "L'ambiance", 'En cuisine', "L'assiette"],
+    chapters: [
+      { img: 'interior', title: "On pousse la porte,<br>la journée reste dehors.", body: "Une lumière chaude, des nappes blanches, le murmure des conversations. Vous êtes arrivé." },
+      { img: 'service', title: "Votre table<br>vous attendait.", body: "Le couvert est mis, le verre est droit, la chandelle est allumée. Il ne manquait que vous." },
+    ],
+    philosophy: {
+      title: 'Une adresse qui<br>ralentit le temps.',
+      intro: "Plus qu'une table : une parenthèse. Une lumière basse, des assiettes précises, un service discret — et une atmosphère qui reste.",
+      cards: [
+        { title: 'Cuisine de saison', body: "La carte suit le marché, pas l'inverse. Fraîcheur d'abord." },
+        { title: 'Service attentif', body: 'Présent quand il faut, invisible le reste du temps.' },
+        { title: 'Ambiance feutrée', body: 'La bonne lumière, le bon volume, la bonne distance entre les tables.' },
+        { title: "Produits d'ici", body: 'Producteurs locaux, arrivages courts, traçabilité réelle.' },
+      ],
+    },
+    lightTheme: { bg: '#F4EDE0', text: '#1D1812', muted: '#6B6052' },
     unsplash: {
       exterior: 'photo-1555396273-367ea4eb4db5?q=90&w=2400&auto=format&fit=crop',
       interior: 'photo-1517248135467-4c7edcad34c4?q=90&w=2400&auto=format&fit=crop',
@@ -83,6 +98,21 @@ const CONFIGS = {
     defaultHours: { weekdays: '7 h 30 — 17 h 30', saturday: '8 h 00 — 14 h 00', sunday: 'Fermé' },
     marquee: ['Mécanique générale', 'Performance', 'Freins', 'Suspension', 'Diagnostic', 'Pneus'],
     galleryCaptions: ["L'atelier", 'Les baies', 'La précision', "L'équipe"],
+    chapters: [
+      { img: 'interior', title: "La porte se lève,<br>le diagnostic commence.", body: "Un atelier propre, des outils à leur place. Votre véhicule entre de bonnes mains dès le premier coup d'œil." },
+      { img: 'service', title: "Chaque boulon<br>a son couple.", body: "La précision n'est pas un luxe — c'est la base. On serre, on mesure, on vérifie. Deux fois." },
+    ],
+    philosophy: {
+      title: 'Un garage qui dit<br>les vraies affaires.',
+      intro: "Pas de jargon, pas de surprise sur la facture. On explique, on montre, on répare — et on garantit.",
+      cards: [
+        { title: "Prix annoncés d'avance", body: 'La soumission avant les travaux. Toujours.' },
+        { title: 'Pièces de qualité', body: 'Des pièces qui durent, pas celles qui reviennent.' },
+        { title: 'Techniciens certifiés', body: 'Formation continue, équipement à jour.' },
+        { title: 'Garantie écrite', body: "Sur pièces et main-d'œuvre. Noir sur blanc." },
+      ],
+    },
+    lightTheme: { bg: '#F0EFED', text: '#141414', muted: '#5E5C58' },
     unsplash: {
       exterior: 'photo-1558618666-fcd25c85cd64?q=90&w=2400&auto=format&fit=crop',
       interior: 'photo-1607860108855-64acf2078ed9?q=90&w=2400&auto=format&fit=crop',
@@ -122,6 +152,21 @@ const CONFIGS = {
     defaultHours: { weekdays: '9 h 00 — 19 h 00', saturday: '9 h 00 — 17 h 00', sunday: 'Fermé' },
     marquee: ['Coupe', 'Coloration', 'Balayage', 'Soins capillaires', 'Esthétique', 'Spa'],
     galleryCaptions: ['Le salon', "L'espace détente", 'Le savoir-faire', 'Le résultat'],
+    chapters: [
+      { img: 'interior', title: "La porte se referme<br>sur le bruit du monde.", body: "Une lumière douce, une musique discrète. Votre moment commence ici." },
+      { img: 'service', title: "Des mains qui savent<br>ce qu'elles font.", body: "On écoute d'abord, on conseille ensuite. Le résultat se voit — et se sent." },
+    ],
+    philosophy: {
+      title: 'Un salon pensé<br>pour vous.',
+      intro: "Chaque visite commence par une conversation et finit devant le miroir, avec un sourire. Entre les deux : du savoir-faire.",
+      cards: [
+        { title: "Écoute d'abord", body: 'Votre style, votre rythme, vos envies. On part de vous.' },
+        { title: 'Produits haut de gamme', body: 'Des marques choisies pour leurs résultats, pas leur pub.' },
+        { title: 'Ambiance détente', body: 'Un café, un fauteuil confortable, du temps pour vous.' },
+        { title: 'Résultats durables', body: "Des conseils pour que ça dure jusqu'à la prochaine visite." },
+      ],
+    },
+    lightTheme: { bg: '#F6EEE7', text: '#1C1512', muted: '#6E6058' },
     unsplash: {
       exterior: 'photo-1560472354-b33ff0c44a43?q=90&w=2400&auto=format&fit=crop',
       interior: 'photo-1560869713-da86a9ec0744?q=90&w=2400&auto=format&fit=crop',
@@ -161,6 +206,21 @@ const CONFIGS = {
     defaultHours: { weekdays: '8 h 00 — 18 h 00', saturday: '9 h 00 — 13 h 00', sunday: 'Fermé' },
     marquee: ['Médecine générale', 'Physiothérapie', 'Prévention', 'Soins spécialisés', 'Bilans de santé'],
     galleryCaptions: ["L'accueil", 'Les salles', 'Les équipements', "L'équipe soignante"],
+    chapters: [
+      { img: 'interior', title: "Ici, on vous<br>écoute d'abord.", body: "Pas de file anonyme. Une équipe qui connaît votre nom et votre dossier." },
+      { img: 'service', title: "La précision<br>au service du soin.", body: "Équipements modernes, protocoles rigoureux, gestes sûrs. Votre santé mérite cette exigence." },
+    ],
+    philosophy: {
+      title: 'Une clinique à<br>échelle humaine.',
+      intro: "Des soins de haut niveau, sans la froideur. On prend le temps qu'il faut, avec les bonnes personnes et les bons outils.",
+      cards: [
+        { title: 'Rendez-vous rapides', body: 'Des plages réservées chaque jour pour les urgences.' },
+        { title: 'Équipe stable', body: 'Les mêmes visages, visite après visite.' },
+        { title: 'Approche globale', body: 'On traite la cause, pas seulement le symptôme.' },
+        { title: 'Suivi personnalisé', body: 'Un plan clair, des étapes mesurables, des résultats.' },
+      ],
+    },
+    lightTheme: { bg: '#EEF4F6', text: '#0E1A20', muted: '#54707C' },
     unsplash: {
       exterior: 'photo-1519494026892-80bbd2d6fd0d?q=90&w=2400&auto=format&fit=crop',
       interior: 'photo-1587351021759-3e566b3db4f0?q=90&w=2400&auto=format&fit=crop',
@@ -200,6 +260,21 @@ const CONFIGS = {
     defaultHours: { weekdays: '7 h 00 — 17 h 00', saturday: '8 h 00 — 12 h 00', sunday: 'Fermé' },
     marquee: ['Rénovation', 'Construction neuve', 'Toiture', 'Excavation', 'Clé en main', 'Garanti'],
     galleryCaptions: ['Le chantier', 'La structure', 'Les finitions', 'Le résultat'],
+    chapters: [
+      { img: 'interior', title: "Tout commence par<br>une poignée de main.", body: "On visite, on écoute, on mesure. La soumission arrive vite — et elle tient." },
+      { img: 'service', title: "Un chantier propre est<br>un chantier sérieux.", body: "Échéancier respecté, site rangé chaque soir. Vos voisins n'auront rien à redire." },
+    ],
+    philosophy: {
+      title: 'Une équipe qui<br>tient parole.',
+      intro: "Dans la construction, la confiance se gagne un chantier à la fois. Voici comment on la mérite depuis le premier jour.",
+      cards: [
+        { title: 'Soumission claire', body: 'Détaillée, chiffrée, sans astérisque caché.' },
+        { title: 'Échéancier respecté', body: 'On dit une date, on livre à cette date.' },
+        { title: 'Chantier propre', body: 'Rangé chaque soir, sécuritaire chaque jour.' },
+        { title: 'Travail garanti', body: 'Licence RBQ, assurances, garantie écrite.' },
+      ],
+    },
+    lightTheme: { bg: '#F2EFE9', text: '#161310', muted: '#67615A' },
     unsplash: {
       exterior: 'photo-1504307651254-35680f356dfd?q=90&w=2400&auto=format&fit=crop',
       interior: 'photo-1541888946425-d81bb19240f5?q=90&w=2400&auto=format&fit=crop',
@@ -500,9 +575,6 @@ function generateCinematic(rawData) {
         .splash-line { width: 1px; height: 54px; background: linear-gradient(to bottom, var(--primary), transparent); animation: lineDown 1.8s ease-in-out infinite; }
         @keyframes lineDown { 0%{transform:scaleY(0);transform-origin:top} 49%{transform:scaleY(1);transform-origin:top} 50%{transform:scaleY(1);transform-origin:bottom} 100%{transform:scaleY(0);transform-origin:bottom} }
 
-        /* Floating CTA mobile */
-        .float-cta { display: none; position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 200; background: var(--primary); color: #fff; font-family: ${cfg.fontH}; font-size: 13px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; padding: 15px 36px; text-decoration: none; box-shadow: 0 8px 40px rgba(0,0,0,0.55); white-space: nowrap; border-radius: 1px; opacity: 0; pointer-events: none; transition: opacity .3s; }
-        @media (max-width: 768px) { .float-cta { display: block; } }
 
         /* Scroll-reveal */
         .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.65s cubic-bezier(.22,1,.36,1), transform 0.65s cubic-bezier(.22,1,.36,1); }
@@ -572,6 +644,36 @@ function generateCinematic(rawData) {
             .gal-head { width: 78vw; scroll-snap-align: start; }
             .gal-img { width: 78vw; scroll-snap-align: center; }
         }
+
+        /* Chapitres narratifs — plein écran, style éditorial */
+        .chapter { position: relative; height: 100vh; min-height: 560px; overflow: hidden; display: flex; align-items: flex-end; }
+        .chap-bg { position: absolute; inset: -6%; background-size: cover; background-position: center; will-change: transform; }
+        .chapter::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.72) 0%, rgba(0,0,0,.18) 45%, rgba(0,0,0,.28) 100%); pointer-events: none; }
+        .chap-content { position: relative; z-index: 2; padding: 0 7vw 13vh; max-width: 760px; }
+        .chap-num { font-family: ${cfg.fontH}; font-size: 11px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--primary); margin-bottom: 18px; }
+        .chap-title { font-family: ${cfg.fontH}; font-weight: ${cfg.fontHW}; font-size: clamp(34px, 4.8vw, 68px); line-height: 1.02; color: #fff; margin-bottom: 18px; text-transform: uppercase; }
+        .chap-body { font-size: clamp(14px, 1.3vw, 17px); line-height: 1.8; color: rgba(255,255,255,.78); max-width: 460px; }
+
+        /* Philosophie — section claire */
+        #philosophy { background: ${cfg.lightTheme.bg}; color: ${cfg.lightTheme.text}; padding: 120px 7vw; }
+        #philosophy .sec-label { color: var(--primary); }
+        #philosophy .sec-title { color: ${cfg.lightTheme.text}; }
+        .philo-intro { max-width: 540px; font-size: 16px; line-height: 1.85; color: ${cfg.lightTheme.muted}; }
+        .philo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-top: 64px; }
+        .philo-card { background: rgba(255,255,255,.55); border: 1px solid rgba(0,0,0,.07); padding: 32px 26px; transition: transform .25s, box-shadow .25s; }
+        .philo-card:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(0,0,0,.08); }
+        .philo-num { font-family: ${cfg.fontH}; font-size: 10px; letter-spacing: 0.32em; color: var(--primary); margin-bottom: 16px; }
+        .philo-title { font-family: ${cfg.fontH}; font-weight: ${cfg.fontHW}; font-size: 19px; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; color: ${cfg.lightTheme.text}; }
+        .philo-body { font-size: 13.5px; line-height: 1.7; color: ${cfg.lightTheme.muted}; }
+
+        /* Barre persistante — adresse / CTA pilule / téléphone */
+        .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 190; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 28px 20px; pointer-events: none; opacity: 0; transition: opacity .4s; }
+        .bottom-bar.on { opacity: 1; }
+        .bb-side { font-family: ${cfg.fontB}; font-size: 11px; letter-spacing: 0.08em; color: rgba(255,255,255,.85); text-shadow: 0 1px 10px rgba(0,0,0,.6); text-decoration: none; }
+        a.bb-side { pointer-events: auto; }
+        .bb-cta { pointer-events: auto; font-family: ${cfg.fontH}; font-size: 12px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; background: var(--primary); color: #fff; padding: 14px 38px; border-radius: 100px; text-decoration: none; box-shadow: 0 10px 36px rgba(0,0,0,.45); transition: transform .2s, box-shadow .2s; }
+        .bb-cta:hover { transform: translateY(-2px); box-shadow: 0 14px 44px rgba(0,0,0,.55); }
+        @media (max-width: 768px) { .bb-side { display: none; } .bottom-bar { justify-content: center; } }
 
         /* Testimonials */
         #testimonials { background: var(--dark); }
@@ -643,9 +745,11 @@ function generateCinematic(rawData) {
     </ul>
     <a href="tel:${phoneClean}" class="nav-cta">Appeler</a>
 </nav>
-${phoneClean ? `<a href="tel:${phoneClean}" class="float-cta" id="floatCta">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="margin-right:7px;vertical-align:-1px;flex-shrink:0"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>${esc(phone)}
-</a>` : ''}
+<div class="bottom-bar" id="bottomBar">
+    <span class="bb-side">${esc(address.split(',').slice(0,2).join(',').trim())}</span>
+    ${phoneClean ? `<a href="tel:${phoneClean}" class="bb-cta">${esc(cfg.ctaLabel)}</a>` : `<span></span>`}
+    ${phoneClean ? `<a href="tel:${phoneClean}" class="bb-side">${esc(phone)}</a>` : `<span class="bb-side"></span>`}
+</div>
 
 <div class="journey">
     <div class="journey-sticky">
@@ -698,6 +802,15 @@ ${phoneClean ? `<a href="tel:${phoneClean}" class="float-cta" id="floatCta">
     </div>
 </section>
 
+<div class="chapter">
+    <div class="chap-bg" style="background-image: ${bgImg(cfg.chapters[0].img, cfg.chapters[0].img)}"></div>
+    <div class="chap-content">
+        <div class="chap-num reveal">01 — ${esc(cfg.galleryCaptions[1])}</div>
+        <h2 class="chap-title reveal reveal-d1">${cfg.chapters[0].title}</h2>
+        <p class="chap-body reveal reveal-d2">${esc(cfg.chapters[0].body)}</p>
+    </div>
+</div>
+
 <section id="about">
     <div class="about-img reveal"></div>
     <div>
@@ -713,6 +826,15 @@ ${phoneClean ? `<a href="tel:${phoneClean}" class="float-cta" id="floatCta">
     </div>
 </section>
 
+<div class="chapter">
+    <div class="chap-bg" style="background-image: ${bgImg(cfg.chapters[1].img, cfg.chapters[1].img)}"></div>
+    <div class="chap-content">
+        <div class="chap-num reveal">02 — ${esc(cfg.galleryCaptions[2])}</div>
+        <h2 class="chap-title reveal reveal-d1">${cfg.chapters[1].title}</h2>
+        <p class="chap-body reveal reveal-d2">${esc(cfg.chapters[1].body)}</p>
+    </div>
+</div>
+
 <div class="gal" id="galerie">
     <div class="gal-sticky">
         <div class="gal-track" id="galTrack">
@@ -727,6 +849,19 @@ ${phoneClean ? `<a href="tel:${phoneClean}" class="float-cta" id="floatCta">
         </div>
     </div>
 </div>
+
+<section id="philosophy">
+    <div class="sec-label reveal">Notre philosophie</div>
+    <h2 class="sec-title reveal reveal-d1">${cfg.philosophy.title}</h2>
+    <p class="philo-intro reveal reveal-d2">${esc(cfg.philosophy.intro)}</p>
+    <div class="philo-grid">
+        ${cfg.philosophy.cards.map((c,i) => `<div class="philo-card reveal reveal-d${Math.min(i+1,4)}">
+            <div class="philo-num">0${i+1}</div>
+            <div class="philo-title">${esc(c.title)}</div>
+            <div class="philo-body">${esc(c.body)}</div>
+        </div>`).join('\n        ')}
+    </div>
+</section>
 
 <section id="testimonials">
     <div class="sec-label reveal">Ce qu'ils en disent</div>
@@ -858,17 +993,26 @@ ${phoneClean ? `<a href="tel:${phoneClean}" class="float-cta" id="floatCta">
         document.querySelectorAll('.stat-num').forEach(el => ioStats.observe(el));
     }
 
-    ${phoneClean ? `// Floating CTA — appears after journey section
-    const floatCta = document.getElementById('floatCta');
-    if (floatCta) {
+    // Parallax des chapitres narratifs
+    document.querySelectorAll('.chapter').forEach(ch => {
+        gsap.fromTo(ch.querySelector('.chap-bg'), { yPercent: -7 }, {
+            yPercent: 7, ease: 'none',
+            scrollTrigger: { trigger: ch, start: 'top bottom', end: 'bottom top', scrub: true }
+        });
+    });
+
+    // Barre persistante — apparaît après le journey, disparaît au footer
+    const bottomBar = document.getElementById('bottomBar');
+    if (bottomBar) {
         const journeyEl = document.querySelector('.journey');
-        function updateFloat() {
+        const footerEl = document.querySelector('footer');
+        function updateBar() {
             const pastJourney = window.scrollY > journeyEl.offsetTop + journeyEl.offsetHeight - window.innerHeight * 0.5;
-            floatCta.style.opacity = pastJourney ? '1' : '0';
-            floatCta.style.pointerEvents = pastJourney ? 'auto' : 'none';
+            const atFooter = footerEl.getBoundingClientRect().top < window.innerHeight - 80;
+            bottomBar.classList.toggle('on', pastJourney && !atFooter);
         }
-        window.addEventListener('scroll', updateFloat, { passive: true });
-    }` : ''}
+        window.addEventListener('scroll', updateBar, { passive: true });
+    }
 </script>
 </body>
 </html>`;
