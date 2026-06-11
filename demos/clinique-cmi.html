@@ -17,8 +17,24 @@
             --muted: #7090A0;
         }
         html { scroll-behavior: smooth; }
+        html.lenis, html.lenis body { height: auto; }
+        .lenis.lenis-smooth { scroll-behavior: auto !important; }
         body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
         ::-webkit-scrollbar { display: none; }
+
+        /* ══ PRÉCHARGEUR ══ */
+        #loader { position: fixed; inset: 0; z-index: 999; background: var(--bg); display: flex; align-items: center; justify-content: center; transition: transform .9s cubic-bezier(.76,0,.24,1); }
+        #loader.done { transform: translateY(-100%); pointer-events: none; }
+        .loader-name { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: clamp(28px, 5vw, 64px); text-transform: uppercase; letter-spacing: 0.04em; overflow: hidden; }
+        .loader-name span { display: inline-block; transform: translateY(110%); }
+        .loader-count { position: absolute; bottom: 32px; right: 40px; font-family: 'DM Serif Display', serif; font-size: clamp(40px, 6vw, 80px); font-weight: 400; color: var(--primary); line-height: 1; }
+
+        /* Masques de lignes — titres révélés ligne par ligne */
+        .line-mask { display: block; overflow: hidden; }
+        .line-mask > span { display: block; transform: translateY(115%); will-change: transform; }
+
+        /* Accent italique éditorial */
+        .sec-title em, .chap-title em, .splash-logo em { font-style: italic; color: var(--primary); }
 
         /* ══ JOURNEY ══ */
         .journey { height: 700vh; position: relative; }
@@ -85,8 +101,9 @@
         .reveal-d4 { transition-delay: 0.32s; }
 
         /* Navbar */
-        .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 22px 6vw; transition: background .4s, padding .3s; }
+        .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 22px 6vw; transition: background .4s, padding .3s, transform .45s cubic-bezier(.22,1,.36,1); }
         .navbar.scrolled { background: rgba(4,12,20, 0.96); backdrop-filter: blur(16px); padding: 14px 6vw; }
+        .navbar.hidden { transform: translateY(-100%); }
         .nav-logo { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 16px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text); text-decoration: none; }
         .nav-logo span { color: var(--primary); }
         .nav-links { display: flex; gap: 36px; list-style: none; }
@@ -133,8 +150,8 @@
         .gal-track { display: flex; align-items: center; gap: 4vw; padding: 0 7vw; will-change: transform; }
         .gal-head { flex-shrink: 0; width: 32vw; min-width: 300px; }
         .gal-item { flex-shrink: 0; position: relative; }
-        .gal-img { width: 52vw; max-width: 760px; aspect-ratio: 3/2; background-size: cover; background-position: center; transition: transform .6s cubic-bezier(.22,1,.36,1); }
-        .gal-item:hover .gal-img { transform: scale(1.025); }
+        .gal-img { width: 52vw; max-width: 760px; aspect-ratio: 3/2; background-size: cover; background-position: center; transition: filter .6s; }
+        .gal-item:hover .gal-img { filter: brightness(1.07); }
         .gal-cap { position: absolute; bottom: -34px; left: 0; font-family: 'DM Serif Display', serif; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); }
         .gal-cap strong { color: var(--primary); font-weight: 400; margin-right: 14px; }
         @media (max-width: 768px) {
@@ -234,6 +251,11 @@
     </style>
 </head>
 <body>
+
+<div id="loader" aria-hidden="true">
+    <div class="loader-name" id="loaderName"><span>C</span><span>l</span><span>i</span><span>n</span><span>i</span><span>q</span><span>u</span><span>e</span><span>&nbsp;</span><span>C</span><span>M</span><span>I</span></div>
+    <div class="loader-count" id="loaderCount">0</div>
+</div>
 
 <nav class="navbar" id="navbar">
     <a href="#" class="nav-logo">Clinique CMI</a>
@@ -481,15 +503,85 @@
 
 <img src="/t/clinique-cmi" width="1" height="1" style="position:fixed;top:0;left:0;opacity:0.001;pointer-events:none" alt="">
 
+<script src="https://unpkg.com/lenis@1.1.14/dist/lenis.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script>
     gsap.registerPlugin(ScrollTrigger);
+    const reduceMotionGlobal = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // Navbar scroll
+    // Défilement fluide inertiel (Lenis)
+    let lenis = null;
+    if (typeof Lenis !== 'undefined' && !reduceMotionGlobal) {
+        lenis = new Lenis({ duration: 1.15, smoothWheel: true });
+        lenis.on('scroll', ScrollTrigger.update);
+        gsap.ticker.add((t) => lenis.raf(t * 1000));
+        gsap.ticker.lagSmoothing(0);
+    }
+
+    // Préchargeur — compteur + lettres, puis rideau qui se lève
+    (function() {
+        const loader = document.getElementById('loader');
+        const count = document.getElementById('loaderCount');
+        const letters = document.querySelectorAll('#loaderName span');
+        if (lenis) lenis.stop();
+        document.body.style.overflow = 'hidden';
+        function finish() {
+            loader.classList.add('done');
+            document.body.style.overflow = '';
+            if (lenis) lenis.start();
+        }
+        if (reduceMotionGlobal) { loader.style.display = 'none'; document.body.style.overflow = ''; return; }
+        gsap.to(letters, { y: 0, duration: 0.8, stagger: 0.035, ease: 'power3.out', delay: 0.15 });
+        const cnt = { v: 0 };
+        gsap.to(cnt, {
+            v: 100, duration: 1.6, ease: 'power2.inOut', delay: 0.1,
+            onUpdate: () => { count.textContent = Math.round(cnt.v); },
+            onComplete: () => setTimeout(finish, 220),
+        });
+        setTimeout(finish, 3200); // garde-fou
+    })();
+
+    // Navbar — fond au scroll + cache en descendant, revient en remontant
+    let lastY = 0;
+    const navEl = document.getElementById('navbar');
     window.addEventListener('scroll', () => {
-        document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 60);
+        const y = window.scrollY;
+        navEl.classList.toggle('scrolled', y > 60);
+        navEl.classList.toggle('hidden', y > 400 && y > lastY);
+        lastY = y;
     }, { passive: true });
+
+    // Titres révélés ligne par ligne (segments séparés par <br>)
+    document.querySelectorAll('.sec-title, .chap-title').forEach(h => {
+        h.classList.remove('reveal', 'reveal-d1', 'reveal-d2', 'reveal-d3');
+        const parts = h.innerHTML.split(/<br\s*\/?>/i);
+        h.innerHTML = parts.map(s => '<span class="line-mask"><span>' + s + '</span></span>').join('');
+        gsap.to(h.querySelectorAll('.line-mask > span'), {
+            y: 0, duration: 1, stagger: 0.09, ease: 'power3.out',
+            scrollTrigger: { trigger: h, start: 'top 86%', once: true },
+        });
+    });
+
+    // Liens d'ancrage fluides avec Lenis
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+        a.addEventListener('click', (e) => {
+            const id = a.getAttribute('href');
+            if (id.length > 1 && lenis && document.querySelector(id)) {
+                e.preventDefault();
+                lenis.scrollTo(id, { offset: -20 });
+            }
+        });
+    });
+
+    // Images dévoilées au scroll — clip + zoom doux
+    document.querySelectorAll('.about-img, .gal-img, .contact-map').forEach(el => {
+        gsap.fromTo(el,
+            { clipPath: 'inset(10% 5% 10% 5%)', scale: 1.06 },
+            { clipPath: 'inset(0% 0% 0% 0%)', scale: 1, duration: 1.25, ease: 'power3.out',
+              scrollTrigger: { trigger: el, start: 'top 84%', once: true } }
+        );
+    });
 
     // GSAP cinematic journey
     const tl = gsap.timeline({
