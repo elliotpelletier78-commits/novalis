@@ -42,6 +42,8 @@ const CONFIGS = {
       { num: '100%', label: 'produits locaux' },
     ],
     defaultHours: { weekdays: '11 h 00 — 22 h 00', saturday: '10 h 00 — 23 h 00', sunday: '10 h 00 — 15 h 00' },
+    marquee: ['Cuisine du marché', 'Produits locaux', 'Carte des vins', "Table d'hôte", 'Brunch week-end'],
+    galleryCaptions: ['La façade', "L'ambiance", 'En cuisine', "L'assiette"],
     unsplash: {
       exterior: 'photo-1555396273-367ea4eb4db5?q=90&w=2400&auto=format&fit=crop',
       interior: 'photo-1517248135467-4c7edcad34c4?q=90&w=2400&auto=format&fit=crop',
@@ -79,6 +81,8 @@ const CONFIGS = {
       { num: '98%', label: 'satisfaction client' },
     ],
     defaultHours: { weekdays: '7 h 30 — 17 h 30', saturday: '8 h 00 — 14 h 00', sunday: 'Fermé' },
+    marquee: ['Mécanique générale', 'Performance', 'Freins', 'Suspension', 'Diagnostic', 'Pneus'],
+    galleryCaptions: ["L'atelier", 'Les baies', 'La précision', "L'équipe"],
     unsplash: {
       exterior: 'photo-1558618666-fcd25c85cd64?q=90&w=2400&auto=format&fit=crop',
       interior: 'photo-1607860108855-64acf2078ed9?q=90&w=2400&auto=format&fit=crop',
@@ -116,6 +120,8 @@ const CONFIGS = {
       { num: '4.9★', label: 'note Google' },
     ],
     defaultHours: { weekdays: '9 h 00 — 19 h 00', saturday: '9 h 00 — 17 h 00', sunday: 'Fermé' },
+    marquee: ['Coupe', 'Coloration', 'Balayage', 'Soins capillaires', 'Esthétique', 'Spa'],
+    galleryCaptions: ['Le salon', "L'espace détente", 'Le savoir-faire', 'Le résultat'],
     unsplash: {
       exterior: 'photo-1560472354-b33ff0c44a43?q=90&w=2400&auto=format&fit=crop',
       interior: 'photo-1560869713-da86a9ec0744?q=90&w=2400&auto=format&fit=crop',
@@ -153,6 +159,8 @@ const CONFIGS = {
       { num: '97%', label: 'satisfaction patient' },
     ],
     defaultHours: { weekdays: '8 h 00 — 18 h 00', saturday: '9 h 00 — 13 h 00', sunday: 'Fermé' },
+    marquee: ['Médecine générale', 'Physiothérapie', 'Prévention', 'Soins spécialisés', 'Bilans de santé'],
+    galleryCaptions: ["L'accueil", 'Les salles', 'Les équipements', "L'équipe soignante"],
     unsplash: {
       exterior: 'photo-1519494026892-80bbd2d6fd0d?q=90&w=2400&auto=format&fit=crop',
       interior: 'photo-1587351021759-3e566b3db4f0?q=90&w=2400&auto=format&fit=crop',
@@ -190,6 +198,8 @@ const CONFIGS = {
       { num: '100%', label: 'travail garanti' },
     ],
     defaultHours: { weekdays: '7 h 00 — 17 h 00', saturday: '8 h 00 — 12 h 00', sunday: 'Fermé' },
+    marquee: ['Rénovation', 'Construction neuve', 'Toiture', 'Excavation', 'Clé en main', 'Garanti'],
+    galleryCaptions: ['Le chantier', 'La structure', 'Les finitions', 'Le résultat'],
     unsplash: {
       exterior: 'photo-1504307651254-35680f356dfd?q=90&w=2400&auto=format&fit=crop',
       interior: 'photo-1541888946425-d81bb19240f5?q=90&w=2400&auto=format&fit=crop',
@@ -518,13 +528,21 @@ function generateCinematic(rawData) {
         .sec-label { font-family: ${cfg.fontH}; font-size: 10px; letter-spacing: 0.42em; text-transform: uppercase; color: var(--primary); margin-bottom: 20px; }
         .sec-title { font-family: ${cfg.fontH}; font-weight: ${cfg.fontHW}; font-size: clamp(36px, 5.5vw, 74px); text-transform: uppercase; line-height: 0.92; margin-bottom: 32px; }
 
+        /* Marquee */
+        .marquee { background: var(--bg); border-top: 1px solid rgba(255,255,255,.05); border-bottom: 1px solid rgba(255,255,255,.05); padding: 26px 0; overflow: hidden; white-space: nowrap; }
+        .marquee-track { display: inline-flex; animation: marqueeSlide 28s linear infinite; will-change: transform; }
+        .marquee-item { font-family: ${cfg.fontH}; font-weight: ${cfg.fontHW}; font-size: clamp(16px, 1.8vw, 24px); text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); padding: 0 30px; }
+        .marquee-item::after { content: '·'; color: var(--primary); margin-left: 60px; }
+        @keyframes marqueeSlide { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
         /* Services */
         #services { background: var(--dark); }
         .svc-intro { max-width: 500px; font-size: 16px; line-height: 1.8; color: var(--muted); margin-bottom: 0; }
         .svc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 2px; margin-top: 56px; }
-        .svc-card { background: var(--panel); padding: 42px 34px; border-top: 2px solid var(--primary); transition: background .2s; cursor: default; }
-        .svc-card:hover { background: var(--dark); }
-        .svc-num { font-family: ${cfg.fontH}; font-size: 10px; letter-spacing: 0.32em; color: var(--primary); margin-bottom: 22px; text-transform: uppercase; }
+        .svc-card { background: var(--panel); padding: 42px 34px; border-top: 2px solid var(--primary); transition: background .25s, transform .25s; cursor: default; }
+        .svc-card:hover { background: var(--dark); transform: translateY(-4px); }
+        .svc-num { font-family: ${cfg.fontH}; font-size: 10px; letter-spacing: 0.32em; color: var(--muted); margin-bottom: 22px; text-transform: uppercase; transition: color .25s; }
+        .svc-card:hover .svc-num { color: var(--primary); }
         .svc-title { font-family: ${cfg.fontH}; font-weight: ${cfg.fontHW}; font-size: clamp(18px, 2vw, 24px); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
         .svc-desc { font-size: 14px; line-height: 1.75; color: var(--muted); }
 
@@ -537,10 +555,29 @@ function generateCinematic(rawData) {
         .stat-num { font-family: ${cfg.fontH}; font-weight: ${cfg.fontHW}; font-size: clamp(38px, 4vw, 60px); color: var(--primary); line-height: 1; }
         .stat-label { font-size: 12px; letter-spacing: 0.05em; color: var(--muted); margin-top: 5px; }
 
+        /* Gallery — défilement horizontal cinématique */
+        .gal { height: 280vh; position: relative; background: var(--bg); }
+        .gal-sticky { position: sticky; top: 0; height: 100vh; display: flex; align-items: center; overflow: hidden; }
+        .gal-track { display: flex; align-items: center; gap: 4vw; padding: 0 7vw; will-change: transform; }
+        .gal-head { flex-shrink: 0; width: 32vw; min-width: 300px; }
+        .gal-item { flex-shrink: 0; position: relative; }
+        .gal-img { width: 52vw; max-width: 760px; aspect-ratio: 3/2; background-size: cover; background-position: center; transition: transform .6s cubic-bezier(.22,1,.36,1); }
+        .gal-item:hover .gal-img { transform: scale(1.025); }
+        .gal-cap { position: absolute; bottom: -34px; left: 0; font-family: ${cfg.fontH}; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); }
+        .gal-cap strong { color: var(--primary); font-weight: ${cfg.fontHW}; margin-right: 14px; }
+        @media (max-width: 768px) {
+            .gal { height: auto; }
+            .gal-sticky { position: static; height: auto; padding: 72px 0; }
+            .gal-track { overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding-bottom: 50px; }
+            .gal-head { width: 78vw; scroll-snap-align: start; }
+            .gal-img { width: 78vw; scroll-snap-align: center; }
+        }
+
         /* Testimonials */
         #testimonials { background: var(--dark); }
         .testi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2px; margin-top: 52px; }
-        .testi-card { background: var(--panel); padding: 36px 32px; border-left: 2px solid var(--primary); }
+        .testi-card { background: var(--panel); padding: 36px 32px; border-left: 2px solid var(--primary); position: relative; overflow: hidden; }
+        .testi-card::before { content: '«'; position: absolute; top: -14px; right: 14px; font-family: ${cfg.fontH}; font-size: 110px; line-height: 1; color: var(--primary); opacity: 0.1; pointer-events: none; }
         .testi-stars { color: var(--primary); font-size: 13px; letter-spacing: 2px; margin-bottom: 14px; }
         .testi-text { font-size: 15px; line-height: 1.8; color: rgba(255,255,255,.75); font-style: italic; }
         .testi-author { font-family: ${cfg.fontH}; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-top: 20px; }
@@ -562,16 +599,35 @@ function generateCinematic(rawData) {
         .contact-map iframe { display: block; width: 100%; height: 240px; border: none; filter: grayscale(100%) contrast(80%) brightness(${mapBrightness}); }
 
         /* Footer */
-        footer { background: ${p.bg}; padding: 34px 7vw; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; border-top: 1px solid rgba(255,255,255,.05); }
-        .foot-logo { font-family: ${cfg.fontH}; font-weight: ${cfg.fontHW}; font-size: 17px; text-transform: uppercase; }
+        footer { background: ${p.bg}; padding: 72px 7vw 0; border-top: 1px solid rgba(255,255,255,.05); }
+        .foot-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 56px; padding-bottom: 56px; }
+        .foot-logo { font-family: ${cfg.fontH}; font-weight: ${cfg.fontHW}; font-size: clamp(22px, 2.4vw, 32px); text-transform: uppercase; line-height: 1; }
         .foot-logo span { color: var(--primary); }
-        footer p { font-size: 12px; color: var(--muted); letter-spacing: 0.07em; }
+        .foot-tag { font-size: 13px; color: var(--muted); margin-top: 14px; max-width: 320px; line-height: 1.7; }
+        .foot-head { font-family: ${cfg.fontH}; font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--primary); margin-bottom: 18px; }
+        .foot-col a { display: block; font-size: 13px; color: var(--muted); text-decoration: none; margin-bottom: 10px; transition: color .2s; }
+        .foot-col a:hover { color: var(--text); }
+        .foot-col p { font-size: 13px; color: var(--muted); line-height: 1.7; }
+        .foot-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding: 22px 0; border-top: 1px solid rgba(255,255,255,.05); }
+        .foot-bar p { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; }
+        .foot-bar a { color: var(--muted); text-decoration: none; border-bottom: 1px solid rgba(255,255,255,.15); transition: color .2s; }
+        .foot-bar a:hover { color: var(--text); }
+
+        ::selection { background: var(--primary); color: #000; }
 
         @media (max-width: 768px) {
             #about { grid-template-columns: 1fr; gap: 40px; }
             .nav-links { display: none; }
             .about-img { aspect-ratio: 16/9; }
             .hours-grid { gap: 24px; }
+            .foot-grid { grid-template-columns: 1fr; gap: 36px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .reveal { opacity: 1; transform: none; transition: none; }
+            .marquee-track { animation: none; }
+            .splash-line { animation: none; }
+            html { scroll-behavior: auto; }
         }
     </style>
 </head>
@@ -582,6 +638,7 @@ function generateCinematic(rawData) {
     <ul class="nav-links">
         <li><a href="#services">Services</a></li>
         <li><a href="#about">À propos</a></li>
+        <li><a href="#galerie">Galerie</a></li>
         <li><a href="#contact">Contact</a></li>
     </ul>
     <a href="tel:${phoneClean}" class="nav-cta">Appeler</a>
@@ -622,6 +679,12 @@ ${phoneClean ? `<a href="tel:${phoneClean}" class="float-cta" id="floatCta">
     </div>
 </div>
 
+<div class="marquee" aria-hidden="true">
+    <div class="marquee-track">
+        ${[0,1].map(() => cfg.marquee.map(w => `<span class="marquee-item">${esc(w)}</span>`).join('')).join('')}
+    </div>
+</div>
+
 <section id="services">
     <div class="sec-label reveal">Nos expertises</div>
     <h2 class="sec-title reveal reveal-d1">Ce qu'on<br>fait le mieux</h2>
@@ -643,12 +706,27 @@ ${phoneClean ? `<a href="tel:${phoneClean}" class="float-cta" id="floatCta">
         <p class="about-body reveal reveal-d2">${aboutText}</p>
         <div class="stats-grid reveal reveal-d3">
             ${stats.map(s => `<div>
-                <div class="stat-num">${esc(s.num)}</div>
+                <div class="stat-num" data-target="${esc(s.num)}">${esc(s.num)}</div>
                 <div class="stat-label">${esc(s.label)}</div>
             </div>`).join('\n            ')}
         </div>
     </div>
 </section>
+
+<div class="gal" id="galerie">
+    <div class="gal-sticky">
+        <div class="gal-track" id="galTrack">
+            <div class="gal-head">
+                <div class="sec-label">La visite continue</div>
+                <h2 class="sec-title">Voyez par<br>vous-même</h2>
+            </div>
+            ${['exterior','interior','service','about'].map((key, i) => `<div class="gal-item">
+                <div class="gal-img" style="background-image: ${bgImg(key, key)}"></div>
+                <div class="gal-cap"><strong>0${i+1}</strong>${esc(cfg.galleryCaptions[i])}</div>
+            </div>`).join('\n            ')}
+        </div>
+    </div>
+</div>
 
 <section id="testimonials">
     <div class="sec-label reveal">Ce qu'ils en disent</div>
@@ -677,9 +755,29 @@ ${phoneClean ? `<a href="tel:${phoneClean}" class="float-cta" id="floatCta">
 </section>
 
 <footer>
-    <div class="foot-logo">${esc(name)}</div>
-    <p>${esc(address)} · ${esc(phone)}</p>
-    <p>© ${new Date().getFullYear()} ${esc(name)}</p>
+    <div class="foot-grid">
+        <div>
+            <div class="foot-logo">${esc(name)}</div>
+            <p class="foot-tag">${esc(tagline)}</p>
+        </div>
+        <div class="foot-col">
+            <div class="foot-head">Navigation</div>
+            <a href="#services">Services</a>
+            <a href="#about">À propos</a>
+            <a href="#galerie">Galerie</a>
+            <a href="#contact">Contact</a>
+        </div>
+        <div class="foot-col">
+            <div class="foot-head">Contact</div>
+            ${phoneClean ? `<a href="tel:${phoneClean}">${esc(phone)}</a>` : ''}
+            <p>${esc(address)}</p>
+            <p style="margin-top:10px">Lun — Ven · ${esc(hours.weekdays)}</p>
+        </div>
+    </div>
+    <div class="foot-bar">
+        <p>© ${new Date().getFullYear()} ${esc(name)} — Tous droits réservés</p>
+        <p>Site conçu par <a href="https://novalisia.ca" target="_blank" rel="noopener">Novalis Studio</a></p>
+    </div>
 </footer>
 
 <img src="/t/${slug}" width="1" height="1" style="position:fixed;top:0;left:0;opacity:0.001;pointer-events:none" alt="">
@@ -705,6 +803,22 @@ ${phoneClean ? `<a href="tel:${phoneClean}" class="float-cta" id="floatCta">
     });
     ${gsapScript(anim)}
 
+    // Galerie horizontale — pilotée par le scroll (desktop seulement)
+    const galTrack = document.getElementById('galTrack');
+    if (galTrack && window.matchMedia('(min-width: 769px)').matches) {
+        gsap.to(galTrack, {
+            x: () => -(galTrack.scrollWidth - window.innerWidth + window.innerWidth * 0.07),
+            ease: 'none',
+            scrollTrigger: {
+                trigger: '.gal',
+                start: 'top top',
+                end: 'bottom bottom',
+                scrub: 1,
+                invalidateOnRefresh: true,
+            }
+        });
+    }
+
     // Scroll-reveal via IntersectionObserver
     const io = new IntersectionObserver((entries) => {
         entries.forEach(e => {
@@ -712,6 +826,37 @@ ${phoneClean ? `<a href="tel:${phoneClean}" class="float-cta" id="floatCta">
         });
     }, { threshold: 0.12 });
     document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+    // Compteurs animés — les stats comptent jusqu'à leur valeur
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function animateStat(el) {
+        const raw = el.dataset.target || '';
+        const m = raw.match(/^([^0-9]*)([0-9][0-9\\s.,\\u00A0\\u202F]*)(.*)$/);
+        if (!m) return;
+        const target = parseFloat(m[2].replace(/[\\s\\u00A0\\u202F]/g, '').replace(',', '.'));
+        if (isNaN(target)) return;
+        const decimals = /[.,]\\d/.test(m[2].trim()) ? 1 : 0;
+        const dur = 1400, t0 = performance.now();
+        function fmt(v) {
+            return m[1] + v.toLocaleString('fr-CA', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + m[3];
+        }
+        function tick(now) {
+            const k = Math.min((now - t0) / dur, 1);
+            const eased = 1 - Math.pow(1 - k, 3);
+            el.textContent = fmt(target * eased);
+            if (k < 1) requestAnimationFrame(tick);
+            else el.textContent = raw;
+        }
+        requestAnimationFrame(tick);
+    }
+    if (!reduceMotion) {
+        const ioStats = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.isIntersecting) { animateStat(e.target); ioStats.unobserve(e.target); }
+            });
+        }, { threshold: 0.5 });
+        document.querySelectorAll('.stat-num').forEach(el => ioStats.observe(el));
+    }
 
     ${phoneClean ? `// Floating CTA — appears after journey section
     const floatCta = document.getElementById('floatCta');
