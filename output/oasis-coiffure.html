@@ -289,7 +289,7 @@
         <div class="scene" id="s-site">
             <div class="site-splash">
                 
-                <img class="splash-logo-img" src="/demo/images/oasis-coiffure-logo.png" onerror="this.style.display='none'" alt="Oasis Coiffure">
+                <img class="splash-logo-img" src="/demo/images/oasis-coiffure-logo.png" data-logo="" onerror="const f=this.dataset.logo;if(f&&!this._t){this._t=1;this.src=f}else{this.style.display='none'}" alt="Oasis Coiffure">
                 <div class="splash-logo">Oasis Coiffure</div>
                 <div class="splash-tagline">Votre oasis de beauté à Sainte-Rose, Laval.</div>
                 <div class="splash-scroll"><span>Explorer</span><div class="splash-line"></div></div>

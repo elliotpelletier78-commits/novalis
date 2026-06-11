@@ -294,7 +294,7 @@
         <div class="scene" id="s-site">
             <div class="site-splash">
                 <div class="splash-badge">Sherbrooke</div>
-                <img class="splash-logo-img" src="/demo/images/pmc-mecanique-logo.png" onerror="this.style.display='none'" alt="PMC Mécanique">
+                <img class="splash-logo-img" src="/demo/images/pmc-mecanique-logo.png" data-logo="" onerror="const f=this.dataset.logo;if(f&&!this._t){this._t=1;this.src=f}else{this.style.display='none'}" alt="PMC Mécanique">
                 <div class="splash-logo">PMC Mécanique</div>
                 <div class="splash-tagline">Spécialiste VÉ et mécanique générale à Sherbrooke.</div>
                 <div class="splash-scroll"><span>Explorer</span><div class="splash-line"></div></div>
