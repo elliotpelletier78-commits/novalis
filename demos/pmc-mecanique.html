@@ -78,9 +78,6 @@
         .splash-line { width: 1px; height: 54px; background: linear-gradient(to bottom, var(--primary), transparent); animation: lineDown 1.8s ease-in-out infinite; }
         @keyframes lineDown { 0%{transform:scaleY(0);transform-origin:top} 49%{transform:scaleY(1);transform-origin:top} 50%{transform:scaleY(1);transform-origin:bottom} 100%{transform:scaleY(0);transform-origin:bottom} }
 
-        /* Floating CTA mobile */
-        .float-cta { display: none; position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 200; background: var(--primary); color: #fff; font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; padding: 15px 36px; text-decoration: none; box-shadow: 0 8px 40px rgba(0,0,0,0.55); white-space: nowrap; border-radius: 1px; opacity: 0; pointer-events: none; transition: opacity .3s; }
-        @media (max-width: 768px) { .float-cta { display: block; } }
 
         /* Scroll-reveal */
         .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.65s cubic-bezier(.22,1,.36,1), transform 0.65s cubic-bezier(.22,1,.36,1); }
@@ -150,6 +147,36 @@
             .gal-head { width: 78vw; scroll-snap-align: start; }
             .gal-img { width: 78vw; scroll-snap-align: center; }
         }
+
+        /* Chapitres narratifs — plein écran, style éditorial */
+        .chapter { position: relative; height: 100vh; min-height: 560px; overflow: hidden; display: flex; align-items: flex-end; }
+        .chap-bg { position: absolute; inset: -6%; background-size: cover; background-position: center; will-change: transform; }
+        .chapter::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.72) 0%, rgba(0,0,0,.18) 45%, rgba(0,0,0,.28) 100%); pointer-events: none; }
+        .chap-content { position: relative; z-index: 2; padding: 0 7vw 13vh; max-width: 760px; }
+        .chap-num { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--primary); margin-bottom: 18px; }
+        .chap-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: clamp(34px, 4.8vw, 68px); line-height: 1.02; color: #fff; margin-bottom: 18px; text-transform: uppercase; }
+        .chap-body { font-size: clamp(14px, 1.3vw, 17px); line-height: 1.8; color: rgba(255,255,255,.78); max-width: 460px; }
+
+        /* Philosophie — section claire */
+        #philosophy { background: #F0EFED; color: #141414; padding: 120px 7vw; }
+        #philosophy .sec-label { color: var(--primary); }
+        #philosophy .sec-title { color: #141414; }
+        .philo-intro { max-width: 540px; font-size: 16px; line-height: 1.85; color: #5E5C58; }
+        .philo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-top: 64px; }
+        .philo-card { background: rgba(255,255,255,.55); border: 1px solid rgba(0,0,0,.07); padding: 32px 26px; transition: transform .25s, box-shadow .25s; }
+        .philo-card:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(0,0,0,.08); }
+        .philo-num { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; letter-spacing: 0.32em; color: var(--primary); margin-bottom: 16px; }
+        .philo-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 19px; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; color: #141414; }
+        .philo-body { font-size: 13.5px; line-height: 1.7; color: #5E5C58; }
+
+        /* Barre persistante — adresse / CTA pilule / téléphone */
+        .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 190; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 28px 20px; pointer-events: none; opacity: 0; transition: opacity .4s; }
+        .bottom-bar.on { opacity: 1; }
+        .bb-side { font-family: 'Inter', sans-serif; font-size: 11px; letter-spacing: 0.08em; color: rgba(255,255,255,.85); text-shadow: 0 1px 10px rgba(0,0,0,.6); text-decoration: none; }
+        a.bb-side { pointer-events: auto; }
+        .bb-cta { pointer-events: auto; font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; background: var(--primary); color: #fff; padding: 14px 38px; border-radius: 100px; text-decoration: none; box-shadow: 0 10px 36px rgba(0,0,0,.45); transition: transform .2s, box-shadow .2s; }
+        .bb-cta:hover { transform: translateY(-2px); box-shadow: 0 14px 44px rgba(0,0,0,.55); }
+        @media (max-width: 768px) { .bb-side { display: none; } .bottom-bar { justify-content: center; } }
 
         /* Testimonials */
         #testimonials { background: var(--dark); }
@@ -221,9 +248,11 @@
     </ul>
     <a href="tel:8197910717" class="nav-cta">Appeler</a>
 </nav>
-<a href="tel:8197910717" class="float-cta" id="floatCta">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="margin-right:7px;vertical-align:-1px;flex-shrink:0"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>819 791-0717
-</a>
+<div class="bottom-bar" id="bottomBar">
+    <span class="bb-side">2850 Rue King Est, Sherbrooke</span>
+    <a href="tel:8197910717" class="bb-cta">Réserver ma place</a>
+    <a href="tel:8197910717" class="bb-side">819 791-0717</a>
+</div>
 
 <div class="journey">
     <div class="journey-sticky">
@@ -291,6 +320,15 @@
     </div>
 </section>
 
+<div class="chapter">
+    <div class="chap-bg" style="background-image: url('/demo/images/pmc-mecanique-interior.jpg'), url('https://images.unsplash.com/photo-1607860108855-64acf2078ed9?q=90&w=2400&auto=format&fit=crop')"></div>
+    <div class="chap-content">
+        <div class="chap-num reveal">01 — Les baies</div>
+        <h2 class="chap-title reveal reveal-d1">La porte se lève,<br>le diagnostic commence.</h2>
+        <p class="chap-body reveal reveal-d2">Un atelier propre, des outils à leur place. Votre véhicule entre de bonnes mains dès le premier coup d'œil.</p>
+    </div>
+</div>
+
 <section id="about">
     <div class="about-img reveal"></div>
     <div>
@@ -318,6 +356,15 @@
     </div>
 </section>
 
+<div class="chapter">
+    <div class="chap-bg" style="background-image: url('/demo/images/pmc-mecanique-service.jpg'), url('https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?q=90&w=2400&auto=format&fit=crop')"></div>
+    <div class="chap-content">
+        <div class="chap-num reveal">02 — La précision</div>
+        <h2 class="chap-title reveal reveal-d1">Chaque boulon<br>a son couple.</h2>
+        <p class="chap-body reveal reveal-d2">La précision n'est pas un luxe — c'est la base. On serre, on mesure, on vérifie. Deux fois.</p>
+    </div>
+</div>
+
 <div class="gal" id="galerie">
     <div class="gal-sticky">
         <div class="gal-track" id="galTrack">
@@ -344,6 +391,34 @@
         </div>
     </div>
 </div>
+
+<section id="philosophy">
+    <div class="sec-label reveal">Notre philosophie</div>
+    <h2 class="sec-title reveal reveal-d1">Un garage qui dit<br>les vraies affaires.</h2>
+    <p class="philo-intro reveal reveal-d2">Pas de jargon, pas de surprise sur la facture. On explique, on montre, on répare — et on garantit.</p>
+    <div class="philo-grid">
+        <div class="philo-card reveal reveal-d1">
+            <div class="philo-num">01</div>
+            <div class="philo-title">Prix annoncés d'avance</div>
+            <div class="philo-body">La soumission avant les travaux. Toujours.</div>
+        </div>
+        <div class="philo-card reveal reveal-d2">
+            <div class="philo-num">02</div>
+            <div class="philo-title">Pièces de qualité</div>
+            <div class="philo-body">Des pièces qui durent, pas celles qui reviennent.</div>
+        </div>
+        <div class="philo-card reveal reveal-d3">
+            <div class="philo-num">03</div>
+            <div class="philo-title">Techniciens certifiés</div>
+            <div class="philo-body">Formation continue, équipement à jour.</div>
+        </div>
+        <div class="philo-card reveal reveal-d4">
+            <div class="philo-num">04</div>
+            <div class="philo-title">Garantie écrite</div>
+            <div class="philo-body">Sur pièces et main-d'œuvre. Noir sur blanc.</div>
+        </div>
+    </div>
+</section>
 
 <section id="testimonials">
     <div class="sec-label reveal">Ce qu'ils en disent</div>
@@ -509,16 +584,25 @@
         document.querySelectorAll('.stat-num').forEach(el => ioStats.observe(el));
     }
 
-    // Floating CTA — appears after journey section
-    const floatCta = document.getElementById('floatCta');
-    if (floatCta) {
+    // Parallax des chapitres narratifs
+    document.querySelectorAll('.chapter').forEach(ch => {
+        gsap.fromTo(ch.querySelector('.chap-bg'), { yPercent: -7 }, {
+            yPercent: 7, ease: 'none',
+            scrollTrigger: { trigger: ch, start: 'top bottom', end: 'bottom top', scrub: true }
+        });
+    });
+
+    // Barre persistante — apparaît après le journey, disparaît au footer
+    const bottomBar = document.getElementById('bottomBar');
+    if (bottomBar) {
         const journeyEl = document.querySelector('.journey');
-        function updateFloat() {
+        const footerEl = document.querySelector('footer');
+        function updateBar() {
             const pastJourney = window.scrollY > journeyEl.offsetTop + journeyEl.offsetHeight - window.innerHeight * 0.5;
-            floatCta.style.opacity = pastJourney ? '1' : '0';
-            floatCta.style.pointerEvents = pastJourney ? 'auto' : 'none';
+            const atFooter = footerEl.getBoundingClientRect().top < window.innerHeight - 80;
+            bottomBar.classList.toggle('on', pastJourney && !atFooter);
         }
-        window.addEventListener('scroll', updateFloat, { passive: true });
+        window.addEventListener('scroll', updateBar, { passive: true });
     }
 </script>
 </body>
