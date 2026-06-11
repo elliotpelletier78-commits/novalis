@@ -308,7 +308,7 @@ app.post('/generate', async (req, res) => {
 });
 
 // ── Photo scraper — extrait et télécharge les vraies photos du site PME ──────
-async function scrapePhotos(websiteUrl, slug) {
+async function scrapePhotos(websiteUrl, slug, logoUrl) {
   const imagesDir = path.join(outputDir, 'images');
   if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
   const KEYS = ['exterior', 'interior', 'service', 'about'];
@@ -353,9 +353,17 @@ async function scrapePhotos(websiteUrl, slug) {
     });
   }
 
+  // Indices sémantiques — pour assigner chaque photo au bon rôle
+  const HINTS = {
+    exterior: /ext[ée]rieur|fa[cç]ade|devanture|enseigne|building|storefront|exterior|front|aerial|drone/i,
+    interior: /int[ée]rieur|salle|dining|interior|ambiance|d[ée]cor|lobby|accueil|r[ée]ception|salon(?!-)/i,
+    service:  /plat|food|menu-|cuisine|assiette|dish|service|atelier|soin|treatment|coupe|coiffure|chantier|projet|m[ée]canique|repair|travaux|work/i,
+    about:    /[ée]quipe|team|staff|portrait|chef|propri[ée]taire|owner|personnel|fondateur/i,
+  };
+
   function extractImages(html, baseUrl) {
     const seen = new Set(), images = [];
-    function add(src) {
+    function add(src, hintText) {
       if (!src) return;
       try {
         const u = src.startsWith('//') ? 'https:' + src : src.startsWith('/') ? new URL(baseUrl).origin + src : src.startsWith('http') ? src : new URL(src, baseUrl).href;
@@ -363,23 +371,25 @@ async function scrapePhotos(websiteUrl, slug) {
         if (/\.(svg|gif|ico)(\?|$)/i.test(u)) return;
         if (/icon|logo|badge|pixel|1x1|sprite|arrow|favicon|btn-|loading/i.test(u)) return;
         if (seen.has(u)) return;
-        seen.add(u); images.push(u);
+        seen.add(u); images.push({ url: u, text: (hintText || '') + ' ' + u });
       } catch(e) {}
     }
     // og:image first (best quality, main business photo)
     const ogM = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-    if (ogM) add(ogM[1]);
+    if (ogM) add(ogM[1], 'exterior facade og');
     const twM = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
     if (twM) add(twM[1]);
-    // All img tags
+    // All img tags — alt + class servent d'indices sémantiques
     const imgRe = /<img[^>]+src=["']([^"'#][^"']+)["'][^>]*/gi;
     let m;
     while ((m = imgRe.exec(html)) !== null) {
       const tag = m[0];
       const wm = tag.match(/width=["']?(\d+)/i);
       if (wm && parseInt(wm[1]) < 150) continue;
-      add(m[1]);
-      if (images.length >= 14) break;
+      const altM = tag.match(/alt=["']([^"']*)["']/i);
+      const clsM = tag.match(/class=["']([^"']*)["']/i);
+      add(m[1], `${altM ? altM[1] : ''} ${clsM ? clsM[1] : ''}`);
+      if (images.length >= 18) break;
     }
     return images;
   }
@@ -387,35 +397,91 @@ async function scrapePhotos(websiteUrl, slug) {
   try {
     const html = await fetchHtml(websiteUrl, 8000);
     const images = extractImages(html, websiteUrl);
-    // Enrich with 2 subpages for variety
+    // Enrich with subpages for variety
     for (const sub of ['/a-propos', '/about', '/services', '/galerie', '/gallery']) {
-      if (images.length >= 10) break;
+      if (images.length >= 12) break;
       try {
         const origin = new URL(websiteUrl).origin;
         const subHtml = await fetchHtml(origin + sub, 4000);
         for (const img of extractImages(subHtml, origin + sub)) {
-          if (!images.includes(img)) images.push(img);
+          if (!images.some(i => i.url === img.url)) images.push(img);
         }
       } catch(e) {}
     }
-    // Download best images
-    let keyIdx = 0;
-    for (const imgUrl of images) {
-      if (keyIdx >= KEYS.length) break;
+
+    // Assigner chaque rôle à la photo qui lui correspond le mieux (alt/class/src),
+    // puis combler les rôles restants avec les photos non utilisées, dans l'ordre.
+    const assignment = {};
+    const used = new Set();
+    for (const key of KEYS) {
+      const match = images.find(i => !used.has(i.url) && HINTS[key].test(i.text));
+      if (match) { assignment[key] = match.url; used.add(match.url); }
+    }
+    for (const key of KEYS) {
+      if (assignment[key]) continue;
+      const next = images.find(i => !used.has(i.url));
+      if (next) { assignment[key] = next.url; used.add(next.url); }
+    }
+
+    for (const key of KEYS) {
+      if (!assignment[key]) continue;
       try {
-        const buf = await downloadBuf(imgUrl, 5000);
+        const buf = await downloadBuf(assignment[key], 5000);
         if (buf.length < 8192) continue; // skip tiny/blank
-        fs.writeFileSync(path.join(imagesDir, `${slug}-${KEYS[keyIdx]}.jpg`), buf);
-        console.log(`[photos] ${KEYS[keyIdx]}: ${imgUrl.slice(0, 70)} (${Math.round(buf.length/1024)}kb)`);
-        keyIdx++; saved++;
+        fs.writeFileSync(path.join(imagesDir, `${slug}-${key}.jpg`), buf);
+        console.log(`[photos] ${key}: ${assignment[key].slice(0, 70)} (${Math.round(buf.length/1024)}kb)`);
+        saved++;
       } catch(e) {
-        console.warn(`[photos] skip: ${e.message}`);
+        console.warn(`[photos] skip ${key}: ${e.message}`);
       }
+    }
+
+    // Logo de l'entreprise → affiché dans le splash + navbar
+    if (logoUrl) {
+      try {
+        const buf = await downloadBuf(logoUrl, 5000);
+        if (buf.length > 800) {
+          fs.writeFileSync(path.join(imagesDir, `${slug}-logo.png`), buf);
+          console.log(`[photos] logo: ${logoUrl.slice(0, 70)}`);
+        }
+      } catch(e) { console.warn(`[photos] logo skip: ${e.message}`); }
     }
   } catch(e) {
     console.warn(`[photos] scrape error: ${e.message}`);
   }
   return saved;
+}
+
+// ── Enrichissement marque — la démo reflète la vraie entreprise ──────────────
+// Complète les champs manquants avec ce que dit LEUR site : slogan, couleur,
+// services réels, année, téléphone, adresse. Retourne les infos brutes (logo).
+async function enrichWithBrand(data) {
+  if (!data.website) return null;
+  try {
+    const { scrapeSite } = require('./discover');
+    const brand = await scrapeSite(data.website);
+    const { CONFIGS } = require('./generate-cinematic');
+    const cfg = CONFIGS[data.industry] || CONFIGS.restaurant;
+    if (!data.tagline && brand.description) data.tagline = brand.description.slice(0, 140);
+    if (!data.aboutText && brand.description && brand.description.length > 60) data.aboutText = brand.description;
+    if (brand.themeColor && (!data.color || data.color.toLowerCase() === cfg.palette.primary.toLowerCase())) {
+      data.color = brand.themeColor;
+    }
+    if ((!data.services || !data.services.length) && brand.services && brand.services.length >= 3) {
+      data.services = brand.services.slice(0, 4).map((t, i) => ({
+        title: t,
+        desc: (cfg.defaultServices[i] && cfg.defaultServices[i].desc) || 'Un travail soigné, par une équipe qui connaît son métier.',
+      }));
+    }
+    if (!data.founded && brand.founded) data.founded = brand.founded;
+    if (!data.phone && brand.phone) data.phone = brand.phone;
+    if (!data.address && brand.address) data.address = brand.address;
+    console.log(`[brand] ${data.website} → slogan:${brand.description ? 'oui' : 'non'} couleur:${brand.themeColor || 'non'} services:${brand.services.length} logo:${brand.logoUrl ? 'oui' : 'non'}`);
+    return brand;
+  } catch(e) {
+    console.warn('[brand]', e.message);
+    return null;
+  }
 }
 
 // ── Admin auth check ─────────────────────────────────────────
@@ -435,6 +501,10 @@ app.post('/generate-cinematic', requireAdmin, async (req, res) => {
     const { generateCinematic } = require('./generate-cinematic');
     const data   = { ...req.body };
     const base   = `${req.protocol}://${req.get('host')}`;
+
+    // Si un site existe : extraire leur identité (slogan, couleur, services, logo)
+    const brand = await enrichWithBrand(data);
+
     const result = generateCinematic({ ...data, baseUrl: base });
 
     const dest = path.join(outputDir, `${result.slug}.html`);
@@ -453,11 +523,11 @@ app.post('/generate-cinematic', requireAdmin, async (req, res) => {
         city=excluded.city, color=excluded.color, demo_url=excluded.demo_url
     `).run(result.slug, data.name, data.industry||'restaurant', data.phone||'', data.address||'', city, data.color||'', demoUrl);
 
-    // Scraper les vraies photos si un site est fourni
+    // Scraper les vraies photos + logo si un site est fourni
     let photosFound = 0;
     if (data.website) {
       try {
-        photosFound = await scrapePhotos(data.website, result.slug);
+        photosFound = await scrapePhotos(data.website, result.slug, brand && brand.logoUrl);
         if (photosFound > 0) console.log(`[cinematic] ${photosFound} photos importées pour ${result.slug}`);
       } catch(e) { console.warn('[photos]', e.message); }
     }
@@ -498,9 +568,10 @@ app.post('/discover-generate', requireAdmin, async (req, res) => {
 
     const { scrapeSite, extractName } = require('./discover');
     const scraped = await scrapeSite(url);
-    const name = extractName(title, scraped.title);
+    const name = scraped.siteName || extractName(title, scraped.title);
 
-    const { generateCinematic } = require('./generate-cinematic');
+    const { generateCinematic, CONFIGS } = require('./generate-cinematic');
+    const cfg = CONFIGS[industry] || CONFIGS.restaurant;
     const base = `${req.protocol}://${req.get('host')}`;
     const result = generateCinematic({
       industry: industry || 'restaurant',
@@ -509,6 +580,15 @@ app.post('/discover-generate', requireAdmin, async (req, res) => {
       address: scraped.address || (city ? `${city}, QC` : ''),
       city: city || '',
       founded: scraped.founded || '',
+      tagline: scraped.description ? scraped.description.slice(0, 140) : '',
+      aboutText: (scraped.description && scraped.description.length > 60) ? scraped.description : '',
+      color: scraped.themeColor || '',
+      services: (scraped.services && scraped.services.length >= 3)
+        ? scraped.services.slice(0, 4).map((t, i) => ({
+            title: t,
+            desc: (cfg.defaultServices[i] && cfg.defaultServices[i].desc) || 'Un travail soigné, par une équipe qui connaît son métier.',
+          }))
+        : undefined,
       website: url,
       baseUrl: base,
     });
@@ -527,7 +607,7 @@ app.post('/discover-generate', requireAdmin, async (req, res) => {
 
     let photosFound = 0;
     try {
-      photosFound = await scrapePhotos(url, result.slug);
+      photosFound = await scrapePhotos(url, result.slug, scraped.logoUrl);
       if (photosFound > 0) console.log(`[discover] ${photosFound} photos importées pour ${result.slug}`);
     } catch(e) { console.warn('[discover photos]', e.message); }
 

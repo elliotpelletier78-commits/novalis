@@ -91,6 +91,7 @@ function scrapeSite(url, depth = 0) {
             address: addrs[0] ? addrs[0].trim().replace(/\s+/g, ' ') : '',
             title: pageTitle,
             founded: foundedMatch ? foundedMatch[1] : '',
+            ...extractBrand(body, url),
           });
         });
       });
@@ -100,10 +101,71 @@ function scrapeSite(url, depth = 0) {
   });
 }
 
+// ── Identité de marque — slogan, couleur, logo, services réels ─
+function metaContent(html, attr, value) {
+  const re1 = new RegExp(`<meta[^>]+${attr}=["']${value}["'][^>]+content=["']([^"']+)["']`, 'i');
+  const re2 = new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+${attr}=["']${value}["']`, 'i');
+  const m = html.match(re1) || html.match(re2);
+  return m ? m[1].trim() : '';
+}
+
+function extractBrand(html, baseUrl) {
+  // Slogan / description — leur vrai discours
+  const description = metaContent(html, 'name', 'description') ||
+                      metaContent(html, 'property', 'og:description');
+
+  // Nom officiel du site
+  const siteName = metaContent(html, 'property', 'og:site_name');
+
+  // Couleur de marque — rejet du blanc/noir quasi purs
+  let themeColor = '';
+  const tc = metaContent(html, 'name', 'theme-color') || metaContent(html, 'name', 'msapplication-TileColor');
+  if (/^#[0-9a-fA-F]{6}$/.test(tc)) {
+    const r = parseInt(tc.slice(1,3),16), g = parseInt(tc.slice(3,5),16), b = parseInt(tc.slice(5,7),16);
+    const luma = (0.299*r + 0.587*g + 0.114*b) / 255;
+    if (luma > 0.08 && luma < 0.92) themeColor = tc;
+  }
+
+  // Logo — img avec "logo" dans src/class/alt, sinon apple-touch-icon
+  let logoUrl = '';
+  const logoTag = html.match(/<img[^>]+(?:src|class|id|alt)=["'][^"']*logo[^"']*["'][^>]*>/i);
+  if (logoTag) {
+    const srcM = logoTag[0].match(/src=["']([^"']+)["']/i);
+    if (srcM) logoUrl = srcM[1];
+  }
+  if (!logoUrl) {
+    const touchM = html.match(/<link[^>]+rel=["']apple-touch-icon[^"']*["'][^>]+href=["']([^"']+)["']/i);
+    if (touchM) logoUrl = touchM[1];
+  }
+  if (logoUrl) {
+    try {
+      logoUrl = logoUrl.startsWith('//') ? 'https:' + logoUrl
+        : logoUrl.startsWith('/') ? new URL(baseUrl).origin + logoUrl
+        : logoUrl.startsWith('http') ? logoUrl : new URL(logoUrl, baseUrl).href;
+    } catch(e) { logoUrl = ''; }
+  }
+
+  // Services réels — titres h2/h3 courts, mots de navigation exclus
+  const NAV_WORDS = /contact|propos|accueil|bienvenue|horaire|heures|témoignage|avis|joindre|faq|blogue|blog|infolettre|politique|droits|réserv|suivez|abonnez|carrière|emploi|nouvelle|actualité/i;
+  const services = [];
+  const hRe = /<h[23][^>]*>([\s\S]*?)<\/h[23]>/gi;
+  let hm;
+  while ((hm = hRe.exec(html)) !== null && services.length < 6) {
+    const txt = hm[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    if (txt.length < 4 || txt.length > 42) continue;
+    if (NAV_WORDS.test(txt)) continue;
+    if (/^\d+$/.test(txt)) continue;
+    if (services.includes(txt)) continue;
+    services.push(txt);
+  }
+
+  return { description, siteName, themeColor, logoUrl, services };
+}
+
 // ── Nom propre depuis titre de page / résultat DDG ────────────
 function extractName(ddgTitle, scrapedTitle) {
   const raw = scrapedTitle || ddgTitle || '';
   return raw.replace(/\s*[-|–—|].*$/, '').trim().slice(0, 60) || 'Entreprise';
 }
 
-module.exports = { ddgSearch, scrapeSite, extractName, SKIP_DOMAINS };
+module.exports = { ddgSearch, scrapeSite, extractName, extractBrand, SKIP_DOMAINS };
