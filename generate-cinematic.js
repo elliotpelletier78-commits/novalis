@@ -60,10 +60,10 @@ const CONFIGS = {
     },
     lightTheme: { bg: '#F4EDE0', text: '#1D1812', muted: '#6B6052' },
     unsplash: {
-      exterior: 'photo-1555396273-367ea4eb4db5?q=90&w=2400&auto=format&fit=crop',
-      interior: 'photo-1517248135467-4c7edcad34c4?q=90&w=2400&auto=format&fit=crop',
-      service:  'photo-1544025162-811114cd354c?q=90&w=2400&auto=format&fit=crop',
-      about:    'photo-1414235077428-338989a2e8c0?q=90&w=1400&auto=format&fit=crop',
+      exterior: 'photo-1414235077428-338989a2e8c0?q=95&w=2800&auto=format&fit=crop&crop=focalpoint',
+      interior: 'photo-1517248135467-4c7edcad34c4?q=95&w=2800&auto=format&fit=crop',
+      service:  'photo-1544025162-811114cd354c?q=95&w=2800&auto=format&fit=crop',
+      about:    'photo-1555396273-367ea4eb4db5?q=95&w=2200&auto=format&fit=crop',
     },
   },
   garage: {
@@ -114,10 +114,10 @@ const CONFIGS = {
     },
     lightTheme: { bg: '#F0EFED', text: '#141414', muted: '#5E5C58' },
     unsplash: {
-      exterior: 'photo-1558618666-fcd25c85cd64?q=90&w=2400&auto=format&fit=crop',
-      interior: 'photo-1607860108855-64acf2078ed9?q=90&w=2400&auto=format&fit=crop',
-      service:  'photo-1619642751034-765dfdf7c58e?q=90&w=2400&auto=format&fit=crop',
-      about:    'photo-1504222490345-c075b7b68888?q=90&w=1400&auto=format&fit=crop',
+      exterior: 'photo-1558618666-fcd25c85cd64?q=95&w=2800&auto=format&fit=crop&crop=focalpoint',
+      interior: 'photo-1607860108855-64acf2078ed9?q=95&w=2800&auto=format&fit=crop',
+      service:  'photo-1619642751034-765dfdf7c58e?q=95&w=2800&auto=format&fit=crop',
+      about:    'photo-1504222490345-c075b7b68888?q=95&w=2200&auto=format&fit=crop',
     },
   },
   salon: {
@@ -168,10 +168,10 @@ const CONFIGS = {
     },
     lightTheme: { bg: '#F6EEE7', text: '#1C1512', muted: '#6E6058' },
     unsplash: {
-      exterior: 'photo-1560472354-b33ff0c44a43?q=90&w=2400&auto=format&fit=crop',
-      interior: 'photo-1560869713-da86a9ec0744?q=90&w=2400&auto=format&fit=crop',
-      service:  'photo-1522337360788-8b13dee7a37e?q=90&w=2400&auto=format&fit=crop',
-      about:    'photo-1580618432051-7e04f8a82b5a?q=90&w=1400&auto=format&fit=crop',
+      exterior: 'photo-1560472354-b33ff0c44a43?q=95&w=2800&auto=format&fit=crop&crop=focalpoint',
+      interior: 'photo-1560869713-da86a9ec0744?q=95&w=2800&auto=format&fit=crop',
+      service:  'photo-1522337360788-8b13dee7a37e?q=95&w=2800&auto=format&fit=crop',
+      about:    'photo-1580618432051-7e04f8a82b5a?q=95&w=2200&auto=format&fit=crop',
     },
   },
   clinique: {
@@ -222,10 +222,10 @@ const CONFIGS = {
     },
     lightTheme: { bg: '#EEF4F6', text: '#0E1A20', muted: '#54707C' },
     unsplash: {
-      exterior: 'photo-1519494026892-80bbd2d6fd0d?q=90&w=2400&auto=format&fit=crop',
-      interior: 'photo-1587351021759-3e566b3db4f0?q=90&w=2400&auto=format&fit=crop',
-      service:  'photo-1582750433449-648ed127bb54?q=90&w=2400&auto=format&fit=crop',
-      about:    'photo-1559839734-2b71ea197ec2?q=90&w=1400&auto=format&fit=crop',
+      exterior: 'photo-1519494026892-80bbd2d6fd0d?q=95&w=2800&auto=format&fit=crop&crop=focalpoint',
+      interior: 'photo-1587351021759-3e566b3db4f0?q=95&w=2800&auto=format&fit=crop',
+      service:  'photo-1582750433449-648ed127bb54?q=95&w=2800&auto=format&fit=crop',
+      about:    'photo-1559839734-2b71ea197ec2?q=95&w=2200&auto=format&fit=crop',
     },
   },
   construction: {
@@ -276,10 +276,10 @@ const CONFIGS = {
     },
     lightTheme: { bg: '#F2EFE9', text: '#161310', muted: '#67615A' },
     unsplash: {
-      exterior: 'photo-1504307651254-35680f356dfd?q=90&w=2400&auto=format&fit=crop',
-      interior: 'photo-1541888946425-d81bb19240f5?q=90&w=2400&auto=format&fit=crop',
-      service:  'photo-1503387762-592deb58ef4e?q=90&w=2400&auto=format&fit=crop',
-      about:    'photo-1558618047-3c8c76ca7d13?q=90&w=1400&auto=format&fit=crop',
+      exterior: 'photo-1504307651254-35680f356dfd?q=95&w=2800&auto=format&fit=crop&crop=focalpoint',
+      interior: 'photo-1541888946425-d81bb19240f5?q=95&w=2800&auto=format&fit=crop',
+      service:  'photo-1503387762-592deb58ef4e?q=95&w=2800&auto=format&fit=crop',
+      about:    'photo-1558618047-3c8c76ca7d13?q=95&w=2200&auto=format&fit=crop',
     },
   },
 };
@@ -366,9 +366,9 @@ function animationElement(anim) {
 function gsapScript(anim) {
   if (anim === 'swing') return `
         tl
-            .to('#s-ext .scene-bg', { scale: 2.0, ease: 'none', duration: 4 }, 0)
-            .to('#jt-addr',  { opacity: 0, duration: 0.4 }, 0.4)
-            .to('#jt-title', { opacity: 0, duration: 0.6 }, 0.5)
+            .to('#s-ext .scene-bg', { scale: 1.55, ease: 'none', duration: 4 }, 0)
+            .fromTo('#jt-addr',  { opacity: 1 }, { opacity: 0, duration: 0.4 }, 0.6)
+            .fromTo('#jt-title', { opacity: 1 }, { opacity: 0, duration: 0.6 }, 0.7)
             .to('#s-int',      { opacity: 1, duration: 0.5 }, 1.2)
             .to('#doorFrame',  { opacity: 1, duration: 0.5 }, 1.2)
             .fromTo('#s-int', { clipPath: 'inset(18% 38% 0% 38%)' }, { clipPath: 'inset(0% 0% 0% 0%)', ease: 'power2.inOut', duration: 2 }, 1.8)
@@ -392,9 +392,9 @@ function gsapScript(anim) {
 
   if (anim === 'garage' || anim === 'gate') return `
         tl
-            .to('#s-ext .scene-bg', { scale: 2.2, ease: 'none', duration: 4 }, 0)
-            .to('#jt-addr',  { opacity: 0, duration: 0.4 }, 0.4)
-            .to('#jt-title', { opacity: 0, duration: 0.6 }, 0.5)
+            .to('#s-ext .scene-bg', { scale: 1.7, ease: 'none', duration: 4 }, 0)
+            .fromTo('#jt-addr',  { opacity: 1 }, { opacity: 0, duration: 0.4 }, 0.6)
+            .fromTo('#jt-title', { opacity: 1 }, { opacity: 0, duration: 0.6 }, 0.7)
             .to('#s-int',      { opacity: 1, duration: 0.01 }, 1.45)
             .to('#garageDoor', { opacity: 1, duration: 0.18 }, 1.5)
             .fromTo('#s-int .scene-bg', { scale: 1.28 }, { scale: 1.0, ease: 'power1.out', duration: 2 }, 1.8)
@@ -418,9 +418,9 @@ function gsapScript(anim) {
 
   if (anim === 'curtain') return `
         tl
-            .to('#s-ext .scene-bg', { scale: 2.0, ease: 'none', duration: 4 }, 0)
-            .to('#jt-addr',  { opacity: 0, duration: 0.4 }, 0.4)
-            .to('#jt-title', { opacity: 0, duration: 0.6 }, 0.5)
+            .to('#s-ext .scene-bg', { scale: 1.55, ease: 'none', duration: 4 }, 0)
+            .fromTo('#jt-addr',  { opacity: 1 }, { opacity: 0, duration: 0.4 }, 0.6)
+            .fromTo('#jt-title', { opacity: 1 }, { opacity: 0, duration: 0.6 }, 0.7)
             .to('#s-int',   { opacity: 1, duration: 0.01 }, 1.45)
             .to('#curtain', { opacity: 1, duration: 0.25 }, 1.5)
             .to('.curtain-left',  { x: '-100%', ease: 'power2.inOut', duration: 1.8 }, 1.8)
@@ -444,9 +444,9 @@ function gsapScript(anim) {
 
   if (anim === 'glass') return `
         tl
-            .to('#s-ext .scene-bg', { scale: 2.0, ease: 'none', duration: 4 }, 0)
-            .to('#jt-addr',  { opacity: 0, duration: 0.4 }, 0.4)
-            .to('#jt-title', { opacity: 0, duration: 0.6 }, 0.5)
+            .to('#s-ext .scene-bg', { scale: 1.55, ease: 'none', duration: 4 }, 0)
+            .fromTo('#jt-addr',  { opacity: 1 }, { opacity: 0, duration: 0.4 }, 0.6)
+            .fromTo('#jt-title', { opacity: 1 }, { opacity: 0, duration: 0.6 }, 0.7)
             .to('#s-int',     { opacity: 1, duration: 0.01 }, 1.45)
             .to('#glassDoor', { opacity: 1, duration: 0.35 }, 1.5)
             .to('.glass-left',  { x: '-100%', ease: 'power1.inOut', duration: 1.4 }, 1.9)
@@ -547,31 +547,41 @@ function generateCinematic(rawData) {
         .sec-title em, .chap-title em, .splash-logo em { font-style: italic; color: var(--primary); }
 
         /* ══ JOURNEY ══ */
-        .journey { height: 700vh; position: relative; }
+        .journey { height: 900vh; position: relative; }
         .journey-sticky { position: sticky; top: 0; height: 100vh; overflow: hidden; background: #000; }
         .scene { position: absolute; inset: 0; }
-        .scene-bg { position: absolute; inset: -8%; background-size: cover; background-position: center; will-change: transform, opacity; }
+        .scene-bg {
+            position: absolute; inset: -10%; background-size: cover; background-position: center;
+            will-change: transform, opacity;
+            filter: saturate(1.10) contrast(1.05) brightness(0.88);
+        }
 
         /* Scènes */
-        #s-ext .scene-bg { background-image: ${bgImg('exterior', 'exterior')}; }
+        #s-ext .scene-bg { background-image: ${bgImg('exterior', 'exterior')}; background-position: center 35%; filter: saturate(1.12) contrast(1.06) brightness(0.82); }
         #s-svc { opacity: 0; z-index: 3; }
         #s-svc .scene-bg { background-image: ${bgImg('service', 'service')}; }
         #s-site { opacity: 0; z-index: 4; background: var(--bg); display: flex; align-items: flex-end; justify-content: flex-start; }
         #s-int .scene-bg { background-image: ${bgImg('interior', 'interior')}; }
         ${animationCSS(anim)}
 
-        /* Overlays */
-        .vignette { position: absolute; inset: 0; z-index: 9; pointer-events: none; background: radial-gradient(ellipse at center, transparent 28%, rgba(0,0,0,0.72) 100%); }
-        .grad-bottom { position: absolute; bottom: 0; left: 0; right: 0; z-index: 9; height: 33%; pointer-events: none; background: linear-gradient(to top, #000, transparent); }
-        .grain { position: absolute; inset: 0; z-index: 10; pointer-events: none; opacity: 0.04; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-size: 180px 180px; }
+        /* Overlays — cinématiques, moins agressifs qu'un radial pur */
+        .vignette {
+            position: absolute; inset: 0; z-index: 9; pointer-events: none;
+            background:
+                linear-gradient(to bottom, rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.08) 18%, transparent 40%),
+                linear-gradient(to top,    rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.18) 42%, transparent 65%),
+                linear-gradient(to right,  rgba(0,0,0,0.28) 0%, transparent 28%);
+        }
+        .grad-bottom { display: none; }
+        .grain { position: absolute; inset: 0; z-index: 10; pointer-events: none; opacity: 0.045; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-size: 160px 160px; }
 
         /* Journey texts */
         .jt { position: absolute; z-index: 20; pointer-events: none; }
-        #jt-addr { top: 7vh; left: 7vw; font-family: ${cfg.fontH}; font-size: clamp(10px, 1.1vw, 14px); letter-spacing: 0.32em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
-        #jt-title { bottom: 10vh; left: 7vw; }
-        .jt-name { font-family: ${cfg.fontH}; font-weight: ${cfg.fontHW}; font-size: clamp(58px, 10vw, 140px); line-height: 0.88; color: var(--text); text-transform: uppercase; letter-spacing: -0.01em; }
+        #jt-addr { top: 7vh; left: 7vw; font-family: ${cfg.fontH}; font-size: clamp(10px, 1.1vw, 13px); letter-spacing: 0.36em; text-transform: uppercase; color: rgba(255,255,255,0.38); opacity: 0; }
+        #jt-title { bottom: 10vh; left: 7vw; opacity: 0; }
+        .jt-name { font-family: ${cfg.fontH}; font-weight: ${cfg.fontHW}; font-size: clamp(42px, 7vw, 96px); line-height: 0.88; color: var(--text); text-transform: uppercase; letter-spacing: -0.02em; }
         .jt-name em { color: var(--primary); font-style: normal; }
-        .jt-sub { font-family: ${cfg.fontH}; font-weight: 600; font-size: clamp(11px, 1.4vw, 18px); letter-spacing: 0.26em; text-transform: uppercase; color: var(--muted); margin-top: 14px; }
+        .jt-sub { font-family: ${cfg.fontH}; font-weight: 600; font-size: clamp(10px, 1.2vw, 15px); letter-spacing: 0.32em; text-transform: uppercase; color: var(--muted); margin-top: 16px; }
         #jt-inside { top: 40%; left: 50%; transform: translate(-50%,-50%); text-align: center; opacity: 0; }
         .jt-inside-text { font-family: ${cfg.fontH}; font-weight: ${cfg.fontHW}; font-size: clamp(26px, 4vw, 58px); text-transform: uppercase; letter-spacing: 0.12em; line-height: 1.1; }
         .jt-inside-text span { color: var(--primary); }
@@ -637,7 +647,7 @@ function generateCinematic(rawData) {
 
         /* About */
         #about { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
-        .about-img { aspect-ratio: 4/3; background: var(--panel); background-image: ${bgImg('about', 'about')}; background-size: cover; background-position: center; position: relative; }
+        .about-img { aspect-ratio: 4/3; background: var(--panel); background-image: ${bgImg('about', 'about')}; background-size: cover; background-position: center; position: relative; filter: saturate(1.06) contrast(1.04); }
         .about-img::after { content: '${founded ? `Fondé ${founded}` : ''}'; position: absolute; bottom: 18px; right: 18px; font-family: ${cfg.fontH}; font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: rgba(255,255,255,.5); background: rgba(0,0,0,.6); padding: 5px 12px; backdrop-filter: blur(6px); }
         .about-body { font-size: 15px; line-height: 1.85; color: var(--muted); margin-bottom: 44px; }
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
@@ -650,8 +660,8 @@ function generateCinematic(rawData) {
         .gal-track { display: flex; align-items: center; gap: 4vw; padding: 0 7vw; will-change: transform; }
         .gal-head { flex-shrink: 0; width: 32vw; min-width: 300px; }
         .gal-item { flex-shrink: 0; position: relative; }
-        .gal-img { width: 52vw; max-width: 760px; aspect-ratio: 3/2; background-size: cover; background-position: center; transition: filter .6s; }
-        .gal-item:hover .gal-img { filter: brightness(1.07); }
+        .gal-img { width: 52vw; max-width: 760px; aspect-ratio: 3/2; background-size: cover; background-position: center; filter: saturate(1.08) contrast(1.04) brightness(0.9); transition: filter .6s; }
+        .gal-item:hover .gal-img { filter: saturate(1.15) contrast(1.06) brightness(0.98); }
         .gal-cap { position: absolute; bottom: -34px; left: 0; font-family: ${cfg.fontH}; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); }
         .gal-cap strong { color: var(--primary); font-weight: ${cfg.fontHW}; margin-right: 14px; }
         @media (max-width: 768px) {
@@ -664,8 +674,8 @@ function generateCinematic(rawData) {
 
         /* Chapitres narratifs — plein écran, style éditorial */
         .chapter { position: relative; height: 100vh; min-height: 560px; overflow: hidden; display: flex; align-items: flex-end; }
-        .chap-bg { position: absolute; inset: -6%; background-size: cover; background-position: center; will-change: transform; }
-        .chapter::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.72) 0%, rgba(0,0,0,.18) 45%, rgba(0,0,0,.28) 100%); pointer-events: none; }
+        .chap-bg { position: absolute; inset: -6%; background-size: cover; background-position: center; will-change: transform; filter: saturate(1.06) contrast(1.04) brightness(0.88); }
+        .chapter::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.78) 0%, rgba(0,0,0,.12) 50%, rgba(0,0,0,.15) 100%); pointer-events: none; }
         .chap-content { position: relative; z-index: 2; padding: 0 7vw 13vh; max-width: 760px; }
         .chap-num { font-family: ${cfg.fontH}; font-size: 11px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--primary); margin-bottom: 18px; }
         .chap-title { font-family: ${cfg.fontH}; font-weight: ${cfg.fontHW}; font-size: clamp(34px, 4.8vw, 68px); line-height: 1.02; color: #fff; margin-bottom: 18px; text-transform: uppercase; }
@@ -793,7 +803,7 @@ function generateCinematic(rawData) {
         <div class="grain"></div>
         <div class="jt" id="jt-addr">${esc(address.split(',').slice(0,2).join(',').trim())}</div>
         <div class="jt" id="jt-title">
-            <div class="jt-name">${esc(name.split(' ').slice(0,3).join('<br>'))}</div>
+            <div class="jt-name">${name.split(' ').slice(0,2).map(esc).join('<br>')}</div>
             <div class="jt-sub">${founded ? `Fondé en ${founded} · ` : ''}${esc(tagline.split(' ').slice(0,5).join(' '))}</div>
         </div>
         <div class="jt" id="jt-inside">
@@ -966,8 +976,18 @@ function generateCinematic(rawData) {
             loader.classList.add('done');
             document.body.style.overflow = '';
             if (lenis) lenis.start();
+            // Révèle l'adresse et le titre après le chargement — d'abord la photo pure, puis le texte
+            gsap.to('#jt-addr', { opacity: 1, duration: 1.4, delay: 0.5, ease: 'power2.out' });
+            gsap.fromTo('#jt-title',
+                { opacity: 0, y: 22 },
+                { opacity: 1, y: 0, duration: 1.6, delay: 0.9, ease: 'power3.out' }
+            );
         }
-        if (reduceMotionGlobal) { loader.style.display = 'none'; document.body.style.overflow = ''; return; }
+        if (reduceMotionGlobal) {
+            loader.style.display = 'none'; document.body.style.overflow = '';
+            gsap.set(['#jt-addr', '#jt-title'], { opacity: 1 });
+            return;
+        }
         gsap.to(letters, { y: 0, duration: 0.8, stagger: 0.035, ease: 'power3.out', delay: 0.15 });
         const cnt = { v: 0 };
         gsap.to(cnt, {
@@ -1025,7 +1045,7 @@ function generateCinematic(rawData) {
             trigger: '.journey',
             start: 'top top',
             end: 'bottom bottom',
-            scrub: 1.6,
+            scrub: 2.0,
         }
     });
     ${gsapScript(anim)}
