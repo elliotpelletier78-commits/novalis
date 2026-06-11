@@ -803,7 +803,7 @@ function generateCinematic(rawData) {
         <div class="grain"></div>
         <div class="jt" id="jt-addr">${esc(address.split(',').slice(0,2).join(',').trim())}</div>
         <div class="jt" id="jt-title">
-            <div class="jt-name">${esc(name.split(' ').slice(0,3).join('<br>'))}</div>
+            <div class="jt-name">${name.split(' ').slice(0,2).map(esc).join('<br>')}</div>
             <div class="jt-sub">${founded ? `Fondé en ${founded} · ` : ''}${esc(tagline.split(' ').slice(0,5).join(' '))}</div>
         </div>
         <div class="jt" id="jt-inside">
