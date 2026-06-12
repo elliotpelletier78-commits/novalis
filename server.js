@@ -499,25 +499,24 @@ async function scrapePhotos(websiteUrl, slug, logoUrl) {
 async function enrichWithBrand(data) {
   if (!data.website) return null;
   try {
-    const { scrapeSite } = require('./discover');
-    const brand = await scrapeSite(data.website);
+    const { researchBrand } = require('./brand-research');
+    const brand = await researchBrand(data.website);
+    if (!brand) return null;
     const { CONFIGS } = require('./generate-cinematic');
     const cfg = CONFIGS[data.industry] || CONFIGS.restaurant;
     if (!data.tagline && brand.description) data.tagline = brand.description.slice(0, 140);
     if (!data.aboutText && brand.description && brand.description.length > 60) data.aboutText = brand.description;
-    if (brand.themeColor && (!data.color || data.color.toLowerCase() === cfg.palette.primary.toLowerCase())) {
-      data.color = brand.themeColor;
+    if (brand.color && (!data.color || data.color.toLowerCase() === cfg.palette.primary.toLowerCase())) {
+      data.color = brand.color;
     }
-    if ((!data.services || !data.services.length) && brand.services && brand.services.length >= 3) {
-      data.services = brand.services.slice(0, 4).map((t, i) => ({
-        title: t,
-        desc: (cfg.defaultServices[i] && cfg.defaultServices[i].desc) || 'Un travail soigné, par une équipe qui connaît son métier.',
-      }));
+    if ((!data.services || !data.services.length) && brand.services && brand.services.length >= 2) {
+      data.services = brand.services.slice(0, 4);
     }
     if (!data.founded && brand.founded) data.founded = brand.founded;
     if (!data.phone && brand.phone) data.phone = brand.phone;
     if (!data.address && brand.address) data.address = brand.address;
-    console.log(`[brand] ${data.website} → slogan:${brand.description ? 'oui' : 'non'} couleur:${brand.themeColor || 'non'} services:${brand.services.length} logo:${brand.logoUrl ? 'oui' : 'non'}`);
+    if (!data.hours && brand.hours) data.hours = brand.hours;
+    console.log(`[brand] ${data.website} → desc:${brand.description?'oui':'non'} couleur:${brand.color||'non'} services:${brand.services.length} logo:${brand.logoUrl?'oui':'non'} pages:${brand.pagesScraped}`);
     return brand;
   } catch(e) {
     console.warn('[brand]', e.message);
@@ -568,13 +567,29 @@ app.post('/generate-cinematic', requireAdmin, async (req, res) => {
         city=excluded.city, color=excluded.color, demo_url=excluded.demo_url
     `).run(result.slug, data.name, data.industry||'restaurant', data.phone||'', data.address||'', city, data.color||'', demoUrl);
 
-    // Scraper les vraies photos + logo si un site est fourni
+    // Télécharger les photos via brand-research si un site est fourni
     let photosFound = 0;
-    if (data.website) {
+    if (data.website && brand && brand.photoAssignment) {
+      try {
+        const { downloadBrandPhotos } = require('./brand-research');
+        const imagesDir2 = path.join(outputDir, 'images');
+        const dlResult = await downloadBrandPhotos(brand.photoAssignment, brand.logoUrl || '', result.slug, imagesDir2);
+        photosFound = dlResult.saved;
+        // Re-générer avec les chemins locaux confirmés
+        if (photosFound > 0) {
+          const logoExt2   = fs.existsSync(path.join(imagesDir2, `${result.slug}-logo.svg`)) ? 'svg' : 'png';
+          const logoLocal2 = fs.existsSync(path.join(imagesDir2, `${result.slug}-logo.${logoExt2}`))
+            ? `/demo/images/${result.slug}-logo.${logoExt2}` : '';
+          const result2 = generateCinematic({ ...data, photos: dlResult.photos, logoUrl: logoLocal2 || (brand && brand.logoUrl) || data.logoUrl || '' });
+          fs.writeFileSync(dest, result2.html, 'utf8');
+          console.log(`[cinematic] HTML régénéré avec ${Object.keys(dlResult.photos).length} photos locales`);
+        }
+      } catch(e) { console.warn('[photos]', e.message); }
+    } else if (data.website) {
+      // Fallback: ancien scraper si brand-research échoue
       try {
         photosFound = await scrapePhotos(data.website, result.slug, brand && brand.logoUrl);
-        if (photosFound > 0) console.log(`[cinematic] ${photosFound} photos importées pour ${result.slug}`);
-      } catch(e) { console.warn('[photos]', e.message); }
+      } catch(e) { console.warn('[photos fallback]', e.message); }
     }
 
     console.log(`[cinematic] ${result.slug} → ${demoUrl}`);
@@ -605,91 +620,97 @@ app.post('/discover-search', requireAdmin, async (req, res) => {
 });
 
 // POST /discover-generate { url, industry, city, title } →
-// scrape le site, génère la démo cinématique + photos, ajoute le prospect
+// Recherche de marque approfondie (multi-pages, JSON-LD, sémantique),
+// génère la démo cinématique personnalisée + photos, ajoute le prospect.
 app.post('/discover-generate', requireAdmin, async (req, res) => {
   try {
     const { url, industry, city, title } = req.body || {};
     if (!url) return res.status(400).json({ success: false, error: 'url requis' });
 
-    const { scrapeSite, extractName } = require('./discover');
-    const scraped = await scrapeSite(url);
-    const name = scraped.siteName || extractName(title, scraped.title);
-
+    const { researchBrand, downloadBrandPhotos } = require('./brand-research');
+    const { extractName } = require('./discover');
     const { generateCinematic, CONFIGS } = require('./generate-cinematic');
-    const cfg = CONFIGS[industry] || CONFIGS.restaurant;
-    const base = `${req.protocol}://${req.get('host')}`;
+
+    const base      = `${req.protocol}://${req.get('host')}`;
+    const imagesDir = path.join(outputDir, 'images');
+    const cfg       = CONFIGS[industry] || CONFIGS.restaurant;
+
+    // ── 1. Recherche approfondie ───────────────────────────────
+    const brand = await researchBrand(url);
+
+    // ── 2. Dériver nom + slug ──────────────────────────────────
+    const slugify = s => s.toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g,'')
+      .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);
+
+    const name = (brand && brand.name) || extractName(title, '') || 'Mon Entreprise';
+    const slug = slugify(name);
+
+    // ── 3. Télécharger les photos ──────────────────────────────
+    let dlResult = { photos: {}, saved: 0 };
+    if (brand && brand.photoAssignment) {
+      dlResult = await downloadBrandPhotos(brand.photoAssignment, brand.logoUrl || '', slug, imagesDir);
+    }
+
+    // ── 4. Vérifier logo local ─────────────────────────────────
+    const logoExt   = fs.existsSync(path.join(imagesDir, `${slug}-logo.svg`)) ? 'svg' : 'png';
+    const logoLocal = fs.existsSync(path.join(imagesDir, `${slug}-logo.${logoExt}`))
+      ? `/demo/images/${slug}-logo.${logoExt}` : '';
+
+    // ── 5. Stats enrichies avec le vrai rating Google ──────────
+    let stats;
+    if (brand && brand.rating) {
+      const reviewLabel = brand.reviewCount ? ` · ${brand.reviewCount} avis` : '';
+      stats = [
+        ...cfg.defaultStats.slice(0, 3),
+        { num: brand.rating, label: `note Google${reviewLabel}` },
+      ];
+    }
+
+    // ── 6. Générer le HTML personnalisé ───────────────────────
     const result = generateCinematic({
       industry: industry || 'restaurant',
       name,
-      phone: scraped.phone || '',
-      address: scraped.address || (city ? `${city}, QC` : ''),
-      city: city || '',
-      founded: scraped.founded || '',
-      tagline: scraped.description ? scraped.description.slice(0, 140) : '',
-      aboutText: (scraped.description && scraped.description.length > 60) ? scraped.description : '',
-      color: scraped.themeColor || '',
-      services: (scraped.services && scraped.services.length >= 3)
-        ? scraped.services.slice(0, 4).map((t, i) => ({
-            title: t,
-            desc: (cfg.defaultServices[i] && cfg.defaultServices[i].desc) || 'Un travail soigné, par une équipe qui connaît son métier.',
-          }))
-        : undefined,
-      website: url,
-      logoUrl: scraped.logoUrl || '',
-      baseUrl: base,
+      slug,
+      phone:     (brand && brand.phone)   || '',
+      address:   (brand && brand.address) || (city ? `${city}, QC` : ''),
+      city:      city || '',
+      founded:   (brand && brand.founded) || '',
+      tagline:   (brand && brand.description) ? brand.description.slice(0, 140) : '',
+      aboutText: (brand && brand.description && brand.description.length > 60) ? brand.description : '',
+      color:     (brand && brand.color)   || '',
+      services:  (brand && brand.services && brand.services.length >= 2) ? brand.services.slice(0, 4) : undefined,
+      stats,
+      hours:     (brand && brand.hours)   || undefined,
+      photos:    dlResult.photos,
+      website:   url,
+      logoUrl:   logoLocal || (brand && brand.logoUrl) || '',
+      baseUrl:   base,
     });
 
     fs.writeFileSync(path.join(outputDir, `${result.slug}.html`), result.html, 'utf8');
     const demoUrl = `${base}/demo/${result.slug}.html`;
 
     db.prepare(`
-      INSERT INTO prospects (slug,name,industry,phone,address,city,demo_url)
-      VALUES (?,?,?,?,?,?,?)
+      INSERT INTO prospects (slug,name,industry,phone,address,city,color,demo_url)
+      VALUES (?,?,?,?,?,?,?,?)
       ON CONFLICT(slug) DO UPDATE SET
         name=excluded.name, industry=excluded.industry,
         phone=excluded.phone, address=excluded.address,
-        city=excluded.city, demo_url=excluded.demo_url
-    `).run(result.slug, name, industry || 'restaurant', scraped.phone || '', scraped.address || '', city || '', demoUrl);
+        city=excluded.city, color=excluded.color, demo_url=excluded.demo_url
+    `).run(result.slug, name, industry || 'restaurant',
+       (brand && brand.phone) || '',
+       (brand && brand.address) || '',
+       city || '', (brand && brand.color) || '',
+       demoUrl);
 
-    let photosFound = 0;
-    try {
-      photosFound = await scrapePhotos(url, result.slug, scraped.logoUrl);
-      if (photosFound > 0) console.log(`[discover] ${photosFound} photos importées pour ${result.slug}`);
-    } catch(e) { console.warn('[discover photos]', e.message); }
-
-    // Re-générer le HTML avec les chemins locaux confirmés + logo correct
-    if (photosFound > 0) {
-      const imagesDir2 = path.join(outputDir, 'images');
-      const confirmedPhotos = {};
-      for (const k of ['exterior','interior','service','about']) {
-        if (fs.existsSync(path.join(imagesDir2, `${result.slug}-${k}.jpg`)))
-          confirmedPhotos[k] = `/demo/images/${result.slug}-${k}.jpg`;
-      }
-      const logoExt = fs.existsSync(path.join(imagesDir2, `${result.slug}-logo.svg`)) ? 'svg' : 'png';
-      const logoLocal = fs.existsSync(path.join(imagesDir2, `${result.slug}-logo.${logoExt}`))
-        ? `/demo/images/${result.slug}-logo.${logoExt}` : '';
-      const result2 = generateCinematic({
-        industry: industry || 'restaurant', name,
-        phone: scraped.phone || '', address: scraped.address || (city ? `${city}, QC` : ''),
-        city: city || '', founded: scraped.founded || '',
-        tagline: scraped.description ? scraped.description.slice(0, 140) : '',
-        aboutText: (scraped.description && scraped.description.length > 60) ? scraped.description : '',
-        color: scraped.themeColor || '',
-        services: (scraped.services && scraped.services.length >= 3)
-          ? scraped.services.slice(0, 4).map((t, i) => ({ title: t, desc: (cfg.defaultServices[i] && cfg.defaultServices[i].desc) || 'Un travail soigné.' }))
-          : undefined,
-        website: url, baseUrl: base,
-        photos: confirmedPhotos,
-        logoUrl: logoLocal || scraped.logoUrl || '',
-      });
-      fs.writeFileSync(path.join(outputDir, `${result.slug}.html`), result2.html, 'utf8');
-      console.log(`[discover] HTML régénéré avec ${Object.keys(confirmedPhotos).length} photos locales`);
-    }
-
-    console.log(`[discover] ${name} → ${demoUrl}`);
+    console.log(`[discover] ${name} → ${demoUrl} (${brand ? brand.pagesScraped : 0} pages, ${dlResult.saved} photos)`);
     res.json({
-      success: true, url: demoUrl, slug: result.slug, photosFound,
-      name, phone: scraped.phone || '', address: scraped.address || '',
+      success: true, url: demoUrl, slug: result.slug,
+      photosFound: dlResult.saved,
+      name,
+      phone:   (brand && brand.phone)   || '',
+      address: (brand && brand.address) || '',
     });
   } catch (err) {
     console.error('[discover-generate]', err);
