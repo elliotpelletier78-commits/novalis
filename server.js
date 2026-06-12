@@ -597,20 +597,37 @@ app.post('/generate-cinematic', requireAdmin, async (req, res) => {
 
     // Télécharger les photos via brand-research si un site est fourni
     let photosFound = 0;
+    let hasVideo = false;
     if (data.website && brand && brand.photoAssignment) {
       try {
         const { downloadBrandPhotos } = require('./brand-research');
         const imagesDir2 = path.join(outputDir, 'images');
         const dlResult = await downloadBrandPhotos(brand.photoAssignment, brand.logoUrl || '', result.slug, imagesDir2);
         photosFound = dlResult.saved;
-        // Re-générer avec les chemins locaux confirmés
-        if (photosFound > 0) {
+
+        // Higgsfield — animer la photo hero si configuré
+        const { isEnabled: hfEnabled, animatePhoto, downloadVideo: dlVideo } = require('./higgsfield');
+        if (hfEnabled() && brand.photoAssignment?.exterior?.length > 0) {
+          try {
+            const videoUrl = await animatePhoto(brand.photoAssignment.exterior[0], data.industry || 'restaurant');
+            const videoBuf = await dlVideo(videoUrl);
+            if (videoBuf.length > 10_000) {
+              fs.writeFileSync(path.join(imagesDir2, `${result.slug}-hero.mp4`), videoBuf);
+              dlResult.photos.heroVideo = `/demo/images/${result.slug}-hero.mp4`;
+              hasVideo = true;
+              console.log(`[higgsfield] ✓ ${result.slug}-hero.mp4 (${Math.round(videoBuf.length/1024)}kb)`);
+            }
+          } catch(e) { console.warn(`[higgsfield] skip: ${e.message}`); }
+        }
+
+        // Re-générer avec les chemins locaux confirmés (photos + éventuelle vidéo)
+        if (photosFound > 0 || hasVideo) {
           const logoExt2   = fs.existsSync(path.join(imagesDir2, `${result.slug}-logo.svg`)) ? 'svg' : 'png';
           const logoLocal2 = fs.existsSync(path.join(imagesDir2, `${result.slug}-logo.${logoExt2}`))
             ? `/demo/images/${result.slug}-logo.${logoExt2}` : '';
           const result2 = generateCinematic({ ...data, photos: dlResult.photos, logoUrl: logoLocal2 || (brand && brand.logoUrl) || data.logoUrl || '' });
           fs.writeFileSync(dest, result2.html, 'utf8');
-          console.log(`[cinematic] HTML régénéré avec ${Object.keys(dlResult.photos).length} photos locales`);
+          console.log(`[cinematic] HTML régénéré avec ${Object.keys(dlResult.photos).length} photos${hasVideo ? ' + vidéo hero' : ''}`);
         }
       } catch(e) { console.warn('[photos]', e.message); }
     } else if (data.website) {
@@ -620,8 +637,8 @@ app.post('/generate-cinematic', requireAdmin, async (req, res) => {
       } catch(e) { console.warn('[photos fallback]', e.message); }
     }
 
-    console.log(`[cinematic] ${result.slug} → ${demoUrl}`);
-    res.json({ success: true, url: demoUrl, slug: result.slug, photosFound });
+    console.log(`[cinematic] ${result.slug} → ${demoUrl} (photos:${photosFound}, video:${hasVideo})`);
+    res.json({ success: true, url: demoUrl, slug: result.slug, photosFound, hasVideo });
   } catch (err) {
     console.error('[generate-cinematic]', err);
     res.status(500).json({ success: false, error: err.message });
@@ -680,6 +697,24 @@ app.post('/discover-generate', requireAdmin, async (req, res) => {
       dlResult = await downloadBrandPhotos(brand.photoAssignment, brand.logoUrl || '', slug, imagesDir);
     }
 
+    // ── 3b. Higgsfield — animer la photo hero en vidéo cinématique ─
+    let heroVideo = null;
+    const { isEnabled: hfEnabled, animatePhoto, downloadVideo: dlVideo } = require('./higgsfield');
+    if (hfEnabled() && brand?.photoAssignment?.exterior?.length > 0) {
+      const exteriorUrl = brand.photoAssignment.exterior[0];
+      try {
+        const videoUrl = await animatePhoto(exteriorUrl, industry || 'restaurant');
+        const videoBuf = await dlVideo(videoUrl);
+        if (videoBuf.length > 10_000) {
+          if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
+          fs.writeFileSync(path.join(imagesDir, `${slug}-hero.mp4`), videoBuf);
+          heroVideo = `/demo/images/${slug}-hero.mp4`;
+          console.log(`[higgsfield] ✓ ${slug}-hero.mp4 (${Math.round(videoBuf.length/1024)}kb)`);
+        }
+      } catch(e) { console.warn(`[higgsfield] skip: ${e.message}`); }
+    }
+    if (heroVideo) dlResult.photos.heroVideo = heroVideo;
+
     // ── 4. Vérifier logo local ─────────────────────────────────
     const logoExt   = fs.existsSync(path.join(imagesDir, `${slug}-logo.svg`)) ? 'svg' : 'png';
     const logoLocal = fs.existsSync(path.join(imagesDir, `${slug}-logo.${logoExt}`))
@@ -737,10 +772,11 @@ app.post('/discover-generate', requireAdmin, async (req, res) => {
        city || '', (brand && brand.color) || '',
        demoUrl, JSON.stringify(genData));
 
-    console.log(`[discover] ${name} → ${demoUrl} (${brand ? brand.pagesScraped : 0} pages, ${dlResult.saved} photos)`);
+    console.log(`[discover] ${name} → ${demoUrl} (${brand ? brand.pagesScraped : 0} pages, ${dlResult.saved} photos, video:${!!heroVideo})`);
     res.json({
       success: true, url: demoUrl, slug: result.slug,
       photosFound: dlResult.saved,
+      hasVideo: !!heroVideo,
       name,
       phone:   (brand && brand.phone)   || '',
       address: (brand && brand.address) || '',
@@ -785,6 +821,9 @@ function regenerateDemo(slug, baseUrl) {
   const logoExt = fs.existsSync(path.join(imagesDir, `${slug}-logo.svg`)) ? 'svg' : 'png';
   const logoLocal = fs.existsSync(path.join(imagesDir, `${slug}-logo.${logoExt}`))
     ? `/demo/images/${slug}-logo.${logoExt}` : '';
+  // Inclure la vidéo hero Higgsfield si elle existe
+  const heroMp4 = path.join(imagesDir, `${slug}-hero.mp4`);
+  if (fs.existsSync(heroMp4)) photos.heroVideo = `/demo/images/${slug}-hero.mp4?v=${Date.now()}`;
   const { generateCinematic } = require('./generate-cinematic');
   const result = generateCinematic({
     ...data, slug, photos,

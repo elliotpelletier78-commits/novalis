@@ -420,7 +420,11 @@ async function doGenerate() {
         document.getElementById('rUrl').textContent = d.url;
         document.getElementById('rOpen').href = d.url;
         const photoEl = document.getElementById('rPhotoInfo');
-        if (d.photosFound > 0) {
+        if (d.hasVideo) {
+            photoEl.style.display = 'block';
+            photoEl.style.color = 'var(--ok)';
+            photoEl.textContent = '✦ Vidéo cinématique Higgsfield générée' + (d.photosFound > 0 ? ` + ${d.photosFound} photo(s)` : '');
+        } else if (d.photosFound > 0) {
             photoEl.style.display = 'block';
             photoEl.style.color = 'var(--ok)';
             photoEl.textContent = '✓ ' + d.photosFound + ' photo' + (d.photosFound > 1 ? 's' : '') + ' importée' + (d.photosFound > 1 ? 's' : '') + ' du site';
@@ -499,9 +503,11 @@ async function discGenerate(i) {
         const d = await r.json();
         if (!d.success) throw new Error(d.error);
         const card = document.getElementById('dcard-' + i);
-        const photoTxt = d.photosFound > 0
-            ? `✓ ${d.photosFound} photo(s) du vrai site`
-            : '⚠ photos Unsplash (site protégé)';
+        const photoTxt = d.hasVideo
+            ? `✦ vidéo cinématique${d.photosFound > 0 ? ' + ' + d.photosFound + ' photo(s)' : ''}`
+            : d.photosFound > 0
+              ? `✓ ${d.photosFound} photo(s) du vrai site`
+              : '⚠ photos Unsplash (site protégé)';
         const dName = d.name.replace(/'/g, "\\'");
         card.innerHTML = `
             <div class="disc-info">

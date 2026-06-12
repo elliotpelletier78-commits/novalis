@@ -610,6 +610,8 @@ function generateCinematic(rawData) {
 
         /* Scènes */
         #s-ext .scene-bg { background-image: ${bgImg('exterior', 'exterior')}; background-position: center 35%; filter: saturate(1.12) contrast(1.06) brightness(0.82); animation: heroKenBurns 14s ease-in-out forwards; }
+        #s-ext .scene-bg.has-video { background-image: none; animation: none; }
+        #s-ext .scene-bg.has-video video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(1.12) contrast(1.06) brightness(0.82); }
         #s-svc { opacity: 0; z-index: 3; }
         #s-svc .scene-bg { background-image: ${bgImg('service', 'service')}; }
         #s-site { opacity: 0; z-index: 4; background: var(--bg); display: flex; align-items: flex-end; justify-content: flex-start; }
@@ -850,7 +852,7 @@ function generateCinematic(rawData) {
 
 <div class="journey">
     <div class="journey-sticky">
-        <div class="scene" id="s-ext"><div class="scene-bg"></div></div>
+        <div class="scene" id="s-ext"><div class="scene-bg${photos.heroVideo ? ' has-video' : ''}">${photos.heroVideo ? `<video autoplay loop muted playsinline><source src="${esc(photos.heroVideo)}" type="video/mp4"></video>` : ''}</div></div>
         <div class="scene" id="s-int"><div class="scene-bg"></div></div>
         <div class="scene" id="s-svc"><div class="scene-bg"></div></div>
         <div class="scene" id="s-site">
