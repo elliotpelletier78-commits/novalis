@@ -9,6 +9,11 @@ function slugify(str = '') {
 function esc(s = '') {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+function fillChap(text, name, city) {
+  return text
+    .replace(/\{\{city\}\}/g, city || 'notre région')
+    .replace(/\{\{name\}\}/g, name || 'notre équipe');
+}
 
 // ── Industry configurations ────────────────────────────────────────────────
 const CONFIGS = {
@@ -45,7 +50,7 @@ const CONFIGS = {
     marquee: ['Cuisine du marché', 'Produits locaux', 'Carte des vins', "Table d'hôte", 'Brunch week-end'],
     galleryCaptions: ['La façade', "L'ambiance", 'En cuisine', "L'assiette"],
     chapters: [
-      { img: 'interior', title: "On pousse la porte,<br>la journée reste dehors.", body: "Une lumière chaude, des nappes blanches, le murmure des conversations. Vous êtes arrivé." },
+      { img: 'interior', title: "On pousse la porte,<br>la journée reste dehors.", body: "Une lumière chaude, des nappes blanches — {{city}} peut attendre. Votre soirée commence ici." },
       { img: 'service', title: "Votre table<br>vous attendait.", body: "Le couvert est mis, le verre est droit, la chandelle est allumée. Il ne manquait que vous." },
     ],
     philosophy: {
@@ -93,13 +98,13 @@ const CONFIGS = {
       { num: '25+', label: "ans d'expérience" },
       { num: '3 000+', label: 'clients fidèles' },
       { num: '12', label: 'techniciens certifiés' },
-      { num: '98%', label: 'satisfaction client' },
+      { num: '4.8★', label: 'note Google' },
     ],
     defaultHours: { weekdays: '7 h 30 — 17 h 30', saturday: '8 h 00 — 14 h 00', sunday: 'Fermé' },
     marquee: ['Mécanique générale', 'Performance', 'Freins', 'Suspension', 'Diagnostic', 'Pneus'],
     galleryCaptions: ["L'atelier", 'Les baies', 'La précision', "L'équipe"],
     chapters: [
-      { img: 'interior', title: "La porte se lève,<br>le diagnostic commence.", body: "Un atelier propre, des outils à leur place. Votre véhicule entre de bonnes mains dès le premier coup d'œil." },
+      { img: 'interior', title: "La porte se lève,<br>le diagnostic commence.", body: "Un atelier propre, des outils à leur place. {{city}} peut compter sur une équipe qui fait les choses comme il faut." },
       { img: 'service', title: "Chaque boulon<br>a son couple.", body: "La précision n'est pas un luxe — c'est la base. On serre, on mesure, on vérifie. Deux fois." },
     ],
     philosophy: {
@@ -153,7 +158,7 @@ const CONFIGS = {
     marquee: ['Coupe', 'Coloration', 'Balayage', 'Soins capillaires', 'Esthétique', 'Spa'],
     galleryCaptions: ['Le salon', "L'espace détente", 'Le savoir-faire', 'Le résultat'],
     chapters: [
-      { img: 'interior', title: "La porte se referme<br>sur le bruit du monde.", body: "Une lumière douce, une musique discrète. Votre moment commence ici." },
+      { img: 'interior', title: "La porte se referme<br>sur le bruit du monde.", body: "Une lumière douce, une musique discrète — {{city}} attend dehors. Votre heure commence ici." },
       { img: 'service', title: "Des mains qui savent<br>ce qu'elles font.", body: "On écoute d'abord, on conseille ensuite. Le résultat se voit — et se sent." },
     ],
     philosophy: {
@@ -201,13 +206,13 @@ const CONFIGS = {
       { num: '20+', label: 'ans de pratique' },
       { num: '8', label: 'médecins spécialistes' },
       { num: '5 000+', label: 'patients suivis' },
-      { num: '97%', label: 'satisfaction patient' },
+      { num: '4.7★', label: 'note Google' },
     ],
     defaultHours: { weekdays: '8 h 00 — 18 h 00', saturday: '9 h 00 — 13 h 00', sunday: 'Fermé' },
     marquee: ['Médecine générale', 'Physiothérapie', 'Prévention', 'Soins spécialisés', 'Bilans de santé'],
     galleryCaptions: ["L'accueil", 'Les salles', 'Les équipements', "L'équipe soignante"],
     chapters: [
-      { img: 'interior', title: "Ici, on vous<br>écoute d'abord.", body: "Pas de file anonyme. Une équipe qui connaît votre nom et votre dossier." },
+      { img: 'interior', title: "Ici, on vous<br>écoute d'abord.", body: "Pas de file anonyme. À {{city}}, une équipe qui connaît votre nom et votre histoire." },
       { img: 'service', title: "La précision<br>au service du soin.", body: "Équipements modernes, protocoles rigoureux, gestes sûrs. Votre santé mérite cette exigence." },
     ],
     philosophy: {
@@ -261,7 +266,7 @@ const CONFIGS = {
     marquee: ['Rénovation', 'Construction neuve', 'Toiture', 'Excavation', 'Clé en main', 'Garanti'],
     galleryCaptions: ['Le chantier', 'La structure', 'Les finitions', 'Le résultat'],
     chapters: [
-      { img: 'interior', title: "Tout commence par<br>une poignée de main.", body: "On visite, on écoute, on mesure. La soumission arrive vite — et elle tient." },
+      { img: 'interior', title: "Tout commence par<br>une poignée de main.", body: "On visite, on écoute, on mesure. À {{city}}, la soumission arrive vite — et elle tient." },
       { img: 'service', title: "Un chantier propre est<br>un chantier sérieux.", body: "Échéancier respecté, site rangé chaque soir. Vos voisins n'auront rien à redire." },
     ],
     philosophy: {
@@ -285,6 +290,20 @@ const CONFIGS = {
 };
 
 const INDUSTRY_LABELS = Object.fromEntries(Object.entries(CONFIGS).map(([k,v]) => [k, v.label]));
+
+// ── Industry-specific about text ───────────────────────────────────────────
+const ABOUT_TEXTS = {
+  restaurant: (name, city, founded) =>
+    `${esc(name)} est une table qui compte ${city ? `à ${esc(city)}` : 'ici'}. ${founded ? `Depuis ${founded}, la cuisine` : 'La cuisine'} suit les saisons, les producteurs locaux et les idées fraîches de l'équipe — mais jamais au détriment du simple plaisir de bien manger. Une salle chaleureuse, un service attentif, des assiettes qui racontent quelque chose.`,
+  garage: (name, city, founded) =>
+    `${esc(name)} est l'atelier de confiance ${city ? `de ${esc(city)}` : 'du quartier'}. ${founded ? `Depuis ${founded}, des` : 'Des'} techniciens certifiés y travaillent avec la même règle : expliquer avant de réparer, et garantir après. Résultat — des clients qui reviennent, et qui envoient leurs proches.`,
+  salon: (name, city, founded) =>
+    `${esc(name)} est un espace pensé pour prendre le temps. ${founded ? `Depuis ${founded}, l'équipe` : "L'équipe"} reçoit chaque client${city ? ` de ${esc(city)}` : ''} avec la même attention : écoute, conseils honnêtes, produits haut de gamme. Le résultat se voit — et se ressent bien après la visite.`,
+  clinique: (name, city, founded) =>
+    `${esc(name)} a été fondée pour offrir ${city ? `aux résidents de ${esc(city)}` : 'à nos patients'} un accès rapide à des soins de qualité, sans sacrifier l'écoute ni la chaleur humaine. ${founded ? `Depuis ${founded}, l'équipe` : "L'équipe"} s'agrandit — mais l'essentiel reste : on prend le temps qu'il faut, pour chaque personne.`,
+  construction: (name, city, founded) =>
+    `${esc(name)} construit et rénove ${city ? `dans la région de ${esc(city)}` : 'dans votre région'}${founded ? ` depuis ${founded}` : ''}. Chaque projet commence par une visite sur le terrain et se termine par une remise des clés sans surprise. Ce qui se passe entre les deux : de l'artisanat sérieux, fait par des gens qui habitent le même coin que vous.`,
+};
 
 // ── Animation CSS per type ─────────────────────────────────────────────────
 function animationCSS(anim) {
@@ -501,7 +520,9 @@ function generateCinematic(rawData) {
   const isLight = (anim === 'swing' || anim === 'curtain' || anim === 'glass');
   const contactBg = isLight ? p.primary : p.dark;
   const contactText = isLight ? '#0a0a0a' : p.text;
-  const aboutText = rawData.aboutText || `${esc(name)} est né d'une passion simple : bien faire, honnêtement, avec des gens de ${city || 'notre région'}. ${founded ? `Fondé en ${founded}, l'équipe` : 'Notre équipe'} continue de grandir grâce à la confiance de clients fidèles et de nouveaux visages chaque année.`;
+  const aboutText = rawData.aboutText || (ABOUT_TEXTS[industry]
+    ? ABOUT_TEXTS[industry](name, city, founded)
+    : `${esc(name)} est né d'une passion simple : bien faire, honnêtement, avec des gens de ${city ? esc(city) : 'notre région'}. ${founded ? `Fondé en ${founded}, l'équipe` : 'Notre équipe'} continue de grandir grâce à la confiance de clients fidèles et de nouveaux visages chaque année.`);
   const mapsQuery = encodeURIComponent(`${address}${city ? ', ' + city : ''}, Québec`);
   const mapBrightness = isLight ? '1.05' : '0.45';
 
@@ -557,7 +578,7 @@ function generateCinematic(rawData) {
         }
 
         /* Scènes */
-        #s-ext .scene-bg { background-image: ${bgImg('exterior', 'exterior')}; background-position: center 35%; filter: saturate(1.12) contrast(1.06) brightness(0.82); }
+        #s-ext .scene-bg { background-image: ${bgImg('exterior', 'exterior')}; background-position: center 35%; filter: saturate(1.12) contrast(1.06) brightness(0.82); animation: heroKenBurns 14s ease-in-out forwards; }
         #s-svc { opacity: 0; z-index: 3; }
         #s-svc .scene-bg { background-image: ${bgImg('service', 'service')}; }
         #s-site { opacity: 0; z-index: 4; background: var(--bg); display: flex; align-items: flex-end; justify-content: flex-start; }
@@ -600,7 +621,12 @@ function generateCinematic(rawData) {
         .splash-scroll span { font-family: ${cfg.fontH}; font-size: 10px; letter-spacing: 0.36em; text-transform: uppercase; color: var(--primary); }
         .splash-line { width: 1px; height: 54px; background: linear-gradient(to bottom, var(--primary), transparent); animation: lineDown 1.8s ease-in-out infinite; }
         @keyframes lineDown { 0%{transform:scaleY(0);transform-origin:top} 49%{transform:scaleY(1);transform-origin:top} 50%{transform:scaleY(1);transform-origin:bottom} 100%{transform:scaleY(0);transform-origin:bottom} }
+        @keyframes heroKenBurns { 0% { transform: scale(1.0); } 100% { transform: scale(1.10); } }
 
+        /* Hero scroll hint */
+        #hero-hint { position: absolute; bottom: 9vh; left: 50%; transform: translateX(-50%); z-index: 20; display: flex; flex-direction: column; align-items: center; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.4s; }
+        #hero-hint span { font-family: ${cfg.fontH}; font-size: 10px; letter-spacing: 0.36em; text-transform: uppercase; color: rgba(255,255,255,0.45); }
+        .hero-hint-line { width: 1px; height: 56px; background: linear-gradient(to bottom, rgba(255,255,255,0.55), transparent); animation: lineDown 1.8s ease-in-out infinite; }
 
         /* Scroll-reveal */
         .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.65s cubic-bezier(.22,1,.36,1), transform 0.65s cubic-bezier(.22,1,.36,1); }
@@ -611,7 +637,8 @@ function generateCinematic(rawData) {
         .reveal-d4 { transition-delay: 0.32s; }
 
         /* Navbar */
-        .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 22px 6vw; transition: background .4s, padding .3s, transform .45s cubic-bezier(.22,1,.36,1); }
+        .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 22px 6vw; opacity: 0; pointer-events: none; transition: background .4s, padding .3s, transform .45s cubic-bezier(.22,1,.36,1), opacity .5s; }
+        .navbar.journey-past { opacity: 1; pointer-events: auto; }
         .navbar.scrolled { background: rgba(${hexToRgbStr(p.bg)}, 0.96); backdrop-filter: blur(16px); padding: 14px 6vw; }
         .navbar.hidden { transform: translateY(-100%); }
         .nav-logo { font-family: ${cfg.fontH}; font-weight: ${cfg.fontHW}; font-size: 16px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text); text-decoration: none; }
@@ -756,6 +783,8 @@ function generateCinematic(rawData) {
             .reveal { opacity: 1; transform: none; transition: none; }
             .marquee-track { animation: none; }
             .splash-line { animation: none; }
+            .hero-hint-line { animation: none; }
+            #s-ext .scene-bg { animation: none; }
             html { scroll-behavior: auto; }
         }
     </style>
@@ -812,6 +841,7 @@ function generateCinematic(rawData) {
         <div class="jt" id="jt-svc">
             <div class="jt-svc-text">${svcParts[0] ? esc(svcParts[0]) : ''}<br>${svcParts[1] ? `<strong>${esc(svcParts[1])}</strong>` : ''}</div>
         </div>
+        <div id="hero-hint"><span>Défiler</span><div class="hero-hint-line"></div></div>
     </div>
 </div>
 
@@ -839,7 +869,7 @@ function generateCinematic(rawData) {
     <div class="chap-content">
         <div class="chap-num reveal">01 — ${esc(cfg.galleryCaptions[1])}</div>
         <h2 class="chap-title reveal reveal-d1">${cfg.chapters[0].title}</h2>
-        <p class="chap-body reveal reveal-d2">${esc(cfg.chapters[0].body)}</p>
+        <p class="chap-body reveal reveal-d2">${esc(fillChap(cfg.chapters[0].body, name, city))}</p>
     </div>
 </div>
 
@@ -863,7 +893,7 @@ function generateCinematic(rawData) {
     <div class="chap-content">
         <div class="chap-num reveal">02 — ${esc(cfg.galleryCaptions[2])}</div>
         <h2 class="chap-title reveal reveal-d1">${cfg.chapters[1].title}</h2>
-        <p class="chap-body reveal reveal-d2">${esc(cfg.chapters[1].body)}</p>
+        <p class="chap-body reveal reveal-d2">${esc(fillChap(cfg.chapters[1].body, name, city))}</p>
     </div>
 </div>
 
@@ -976,12 +1006,13 @@ function generateCinematic(rawData) {
             loader.classList.add('done');
             document.body.style.overflow = '';
             if (lenis) lenis.start();
-            // Révèle l'adresse et le titre après le chargement — d'abord la photo pure, puis le texte
+            gsap.set('#s-ext .scene-bg', { scale: 1.0 });
             gsap.to('#jt-addr', { opacity: 1, duration: 1.4, delay: 0.5, ease: 'power2.out' });
             gsap.fromTo('#jt-title',
                 { opacity: 0, y: 22 },
                 { opacity: 1, y: 0, duration: 1.6, delay: 0.9, ease: 'power3.out' }
             );
+            gsap.to('#hero-hint', { opacity: 1, duration: 1.2, delay: 1.8, ease: 'power2.out' });
         }
         if (reduceMotionGlobal) {
             loader.style.display = 'none'; document.body.style.overflow = '';
@@ -998,13 +1029,21 @@ function generateCinematic(rawData) {
         setTimeout(finish, 3200); // garde-fou
     })();
 
-    // Navbar — fond au scroll + cache en descendant, revient en remontant
+    // Navbar — invisible pendant le journey cinématique, apparaît après
     let lastY = 0;
     const navEl = document.getElementById('navbar');
+    const journeySection = document.querySelector('.journey');
     window.addEventListener('scroll', () => {
         const y = window.scrollY;
-        navEl.classList.toggle('scrolled', y > 60);
-        navEl.classList.toggle('hidden', y > 400 && y > lastY);
+        const journeyBottom = journeySection ? journeySection.offsetTop + journeySection.offsetHeight : 0;
+        const pastJourney = y > journeyBottom - window.innerHeight * 0.5;
+        if (!pastJourney) {
+            navEl.classList.remove('journey-past', 'scrolled', 'hidden');
+            lastY = y;
+            return;
+        }
+        navEl.classList.add('journey-past', 'scrolled');
+        navEl.classList.toggle('hidden', y > lastY + 10 && y > 100);
         lastY = y;
     }, { passive: true });
 
@@ -1049,6 +1088,7 @@ function generateCinematic(rawData) {
         }
     });
     ${gsapScript(anim)}
+    tl.to('#hero-hint', { opacity: 0, duration: 0.25 }, 0.2);
 
     // Galerie horizontale — pilotée par le scroll (desktop seulement)
     const galTrack = document.getElementById('galTrack');
