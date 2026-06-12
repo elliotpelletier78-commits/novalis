@@ -47,7 +47,7 @@
         }
 
         /* Scènes */
-        #s-ext .scene-bg { background-image: url('/demo/images/pmc-mecanique-exterior.jpg'), url('https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=95&w=2800&auto=format&fit=crop&crop=focalpoint'); background-position: center 35%; filter: saturate(1.12) contrast(1.06) brightness(0.82); }
+        #s-ext .scene-bg { background-image: url('/demo/images/pmc-mecanique-exterior.jpg'), url('https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=95&w=2800&auto=format&fit=crop&crop=focalpoint'); background-position: center 35%; filter: saturate(1.12) contrast(1.06) brightness(0.82); animation: heroKenBurns 14s ease-in-out forwards; }
         #s-svc { opacity: 0; z-index: 3; }
         #s-svc .scene-bg { background-image: url('/demo/images/pmc-mecanique-service.jpg'), url('https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?q=95&w=2800&auto=format&fit=crop'); }
         #s-site { opacity: 0; z-index: 4; background: var(--bg); display: flex; align-items: flex-end; justify-content: flex-start; }
@@ -103,7 +103,12 @@
         .splash-scroll span { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; letter-spacing: 0.36em; text-transform: uppercase; color: var(--primary); }
         .splash-line { width: 1px; height: 54px; background: linear-gradient(to bottom, var(--primary), transparent); animation: lineDown 1.8s ease-in-out infinite; }
         @keyframes lineDown { 0%{transform:scaleY(0);transform-origin:top} 49%{transform:scaleY(1);transform-origin:top} 50%{transform:scaleY(1);transform-origin:bottom} 100%{transform:scaleY(0);transform-origin:bottom} }
+        @keyframes heroKenBurns { 0% { transform: scale(1.0); } 100% { transform: scale(1.10); } }
 
+        /* Hero scroll hint */
+        #hero-hint { position: absolute; bottom: 9vh; left: 50%; transform: translateX(-50%); z-index: 20; display: flex; flex-direction: column; align-items: center; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.4s; }
+        #hero-hint span { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; letter-spacing: 0.36em; text-transform: uppercase; color: rgba(255,255,255,0.45); }
+        .hero-hint-line { width: 1px; height: 56px; background: linear-gradient(to bottom, rgba(255,255,255,0.55), transparent); animation: lineDown 1.8s ease-in-out infinite; }
 
         /* Scroll-reveal */
         .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.65s cubic-bezier(.22,1,.36,1), transform 0.65s cubic-bezier(.22,1,.36,1); }
@@ -114,7 +119,8 @@
         .reveal-d4 { transition-delay: 0.32s; }
 
         /* Navbar */
-        .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 22px 6vw; transition: background .4s, padding .3s, transform .45s cubic-bezier(.22,1,.36,1); }
+        .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 22px 6vw; opacity: 0; pointer-events: none; transition: background .4s, padding .3s, transform .45s cubic-bezier(.22,1,.36,1), opacity .5s; }
+        .navbar.journey-past { opacity: 1; pointer-events: auto; }
         .navbar.scrolled { background: rgba(6,6,6, 0.96); backdrop-filter: blur(16px); padding: 14px 6vw; }
         .navbar.hidden { transform: translateY(-100%); }
         .nav-logo { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 16px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text); text-decoration: none; }
@@ -259,6 +265,8 @@
             .reveal { opacity: 1; transform: none; transition: none; }
             .marquee-track { animation: none; }
             .splash-line { animation: none; }
+            .hero-hint-line { animation: none; }
+            #s-ext .scene-bg { animation: none; }
             html { scroll-behavior: auto; }
         }
     </style>
@@ -315,6 +323,7 @@
         <div class="jt" id="jt-svc">
             <div class="jt-svc-text">La précision<br><strong>fait tout.</strong></div>
         </div>
+        <div id="hero-hint"><span>Défiler</span><div class="hero-hint-line"></div></div>
     </div>
 </div>
 
@@ -357,7 +366,7 @@
     <div class="chap-content">
         <div class="chap-num reveal">01 — Les baies</div>
         <h2 class="chap-title reveal reveal-d1">La porte se lève,<br>le diagnostic commence.</h2>
-        <p class="chap-body reveal reveal-d2">Un atelier propre, des outils à leur place. Votre véhicule entre de bonnes mains dès le premier coup d'œil.</p>
+        <p class="chap-body reveal reveal-d2">Un atelier propre, des outils à leur place. Sherbrooke peut compter sur une équipe qui fait les choses comme il faut.</p>
     </div>
 </div>
 
@@ -366,7 +375,7 @@
     <div>
         <div class="sec-label reveal">Notre histoire</div>
         <h2 class="sec-title reveal reveal-d1">on est là pour vous</h2>
-        <p class="about-body reveal reveal-d2">PMC Mécanique est né d'une passion simple : bien faire, honnêtement, avec des gens de Sherbrooke. Notre équipe continue de grandir grâce à la confiance de clients fidèles et de nouveaux visages chaque année.</p>
+        <p class="about-body reveal reveal-d2">PMC Mécanique est l'atelier de confiance de Sherbrooke. Des techniciens certifiés y travaillent avec la même règle : expliquer avant de réparer, et garantir après. Résultat — des clients qui reviennent, et qui envoient leurs proches.</p>
         <div class="stats-grid reveal reveal-d3">
             <div>
                 <div class="stat-num" data-target="25+">25+</div>
@@ -381,8 +390,8 @@
                 <div class="stat-label">techniciens certifiés</div>
             </div>
             <div>
-                <div class="stat-num" data-target="98%">98%</div>
-                <div class="stat-label">satisfaction client</div>
+                <div class="stat-num" data-target="4.8★">4.8★</div>
+                <div class="stat-label">note Google</div>
             </div>
         </div>
     </div>
@@ -543,12 +552,13 @@
             loader.classList.add('done');
             document.body.style.overflow = '';
             if (lenis) lenis.start();
-            // Révèle l'adresse et le titre après le chargement — d'abord la photo pure, puis le texte
+            gsap.set('#s-ext .scene-bg', { scale: 1.0 });
             gsap.to('#jt-addr', { opacity: 1, duration: 1.4, delay: 0.5, ease: 'power2.out' });
             gsap.fromTo('#jt-title',
                 { opacity: 0, y: 22 },
                 { opacity: 1, y: 0, duration: 1.6, delay: 0.9, ease: 'power3.out' }
             );
+            gsap.to('#hero-hint', { opacity: 1, duration: 1.2, delay: 1.8, ease: 'power2.out' });
         }
         if (reduceMotionGlobal) {
             loader.style.display = 'none'; document.body.style.overflow = '';
@@ -565,13 +575,21 @@
         setTimeout(finish, 3200); // garde-fou
     })();
 
-    // Navbar — fond au scroll + cache en descendant, revient en remontant
+    // Navbar — invisible pendant le journey cinématique, apparaît après
     let lastY = 0;
     const navEl = document.getElementById('navbar');
+    const journeySection = document.querySelector('.journey');
     window.addEventListener('scroll', () => {
         const y = window.scrollY;
-        navEl.classList.toggle('scrolled', y > 60);
-        navEl.classList.toggle('hidden', y > 400 && y > lastY);
+        const journeyBottom = journeySection ? journeySection.offsetTop + journeySection.offsetHeight : 0;
+        const pastJourney = y > journeyBottom - window.innerHeight * 0.5;
+        if (!pastJourney) {
+            navEl.classList.remove('journey-past', 'scrolled', 'hidden');
+            lastY = y;
+            return;
+        }
+        navEl.classList.add('journey-past', 'scrolled');
+        navEl.classList.toggle('hidden', y > lastY + 10 && y > 100);
         lastY = y;
     }, { passive: true });
 
@@ -640,6 +658,7 @@
             .to('.splash-logo',    { y: 0, opacity: 1, duration: 0.6 }, 6.9)
             .to('.splash-tagline', { y: 0, opacity: 1, duration: 0.5 }, 7.1)
             .to('.splash-scroll',  { opacity: 1, duration: 0.5 }, 7.4);
+    tl.to('#hero-hint', { opacity: 0, duration: 0.25 }, 0.2);
 
     // Galerie horizontale — pilotée par le scroll (desktop seulement)
     const galTrack = document.getElementById('galTrack');
