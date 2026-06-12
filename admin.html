@@ -113,6 +113,29 @@
         #toast{position:fixed;bottom:24px;right:24px;background:var(--ok);color:#fff;padding:11px 22px;font-size:13px;font-weight:500;transform:translateY(70px);opacity:0;transition:all .28s;pointer-events:none;z-index:200}
         #toast.show{transform:translateY(0);opacity:1}
 
+        /* ── Photo editor modal ── */
+        #photoModal{position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:20px}
+        #photoModal.show{display:flex}
+        .pm-box{background:var(--surf);border:1px solid var(--border);width:760px;max-width:100%;max-height:92vh;overflow-y:auto;padding:28px}
+        .pm-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+        .pm-head h3{font-size:16px;font-weight:600}
+        .pm-close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;padding:4px}
+        .pm-close:hover{color:var(--text)}
+        .pm-sub{font-size:12px;color:var(--muted);margin-bottom:20px}
+        .pm-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+        .pm-slot{position:relative;border:1px solid var(--border);background:var(--bg);cursor:pointer;transition:border-color .15s;overflow:hidden}
+        .pm-slot:hover{border-color:var(--red)}
+        .pm-slot.logo-slot{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:14px}
+        .pm-img{width:100%;aspect-ratio:16/10;object-fit:cover;display:block;background:#0a0a0a}
+        .pm-logo-img{width:120px;height:60px;object-fit:contain;background:#0a0a0a;border:1px solid var(--border);flex-shrink:0}
+        .pm-label{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.75);color:#fff;font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:3px 9px;pointer-events:none}
+        .pm-missing{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--muted);font-size:12px}
+        .pm-replace{position:absolute;bottom:8px;right:8px;background:var(--red);color:#fff;font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:5px 12px;pointer-events:none;opacity:0;transition:opacity .15s}
+        .pm-slot:hover .pm-replace{opacity:1}
+        .pm-slot input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+        .pm-slot.uploading{opacity:.5;pointer-events:none}
+        .pm-footer{display:flex;gap:10px;margin-top:20px;align-items:center;flex-wrap:wrap}
+
         @media(max-width:768px){
             .fg{grid-template-columns:1fr}
             .ind-grid{grid-template-columns:repeat(3,1fr)}
@@ -285,6 +308,23 @@
 </div>
 
 </main>
+</div>
+
+<!-- ══ PHOTO EDITOR ══ -->
+<div id="photoModal" onclick="if(event.target===this)closePhotoModal()">
+    <div class="pm-box">
+        <div class="pm-head">
+            <h3 id="pmTitle">Photos de la démo</h3>
+            <button class="pm-close" onclick="closePhotoModal()">×</button>
+        </div>
+        <div class="pm-sub">Cliquez sur un emplacement pour remplacer la photo. La démo est régénérée automatiquement. Astuce : prenez les photos sur leur page Facebook ou Google Maps.</div>
+        <div class="pm-grid" id="pmGrid"></div>
+        <div class="pm-footer">
+            <a id="pmOpen" href="#" target="_blank" class="btn-sm" style="text-decoration:none">Voir la démo ↗</a>
+            <button class="btn-sm" onclick="regenDemo()">↻ Régénérer le HTML</button>
+            <span id="pmStatus" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+    </div>
 </div>
 
 <div id="toast">Copié !</div>
@@ -523,7 +563,7 @@ async function loadProspects() {
             <td style="font-family:monospace;font-size:12px">${esc(p.phone||'—')}</td>
             <td class="views ${vCls}">${vTxt}</td>
             <td><select class="status-sel" onchange="setStatus('${p.slug}',this.value)">${['nouveau','envoyé','vu','en discussion','vendu','refusé'].map(s=>`<option${p.status===s?' selected':''}>${s}</option>`).join('')}</select></td>
-            <td><a href="${url}" target="_blank" class="lnk">Ouvrir ↗</a> · <span class="lnk" onclick="cp('${location.origin+url}')">Copier</span></td>
+            <td><a href="${url}" target="_blank" class="lnk">Ouvrir ↗</a> · <span class="lnk" onclick="cp('${location.origin+url}')">Copier</span> · <span class="lnk" onclick="openPhotoModal('${p.slug}','${esc(p.name).replace(/'/g,"\\'")}')">Photos</span></td>
             <td style="color:var(--muted);white-space:nowrap;font-size:12px">${dt}</td>
             </tr>`;
         }).join('');
@@ -535,6 +575,99 @@ async function setStatus(slug, status) {
         method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem(AKEY)||'')},
         body: JSON.stringify({status})
     });
+}
+
+/* ── Photo editor ── */
+const PM_ROLES = [
+    { key: 'exterior', label: 'Extérieur / Façade' },
+    { key: 'interior', label: 'Intérieur' },
+    { key: 'service',  label: 'Service / Produit' },
+    { key: 'about',    label: 'Équipe / À propos' },
+];
+let PmSlug = '';
+
+async function openPhotoModal(slug, name) {
+    PmSlug = slug;
+    document.getElementById('pmTitle').textContent = 'Photos — ' + name;
+    document.getElementById('pmOpen').href = '/demo/' + slug + '.html';
+    document.getElementById('pmStatus').textContent = '';
+    document.getElementById('photoModal').classList.add('show');
+    await refreshPhotoGrid();
+}
+function closePhotoModal() { document.getElementById('photoModal').classList.remove('show'); }
+
+async function refreshPhotoGrid() {
+    const grid = document.getElementById('pmGrid');
+    grid.innerHTML = '<div style="grid-column:1/-1;color:var(--muted);font-size:13px;padding:20px;text-align:center">Chargement…</div>';
+    try {
+        const r = await fetch('/prospects/' + PmSlug + '/photos', { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem(AKEY)||'') } });
+        const d = await r.json();
+        grid.innerHTML = PM_ROLES.map(role => `
+            <div class="pm-slot" id="pmslot-${role.key}">
+                <input type="file" accept="image/jpeg,image/png,image/webp" onchange="replacePhoto(this,'${role.key}')">
+                <div class="pm-label">${role.label}</div>
+                ${d.photos[role.key]
+                    ? `<img class="pm-img" src="${d.photos[role.key]}" alt="${role.label}">`
+                    : `<div class="pm-img"></div><div class="pm-missing"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Photo Unsplash générique<br>— cliquez pour remplacer</div>`}
+                <div class="pm-replace">Remplacer</div>
+            </div>`).join('') + `
+            <div class="pm-slot logo-slot" id="pmslot-logo">
+                <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" onchange="replacePhoto(this,'logo')">
+                ${d.logo
+                    ? `<img class="pm-logo-img" src="${d.logo}" alt="logo">`
+                    : `<div class="pm-logo-img" style="display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px">Aucun logo</div>`}
+                <div style="flex:1"><div style="font-size:13px;font-weight:600;margin-bottom:2px">Logo de l'entreprise</div><div style="font-size:11px;color:var(--muted)">PNG fond transparent idéal — affiché en blanc dans le splash.</div></div>
+                <div class="pm-replace" style="position:static;opacity:1">Remplacer</div>
+            </div>`;
+        if (!d.canRegenerate) {
+            document.getElementById('pmStatus').textContent = '⚠ Démo générée avant la mise à jour — remplacer une photo ne régénérera pas le HTML (re-créez la démo une fois).';
+        }
+    } catch(e) {
+        grid.innerHTML = '<div style="grid-column:1/-1;color:var(--red);font-size:13px;padding:20px">Erreur : ' + esc(e.message) + '</div>';
+    }
+}
+
+async function replacePhoto(input, role) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 18 * 1024 * 1024) { alert('Image trop lourde (max 18 Mo).'); return; }
+    const slot = document.getElementById('pmslot-' + role);
+    slot.classList.add('uploading');
+    document.getElementById('pmStatus').textContent = 'Upload en cours…';
+    try {
+        const b64 = await new Promise(res => { const fr = new FileReader(); fr.onload = e => res(e.target.result); fr.readAsDataURL(file); });
+        const r = await fetch('/prospects/' + PmSlug + '/photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem(AKEY)||'') },
+            body: JSON.stringify({ role, data: b64 })
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error);
+        document.getElementById('pmStatus').textContent = d.regenerated ? '✓ Photo remplacée — démo régénérée' : '✓ Photo remplacée';
+        toast('Photo remplacée !');
+        await refreshPhotoGrid();
+    } catch(e) {
+        document.getElementById('pmStatus').textContent = '✗ ' + e.message;
+        alert('Erreur : ' + e.message);
+    } finally {
+        slot.classList.remove('uploading');
+    }
+}
+
+async function regenDemo() {
+    document.getElementById('pmStatus').textContent = 'Régénération…';
+    try {
+        const r = await fetch('/prospects/' + PmSlug + '/regenerate', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + (localStorage.getItem(AKEY)||'') }
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error);
+        document.getElementById('pmStatus').textContent = '✓ Démo régénérée';
+        toast('Démo régénérée !');
+    } catch(e) {
+        document.getElementById('pmStatus').textContent = '✗ ' + e.message;
+    }
 }
 
 /* ── Utils ── */

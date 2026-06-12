@@ -529,12 +529,29 @@ function generateCinematic(rawData) {
   const insideParts = cfg.insideText.split('\n');
   const svcParts    = cfg.svcText.split('\n');
 
+  // OG meta — carte de prévisualisation quand le lien est partagé (SMS, email, Messenger)
+  const baseUrl = (rawData.baseUrl || '').replace(/\/$/, '');
+  const ogImage = photos.exterior
+    ? (photos.exterior.startsWith('http') ? photos.exterior : baseUrl + photos.exterior)
+    : `https://images.unsplash.com/${cfg.unsplash.exterior}`;
+  const ogDesc = tagline.length > 20 ? tagline : `${name} — ${cfg.label}. ${tagline}`;
+
   const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${esc(name)}</title>
+    <meta name="description" content="${esc(ogDesc)}">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="${esc(name)}">
+    <meta property="og:description" content="${esc(ogDesc)}">
+    <meta property="og:image" content="${esc(ogImage)}">
+    <meta property="og:locale" content="fr_CA">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="${esc(name)}">
+    <meta name="twitter:image" content="${esc(ogImage)}">
+    <meta name="theme-color" content="${p.bg}">
     <link href="https://fonts.googleapis.com/css2?family=${cfg.google}&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

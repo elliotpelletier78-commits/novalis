@@ -27,6 +27,8 @@ db.exec(`
     demo_url    TEXT
   );
 `);
+// Migration — colonne data (JSON de génération, permet la régénération)
+try { db.exec('ALTER TABLE prospects ADD COLUMN data TEXT'); } catch(e) { /* existe déjà */ }
 
 // ── Admin auth middleware ─────────────────────────────────────
 const ADMIN_PASS = process.env.ADMIN_PASS || 'novalis2025';
@@ -556,16 +558,18 @@ app.post('/generate-cinematic', requireAdmin, async (req, res) => {
 
     const demoUrl = `${base}/demo/${result.slug}.html`;
 
-    // Persist prospect
+    // Persist prospect — incluant les données complètes pour régénération
     const city = (data.address || '').split(',').slice(-2)[0]?.trim() || '';
+    const genData = JSON.stringify({ ...data, logoUrl: data.logoUrl || (brand && brand.logoUrl) || '' });
     db.prepare(`
-      INSERT INTO prospects (slug,name,industry,phone,address,city,color,demo_url)
-      VALUES (?,?,?,?,?,?,?,?)
+      INSERT INTO prospects (slug,name,industry,phone,address,city,color,demo_url,data)
+      VALUES (?,?,?,?,?,?,?,?,?)
       ON CONFLICT(slug) DO UPDATE SET
         name=excluded.name, industry=excluded.industry,
         phone=excluded.phone, address=excluded.address,
-        city=excluded.city, color=excluded.color, demo_url=excluded.demo_url
-    `).run(result.slug, data.name, data.industry||'restaurant', data.phone||'', data.address||'', city, data.color||'', demoUrl);
+        city=excluded.city, color=excluded.color, demo_url=excluded.demo_url,
+        data=excluded.data
+    `).run(result.slug, data.name, data.industry||'restaurant', data.phone||'', data.address||'', city, data.color||'', demoUrl, genData);
 
     // Télécharger les photos via brand-research si un site est fourni
     let photosFound = 0;
@@ -668,7 +672,7 @@ app.post('/discover-generate', requireAdmin, async (req, res) => {
     }
 
     // ── 6. Générer le HTML personnalisé ───────────────────────
-    const result = generateCinematic({
+    const genData = {
       industry: industry || 'restaurant',
       name,
       slug,
@@ -682,27 +686,32 @@ app.post('/discover-generate', requireAdmin, async (req, res) => {
       services:  (brand && brand.services && brand.services.length >= 2) ? brand.services.slice(0, 4) : undefined,
       stats,
       hours:     (brand && brand.hours)   || undefined,
-      photos:    dlResult.photos,
       website:   url,
-      logoUrl:   logoLocal || (brand && brand.logoUrl) || '',
+      logoUrl:   (brand && brand.logoUrl) || '',
       baseUrl:   base,
+    };
+    const result = generateCinematic({
+      ...genData,
+      photos:  dlResult.photos,
+      logoUrl: logoLocal || genData.logoUrl,
     });
 
     fs.writeFileSync(path.join(outputDir, `${result.slug}.html`), result.html, 'utf8');
     const demoUrl = `${base}/demo/${result.slug}.html`;
 
     db.prepare(`
-      INSERT INTO prospects (slug,name,industry,phone,address,city,color,demo_url)
-      VALUES (?,?,?,?,?,?,?,?)
+      INSERT INTO prospects (slug,name,industry,phone,address,city,color,demo_url,data)
+      VALUES (?,?,?,?,?,?,?,?,?)
       ON CONFLICT(slug) DO UPDATE SET
         name=excluded.name, industry=excluded.industry,
         phone=excluded.phone, address=excluded.address,
-        city=excluded.city, color=excluded.color, demo_url=excluded.demo_url
+        city=excluded.city, color=excluded.color, demo_url=excluded.demo_url,
+        data=excluded.data
     `).run(result.slug, name, industry || 'restaurant',
        (brand && brand.phone) || '',
        (brand && brand.address) || '',
        city || '', (brand && brand.color) || '',
-       demoUrl);
+       demoUrl, JSON.stringify(genData));
 
     console.log(`[discover] ${name} → ${demoUrl} (${brand ? brand.pagesScraped : 0} pages, ${dlResult.saved} photos)`);
     res.json({
@@ -734,6 +743,98 @@ app.get('/t/:slug', (req, res) => {
   res.setHeader('Content-Type', 'image/gif');
   res.setHeader('Cache-Control', 'no-store');
   res.send(PIXEL);
+});
+
+// ── Régénération d'une démo depuis les données stockées ──────
+// Re-scanne les photos locales (incluant celles remplacées manuellement)
+// et reconstruit le HTML.
+function regenerateDemo(slug, baseUrl) {
+  const row = db.prepare('SELECT data FROM prospects WHERE slug=?').get(slug);
+  if (!row || !row.data) throw new Error('Données de génération introuvables pour ' + slug);
+  const data = JSON.parse(row.data);
+  const imagesDir = path.join(outputDir, 'images');
+  const photos = {};
+  for (const k of ['exterior','interior','service','about']) {
+    if (fs.existsSync(path.join(imagesDir, `${slug}-${k}.jpg`)))
+      photos[k] = `/demo/images/${slug}-${k}.jpg?v=${Date.now()}`;
+  }
+  const logoExt = fs.existsSync(path.join(imagesDir, `${slug}-logo.svg`)) ? 'svg' : 'png';
+  const logoLocal = fs.existsSync(path.join(imagesDir, `${slug}-logo.${logoExt}`))
+    ? `/demo/images/${slug}-logo.${logoExt}` : '';
+  const { generateCinematic } = require('./generate-cinematic');
+  const result = generateCinematic({
+    ...data, slug, photos,
+    logoUrl: logoLocal || data.logoUrl || '',
+    baseUrl: baseUrl || data.baseUrl || '',
+  });
+  fs.writeFileSync(path.join(outputDir, `${result.slug}.html`), result.html, 'utf8');
+  return result;
+}
+
+// ── Photos d'une démo — état actuel des 5 emplacements ───────
+app.get('/prospects/:slug/photos', requireAdmin, (req, res) => {
+  const { slug } = req.params;
+  const imagesDir = path.join(outputDir, 'images');
+  const photos = {};
+  for (const k of ['exterior','interior','service','about']) {
+    const f = path.join(imagesDir, `${slug}-${k}.jpg`);
+    photos[k] = fs.existsSync(f) ? `/demo/images/${slug}-${k}.jpg?v=${fs.statSync(f).mtimeMs}` : null;
+  }
+  let logo = null;
+  for (const ext of ['svg','png']) {
+    const f = path.join(imagesDir, `${slug}-logo.${ext}`);
+    if (fs.existsSync(f)) { logo = `/demo/images/${slug}-logo.${ext}?v=${fs.statSync(f).mtimeMs}`; break; }
+  }
+  const row = db.prepare('SELECT data FROM prospects WHERE slug=?').get(slug);
+  res.json({ success: true, photos, logo, canRegenerate: !!(row && row.data) });
+});
+
+// ── Remplacer une photo (base64) et régénérer la démo ────────
+app.post('/prospects/:slug/photo', requireAdmin, (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { role, data } = req.body || {};
+    if (!role || !data) return res.status(400).json({ success: false, error: 'role + data requis' });
+    if (!['exterior','interior','service','about','logo'].includes(role)) {
+      return res.status(400).json({ success: false, error: 'role invalide' });
+    }
+    const imagesDir = path.join(outputDir, 'images');
+    if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
+    const buf = Buffer.from(data.replace(/^data:[^;]+;base64,/, ''), 'base64');
+    if (buf.length < 1024) return res.status(400).json({ success: false, error: 'image trop petite' });
+    const filename = role === 'logo' ? `${slug}-logo.png` : `${slug}-${role}.jpg`;
+    // Un logo remplacé manuellement écrase aussi l'éventuel SVG
+    if (role === 'logo') {
+      const svgPath = path.join(imagesDir, `${slug}-logo.svg`);
+      if (fs.existsSync(svgPath)) fs.unlinkSync(svgPath);
+    }
+    fs.writeFileSync(path.join(imagesDir, filename), buf);
+
+    // Régénérer le HTML avec la nouvelle photo
+    let regenerated = false;
+    try {
+      const base = `${req.protocol}://${req.get('host')}`;
+      regenerateDemo(slug, base);
+      regenerated = true;
+    } catch(e) { console.warn('[photo-replace] regen:', e.message); }
+
+    console.log(`[photo-replace] ${slug}/${role} (${Math.round(buf.length/1024)}kb) regen:${regenerated}`);
+    res.json({ success: true, regenerated, url: `/demo/images/${filename}?v=${Date.now()}` });
+  } catch (err) {
+    console.error('[photo-replace]', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── Régénérer une démo manuellement ───────────────────────────
+app.post('/prospects/:slug/regenerate', requireAdmin, (req, res) => {
+  try {
+    const base = `${req.protocol}://${req.get('host')}`;
+    const result = regenerateDemo(req.params.slug, base);
+    res.json({ success: true, url: `${base}/demo/${result.slug}.html` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // ── Liste des prospects ───────────────────────────────────────
