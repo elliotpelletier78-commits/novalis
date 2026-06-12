@@ -14,6 +14,20 @@ function fillChap(text, name, city) {
     .replace(/\{\{city\}\}/g, city || 'notre région')
     .replace(/\{\{name\}\}/g, name || 'notre équipe');
 }
+// Nom du hero — coupe au tiret (« Chez Boulay — Bistro Boréal » → « Chez Boulay »),
+// puis empile jusqu'à 3 mots ; les noms courts restent entiers.
+function heroNameLines(name) {
+  const main = name.split(/\s+[—–|]\s+/)[0].trim();
+  const words = main.split(/\s+/).filter(w => !/^[—–|·-]+$/.test(w));
+  return words.slice(0, 3);
+}
+// Tagline du hero — tronque sur une limite de mot autour de 48 caractères,
+// jamais en plein milieu d'une expression.
+function heroTagline(tagline) {
+  if (tagline.length <= 52) return tagline;
+  const cut = tagline.slice(0, 49);
+  return cut.slice(0, cut.lastIndexOf(' ')) + '…';
+}
 
 // ── Industry configurations ────────────────────────────────────────────────
 const CONFIGS = {
@@ -567,7 +581,7 @@ function generateCinematic(rawData) {
         html { scroll-behavior: smooth; }
         html.lenis, html.lenis body { height: auto; }
         .lenis.lenis-smooth { scroll-behavior: auto !important; }
-        body { background: var(--bg); color: var(--text); font-family: ${cfg.fontB}; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+        body { background: var(--bg); color: var(--text); font-family: ${cfg.fontB}; overflow-x: hidden; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
         ::-webkit-scrollbar { display: none; }
 
         /* ══ PRÉCHARGEUR ══ */
@@ -586,7 +600,7 @@ function generateCinematic(rawData) {
 
         /* ══ JOURNEY ══ */
         .journey { height: 900vh; position: relative; }
-        .journey-sticky { position: sticky; top: 0; height: 100vh; overflow: hidden; background: #000; }
+        .journey-sticky { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; background: #000; }
         .scene { position: absolute; inset: 0; }
         .scene-bg {
             position: absolute; inset: -10%; background-size: cover; background-position: center;
@@ -717,7 +731,7 @@ function generateCinematic(rawData) {
         }
 
         /* Chapitres narratifs — plein écran, style éditorial */
-        .chapter { position: relative; height: 100vh; min-height: 560px; overflow: hidden; display: flex; align-items: flex-end; }
+        .chapter { position: relative; height: 100vh; height: 100svh; min-height: 560px; overflow: hidden; display: flex; align-items: flex-end; }
         .chap-bg { position: absolute; inset: -6%; background-size: cover; background-position: center; will-change: transform; filter: saturate(1.06) contrast(1.04) brightness(0.88); }
         .chapter::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.78) 0%, rgba(0,0,0,.12) 50%, rgba(0,0,0,.15) 100%); pointer-events: none; }
         .chap-content { position: relative; z-index: 2; padding: 0 7vw 13vh; max-width: 760px; }
@@ -789,11 +803,16 @@ function generateCinematic(rawData) {
         ::selection { background: var(--primary); color: #000; }
 
         @media (max-width: 768px) {
+            /* Journey raccourci au pouce — ~6 swipes au lieu de 12 */
+            .journey { height: 560vh; }
             #about { grid-template-columns: 1fr; gap: 40px; }
             .nav-links { display: none; }
             .about-img { aspect-ratio: 16/9; }
             .hours-grid { gap: 24px; }
             .foot-grid { grid-template-columns: 1fr; gap: 36px; }
+            section { padding: 72px 6vw; }
+            .chap-content { padding: 0 6vw 11vh; }
+            #jt-title { bottom: 13vh; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -849,8 +868,8 @@ function generateCinematic(rawData) {
         <div class="grain"></div>
         <div class="jt" id="jt-addr">${esc(address.split(',').slice(0,2).join(',').trim())}</div>
         <div class="jt" id="jt-title">
-            <div class="jt-name">${name.split(' ').slice(0,2).map(esc).join('<br>')}</div>
-            <div class="jt-sub">${founded ? `Fondé en ${founded} · ` : ''}${esc(tagline.split(' ').slice(0,5).join(' '))}</div>
+            <div class="jt-name">${heroNameLines(name).map(esc).join('<br>')}</div>
+            <div class="jt-sub">${founded ? `Fondé en ${founded} · ` : ''}${esc(heroTagline(tagline))}</div>
         </div>
         <div class="jt" id="jt-inside">
             <div class="jt-inside-text">${insideParts.map((l,i) => i===1 ? `<span>${esc(l)}</span>` : esc(l)).join('<br>')}</div>
@@ -1000,6 +1019,27 @@ function generateCinematic(rawData) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script>
+    // ── Mode dégradé — si GSAP ne charge pas (CDN bloqué, réseau lent),
+    //    le site reste entièrement lisible : hero simple + sections visibles.
+    if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') {
+        document.body.style.overflow = '';
+        const s = document.createElement('style');
+        s.textContent = [
+            '#loader{display:none}',
+            '.journey{height:auto}',
+            '.journey-sticky{position:relative;height:100svh}',
+            '#s-int,#s-svc,#s-site,#jt-inside,#jt-svc,#hero-hint,#jt-addr{display:none}',
+            '#jt-title{opacity:1}',
+            '.navbar{opacity:1;pointer-events:auto;background:var(--dark)}',
+            '.reveal{opacity:1;transform:none}',
+            '.line-mask>span{transform:none!important}',
+            '.gal{height:auto}',
+            '.gal-sticky{position:static;height:auto;padding:72px 0}',
+            '.gal-track{overflow-x:auto;padding-bottom:50px}',
+        ].join('\\n');
+        document.head.appendChild(s);
+        throw new Error('GSAP indisponible — mode dégradé activé');
+    }
     gsap.registerPlugin(ScrollTrigger);
     const reduceMotionGlobal = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
