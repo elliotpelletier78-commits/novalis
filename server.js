@@ -67,6 +67,30 @@ if (fs.existsSync(demosDir)) {
   }
 }
 
+// Seeder les métadonnées des démos bundlées dans la DB (seulement si NULL)
+const BUNDLED_META = [
+  { slug:'pmc-mecanique',            name:'PMC Mécanique',               industry:'garage',       phone:'819 791-0717', address:'2850 Rue King Est, Sherbrooke, QC', city:'Sherbrooke' },
+  { slug:'chez-boulay-bistro-boreal',name:'Chez Boulay — Bistro Boréal', industry:'restaurant',   phone:'418 380-8166', address:'1110 Rue Saint-Jean, Québec, QC',   city:'Québec' },
+  { slug:'oasis-coiffure',           name:'Oasis Coiffure',              industry:'salon',        phone:'450 628-8686', address:'655 Boul. Curé-Labelle, Laval, QC',  city:'Laval' },
+  { slug:'clinique-cmi',             name:'Clinique CMI',                industry:'clinique',     phone:'450 442-1018', address:'1215 Chemin du Tremblay, Longueuil, QC', city:'Longueuil' },
+  { slug:'construction-cma',         name:'Construction CMA',            industry:'construction', phone:'819 840-3349', address:'4540 Rue Charles-Malhiot, Trois-Rivières, QC', city:'Trois-Rivières' },
+  { slug:'pub-le-vieux',             name:'Pub Le Vieux',                industry:'restaurant',   phone:'450 655-9117', address:'650 Boul. du Fort-Saint-Louis, Boucherville, QC', city:'Boucherville' },
+];
+const _seedMeta = db.prepare(`
+  INSERT INTO prospects (slug,name,industry,phone,address,city)
+  VALUES (?,?,?,?,?,?)
+  ON CONFLICT(slug) DO UPDATE SET
+    name     = COALESCE(name,     excluded.name),
+    industry = COALESCE(industry, excluded.industry),
+    phone    = COALESCE(phone,    excluded.phone),
+    address  = COALESCE(address,  excluded.address),
+    city     = COALESCE(city,     excluded.city)
+`);
+for (const m of BUNDLED_META) {
+  if (fs.existsSync(path.join(outputDir, `${m.slug}.html`)))
+    _seedMeta.run(m.slug, m.name, m.industry, m.phone, m.address, m.city);
+}
+
 // Fichiers statiques — volume output/ (inclut maintenant les démos seedées)
 const staticOpts = { setHeaders: (res) => res.setHeader('X-Frame-Options', 'SAMEORIGIN') };
 app.use('/demo', express.static(outputDir, staticOpts));
@@ -835,6 +859,31 @@ app.post('/prospects/:slug/regenerate', requireAdmin, (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// ── Supprimer une démo + son prospect ────────────────────────
+app.delete('/prospects/:slug', requireAdmin, (req, res) => {
+  const { slug } = req.params;
+  if (!slug || !/^[a-z0-9-]+$/.test(slug)) {
+    return res.status(400).json({ success: false, error: 'slug invalide' });
+  }
+  // Supprimer le HTML
+  const htmlPath = path.join(outputDir, `${slug}.html`);
+  if (fs.existsSync(htmlPath)) fs.unlinkSync(htmlPath);
+  // Supprimer les images associées
+  const imagesDir = path.join(outputDir, 'images');
+  for (const role of ['exterior', 'interior', 'service', 'about']) {
+    const f = path.join(imagesDir, `${slug}-${role}.jpg`);
+    if (fs.existsSync(f)) fs.unlinkSync(f);
+  }
+  for (const ext of ['png', 'svg']) {
+    const f = path.join(imagesDir, `${slug}-logo.${ext}`);
+    if (fs.existsSync(f)) fs.unlinkSync(f);
+  }
+  // Supprimer de la DB
+  db.prepare('DELETE FROM prospects WHERE slug=?').run(slug);
+  console.log(`[delete] ${slug}`);
+  res.json({ success: true });
 });
 
 // ── Liste des prospects ───────────────────────────────────────

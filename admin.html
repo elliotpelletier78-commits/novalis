@@ -335,6 +335,15 @@ let CurInd = 'restaurant';
 let LastUrl = '';
 let LastName = '';
 let LastSlug = '';
+let LastIndustry = '';
+
+const IND_CONTEXT = {
+    restaurant:   "leur cuisine et l'ambiance unique du restaurant",
+    garage:       "leur expertise mécanique et la qualité de leur travail",
+    salon:        "leurs soins beauté et l'atmosphère du salon",
+    clinique:     "leur approche clinique et le soin apporté aux patients",
+    construction: "leurs réalisations et le savoir-faire de leur équipe",
+};
 
 const IND_DEF = {
     restaurant: { color: '#C4953A', tagline: 'Une expérience culinaire mémorable.' },
@@ -407,7 +416,7 @@ async function doGenerate() {
         });
         const d = await r.json();
         if (!d.success) throw new Error(d.error);
-        LastUrl = d.url; LastSlug = d.slug; LastName = name;
+        LastUrl = d.url; LastSlug = d.slug; LastName = name; LastIndustry = CurInd;
         document.getElementById('rUrl').textContent = d.url;
         document.getElementById('rOpen').href = d.url;
         const photoEl = document.getElementById('rPhotoInfo');
@@ -493,6 +502,7 @@ async function discGenerate(i) {
         const photoTxt = d.photosFound > 0
             ? `✓ ${d.photosFound} photo(s) du vrai site`
             : '⚠ photos Unsplash (site protégé)';
+        const dName = d.name.replace(/'/g, "\\'");
         card.innerHTML = `
             <div class="disc-info">
                 <div class="disc-title">${esc(d.name)} <span class="disc-done">✓ démo créée</span></div>
@@ -502,8 +512,9 @@ async function discGenerate(i) {
             <div style="display:flex;gap:8px;flex-shrink:0">
                 <a href="${d.url}" target="_blank" class="btn-sm" style="text-decoration:none">Ouvrir ↗</a>
                 <button class="btn-sm" onclick="cp('${d.url}')">Copier</button>
+                <button class="btn-sm" onclick="showOutreachFor('${d.slug}','${dName}','${d.url}','${industry}')">✉ Message</button>
             </div>`;
-        LastUrl = d.url; LastSlug = d.slug; LastName = d.name;
+        LastUrl = d.url; LastSlug = d.slug; LastName = d.name; LastIndustry = industry;
         toast('Démo créée !');
         loadProspects();
     } catch (err) {
@@ -514,7 +525,14 @@ async function discGenerate(i) {
 
 function copyUrl() { navigator.clipboard.writeText(LastUrl); toast('Lien copié !'); }
 
+function showOutreachFor(slug, name, url, industry) {
+    LastSlug = slug; LastName = name; LastUrl = url; LastIndustry = industry;
+    showOutreach();
+}
+
 function showOutreach() {
+    const ind = LastIndustry || CurInd || 'restaurant';
+    const ctx = IND_CONTEXT[ind] || "votre entreprise";
     const msg = `Bonjour,
 
 Je me permets de vous contacter — j'ai préparé une prévisualisation gratuite de ce que pourrait être le nouveau site de ${LastName}.
@@ -522,7 +540,7 @@ Je me permets de vous contacter — j'ai préparé une prévisualisation gratuit
 Consultez-la ici (30 secondes) :
 ${LastUrl}
 
-On a voulu que ça ressemble vraiment à votre entreprise, pas à un modèle générique.
+J'ai voulu que ça reflète vraiment ${ctx} — pas un modèle générique.
 
 Si ça vous intéresse, je serais ravi d'en discuter brièvement — sans engagement.
 
@@ -563,7 +581,13 @@ async function loadProspects() {
             <td style="font-family:monospace;font-size:12px">${esc(p.phone||'—')}</td>
             <td class="views ${vCls}">${vTxt}</td>
             <td><select class="status-sel" onchange="setStatus('${p.slug}',this.value)">${['nouveau','envoyé','vu','en discussion','vendu','refusé'].map(s=>`<option${p.status===s?' selected':''}>${s}</option>`).join('')}</select></td>
-            <td><a href="${url}" target="_blank" class="lnk">Ouvrir ↗</a> · <span class="lnk" onclick="cp('${location.origin+url}')">Copier</span> · <span class="lnk" onclick="openPhotoModal('${p.slug}','${esc(p.name).replace(/'/g,"\\'")}')">Photos</span></td>
+            <td style="white-space:nowrap">
+              <a href="${url}" target="_blank" class="lnk">Ouvrir ↗</a> ·
+              <span class="lnk" onclick="cp('${location.origin+url}')">Copier</span> ·
+              <span class="lnk" onclick="openPhotoModal('${p.slug}','${esc(p.name).replace(/'/g,"\\'")}')">Photos</span> ·
+              <span class="lnk" onclick="showOutreachFor('${p.slug}','${esc(p.name||p.slug).replace(/'/g,"\\'")}','${location.origin+url}','${p.industry||"restaurant"}')">✉</span> ·
+              <span class="lnk" style="color:#555" onclick="deleteProspect('${p.slug}')">✕</span>
+            </td>
             <td style="color:var(--muted);white-space:nowrap;font-size:12px">${dt}</td>
             </tr>`;
         }).join('');
@@ -575,6 +599,20 @@ async function setStatus(slug, status) {
         method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem(AKEY)||'')},
         body: JSON.stringify({status})
     });
+}
+
+async function deleteProspect(slug) {
+    if (!confirm('Supprimer définitivement la démo « ' + slug + ' » ?')) return;
+    try {
+        const r = await fetch('/prospects/' + slug, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + (localStorage.getItem(AKEY)||'') }
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error);
+        toast('Démo supprimée');
+        loadProspects();
+    } catch(e) { alert('Erreur : ' + e.message); }
 }
 
 /* ── Photo editor ── */
