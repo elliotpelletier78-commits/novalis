@@ -744,6 +744,17 @@ function generateCinematic(rawData) {
 
         ::selection { background: var(--primary); color: #000; }
 
+        /* ══ CUSTOM CURSOR ══ */
+        .cur-ring { position: fixed; top: 0; left: 0; width: 38px; height: 38px; border: 1.5px solid var(--primary); border-radius: 50%; pointer-events: none; z-index: 9999; opacity: 0; transform: translate(-50%,-50%) scale(0); transition: width .32s cubic-bezier(.22,1,.36,1), height .32s cubic-bezier(.22,1,.36,1), opacity .25s, border-color .3s; will-change: left, top; }
+        .cur-dot { position: fixed; top: 0; left: 0; width: 5px; height: 5px; background: var(--primary); border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); transition: width .2s, height .2s; will-change: left, top; }
+        body.cur-on .cur-ring { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+        body.cur-link .cur-ring { width: 58px; height: 58px; border-color: rgba(255,255,255,.38); background: rgba(255,255,255,.04); }
+        body.cur-link .cur-dot { width: 3px; height: 3px; }
+        @media (hover: none) { .cur-ring, .cur-dot { display: none; } }
+
+        /* ══ SECTION DECO LINE ══ */
+        .sec-deco { display: block; width: 0; height: 1px; background: var(--primary); margin-bottom: 14px; }
+
         @media (max-width: 768px) {
             #about { grid-template-columns: 1fr; gap: 40px; }
             .nav-links { display: none; }
@@ -761,6 +772,9 @@ function generateCinematic(rawData) {
     </style>
 </head>
 <body>
+
+<div class="cur-ring" id="curRing" aria-hidden="true"></div>
+<div class="cur-dot"  id="curDot"  aria-hidden="true"></div>
 
 <div id="loader" aria-hidden="true">
     <div class="loader-name" id="loaderName">${name.split('').map(c => c === ' ' ? '<span>&nbsp;</span>' : `<span>${esc(c)}</span>`).join('')}</div>
@@ -826,7 +840,7 @@ function generateCinematic(rawData) {
     <h2 class="sec-title reveal reveal-d1">Ce qu'on<br>fait le mieux</h2>
     <p class="svc-intro reveal reveal-d2">${esc(tagline)} Notre équipe est là pour vous servir avec rigueur et passion.</p>
     <div class="svc-grid">
-        ${services.map((s,i) => `<div class="svc-card reveal reveal-d${Math.min(i+1,4)}">
+        ${services.map((s,i) => `<div class="svc-card">
             <div class="svc-num">0${i+1}</div>
             <div class="svc-title">${esc(s.title)}</div>
             <div class="svc-desc">${esc(s.desc)}</div>
@@ -844,7 +858,7 @@ function generateCinematic(rawData) {
 </div>
 
 <section id="about">
-    <div class="about-img reveal"></div>
+    <div class="about-img"></div>
     <div>
         <div class="sec-label reveal">Notre histoire</div>
         <h2 class="sec-title reveal reveal-d1">${founded ? `Depuis ${founded},<br>` : ''}on est là pour vous</h2>
@@ -887,7 +901,7 @@ function generateCinematic(rawData) {
     <h2 class="sec-title reveal reveal-d1">${cfg.philosophy.title}</h2>
     <p class="philo-intro reveal reveal-d2">${esc(cfg.philosophy.intro)}</p>
     <div class="philo-grid">
-        ${cfg.philosophy.cards.map((c,i) => `<div class="philo-card reveal reveal-d${Math.min(i+1,4)}">
+        ${cfg.philosophy.cards.map((c,i) => `<div class="philo-card">
             <div class="philo-num">0${i+1}</div>
             <div class="philo-title">${esc(c.title)}</div>
             <div class="philo-body">${esc(c.body)}</div>
@@ -899,7 +913,7 @@ function generateCinematic(rawData) {
     <div class="sec-label reveal">Ce qu'ils en disent</div>
     <h2 class="sec-title reveal reveal-d1">La confiance,<br>ça se mérite</h2>
     <div class="testi-grid">
-        ${testi.map((t,i) => `<div class="testi-card reveal reveal-d${Math.min(i+1,4)}">
+        ${testi.map((t,i) => `<div class="testi-card">
             <div class="testi-stars">★★★★★</div>
             <div class="testi-text">${esc(t.text)}</div>
             <div class="testi-author">${esc(t.author)}</div>
@@ -1030,11 +1044,17 @@ function generateCinematic(rawData) {
         });
     });
 
-    // Images dévoilées au scroll — clip + zoom doux
-    document.querySelectorAll('.about-img, .gal-img, .contact-map').forEach(el => {
+    // About-img — wipe from left (cinématique)
+    gsap.fromTo('.about-img',
+        { clipPath: 'inset(0 100% 0 0)', opacity: 1 },
+        { clipPath: 'inset(0 0% 0 0)', duration: 1.3, ease: 'power3.inOut',
+          scrollTrigger: { trigger: '.about-img', start: 'top 82%', once: true } }
+    );
+    // Gallery + map — clip + zoom
+    document.querySelectorAll('.gal-img, .contact-map').forEach(el => {
         gsap.fromTo(el,
-            { clipPath: 'inset(10% 5% 10% 5%)', scale: 1.06 },
-            { clipPath: 'inset(0% 0% 0% 0%)', scale: 1, duration: 1.25, ease: 'power3.out',
+            { clipPath: 'inset(8% 4% 8% 4%)', scale: 1.08 },
+            { clipPath: 'inset(0% 0% 0% 0%)', scale: 1, duration: 1.2, ease: 'power3.out',
               scrollTrigger: { trigger: el, start: 'top 84%', once: true } }
         );
     });
@@ -1066,13 +1086,87 @@ function generateCinematic(rawData) {
         });
     }
 
-    // Scroll-reveal via IntersectionObserver
+    // Scroll-reveal via IntersectionObserver (éléments simples)
     const io = new IntersectionObserver((entries) => {
         entries.forEach(e => {
             if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); }
         });
     }, { threshold: 0.12 });
     document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+    // ══ ANIMATIONS PREMIUM ══
+
+    // Curseur custom — signal premium immédiat
+    (function() {
+        const ring = document.getElementById('curRing');
+        const dot  = document.getElementById('curDot');
+        if (!ring || 'ontouchstart' in window || window.matchMedia('(hover:none)').matches) return;
+        let cx = -200, cy = -200, tx = -200, ty = -200;
+        window.addEventListener('mousemove', e => {
+            tx = e.clientX; ty = e.clientY;
+            dot.style.left = tx + 'px'; dot.style.top = ty + 'px';
+            document.body.classList.add('cur-on');
+        }, { passive: true });
+        gsap.ticker.add(() => {
+            cx += (tx - cx) * 0.13;
+            cy += (ty - cy) * 0.13;
+            ring.style.left = cx + 'px'; ring.style.top = cy + 'px';
+        });
+        document.querySelectorAll('a, button, .svc-card, .philo-card, .testi-card, .gal-item, .nav-cta, .bb-cta').forEach(el => {
+            el.addEventListener('mouseenter', () => document.body.classList.add('cur-link'));
+            el.addEventListener('mouseleave', () => document.body.classList.remove('cur-link'));
+        });
+        window.addEventListener('mouseleave', () => document.body.classList.remove('cur-on'));
+    })();
+
+    // Section labels — slide from left + ligne déco qui se déploie
+    document.querySelectorAll('.sec-label').forEach(label => {
+        const deco = document.createElement('div');
+        deco.className = 'sec-deco';
+        label.before(deco);
+        gsap.to(deco, { width: 44, duration: 0.9, ease: 'power3.out',
+            scrollTrigger: { trigger: deco, start: 'top 92%', once: true } });
+        gsap.fromTo(label, { opacity: 0, x: -18 },
+            { opacity: 1, x: 0, duration: 0.65, ease: 'power2.out', delay: 0.18,
+              scrollTrigger: { trigger: label, start: 'top 92%', once: true } });
+    });
+
+    // Service cards — stagger interne (num → title → desc)
+    document.querySelectorAll('.svc-card').forEach(card => {
+        gsap.fromTo(card, { opacity: 0, y: 40 },
+            { opacity: 1, y: 0, duration: 0.75, ease: 'power3.out',
+              scrollTrigger: { trigger: card, start: 'top 88%', once: true } });
+        gsap.fromTo(card.querySelectorAll('.svc-num, .svc-title, .svc-desc'),
+            { opacity: 0, y: 14 },
+            { opacity: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'power2.out',
+              scrollTrigger: { trigger: card, start: 'top 88%', once: true } });
+    });
+
+    // Philosophy cards — scale + stagger
+    document.querySelectorAll('.philo-card').forEach((card, i) => {
+        gsap.fromTo(card, { opacity: 0, y: 28, scale: 0.97 },
+            { opacity: 1, y: 0, scale: 1, duration: 0.7, delay: i * 0.06, ease: 'power3.out',
+              scrollTrigger: { trigger: '.philo-grid', start: 'top 85%', once: true } });
+        gsap.fromTo(card.querySelectorAll('.philo-num, .philo-title, .philo-body'),
+            { opacity: 0, y: 10 },
+            { opacity: 1, y: 0, duration: 0.45, stagger: 0.07, delay: i * 0.06, ease: 'power2.out',
+              scrollTrigger: { trigger: '.philo-grid', start: 'top 85%', once: true } });
+    });
+
+    // Testimonials — stagger
+    document.querySelectorAll('.testi-card').forEach((card, i) => {
+        gsap.fromTo(card, { opacity: 0, y: 32 },
+            { opacity: 1, y: 0, duration: 0.7, delay: i * 0.1, ease: 'power3.out',
+              scrollTrigger: { trigger: '.testi-grid', start: 'top 85%', once: true } });
+    });
+
+    // Chapter num — slide from left
+    document.querySelectorAll('.chap-num').forEach(el => {
+        el.classList.remove('reveal');
+        gsap.fromTo(el, { opacity: 0, x: -14 },
+            { opacity: 1, x: 0, duration: 0.6, ease: 'power2.out',
+              scrollTrigger: { trigger: el, start: 'top 90%', once: true } });
+    });
 
     // Compteurs animés — les stats comptent jusqu'à leur valeur
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
