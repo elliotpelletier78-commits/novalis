@@ -322,19 +322,7 @@ const ABOUT_TEXTS = {
 // ── Animation CSS per type ─────────────────────────────────────────────────
 function animationCSS(anim) {
   if (anim === 'swing') return `
-        #s-int { clip-path: inset(18% 38% 0% 38%); opacity: 0; will-change: clip-path, opacity; }
-        .door-frame {
-            position: absolute; z-index: 3;
-            top: 18%; left: 38%; right: 38%; bottom: 0;
-            border: 1.5px solid rgba(255,255,255,0.35);
-            border-bottom: none; border-radius: 3px 3px 0 0;
-            opacity: 0; pointer-events: none; will-change: transform, opacity;
-        }
-        .door-frame::after {
-            content: ''; position: absolute;
-            right: 14%; top: 52%; width: 4px; height: 14px;
-            border-radius: 2px; background: rgba(255,255,255,0.5);
-        }`;
+        #s-int { opacity: 0; z-index: 2; }`;
   if (anim === 'garage') return `
         #s-int { opacity: 0; z-index: 2; }
         #garageDoor {
@@ -388,7 +376,7 @@ function animationCSS(anim) {
 
 // ── Animation HTML element per type ───────────────────────────────────────
 function animationElement(anim) {
-  if (anim === 'swing') return `<div class="door-frame" id="doorFrame"></div>`;
+  if (anim === 'swing') return ``;
   if (anim === 'garage' || anim === 'gate') return `<div id="garageDoor"></div>`;
   if (anim === 'curtain') return `<div id="curtain"><div class="curtain-left"></div><div class="curtain-right"></div></div>`;
   if (anim === 'glass') return `<div id="glassDoor"><div class="glass-left"></div><div class="glass-right"></div></div>`;
@@ -398,30 +386,36 @@ function animationElement(anim) {
 // ── GSAP script per animation type ────────────────────────────────────────
 function gsapScript(anim) {
   if (anim === 'swing') return `
+        // ── POV Walk-in : extérieur → entrée → accueil → service ──
         tl
-            .to('#s-ext .scene-bg', { scale: 1.55, ease: 'none', duration: 4 }, 0)
-            .fromTo('#jt-addr',  { opacity: 1 }, { opacity: 0, duration: 0.4 }, 0.6)
-            .fromTo('#jt-title', { opacity: 1 }, { opacity: 0, duration: 0.6 }, 0.7)
-            .to('#s-int',      { opacity: 1, duration: 0.5 }, 1.2)
-            .to('#doorFrame',  { opacity: 1, duration: 0.5 }, 1.2)
-            .fromTo('#s-int', { clipPath: 'inset(18% 38% 0% 38%)' }, { clipPath: 'inset(0% 0% 0% 0%)', ease: 'power2.inOut', duration: 2 }, 1.8)
-            .fromTo('#s-int .scene-bg', { scale: 1.35 }, { scale: 1.0, ease: 'power1.out', duration: 2 }, 1.8)
-            .to('#doorFrame', { opacity: 0, scaleX: 4, scaleY: 1.5, transformOrigin: 'center bottom', ease: 'power1.in', duration: 0.8 }, 1.8)
-            .to('#s-ext', { opacity: 0, duration: 0.7 }, 2.5)
-            .to('#s-int .scene-bg', { scale: 1.18, ease: 'none', duration: 2 }, 3.5)
-            .to('#jt-inside', { opacity: 1, duration: 0.6 }, 3.6)
-            .to('#jt-inside', { opacity: 0, duration: 0.5 }, 4.6)
-            .to('#s-int',  { opacity: 0, duration: 0.7 }, 5.2)
-            .to('#s-svc',  { opacity: 1, duration: 0.7 }, 5.2)
-            .fromTo('#s-svc .scene-bg', { scale: 1.15 }, { scale: 1.0, duration: 1.5 }, 5.2)
-            .to('#jt-svc', { opacity: 1, duration: 0.6 }, 5.5)
-            .to('#jt-svc', { opacity: 0, duration: 0.5 }, 6.4)
-            .to('#s-svc',  { opacity: 0, duration: 0.7 }, 6.8)
-            .to('#s-site', { opacity: 1, duration: 0.9 }, 6.8)
-            .to('.splash-logo-img', { y: 0, opacity: 1, duration: 0.6 }, 6.85)
-            .to('.splash-logo',    { y: 0, opacity: 1, duration: 0.7 }, 7.0)
-            .to('.splash-tagline', { y: 0, opacity: 1, duration: 0.6 }, 7.2)
-            .to('.splash-scroll',  { opacity: 1, duration: 0.6 }, 7.5);`;
+            // Phase 1 — Extérieur : on s'approche, l'entrée se rapproche
+            .to('#s-ext .scene-bg', { scale: 2.1, ease: 'power1.inOut', duration: 4 }, 0)
+            .fromTo('#jt-addr',  { opacity: 1 }, { opacity: 0, duration: 0.38 }, 0.55)
+            .fromTo('#jt-title', { opacity: 1 }, { opacity: 0, duration: 0.52 }, 0.72)
+
+            // Phase 2 — On pousse la porte : cross-dissolve zoom sans forme géométrique
+            .to('#s-ext', { opacity: 0, duration: 0.7, ease: 'power2.inOut' }, 1.7)
+            .fromTo('#s-int', { opacity: 0, scale: 1.3 }, { opacity: 1, scale: 1.04, duration: 1.1, ease: 'power2.out' }, 1.7)
+
+            // Phase 3 — Intérieur : on avance vers la table, on est accueilli
+            .to('#s-int .scene-bg', { scale: 1.2, ease: 'none', duration: 2.2 }, 2.8)
+            .to('#jt-inside', { opacity: 1, duration: 0.55 }, 2.9)
+            .to('#jt-inside', { opacity: 0, duration: 0.45 }, 3.9)
+
+            // Phase 4 — Service : l'assiette arrive, le repas commence
+            .to('#s-int', { opacity: 0, duration: 0.65 }, 4.7)
+            .to('#s-svc', { opacity: 1, duration: 0.65 }, 4.7)
+            .fromTo('#s-svc .scene-bg', { scale: 1.18 }, { scale: 1.0, duration: 1.5 }, 4.7)
+            .to('#jt-svc', { opacity: 1, duration: 0.52 }, 5.0)
+            .to('#jt-svc', { opacity: 0, duration: 0.42 }, 5.95)
+
+            // Phase 5 — Bienvenue : le site se dévoile
+            .to('#s-svc',  { opacity: 0, duration: 0.65 }, 6.35)
+            .to('#s-site', { opacity: 1, duration: 0.85 }, 6.35)
+            .to('.splash-logo-img', { y: 0, opacity: 1, duration: 0.6 }, 6.42)
+            .to('.splash-logo',    { y: 0, opacity: 1, duration: 0.7 }, 6.58)
+            .to('.splash-tagline', { y: 0, opacity: 1, duration: 0.6 }, 6.78)
+            .to('.splash-scroll',  { opacity: 1, duration: 0.6 }, 7.08);`;
 
   if (anim === 'garage' || anim === 'gate') return `
         tl
