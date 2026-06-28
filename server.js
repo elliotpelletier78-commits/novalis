@@ -94,6 +94,8 @@ for (const m of BUNDLED_META) {
 // Fichiers statiques — volume output/ (inclut maintenant les démos seedées)
 const staticOpts = { setHeaders: (res) => res.setHeader('X-Frame-Options', 'SAMEORIGIN') };
 app.use('/demo', express.static(outputDir, staticOpts));
+// Vitrine — fichiers bespoke servis depuis le code déployé (hors volume)
+app.use('/showcase', express.static(path.join(__dirname, 'showcase'), staticOpts));
 
 // ── Health check ─────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true, ts: Date.now() }));
