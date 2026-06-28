@@ -1065,7 +1065,89 @@ app.get('/demo-url/:slug', (req, res) => {
   res.json({ success: true, url: `${base}/demo/${req.params.slug}.html` });
 });
 
+// ── Import automatique des vraies photos de Bistro Kóz (côté serveur) ──
+// Crawle bistrokoz.ca, télécharge les meilleures photos par rôle et les place
+// dans les 6 emplacements du site bespoke. S'exécute une fois (volume persistant).
+const KOZ_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+const KOZ_SLOTS = ['facade', 'terrasse', 'interieur', 'dome', 'mezze', 'plat'];
+
+async function kozDownload(url) {
+  const r = await fetch(url, {
+    headers: { 'User-Agent': KOZ_UA, 'Accept': 'image/avif,image/webp,image/png,image/jpeg,*/*', 'Referer': 'https://bistrokoz.ca/' },
+    redirect: 'follow',
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const buf = Buffer.from(await r.arrayBuffer());
+  if (buf.length < 3000) throw new Error('trop petit (' + buf.length + 'o)');
+  const jpg = buf[0] === 0xFF && buf[1] === 0xD8;
+  const png = buf[0] === 0x89 && buf[1] === 0x50;
+  const webp = buf.slice(0, 4).toString('ascii') === 'RIFF' && buf.slice(8, 12).toString('ascii') === 'WEBP';
+  if (!jpg && !png && !webp) throw new Error('pas une image');
+  return buf;
+}
+
+async function importKozPhotos({ force = false } = {}) {
+  const imagesDir = path.join(outputDir, 'images');
+  if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
+  const file = s => path.join(imagesDir, `koz-${s}.jpg`);
+  if (!force && KOZ_SLOTS.every(s => fs.existsSync(file(s)))) return { skipped: true };
+
+  let research;
+  try {
+    const { researchBrand } = require('./brand-research');
+    research = await researchBrand('https://bistrokoz.ca/');
+  } catch (e) { return { error: 'crawl: ' + e.message }; }
+  if (!research || !research.photoAssignment) return { error: 'site inaccessible' };
+
+  const pa = research.photoAssignment;
+  const pick = (role, i = 0) => (pa[role] && pa[role][i]) || '';
+  const allCands = [].concat(pa.exterior || [], pa.interior || [], pa.service || [], pa.about || []);
+  const wanted = {
+    facade:    pick('exterior', 0),
+    terrasse:  pick('exterior', 1) || pick('about', 0),
+    interieur: pick('interior', 0),
+    dome:      pick('about', 0) || pick('interior', 1),
+    mezze:     pick('service', 0),
+    plat:      pick('service', 1) || pick('service', 0),
+  };
+
+  const result = {};
+  const used = new Set();
+  for (const s of KOZ_SLOTS) {
+    if (!force && fs.existsSync(file(s))) { result[s] = 'déjà présente'; continue; }
+    let url = wanted[s];
+    if (!url || used.has(url)) url = allCands.find(u => u && !used.has(u)) || url;
+    if (!url) { result[s] = 'aucune candidate'; continue; }
+    try {
+      const buf = await kozDownload(url);
+      fs.writeFileSync(file(s), buf);
+      used.add(url);
+      result[s] = `ok ${Math.round(buf.length / 1024)}ko`;
+    } catch (e) { result[s] = 'échec: ' + e.message; }
+  }
+  return { result, found: { exterior: (pa.exterior || []).length, interior: (pa.interior || []).length, service: (pa.service || []).length, about: (pa.about || []).length } };
+}
+
+// Endpoint d'état / re-déclenchement manuel (filet de sécurité)
+app.get('/koz-import-status', async (req, res) => {
+  const imagesDir = path.join(outputDir, 'images');
+  const status = {};
+  for (const s of KOZ_SLOTS) {
+    const f = path.join(imagesDir, `koz-${s}.jpg`);
+    status[s] = fs.existsSync(f) ? `${Math.round(fs.statSync(f).size / 1024)}ko` : 'absente';
+  }
+  if (req.query.run === '1') {
+    const run = await importKozPhotos({ force: req.query.force === '1' });
+    return res.json({ status, run });
+  }
+  res.json({ status });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Novalis Preview en ligne → http://0.0.0.0:${PORT}`);
+  // Import auto des photos Kóz, en arrière-plan (ne bloque pas le démarrage)
+  importKozPhotos()
+    .then(r => console.log('[koz-import]', JSON.stringify(r)))
+    .catch(e => console.warn('[koz-import] erreur:', e.message));
 });
