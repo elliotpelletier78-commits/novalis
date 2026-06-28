@@ -233,6 +233,121 @@ app.get('/upload', (req, res) => {
 </html>`);
 });
 
+// ── Import d'une image depuis une URL (téléchargement côté serveur) ──
+// POST /fetch-image { filename, url }  → le serveur Railway télécharge l'image
+app.post('/fetch-image', async (req, res) => {
+  const { filename, url } = req.body || {};
+  if (!filename || !url) return res.status(400).json({ error: 'filename + url requis' });
+  const safe = path.basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
+  try {
+    const r = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/png,image/jpeg,*/*',
+        'Referer': 'https://www.google.com/',
+      },
+      redirect: 'follow',
+    });
+    if (!r.ok) return res.status(502).json({ error: `source HTTP ${r.status}` });
+    const ct = r.headers.get('content-type') || '';
+    const ab = await r.arrayBuffer();
+    const buf = Buffer.from(ab);
+    if (buf.length < 1000 || !/image\//.test(ct)) return res.status(415).json({ error: `pas une image (${ct || 'type inconnu'}, ${buf.length}o)` });
+    const imagesDir = path.join(outputDir, 'images');
+    if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
+    fs.writeFileSync(path.join(imagesDir, safe), buf);
+    res.json({ ok: true, url: `/demo/images/${safe}`, size: buf.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Outil photos — Bistro Kóz (showcase bespoke) ──────────────
+app.get('/koz-photos', (req, res) => {
+  const slots = [
+    { id: 'facade',    emoji: '🏛️', label: 'Façade / bâtiment au bord du lac' },
+    { id: 'terrasse',  emoji: '🌅', label: 'Terrasse animée (coucher de soleil)' },
+    { id: 'interieur', emoji: '🪑', label: 'Intérieur / salle à manger' },
+    { id: 'dome',      emoji: '❄️', label: 'Un dôme chauffé sur la neige' },
+    { id: 'mezze',     emoji: '🫓', label: 'Table de mezzes / plats colorés (vue de haut)' },
+    { id: 'plat',      emoji: '🍢', label: 'Un plat signature en gros plan (kebab, kefta…)' },
+  ];
+  const slotHtml = slots.map(s => `
+    <div class="slot" id="slot-${s.id}">
+      <div class="prevwrap"><img id="prev-${s.id}" alt=""></div>
+      <div class="meta">
+        <div class="emoji">${s.emoji}</div>
+        <div class="lab">${s.label}</div>
+        <div class="status" id="st-${s.id}"></div>
+        <div class="row">
+          <label class="file-btn">Choisir un fichier<input type="file" accept="image/*" onchange="pickFile(this,'${s.id}')"></label>
+        </div>
+        <div class="row url-row">
+          <input type="url" id="url-${s.id}" placeholder="…ou colle l'adresse d'une image">
+          <button onclick="importUrl('${s.id}')">Importer</button>
+        </div>
+      </div>
+    </div>`).join('');
+  res.send(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Photos — Bistro Kóz</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,sans-serif;background:#081E22;color:#F2E7D3;padding:32px 20px;max-width:780px;margin:0 auto}
+  h1{font-size:24px;margin-bottom:6px}
+  h1 .o{color:#D6A24B;font-style:italic}
+  p{color:#A9B0A0;font-size:14px;margin-bottom:8px;line-height:1.6}
+  .tip{background:#10353A;border:1px solid rgba(214,162,75,.3);border-radius:10px;padding:14px 16px;font-size:13px;color:#CBB48E;margin:18px 0 28px;line-height:1.6}
+  .slot{display:flex;gap:16px;background:#0C2E33;border:1px solid rgba(242,231,211,.08);border-radius:12px;padding:14px;margin-bottom:14px}
+  .slot.done{border-color:#7A8450}
+  .prevwrap{width:120px;height:90px;flex-shrink:0;border-radius:8px;overflow:hidden;background:#10353A;display:flex;align-items:center;justify-content:center}
+  .prevwrap img{width:100%;height:100%;object-fit:cover;display:none}
+  .slot.done .prevwrap img{display:block}
+  .meta{flex:1;min-width:0}
+  .emoji{font-size:18px}
+  .lab{font-size:14px;font-weight:600;margin:2px 0 8px}
+  .status{font-size:12px;margin-bottom:8px;min-height:14px}
+  .status.ok{color:#9BB36A}.status.err{color:#E0805A}.status.load{color:#D6A24B}
+  .row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+  .file-btn{position:relative;overflow:hidden;display:inline-block;background:#D6A24B;color:#081E22;font-size:12px;font-weight:600;padding:8px 16px;border-radius:6px;cursor:pointer}
+  .file-btn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+  .url-row input{flex:1;min-width:0;background:#081E22;border:1px solid rgba(242,231,211,.15);color:#F2E7D3;padding:8px 10px;border-radius:6px;font-size:12px}
+  .url-row button{background:#10353A;border:1px solid rgba(242,231,211,.2);color:#F2E7D3;font-size:12px;padding:8px 14px;border-radius:6px;cursor:pointer;white-space:nowrap}
+  .url-row button:hover{background:#16545C}
+  .done-bar{margin-top:24px;text-align:center}
+  .view{display:inline-block;background:#C8623A;color:#F2E7D3;text-decoration:none;font-size:14px;font-weight:600;padding:14px 40px;border-radius:100px}
+</style></head><body>
+<h1>Photos — Bistro K<span class="o">ó</span>z</h1>
+<p>Pour chaque emplacement : <b>choisis un fichier</b> sur ton appareil, OU <b>colle l'adresse d'une image</b> (clic droit sur une photo Google → « Copier l'adresse de l'image »).</p>
+<div class="tip">💡 L'import par URL est téléchargé par le serveur — ça contourne les blocages. Si une URL échoue (site protégé), enregistre la photo sur ton appareil puis utilise « Choisir un fichier ».</div>
+${slotHtml}
+<div class="done-bar"><a class="view" href="/showcase/bistro-koz.html?v=${Date.now()}" target="_blank">Voir le site mis à jour →</a></div>
+<script>
+function setStatus(id,msg,cls){const e=document.getElementById('st-'+id);e.textContent=msg;e.className='status '+(cls||'');}
+function markDone(id,url){document.getElementById('slot-'+id).classList.add('done');const img=document.getElementById('prev-'+id);img.src=url+'?t='+Date.now();}
+async function pickFile(input,id){
+  const f=input.files[0];if(!f)return;
+  setStatus(id,'Envoi…','load');
+  const b64=await new Promise(r=>{const fr=new FileReader();fr.onload=e=>r(e.target.result);fr.readAsDataURL(f);});
+  try{
+    const res=await fetch('/upload-image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:'koz-'+id+'.jpg',data:b64})});
+    const j=await res.json();
+    if(j.ok){setStatus(id,'✓ Ajoutée','ok');markDone(id,j.url);}else setStatus(id,'✗ '+(j.error||'erreur'),'err');
+  }catch(e){setStatus(id,'✗ '+e.message,'err');}
+}
+async function importUrl(id){
+  const url=document.getElementById('url-'+id).value.trim();
+  if(!url){setStatus(id,'Colle une adresse d\\'image d\\'abord','err');return;}
+  setStatus(id,'Téléchargement par le serveur…','load');
+  try{
+    const res=await fetch('/fetch-image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:'koz-'+id+'.jpg',url})});
+    const j=await res.json();
+    if(j.ok){setStatus(id,'✓ Importée ('+Math.round(j.size/1024)+' ko)','ok');markDone(id,j.url);}else setStatus(id,'✗ '+(j.error||'échec'),'err');
+  }catch(e){setStatus(id,'✗ '+e.message,'err');}
+}
+</script></body></html>`);
+});
+
 // ── Debug — lister les fichiers dans output/ et demos/ ───────
 app.get('/debug', (req, res) => {
   const out   = fs.existsSync(outputDir) ? fs.readdirSync(outputDir).filter(f => f.endsWith('.html')) : [];
