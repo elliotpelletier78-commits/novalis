@@ -163,14 +163,20 @@ const FALLBACK_URLS = {
     mezze:     'https://images.unsplash.com/photo-1544025162-811114cd354c?q=85&w=1920&auto=format&fit=crop',
     plat:      'https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?q=85&w=1920&auto=format&fit=crop',
   },
-  // Restaurant méditerranéen/lac — photos plus précises
+  // Restaurant méditerranéen/lac — photos sélectionnées à la main pour Bistro Kóz
   restaurant_mediterranean: {
-    facade:    'https://images.unsplash.com/photo-1559339352-11d035aa65de?q=85&w=1920&auto=format&fit=crop',
-    interieur: 'https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?q=85&w=1920&auto=format&fit=crop',
-    terrasse:  'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=85&w=1920&auto=format&fit=crop',
-    dome:      'https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?q=85&w=1920&auto=format&fit=crop',
-    mezze:     'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?q=85&w=1920&auto=format&fit=crop',
-    plat:      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=85&w=1920&auto=format&fit=crop',
+    // Extérieur restaurant blanc avec terrasse plein air, lumière chaude
+    facade:    'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=88&w=1920&auto=format&fit=crop',
+    // Terrasse extérieure avec vue sur l'eau, convives, coucher de soleil
+    terrasse:  'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=88&w=1920&auto=format&fit=crop',
+    // Salle intérieure élégante, lumière dorée, tables dressées, fenêtres
+    interieur: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=88&w=1920&auto=format&fit=crop',
+    // Dôme géodésique / ambiance cosy hiver
+    dome:      'https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?q=88&w=1920&auto=format&fit=crop',
+    // Mezzes méditerranéens colorés à partager
+    mezze:     'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?q=88&w=1920&auto=format&fit=crop',
+    // Plat gastronomique dressé avec soin
+    plat:      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=88&w=1920&auto=format&fit=crop',
   },
   garage: {
     facade:    'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?q=85&w=1920&auto=format&fit=crop',

@@ -71,11 +71,19 @@ body.cur-link .cur-ring{width:60px;height:60px;border-color:var(--clay-soft);bac
 .scene{position:absolute;inset:0}
 .scene-bg{position:absolute;inset:-8%;background-size:cover;background-position:center;will-change:transform,opacity;filter:saturate(1.08) contrast(1.04) brightness(.78)}
 #sc-lake{z-index:1}
-#sc-lake .scene-bg{background-color:#0d2b30;background-image:url('/demo/images/koz-facade.jpg'),url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=90&w=2600&auto=format&fit=crop');background-position:center 40%}
+/* fallback = Unsplash curatés si Railway n'a pas encore téléchargé les vraies photos */
+#sc-lake .scene-bg{background-color:#0d2b30;
+  background-image:url('/demo/images/koz-facade.jpg'),
+    url('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=90&w=2600&auto=format&fit=crop');
+  background-position:center 40%}
 #sc-table{opacity:0;z-index:2}
-#sc-table .scene-bg{background-color:#2a1a12;background-image:url('/demo/images/koz-interieur.jpg'),url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=90&w=2600&auto=format&fit=crop')}
+#sc-table .scene-bg{background-color:#1a2a30;
+  background-image:url('/demo/images/koz-interieur.jpg'),
+    url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=90&w=2600&auto=format&fit=crop')}
 #sc-mezze{opacity:0;z-index:3}
-#sc-mezze .scene-bg{background-color:#3a2412;background-image:url('/demo/images/koz-mezze.jpg'),url('https://images.unsplash.com/photo-1544025162-811114cd354c?q=90&w=2600&auto=format&fit=crop')}
+#sc-mezze .scene-bg{background-color:#2c1a0e;
+  background-image:url('/demo/images/koz-mezze.jpg'),
+    url('https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?q=90&w=2600&auto=format&fit=crop')}
 #sc-final{opacity:0;z-index:4;background:var(--lake);display:flex;align-items:flex-end}
 
 .veil{position:absolute;inset:0;z-index:9;pointer-events:none;background:
@@ -126,7 +134,7 @@ section{position:relative}
 .story-body{margin-top:30px;font-size:16px;line-height:1.85;color:rgba(242,231,211,.72);max-width:520px}
 .story-body strong{color:var(--sand);font-weight:500}
 .story-card{position:relative;aspect-ratio:4/5;background:var(--panel);overflow:hidden}
-.story-card .ph{position:absolute;inset:0;background-color:#2a1a12;background-image:url('/demo/images/koz-interieur.jpg'),url('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=90&w=1600&auto=format&fit=crop');background-size:cover;background-position:center;filter:saturate(1.06) contrast(1.04) brightness(.82);will-change:transform}
+.story-card .ph{position:absolute;inset:0;background-color:#1a2a30;background-image:url('/demo/images/koz-interieur.jpg'),url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=90&w=1600&auto=format&fit=crop');background-size:cover;background-position:center;filter:saturate(1.06) contrast(1.04) brightness(.82);will-change:transform}
 .story-card .tag{position:absolute;left:0;bottom:0;padding:16px 22px;background:rgba(8,30,34,.7);backdrop-filter:blur(6px);font-family:'Fraunces',serif;font-style:italic;font-size:15px;color:var(--gold)}
 @media(max-width:820px){.story-grid{grid-template-columns:1fr;gap:44px}}
 
@@ -155,10 +163,10 @@ section{position:relative}
 .gal-cap{position:absolute;left:0;bottom:-36px;display:flex;gap:14px;align-items:baseline}
 .gal-cap .n{font-family:'Fraunces',serif;font-style:italic;color:var(--gold);font-size:14px}
 .gal-cap .t{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--cream-muted)}
-.g1{background-color:#3a2412;background-image:url('/demo/images/koz-terrasse.jpg'),url('https://images.unsplash.com/photo-1544025162-811114cd354c?q=90&w=1600&auto=format&fit=crop')}
-.g2{background-color:#2c1c14;background-image:url('/demo/images/koz-mezze.jpg'),url('https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?q=90&w=1600&auto=format&fit=crop')}
-.g3{background-color:#241a14;background-image:url('/demo/images/koz-plat.jpg'),url('https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?q=90&w=1600&auto=format&fit=crop')}
-.g4{background-color:#1a2a1a;background-image:url('/demo/images/koz-dome.jpg'),url('https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=90&w=1600&auto=format&fit=crop')}
+.g1{background-color:#0d2b30;background-image:url('/demo/images/koz-terrasse.jpg'),url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=90&w=1600&auto=format&fit=crop')}
+.g2{background-color:#2c1a0e;background-image:url('/demo/images/koz-mezze.jpg'),url('https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?q=90&w=1600&auto=format&fit=crop')}
+.g3{background-color:#241a14;background-image:url('/demo/images/koz-plat.jpg'),url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=90&w=1600&auto=format&fit=crop')}
+.g4{background-color:#1a2a30;background-image:url('/demo/images/koz-dome.jpg'),url('https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?q=90&w=1600&auto=format&fit=crop')}
 @media(max-width:820px){
   .gal{height:auto}.gal-sticky{position:static;height:auto;padding:72px 0}
   .gal-track{overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:54px}
@@ -167,7 +175,7 @@ section{position:relative}
 
 /* ── Terrasse / domes (full-bleed parallax) ── */
 .terrasse{position:relative;height:100vh;min-height:580px;overflow:hidden;display:flex;align-items:flex-end}
-.terrasse-bg{position:absolute;inset:-6%;background-color:#0d2b30;background-image:url('/demo/images/koz-terrasse.jpg'),url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=90&w=2600&auto=format&fit=crop');background-size:cover;background-position:center;filter:saturate(1.1) contrast(1.04) brightness(.7);will-change:transform}
+.terrasse-bg{position:absolute;inset:-6%;background-color:#0d2b30;background-image:url('/demo/images/koz-terrasse.jpg'),url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=90&w=2600&auto=format&fit=crop&brightness=0.7');background-size:cover;background-position:center;filter:saturate(1.1) contrast(1.04) brightness(.7);will-change:transform}
 .terrasse::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(8,30,34,.85),transparent 55%);pointer-events:none}
 .terrasse-content{position:relative;z-index:2;padding:0 clamp(20px,5vw,64px) 13vh;max-width:760px}
 .terrasse-content .h2{color:#fff}

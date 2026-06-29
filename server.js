@@ -1097,11 +1097,23 @@ const KOZ_PAGES = [
   'https://bistrokoz.ca/contact/',
 ];
 
+// Version — incrémenter pour forcer un reimport à chaque déploiement majeur
+const KOZ_PHOTO_VERSION = '3';
+
 async function importKozPhotos({ force = false } = {}) {
   const imagesDir = path.join(outputDir, 'images');
   if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
   const file = s => path.join(imagesDir, `koz-${s}.jpg`);
-  if (!force && KOZ_SLOTS.every(s => fs.existsSync(file(s)))) return { skipped: true };
+  const vFile = path.join(imagesDir, '.koz-version');
+
+  // Fichier valide = existe ET > 80 Ko (une vraie photo, pas un placeholder)
+  const isValid = s => { const f=file(s); return fs.existsSync(f) && fs.statSync(f).size > 80_000; };
+
+  // Skip uniquement si: pas force, bonne version ET tous les fichiers sont valides
+  const savedVer = fs.existsSync(vFile) ? fs.readFileSync(vFile,'utf8').trim() : '';
+  if (!force && savedVer === KOZ_PHOTO_VERSION && KOZ_SLOTS.every(s => isValid(s))) {
+    return { skipped: true };
+  }
 
   // Crawl multi-pages en parallèle — collecte toutes les photos candidates
   const { fetchSiteHtml, fetchHtml } = require('./discover');
@@ -1224,6 +1236,10 @@ async function importKozPhotos({ force = false } = {}) {
       }
       usedUrls.add(url);
     }
+  }
+  // Sauvegarder la version si tous les slots valides
+  if (KOZ_SLOTS.every(s => isValid(s))) {
+    fs.writeFileSync(vFile, KOZ_PHOTO_VERSION);
   }
   return { result, candidates: allCandidates.length, searchMode: Object.keys(searchPhotos).length > 0 };
 }
