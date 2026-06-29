@@ -1168,25 +1168,85 @@ async function importKozPhotos({ force = false } = {}) {
     plat:      allCandidates.find(c=>/plat|food|dish|assiette/i.test(c.url))?.url || (pa?.service?.[1]) || (pa?.service?.[0]),
   };
 
+  // Phase 3 : photo-search.js — si crawl n'a pas assez de résultats
+  // Cherche des photos parfaites via Unsplash/Pexels API selon le contexte de l'entreprise
+  const slotsStillNeeded = KOZ_SLOTS.filter(s => !force && !fs.existsSync(file(s)) && !wanted[s]);
+  let searchPhotos = {};
+  if (slotsStillNeeded.length > 0 || allCandidates.length < 3) {
+    try {
+      const { findPhotosForBusiness, getApiStatus } = require('./photo-search');
+      const apiStatus = getApiStatus();
+      console.log(`[koz-import] photo-search mode: ${apiStatus.mode}`);
+      searchPhotos = await findPhotosForBusiness({
+        industry:  'restaurant',
+        slots:     KOZ_SLOTS,
+        specialty: ['mediterranean', 'lakeside'],
+        name:      'Bistro Kóz',
+        location:  'Magog Quebec',
+      });
+      console.log(`[koz-import] photo-search trouvé: ${Object.keys(searchPhotos).length} slots`);
+    } catch(e) {
+      console.warn('[koz-import] photo-search:', e.message);
+    }
+  }
+
   const result = {};
   const usedUrls = new Set();
   for (const s of KOZ_SLOTS) {
     if (!force && fs.existsSync(file(s))) { result[s] = 'déjà présente'; continue; }
-    // Essayer l'URL voulue, puis piocher dans le pool
+
+    // Priorité: 1) crawl bistrokoz.ca, 2) pool général, 3) photo-search (Unsplash/Pexels/fallback)
     let url = wanted[s];
-    if (!url || usedUrls.has(url)) {
-      url = allPool.find(u => u && !usedUrls.has(u)) || url;
-    }
+    if (!url || usedUrls.has(url)) url = allPool.find(u => u && !usedUrls.has(u));
+    if (!url && searchPhotos[s]) url = searchPhotos[s].url;
+
     if (!url) { result[s] = 'aucune candidate'; continue; }
+
+    const source = allCandidates.some(c=>c.url===url) ? 'bistrokoz.ca'
+                 : searchPhotos[s]?.url === url        ? (searchPhotos[s]?.source || 'search')
+                 : 'pool';
     try {
       const buf = await kozDownload(url);
       fs.writeFileSync(file(s), buf);
       usedUrls.add(url);
-      result[s] = `ok ${Math.round(buf.length/1024)}ko (${url.slice(0,60)})`;
-    } catch(e) { result[s] = 'échec: ' + e.message; usedUrls.add(url); }
+      result[s] = `ok ${Math.round(buf.length/1024)}ko [${source}]`;
+    } catch(e) {
+      // Dernier recours: fallback photo-search direct
+      const fallback = searchPhotos[s]?.url;
+      if (fallback && fallback !== url) {
+        try {
+          const buf = await kozDownload(fallback);
+          fs.writeFileSync(file(s), buf);
+          result[s] = `ok fallback ${Math.round(buf.length/1024)}ko`;
+        } catch(e2) { result[s] = 'échec total: ' + e.message; }
+      } else {
+        result[s] = 'échec: ' + e.message;
+      }
+      usedUrls.add(url);
+    }
   }
-  return { result, candidates: allCandidates.length };
+  return { result, candidates: allCandidates.length, searchMode: Object.keys(searchPhotos).length > 0 };
 }
+
+// ── Statut des APIs photo ─────────────────────────────────────────
+app.get('/photo-api-status', (req, res) => {
+  const { getApiStatus } = require('./photo-search');
+  res.json(getApiStatus());
+});
+
+// ── Test de recherche photo (admin) ──────────────────────────────
+app.get('/photo-search-test', async (req, res) => {
+  const { findPhotosForBusiness } = require('./photo-search');
+  const industry = req.query.industry || 'restaurant';
+  const slot     = req.query.slot || 'facade';
+  const specialty = (req.query.specialty || 'mediterranean lakeside').split(' ');
+  try {
+    const results = await findPhotosForBusiness({ industry, slots: [slot], specialty, name: 'Test', location: 'Quebec' });
+    res.json(results);
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // Endpoint d'état / re-déclenchement manuel (filet de sécurité)
 app.get('/koz-import-status', async (req, res) => {
