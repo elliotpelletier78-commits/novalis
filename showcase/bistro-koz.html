@@ -102,11 +102,19 @@ body.cur-link .cur-ring{width:60px;height:60px;border-color:var(--clay-soft);bac
 .hero-title{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(48px,9vw,150px);line-height:.92;letter-spacing:-.025em;color:var(--sand)}
 .hero-title .o{color:var(--gold);font-style:italic}
 .hero-sub{margin-top:18px;font-size:clamp(13px,1.4vw,17px);font-weight:300;letter-spacing:.02em;color:rgba(242,231,211,.78);max-width:440px;line-height:1.6}
-#jt-approach{bottom:12vh;left:50%;transform:translateX(-50%);text-align:center;opacity:0;pointer-events:none}
-.approach-text{font-size:11px;letter-spacing:.42em;text-transform:uppercase;color:rgba(242,231,211,.6)}
-#jt-mid{top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;opacity:0;width:90vw}
-.mid-text{font-family:'Fraunces',serif;font-style:italic;font-weight:400;font-size:clamp(26px,4.5vw,64px);line-height:1.15;color:var(--sand)}
-.mid-text em{color:var(--gold);font-style:italic}
+/* ── Journey: scene narrative (Maison Aurelia pattern) ── */
+.j-narrative{position:absolute;bottom:clamp(110px,16vh,180px);left:clamp(20px,5vw,64px);z-index:22;pointer-events:none;max-width:min(580px,78vw);opacity:0;transform:translateY(18px);will-change:opacity,transform}
+.j-label{font-size:10px;letter-spacing:.44em;text-transform:uppercase;color:rgba(242,231,211,.42);margin-bottom:14px}
+.j-headline{font-family:'Fraunces',serif;font-style:italic;font-weight:400;font-size:clamp(26px,4vw,62px);line-height:1.08;letter-spacing:-.02em;color:var(--sand);margin-bottom:12px}
+.j-headline em{color:var(--gold)}
+.j-sub{font-size:clamp(13px,1.2vw,15px);font-weight:300;line-height:1.72;color:rgba(242,231,211,.6);max-width:400px}
+
+/* ── Journey: bottom bar (persistante pendant le walk-in) ── */
+.j-bottom-bar{position:absolute;bottom:0;left:0;right:0;z-index:24;padding:clamp(20px,3vh,32px) clamp(20px,5vw,64px);display:flex;align-items:flex-end;justify-content:space-between;opacity:0;pointer-events:none}
+.j-addr{font-size:11px;letter-spacing:.1em;color:rgba(242,231,211,.45);line-height:1.6}
+.j-phone{font-size:11px;letter-spacing:.06em;color:rgba(242,231,211,.45);margin-top:3px}
+.j-res{font-size:10px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;background:var(--gold);color:var(--lake);padding:10px 22px;border-radius:100px;text-decoration:none;transition:transform .2s,background .2s;pointer-events:auto}
+.j-res:hover{transform:translateY(-2px);background:var(--clay-soft);color:var(--sand)}
 
 /* Final splash */
 .splash{padding:0 clamp(20px,5vw,64px) 13vh;width:100%}
@@ -297,11 +305,31 @@ footer{background:var(--lake-deep);padding:72px clamp(20px,5vw,64px) 30px}
       <div class="hero-title">Le Sud commence<br>au bord du <span class="o">lac</span>.</div>
       <div class="hero-sub">Mezzes à partager, Kóztails au soleil couchant et une vue qui ressemble à un voyage. Bienvenue chez Kóz.</div>
     </div>
-    <div class="jt" id="jt-approach">
-      <div class="approach-text">Entrez</div>
+    <!-- Scène 1 : L'arrivée -->
+    <div class="j-narrative" id="jt-arrive">
+      <p class="j-label">L'arrivée</p>
+      <p class="j-headline">On longe le lac.<br>La terrasse <em>s'allume</em> au loin.</p>
+      <p class="j-sub">Une façade blanche au bord de l'eau, à Magog. On pousse la porte — le Memphrémagog entre avec vous.</p>
     </div>
-    <div class="jt" id="jt-mid">
-      <div class="mid-text">Vue sur le lac<br><em>Memphrémagog</em>.</div>
+    <!-- Scène 2 : La salle -->
+    <div class="j-narrative" id="jt-table">
+      <p class="j-label">La salle</p>
+      <p class="j-headline">Le lac est là,<br>derrière la <em>vitre</em>.</p>
+      <p class="j-sub">Lumière dorée, nappe blanche, Memphrémagog pour horizon — on pose les épaules.</p>
+    </div>
+    <!-- Scène 3 : Le service -->
+    <div class="j-narrative" id="jt-service">
+      <p class="j-label">Le service</p>
+      <p class="j-headline">Ce soir, les saveurs<br>viennent de <em>plus loin</em>.</p>
+      <p class="j-sub">Épices douces, olives dorées, feta crémeuse — la Méditerranée arrive à Magog.</p>
+    </div>
+    <!-- Barre persistante bas -->
+    <div class="j-bottom-bar" id="jBottomBar">
+      <div>
+        <div class="j-addr">1150 rue Principale Ouest, Magog</div>
+        <div class="j-phone">819 843-6714</div>
+      </div>
+      <a href="tel:+18198436714" class="j-res">Réserver</a>
     </div>
   </div>
 </div>
@@ -466,7 +494,7 @@ footer{background:var(--lake-deep);padding:72px clamp(20px,5vw,64px) 30px}
 if(typeof gsap==='undefined'||typeof ScrollTrigger==='undefined'){
   document.body.style.overflow='';
   var s=document.createElement('style');
-  s.textContent='#loader{display:none}.journey{height:auto}.j-sticky{position:relative;height:100vh}#sc-table,#sc-mezze,#sc-final,#jt-mid,#jt-approach,#jt-place{display:none}#jt-hero{opacity:1}.nav{opacity:1;pointer-events:auto;background:var(--lake-deep)}.mask>span{transform:none}.gal{height:auto}.gal-sticky{position:static;height:auto;padding:72px 0}.gal-track{overflow-x:auto}';
+  s.textContent='#loader{display:none}.journey{height:auto}.j-sticky{position:relative;height:100vh}#sc-table,#sc-mezze,#sc-final,#jt-arrive,#jt-table,#jt-service,#jBottomBar,#jt-place{display:none}#jt-hero{opacity:1}.nav{opacity:1;pointer-events:auto;background:var(--lake-deep)}.mask>span{transform:none}.gal{height:auto}.gal-sticky{position:static;height:auto;padding:72px 0}.gal-track{overflow-x:auto}';
   document.head.appendChild(s);
   throw new Error('GSAP indisponible — mode dégradé');
 }
@@ -492,6 +520,7 @@ if(typeof Lenis!=='undefined'&&!reduce){
     document.getElementById('nav').classList.add('show');
     gsap.to('#jt-place',{opacity:1,duration:1.3,delay:.5,ease:'power2.out'});
     gsap.fromTo('#jt-hero',{opacity:0,y:24},{opacity:1,y:0,duration:1.5,delay:.85,ease:'power3.out'});
+    gsap.to('#jBottomBar',{opacity:1,duration:1.2,delay:1.6,ease:'power2.out'});
   }
   if(reduce){loader.style.display='none';document.body.style.overflow='';gsap.set(['#jt-place','#jt-hero'],{opacity:1});document.getElementById('nav').classList.add('show');return;}
   gsap.to(sub,{opacity:1,duration:.8,delay:.2});
@@ -508,46 +537,43 @@ document.querySelectorAll('a[href^="#"]').forEach(a=>{
 });
 
 // ── POV Walk-in : dehors → marche → porte → intérieur → service → site ──
-// Durée totale timeline ≈ 9.5 unités → mappée sur 700vh de scroll
 const tl=gsap.timeline({scrollTrigger:{trigger:'.journey',start:'top top',end:'bottom bottom',scrub:2.5}});
 tl
-  // ── Phase 1 : Extérieur — statique, héros visible (0-0.9)
+  // ── Phase 1 : Extérieur — héros visible (0-0.9)
   .to('#jt-place',{opacity:0,duration:.35},.6)
-  .to('#jt-hero',{opacity:0,duration:.5},.9)
+  .to('#jt-hero',{opacity:0,y:-12,duration:.5},.9)
 
-  // ── Phase 2 : Marche vers l'entrée (0.9-3.8) ──
-  // La caméra avance en continu — zoom lent et organique vers la façade
+  // ── Phase 2 : L'arrivée — caméra avance vers la façade (0.9-3.8)
   .to('#sc-lake .scene-bg',{scale:3.0,ease:'power1.in',duration:4.2},0)
-  // "Entrez" apparaît subtilement pendant l'approche
-  .to('#jt-approach',{opacity:1,duration:.5},1.2)
-  .to('#jt-approach',{opacity:0,duration:.4},2.8)
-  // La vignette-porte monte progressivement — on voit le cadre de la porte
+  .to('#jt-arrive',{opacity:1,y:0,duration:.55},1.0)
+  // La vignette-porte monte — on voit le cadre s'assombrir
   .to('#doorVeil',{opacity:1,duration:2.6,ease:'power2.in'},1.0)
+  .to('#jt-arrive',{opacity:0,y:-10,duration:.4},3.2)
 
-  // ── Phase 3 : Franchir la porte (3.8-5.2) ──
-  // Pic de vignette = obscurité totale = seuil franchi
-  // L'intérieur révèle depuis scale 1.5 (caméra juste entrée)
+  // ── Phase 3 : Franchir la porte (3.8-5.0)
   .to('#sc-lake',{opacity:0,duration:.4},3.8)
   .fromTo('#sc-table',{opacity:0,scale:1.5},{opacity:1,scale:1.0,duration:1.8,ease:'power2.out'},3.8)
-  // La vignette s'ouvre — on est dedans, la salle se dévoile
   .to('#doorVeil',{opacity:0,duration:1.6,ease:'power2.out'},4.0)
 
-  // ── Phase 4 : S'avancer vers la table, vue sur le lac (5.0-6.4) ──
+  // ── Phase 4 : La salle — vue sur le lac (5.0-6.3)
   .to('#sc-table .scene-bg',{scale:1.22,ease:'none',duration:1.8},5.0)
-  .to('#jt-mid',{opacity:1,duration:.5},5.3)
-  .to('#jt-mid',{opacity:0,duration:.4},6.1)
+  .to('#jt-table',{opacity:1,y:0,duration:.55},5.1)
+  .to('#jt-table',{opacity:0,y:-10,duration:.4},6.0)
 
-  // ── Phase 5 : Le plat servi (6.4-7.6) ──
-  .to('#sc-table',{opacity:0,duration:.55},6.4)
-  .fromTo('#sc-mezze',{opacity:0,scale:1.18},{opacity:1,scale:1.0,duration:1.0,ease:'power2.out'},6.4)
-  .to('#sc-mezze .scene-bg',{scale:1.12,ease:'none',duration:1.0},6.5)
+  // ── Phase 5 : Le service — mezzes servis (6.3-7.5)
+  .to('#sc-table',{opacity:0,duration:.55},6.3)
+  .fromTo('#sc-mezze',{opacity:0,scale:1.18},{opacity:1,scale:1.0,duration:1.0,ease:'power2.out'},6.3)
+  .to('#sc-mezze .scene-bg',{scale:1.12,ease:'none',duration:1.1},6.4)
+  .to('#jt-service',{opacity:1,y:0,duration:.5},6.5)
+  .to('#jt-service',{opacity:0,y:-10,duration:.4},7.3)
+  .to('#jBottomBar',{opacity:0,duration:.5},7.3)
 
-  // ── Phase 6 : Le site apparaît (7.6-9.5) ──
-  .to('#sc-mezze',{opacity:0,duration:.65},7.6)
-  .to('#sc-final',{opacity:1,duration:.85},7.6)
-  .to('.splash-mark',{y:0,opacity:1,duration:.85},7.8)
-  .to('.splash-line',{y:0,opacity:1,duration:.7},8.15)
-  .to('.splash-scroll',{opacity:1,duration:.6},8.55);
+  // ── Phase 6 : Le site apparaît (7.5-9.5)
+  .to('#sc-mezze',{opacity:0,duration:.65},7.5)
+  .to('#sc-final',{opacity:1,duration:.85},7.5)
+  .to('.splash-mark',{y:0,opacity:1,duration:.85},7.7)
+  .to('.splash-line',{y:0,opacity:1,duration:.7},8.1)
+  .to('.splash-scroll',{opacity:1,duration:.6},8.5);
 
 // ── Kinetic scramble reveal (le "wow" — sur le wordmark final) ──
 (function(){
