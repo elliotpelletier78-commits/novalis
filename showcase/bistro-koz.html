@@ -69,26 +69,26 @@ body.cur-link .cur-ring{width:60px;height:60px;border-color:var(--clay-soft);bac
 .journey{height:700vh;position:relative}
 .j-sticky{position:sticky;top:0;height:100vh;overflow:hidden;background:var(--lake-deep)}
 .scene{position:absolute;inset:0}
-.scene-bg{position:absolute;inset:-8%;background-size:cover;background-position:center;will-change:transform,opacity;filter:saturate(1.08) contrast(1.04) brightness(.78)}
+.scene-bg{position:absolute;inset:-8%;background-size:cover;background-position:center;will-change:transform,opacity;filter:saturate(1.12) contrast(1.06) brightness(.72) sepia(.18) hue-rotate(-8deg)}
 #sc-lake{z-index:1}
 /* fallback = Unsplash curatés si Railway n'a pas encore téléchargé les vraies photos */
-#sc-lake .scene-bg{background-color:#0d2b30;
+#sc-lake .scene-bg{background-color:#2a1806;
   background-image:url('/demo/images/koz-facade.jpg'),
     url('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=90&w=2600&auto=format&fit=crop');
   background-position:center 40%}
 #sc-table{opacity:0;z-index:2}
-#sc-table .scene-bg{background-color:#1a2a30;
+#sc-table .scene-bg{background-color:#1e1208;
   background-image:url('/demo/images/koz-interieur.jpg'),
     url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=90&w=2600&auto=format&fit=crop')}
 #sc-mezze{opacity:0;z-index:3}
-#sc-mezze .scene-bg{background-color:#2c1a0e;
+#sc-mezze .scene-bg{background-color:#2c1a0a;
   background-image:url('/demo/images/koz-mezze.jpg'),
     url('https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?q=90&w=2600&auto=format&fit=crop')}
-#sc-final{opacity:0;z-index:4;background:var(--lake);display:flex;align-items:flex-end}
+#sc-final{opacity:0;z-index:4;background:#1e1206;display:flex;align-items:flex-end}
 
 .veil{position:absolute;inset:0;z-index:9;pointer-events:none;background:
-  linear-gradient(to bottom,rgba(8,30,34,.55) 0%,transparent 30%,transparent 55%,rgba(8,30,34,.82) 100%),
-  linear-gradient(to right,rgba(8,30,34,.4) 0%,transparent 40%)}
+  linear-gradient(to bottom,rgba(18,12,4,.5) 0%,transparent 28%,transparent 50%,rgba(12,8,2,.88) 100%),
+  linear-gradient(to right,rgba(14,9,2,.38) 0%,transparent 44%)}
 .grain{position:absolute;inset:0;z-index:10;pointer-events:none;opacity:.05;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:160px}
 /* Cadre de porte POV — vignette radiale qui simule l'encadrement */
 .door-veil{position:absolute;inset:0;z-index:11;pointer-events:none;
@@ -96,12 +96,17 @@ body.cur-link .cur-ring{width:60px;height:60px;border-color:var(--clay-soft);bac
   opacity:0;will-change:opacity}
 
 .jt{position:absolute;z-index:20;pointer-events:none}
-#jt-place{top:11vh;left:clamp(20px,5vw,64px);font-size:11px;letter-spacing:.4em;text-transform:uppercase;color:rgba(242,231,211,.55);opacity:0}
-#jt-hero{bottom:13vh;left:clamp(20px,5vw,64px);opacity:0;max-width:90vw}
-.hero-kicker{font-family:'Fraunces',serif;font-style:italic;font-weight:400;font-size:clamp(16px,2vw,24px);color:var(--gold);margin-bottom:10px}
-.hero-title{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(48px,9vw,150px);line-height:.92;letter-spacing:-.025em;color:var(--sand)}
-.hero-title .o{color:var(--gold);font-style:italic}
-.hero-sub{margin-top:18px;font-size:clamp(13px,1.4vw,17px);font-weight:300;letter-spacing:.02em;color:rgba(242,231,211,.78);max-width:440px;line-height:1.6}
+#jt-hero{bottom:clamp(70px,11vh,140px);left:clamp(20px,5vw,64px);opacity:0;max-width:min(620px,80vw);pointer-events:auto}
+.hero-eyebrow{font-size:10px;letter-spacing:.46em;text-transform:uppercase;color:rgba(242,231,211,.42);margin-bottom:22px}
+.hero-name{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(48px,6.5vw,88px);line-height:.95;letter-spacing:-.025em;color:var(--sand);margin-bottom:16px}
+.hero-name .o{color:var(--gold);font-style:italic}
+.hero-tagline{font-family:'Fraunces',serif;font-style:italic;font-weight:400;font-size:clamp(17px,1.9vw,24px);line-height:1.32;color:rgba(242,231,211,.86);margin-bottom:10px}
+.hero-desc{font-size:clamp(13px,1.2vw,15px);font-weight:300;line-height:1.72;color:rgba(242,231,211,.58);max-width:400px;margin-bottom:28px}
+.hero-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.hero-btn-primary{font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;background:var(--gold);color:var(--lake-deep);padding:12px 28px;border-radius:100px;text-decoration:none;transition:transform .2s,background .2s}
+.hero-btn-primary:hover{transform:translateY(-2px);background:var(--clay-soft);color:var(--sand)}
+.hero-btn-outline{font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:rgba(242,231,211,.72);border:1px solid rgba(242,231,211,.28);padding:12px 28px;border-radius:100px;text-decoration:none;transition:color .2s,border-color .2s}
+.hero-btn-outline:hover{color:var(--sand);border-color:rgba(242,231,211,.65)}
 /* ── Journey: scene narrative (Maison Aurelia pattern) ── */
 .j-narrative{position:absolute;bottom:clamp(110px,16vh,180px);left:clamp(20px,5vw,64px);z-index:22;pointer-events:none;max-width:min(580px,78vw);opacity:0;transform:translateY(18px);will-change:opacity,transform}
 .j-label{font-size:10px;letter-spacing:.44em;text-transform:uppercase;color:rgba(242,231,211,.42);margin-bottom:14px}
@@ -299,11 +304,15 @@ footer{background:var(--lake-deep);padding:72px clamp(20px,5vw,64px) 30px}
     <div class="veil"></div>
     <div class="grain"></div>
     <div class="door-veil" id="doorVeil"></div>
-    <div class="jt" id="jt-place">Magog · Lac Memphrémagog · Estrie</div>
     <div class="jt" id="jt-hero">
-      <div class="hero-kicker">Cuisine méditerranéenne</div>
-      <div class="hero-title">Le Sud commence<br>au bord du <span class="o">lac</span>.</div>
-      <div class="hero-sub">Mezzes à partager, Kóztails au soleil couchant et une vue qui ressemble à un voyage. Bienvenue chez Kóz.</div>
+      <p class="hero-eyebrow">Cuisine méditerranéenne · Magog · Estrie</p>
+      <h1 class="hero-name">Bistro K<span class="o">ó</span>z</h1>
+      <p class="hero-tagline">Kouzina — la cuisine, en grec.<br>Et l'âme du Memphrémagog.</p>
+      <p class="hero-desc">Mezzes à partager, Kóztails au soleil couchant, vue sur le lac. Un coin de Méditerranée à Magog.</p>
+      <div class="hero-actions">
+        <a href="tel:+18198436714" class="hero-btn-primary">Réserver</a>
+        <a href="#mezze" class="hero-btn-outline">Voir le menu</a>
+      </div>
     </div>
     <!-- Scène 1 : L'arrivée -->
     <div class="j-narrative" id="jt-arrive">
@@ -494,7 +503,7 @@ footer{background:var(--lake-deep);padding:72px clamp(20px,5vw,64px) 30px}
 if(typeof gsap==='undefined'||typeof ScrollTrigger==='undefined'){
   document.body.style.overflow='';
   var s=document.createElement('style');
-  s.textContent='#loader{display:none}.journey{height:auto}.j-sticky{position:relative;height:100vh}#sc-table,#sc-mezze,#sc-final,#jt-arrive,#jt-table,#jt-service,#jBottomBar,#jt-place{display:none}#jt-hero{opacity:1}.nav{opacity:1;pointer-events:auto;background:var(--lake-deep)}.mask>span{transform:none}.gal{height:auto}.gal-sticky{position:static;height:auto;padding:72px 0}.gal-track{overflow-x:auto}';
+  s.textContent='#loader{display:none}.journey{height:auto}.j-sticky{position:relative;height:100vh}#sc-table,#sc-mezze,#sc-final,#jt-arrive,#jt-table,#jt-service,#jBottomBar{display:none}#jt-hero{opacity:1}.nav{opacity:1;pointer-events:auto;background:var(--lake-deep)}.mask>span{transform:none}.gal{height:auto}.gal-sticky{position:static;height:auto;padding:72px 0}.gal-track{overflow-x:auto}';
   document.head.appendChild(s);
   throw new Error('GSAP indisponible — mode dégradé');
 }
@@ -518,9 +527,8 @@ if(typeof Lenis!=='undefined'&&!reduce){
     loader.classList.add('done');document.body.style.overflow='';
     if(lenis)lenis.start();
     document.getElementById('nav').classList.add('show');
-    gsap.to('#jt-place',{opacity:1,duration:1.3,delay:.5,ease:'power2.out'});
-    gsap.fromTo('#jt-hero',{opacity:0,y:24},{opacity:1,y:0,duration:1.5,delay:.85,ease:'power3.out'});
-    gsap.to('#jBottomBar',{opacity:1,duration:1.2,delay:1.6,ease:'power2.out'});
+    gsap.fromTo('#jt-hero',{opacity:0,y:22},{opacity:1,y:0,duration:1.6,delay:.7,ease:'power3.out'});
+    gsap.to('#jBottomBar',{opacity:1,duration:1.2,delay:1.5,ease:'power2.out'});
   }
   if(reduce){loader.style.display='none';document.body.style.overflow='';gsap.set(['#jt-place','#jt-hero'],{opacity:1});document.getElementById('nav').classList.add('show');return;}
   gsap.to(sub,{opacity:1,duration:.8,delay:.2});
@@ -540,8 +548,7 @@ document.querySelectorAll('a[href^="#"]').forEach(a=>{
 const tl=gsap.timeline({scrollTrigger:{trigger:'.journey',start:'top top',end:'bottom bottom',scrub:2.5}});
 tl
   // ── Phase 1 : Extérieur — héros visible (0-0.9)
-  .to('#jt-place',{opacity:0,duration:.35},.6)
-  .to('#jt-hero',{opacity:0,y:-12,duration:.5},.9)
+  .to('#jt-hero',{opacity:0,y:-14,duration:.5},.9)
 
   // ── Phase 2 : L'arrivée — caméra avance vers la façade (0.9-3.8)
   .to('#sc-lake .scene-bg',{scale:3.0,ease:'power1.in',duration:4.2},0)
