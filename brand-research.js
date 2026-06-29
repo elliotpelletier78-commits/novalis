@@ -216,6 +216,19 @@ function extractPhotosFromPage(html, baseUrl, pageTag) {
     if (photos.length >= 35) break;
   }
 
+  // Video poster — choix du propriétaire, souvent la meilleure photo hero
+  const vidRe = /<video[^>]+poster=["']([^"']+)["']/gi;
+  while ((m = vidRe.exec(html)) !== null) {
+    add(m[1], 'video poster', 50, true);
+  }
+
+  // Squarespace / Wix / Siteground image CDNs
+  const cdnRe = /["'](https?:\/\/(?:static\d*\.squarespace|images\.squarespace|static\.wixstatic|ucarecdn|cdn\.prod\.website-files|i\.ibb|images\.prismic)[^"'\s)]+\.(?:jpe?g|png|webp)[^"'\s)]*)/gi;
+  while ((m = cdnRe.exec(html)) !== null) {
+    add(m[1], 'cdn', 20, false);
+    if (photos.length >= 45) break;
+  }
+
   return photos;
 }
 

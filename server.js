@@ -1086,46 +1086,106 @@ async function kozDownload(url) {
   return buf;
 }
 
+// Pages clés à crawler pour Kóz (multi-pages pour plus de photos)
+const KOZ_PAGES = [
+  'https://bistrokoz.ca/',
+  'https://bistrokoz.ca/galerie/',
+  'https://bistrokoz.ca/a-propos/',
+  'https://bistrokoz.ca/menus/',
+  'https://bistrokoz.ca/les-domes/',
+  'https://bistrokoz.ca/terrasse/',
+  'https://bistrokoz.ca/contact/',
+];
+
 async function importKozPhotos({ force = false } = {}) {
   const imagesDir = path.join(outputDir, 'images');
   if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
   const file = s => path.join(imagesDir, `koz-${s}.jpg`);
   if (!force && KOZ_SLOTS.every(s => fs.existsSync(file(s)))) return { skipped: true };
 
-  let research;
-  try {
-    const { researchBrand } = require('./brand-research');
-    research = await researchBrand('https://bistrokoz.ca/');
-  } catch (e) { return { error: 'crawl: ' + e.message }; }
-  if (!research || !research.photoAssignment) return { error: 'site inaccessible' };
+  // Crawl multi-pages en parallèle — collecte toutes les photos candidates
+  const { fetchSiteHtml, fetchHtml } = require('./discover');
+  const allCandidates = []; // {url, score, slot}
+  const seen = new Set();
 
-  const pa = research.photoAssignment;
-  const pick = (role, i = 0) => (pa[role] && pa[role][i]) || '';
-  const allCands = [].concat(pa.exterior || [], pa.interior || [], pa.service || [], pa.about || []);
+  async function crawlPage(pageUrl) {
+    try {
+      const { html } = await fetchSiteHtml(pageUrl);
+      // Extraire toutes les images de la page
+      const imgRe = /(?:src|data-src|data-lazy-src|data-original)=["']([^"'#\s]{8,}\.(?:jpe?g|png|webp)(?:\?[^"']*)?)/gi;
+      const bgRe  = /url\(["']?(https?:[^"')]+\.(?:jpe?g|png|webp)[^"')]*)/gi;
+      const vidRe = /poster=["']([^"']+)/gi;
+      for (const re of [imgRe, bgRe, vidRe]) {
+        let m;
+        while ((m = re.exec(html)) !== null) {
+          const u = m[1].startsWith('//') ? 'https:' + m[1] : m[1];
+          if (!u.startsWith('http')) continue;
+          if (seen.has(u)) continue;
+          if (/icon|logo|badge|pixel|1x1|sprite|favicon|arrow|thumb-\d+x\d+/i.test(u)) continue;
+          seen.add(u);
+          // Scoring sémantique basé sur l'URL
+          let score = 10;
+          if (/terrasse|terrace/i.test(u)) score += 40;
+          if (/interieur|interior|salle|dining/i.test(u)) score += 35;
+          if (/facade|exterior|outside|devanture/i.test(u)) score += 35;
+          if (/dome/i.test(u)) score += 30;
+          if (/mezze|plat|food|dish|menu/i.test(u)) score += 30;
+          if (/\d{4}x\d{4}|\d{3,}w|large|full|hero|banner|cover/i.test(u)) score += 20;
+          if (re === vidRe) score += 50; // poster d'une vidéo = image hero choisie par le proprio
+          allCandidates.push({ url: u, score, pageUrl });
+        }
+      }
+      console.log(`[koz-crawl] ${pageUrl} → ${seen.size} URLs vues`);
+    } catch(e) {
+      console.log(`[koz-crawl] ${pageUrl} → ${e.message}`);
+    }
+  }
+
+  await Promise.allSettled(KOZ_PAGES.map(p => crawlPage(p)));
+
+  // Si moins de 3 candidats, utiliser brand-research en fallback
+  let pa = null;
+  if (allCandidates.length < 3) {
+    try {
+      const { researchBrand } = require('./brand-research');
+      const research = await researchBrand('https://bistrokoz.ca/');
+      if (research?.photoAssignment) pa = research.photoAssignment;
+    } catch(e) { console.warn('[koz-import] brand-research:', e.message); }
+  }
+
+  // Triées par score décroissant
+  allCandidates.sort((a, b) => b.score - a.score);
+
+  const paPool = pa ? [].concat(pa.exterior||[], pa.interior||[], pa.service||[], pa.about||[]) : [];
+  const allPool = [...new Set([...allCandidates.map(c=>c.url), ...paPool])];
+
   const wanted = {
-    facade:    pick('exterior', 0),
-    terrasse:  pick('exterior', 1) || pick('about', 0),
-    interieur: pick('interior', 0),
-    dome:      pick('about', 0) || pick('interior', 1),
-    mezze:     pick('service', 0),
-    plat:      pick('service', 1) || pick('service', 0),
+    facade:    allCandidates.find(c=>/facade|exterior|outside|devanture|building/i.test(c.url))?.url || (pa?.exterior?.[0]),
+    terrasse:  allCandidates.find(c=>/terrasse|terrace/i.test(c.url))?.url || (pa?.exterior?.[1]),
+    interieur: allCandidates.find(c=>/interieur|interior|salle|dining|inside/i.test(c.url))?.url || (pa?.interior?.[0]),
+    dome:      allCandidates.find(c=>/dome/i.test(c.url))?.url || (pa?.about?.[0]) || (pa?.interior?.[1]),
+    mezze:     allCandidates.find(c=>/mezze|mezz/i.test(c.url))?.url || (pa?.service?.[0]),
+    plat:      allCandidates.find(c=>/plat|food|dish|assiette/i.test(c.url))?.url || (pa?.service?.[1]) || (pa?.service?.[0]),
   };
 
   const result = {};
-  const used = new Set();
+  const usedUrls = new Set();
   for (const s of KOZ_SLOTS) {
     if (!force && fs.existsSync(file(s))) { result[s] = 'déjà présente'; continue; }
+    // Essayer l'URL voulue, puis piocher dans le pool
     let url = wanted[s];
-    if (!url || used.has(url)) url = allCands.find(u => u && !used.has(u)) || url;
+    if (!url || usedUrls.has(url)) {
+      url = allPool.find(u => u && !usedUrls.has(u)) || url;
+    }
     if (!url) { result[s] = 'aucune candidate'; continue; }
     try {
       const buf = await kozDownload(url);
       fs.writeFileSync(file(s), buf);
-      used.add(url);
-      result[s] = `ok ${Math.round(buf.length / 1024)}ko`;
-    } catch (e) { result[s] = 'échec: ' + e.message; }
+      usedUrls.add(url);
+      result[s] = `ok ${Math.round(buf.length/1024)}ko (${url.slice(0,60)})`;
+    } catch(e) { result[s] = 'échec: ' + e.message; usedUrls.add(url); }
   }
-  return { result, found: { exterior: (pa.exterior || []).length, interior: (pa.interior || []).length, service: (pa.service || []).length, about: (pa.about || []).length } };
+  return { result, candidates: allCandidates.length };
 }
 
 // Endpoint d'état / re-déclenchement manuel (filet de sécurité)
@@ -1141,6 +1201,114 @@ app.get('/koz-import-status', async (req, res) => {
     return res.json({ status, run });
   }
   res.json({ status });
+});
+
+// ── Admin : coller une URL de photo pour un slot spécifique ──────
+app.post('/koz-photos/set', async (req, res) => {
+  const { slot, url, pass } = req.body;
+  if ((pass || req.headers['x-admin-pass']) !== ADMIN_PASS) return res.status(401).json({ error: 'Non autorisé' });
+  if (!KOZ_SLOTS.includes(slot)) return res.status(400).json({ error: `Slot invalide. Valides: ${KOZ_SLOTS.join(', ')}` });
+  if (!url || !url.startsWith('http')) return res.status(400).json({ error: 'URL invalide' });
+  try {
+    const buf = await kozDownload(url);
+    const dest = path.join(outputDir, 'images', `koz-${slot}.jpg`);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, buf);
+    res.json({ ok: true, slot, size: Math.round(buf.length / 1024) + 'ko' });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Page admin photos Kóz (UI pour coller des URLs) ──────────────
+app.get('/koz-photos', (req, res) => {
+  const imagesDir = path.join(outputDir, 'images');
+  const slots = KOZ_SLOTS.map(s => {
+    const f = path.join(imagesDir, `koz-${s}.jpg`);
+    const exists = fs.existsSync(f);
+    return { s, exists, size: exists ? Math.round(fs.statSync(f).size/1024)+'ko' : null };
+  });
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Photos Kóz — Admin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#0f1a1c;color:#e8dcc8;padding:40px 24px}
+h1{font-size:22px;margin-bottom:8px;color:#d6a24b}
+.sub{font-size:13px;color:#8a9890;margin-bottom:32px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.card{background:#152326;border:1px solid #2a3d40;border-radius:10px;padding:20px}
+.card h3{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#c8623a;margin-bottom:12px}
+.preview{width:100%;aspect-ratio:16/9;background:#0c1e22;border-radius:6px;overflow:hidden;margin-bottom:12px;position:relative}
+.preview img{width:100%;height:100%;object-fit:cover}
+.preview .absent{display:flex;align-items:center;justify-content:center;height:100%;font-size:12px;color:#4a6060}
+.status{font-size:12px;color:#5a8060;margin-bottom:12px}
+input{width:100%;padding:10px 12px;background:#0c1e22;border:1px solid #2a4040;border-radius:6px;color:#e8dcc8;font-size:13px;margin-bottom:10px}
+input:focus{outline:none;border-color:#d6a24b}
+button{width:100%;padding:10px;background:#c8623a;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer}
+button:hover{background:#d9805a}
+.msg{margin-top:8px;font-size:12px;min-height:18px}
+.ok{color:#5a8060}.err{color:#c84040}
+.actions{display:flex;gap:10px;margin-bottom:24px}
+.btn-sm{padding:10px 20px;background:#1e3540;border:1px solid #2a5060;color:#a0b8b0;border-radius:6px;font-size:13px;cursor:pointer;text-decoration:none}
+.btn-sm:hover{background:#2a4550;color:#e8dcc8}
+a.view{display:block;margin-top:8px;font-size:12px;color:#d6a24b;text-decoration:none}
+a.view:hover{text-decoration:underline}
+</style>
+</head><body>
+<h1>Photos Bistro Kóz</h1>
+<p class="sub">Colle l'URL de n'importe quelle photo — le serveur la télécharge et la sauvegarde. Mot de passe admin requis.</p>
+<div class="actions">
+  <a href="/showcase/bistro-koz.html" class="btn-sm" target="_blank">Voir le site →</a>
+  <button class="btn-sm" onclick="reimport()">Réimporter (crawl auto)</button>
+  <button class="btn-sm" onclick="reimport(true)">Forcer réimport</button>
+</div>
+<div class="grid">
+${slots.map(({s, exists, size}) => `
+  <div class="card" id="card-${s}">
+    <h3>${s}</h3>
+    <div class="preview">
+      ${exists
+        ? `<img id="img-${s}" src="/demo/images/koz-${s}.jpg?t=${Date.now()}" onerror="this.style.display='none'">`
+        : `<div class="absent">absente</div>`}
+    </div>
+    <div class="status">${exists ? `✓ ${size}` : '✗ Manquante'}</div>
+    <input id="url-${s}" placeholder="https://bistrokoz.ca/wp-content/uploads/...jpg" type="url">
+    <input id="pass-${s}" placeholder="Mot de passe admin" type="password" value="">
+    <button onclick="setPhoto('${s}')">Enregistrer cette photo</button>
+    <div class="msg" id="msg-${s}"></div>
+    ${exists ? `<a class="view" href="/demo/images/koz-${s}.jpg" target="_blank">Voir la photo actuelle →</a>` : ''}
+  </div>`).join('')}
+</div>
+<script>
+async function setPhoto(slot){
+  const url=document.getElementById('url-'+slot).value.trim();
+  const pass=document.getElementById('pass-'+slot).value.trim();
+  const msg=document.getElementById('msg-'+slot);
+  if(!url){msg.className='msg err';msg.textContent='URL requise';return;}
+  msg.className='msg';msg.textContent='Téléchargement...';
+  try{
+    const r=await fetch('/koz-photos/set',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slot,url,pass})});
+    const j=await r.json();
+    if(j.ok){
+      msg.className='msg ok';msg.textContent='✓ Enregistrée ('+j.size+')';
+      const img=document.getElementById('img-'+slot);
+      if(img)img.src='/demo/images/koz-'+slot+'.jpg?t='+Date.now();
+      else location.reload();
+    } else {
+      msg.className='msg err';msg.textContent='Erreur: '+j.error;
+    }
+  }catch(e){msg.className='msg err';msg.textContent='Erreur réseau';}
+}
+async function reimport(force){
+  const r=await fetch('/koz-import-status?run=1'+(force?'&force=1':''));
+  const j=await r.json();
+  alert(JSON.stringify(j.run,null,2));
+  location.reload();
+}
+</script>
+</body></html>`;
+  res.send(html);
 });
 
 const PORT = process.env.PORT || 3000;
