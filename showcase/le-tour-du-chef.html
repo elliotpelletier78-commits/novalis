@@ -584,6 +584,20 @@ if(typeof Lenis!=='undefined'&&!reduce){
   gsap.ticker.lagSmoothing(0);
 }
 
+// Ambient hero zoom — slow breath on first scene before scroll begins
+let ambientZoom=null;
+function startAmbientZoom(){
+  if(reduce||ambientZoom)return;
+  ambientZoom=gsap.fromTo('#sc-arrive .scene-bg',
+    {scale:1.0},
+    {scale:1.06,duration:18,ease:'sine.inOut',yoyo:true,repeat:-1});
+}
+function stopAmbientZoom(){
+  if(!ambientZoom)return;
+  ambientZoom.kill();
+  ambientZoom=null;
+}
+
 // Loader
 (function(){
   const loader=document.getElementById('loader'),bar=document.getElementById('loadBar'),sub=document.getElementById('loadSub');
@@ -594,6 +608,7 @@ if(typeof Lenis!=='undefined'&&!reduce){
     document.getElementById('nav').classList.add('show');
     gsap.fromTo('#jt-hero',{opacity:0,y:22},{opacity:1,y:0,duration:1.6,delay:.7,ease:'power3.out'});
     gsap.to('#jBottomBar',{opacity:1,duration:1.2,delay:1.5,ease:'power2.out'});
+    setTimeout(startAmbientZoom,800);
   }
   if(reduce){loader.style.display='none';document.body.style.overflow='';gsap.set('#jt-hero',{opacity:1});document.getElementById('nav').classList.add('show');return;}
   gsap.to(sub,{opacity:1,duration:.8,delay:.2});
@@ -610,7 +625,7 @@ document.querySelectorAll('a[href^="#"]').forEach(a=>{
 });
 
 // ── Le chef arrive : extérieur → cuisine → table dressée → site ──
-const tl=gsap.timeline({scrollTrigger:{trigger:'.journey',start:'top top',end:'bottom bottom',scrub:2.5}});
+const tl=gsap.timeline({scrollTrigger:{trigger:'.journey',start:'top top',end:'bottom bottom',scrub:2.5,onStart:stopAmbientZoom}});
 tl
   // ── Phase 1 : héros visible (0-0.9)
   .to('#jt-hero',{opacity:0,y:-14,duration:.5},.9)
