@@ -191,11 +191,11 @@ section{position:relative}
 #forfaits .h2 em{color:var(--copper)}
 #forfaits .lead{color:rgba(26,20,13,.7)}
 .forfaits-intro{max-width:600px;margin-top:24px}
-.forfaits-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-top:64px;background:rgba(26,20,13,.1)}
-.f-card{background:var(--cream);padding:42px 34px;transition:background .3s,transform .3s;display:flex;flex-direction:column}
-.f-card:hover{background:#EAE0CC;transform:translateY(-4px)}
-.f-card.is-feat{background:var(--ink);color:var(--cream)}
-.f-card.is-feat:hover{background:#241c12}
+.forfaits-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:64px}
+.f-card{background:#FBF5E9;padding:42px 34px;transition:background .3s,transform .3s,box-shadow .3s;display:flex;flex-direction:column;border-top:2px solid rgba(181,101,29,.45);box-shadow:0 1px 3px rgba(26,20,13,.06)}
+.f-card:hover{background:#EFE4CC;transform:translateY(-4px);box-shadow:0 14px 30px rgba(26,20,13,.12)}
+.f-card.is-feat{background:var(--ink);color:var(--cream);border-top:2px solid var(--gold);box-shadow:0 1px 3px rgba(26,20,13,.2)}
+.f-card.is-feat:hover{background:#241c12;box-shadow:0 14px 30px rgba(0,0,0,.35)}
 .f-name{font-family:'Fraunces',serif;font-weight:500;font-size:23px;color:var(--ink);margin-bottom:8px}
 .f-card.is-feat .f-name{color:var(--cream)}
 .f-price{font-family:'Fraunces',serif;font-style:italic;font-size:34px;color:var(--copper);margin-bottom:6px}
