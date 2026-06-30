@@ -102,7 +102,7 @@ body.cur-link .cur-ring{width:60px;height:60px;border-color:var(--copper-soft);b
 .journey{height:700vh;position:relative}
 .j-sticky{position:sticky;top:0;height:100vh;overflow:hidden;background:var(--noir-deep)}
 .scene{position:absolute;inset:0}
-.scene-bg{position:absolute;inset:-8%;background-size:cover;background-position:center;will-change:transform,opacity;filter:saturate(1.04) contrast(1.12) brightness(.66) sepia(.08) hue-rotate(-4deg)}
+.scene-bg{position:absolute;inset:-8%;background-size:cover;background-position:center;will-change:transform,opacity;filter:saturate(1.08) contrast(1.16) brightness(.58) sepia(.14) hue-rotate(-7deg)}
 #sc-arrive{z-index:1}
 #sc-arrive .scene-bg{background-color:#1f1208;
   background-image:url('/demo/images/ltc-arrivee.jpg'),
@@ -115,10 +115,11 @@ body.cur-link .cur-ring{width:60px;height:60px;border-color:var(--copper-soft);b
 #sc-table{opacity:0;z-index:3}
 #sc-table .scene-bg{background-color:#221a10;
   background-image:url('/demo/images/ltc-table.jpg'),
-    url('https://images.unsplash.com/photo-1559339352-11d035aa65de?q=90&w=2600&auto=format&fit=crop')}
+    url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=90&w=2600&auto=format&fit=crop')}
 #sc-final{opacity:0;z-index:4;background:#15110b;display:flex;align-items:flex-end}
 
 .veil{position:absolute;inset:0;z-index:9;pointer-events:none;background:
+  radial-gradient(ellipse 65% 55% at 25% 65%,rgba(181,101,29,.07) 0%,transparent 72%),
   linear-gradient(to bottom,rgba(11,8,5,.55) 0%,transparent 28%,transparent 50%,rgba(8,6,3,.9) 100%),
   linear-gradient(to right,rgba(10,7,4,.4) 0%,transparent 44%)}
 .grain{position:absolute;inset:0;z-index:10;pointer-events:none;opacity:.05;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:160px}
@@ -180,7 +181,7 @@ section{position:relative}
 .story-body{margin-top:30px;font-size:16px;line-height:1.85;color:rgba(242,233,218,.72);max-width:520px}
 .story-body strong{color:var(--cream);font-weight:500}
 .story-card{position:relative;aspect-ratio:4/5;background:var(--panel);overflow:hidden}
-.story-card .ph{position:absolute;inset:0;background-color:#241c12;background-image:url('/demo/images/ltc-portrait.jpg'),url('https://images.unsplash.com/photo-1577219491135-ce391730fb2c?q=90&w=1600&auto=format&fit=crop');background-size:cover;background-position:center;filter:saturate(1.02) contrast(1.06) brightness(.85);will-change:transform}
+.story-card .ph{position:absolute;inset:0;background-color:#241c12;background-image:url('/demo/images/ltc-portrait.jpg'),url('https://images.unsplash.com/photo-1577219491135-ce391730fb2c?q=90&w=1600&auto=format&fit=crop');background-size:cover;background-position:center top;filter:saturate(1.06) contrast(1.10) brightness(.80) sepia(.10) hue-rotate(-5deg);will-change:transform}
 .story-card .tag{position:absolute;left:0;bottom:0;padding:16px 22px;background:rgba(11,8,5,.7);backdrop-filter:blur(6px);font-family:'Fraunces',serif;font-style:italic;font-size:15px;color:var(--gold)}
 @media(max-width:820px){.story-grid{grid-template-columns:1fr;gap:44px}}
 
@@ -214,12 +215,12 @@ section{position:relative}
 .gal-track{display:flex;align-items:center;gap:3vw;padding:0 clamp(20px,5vw,64px);will-change:transform}
 .gal-head{flex-shrink:0;width:34vw;min-width:300px}
 .gal-item{flex-shrink:0;position:relative}
-.gal-img{width:46vw;max-width:680px;aspect-ratio:4/3;background-size:cover;background-position:center;filter:saturate(1.02) contrast(1.08) brightness(.88)}
+.gal-img{width:46vw;max-width:680px;aspect-ratio:4/3;background-size:cover;background-position:center;filter:saturate(1.06) contrast(1.12) brightness(.82) sepia(.10) hue-rotate(-5deg)}
 .gal-cap{position:absolute;left:0;bottom:-36px;display:flex;gap:14px;align-items:baseline}
 .gal-cap .n{font-family:'Fraunces',serif;font-style:italic;color:var(--gold);font-size:14px}
 .gal-cap .t{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--cream-muted)}
-.g1{background-color:#221a10;background-image:url('/demo/images/ltc-table.jpg'),url('https://images.unsplash.com/photo-1559339352-11d035aa65de?q=90&w=1600&auto=format&fit=crop')}
-.g2{background-color:#1d150e;background-image:url('/demo/images/ltc-plat.jpg'),url('https://images.unsplash.com/photo-1547573854-74d2a71d0826?q=90&w=1600&auto=format&fit=crop')}
+.g1{background-color:#221a10;background-image:url('/demo/images/ltc-table.jpg'),url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=90&w=1600&auto=format&fit=crop')}
+.g2{background-color:#1d150e;background-image:url('/demo/images/ltc-plat.jpg'),url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=90&w=1600&auto=format&fit=crop')}
 .g3{background-color:#1a1410;background-image:url('/demo/images/ltc-cuisine.jpg'),url('https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=90&w=1600&auto=format&fit=crop')}
 .g4{background-color:#231a12;background-image:url('/demo/images/ltc-reception.jpg'),url('https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=90&w=1600&auto=format&fit=crop')}
 @media(max-width:820px){
@@ -230,7 +231,7 @@ section{position:relative}
 
 /* ── Événements (full-bleed parallax) ── */
 .evenements{position:relative;height:100vh;min-height:580px;overflow:hidden;display:flex;align-items:flex-end}
-.evenements-bg{position:absolute;inset:-6%;background-color:#231a12;background-image:url('/demo/images/ltc-reception.jpg'),url('https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=90&w=2600&auto=format&fit=crop');background-size:cover;background-position:center;filter:saturate(1.04) contrast(1.06) brightness(.62);will-change:transform}
+.evenements-bg{position:absolute;inset:-6%;background-color:#231a12;background-image:url('/demo/images/ltc-reception.jpg'),url('https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=90&w=2600&auto=format&fit=crop');background-size:cover;background-position:center;filter:saturate(1.08) contrast(1.10) brightness(.56) sepia(.12) hue-rotate(-6deg);will-change:transform}
 .evenements::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(11,8,5,.88),transparent 55%);pointer-events:none}
 .evenements-content{position:relative;z-index:2;padding:0 clamp(20px,5vw,64px) 13vh;max-width:760px}
 .evenements-content .h2{color:#fff}
