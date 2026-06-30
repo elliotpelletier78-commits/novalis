@@ -210,6 +210,21 @@ const FALLBACK_URLS = {
     materiaux: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=85&w=1920&auto=format&fit=crop',
     interieur: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?q=85&w=1920&auto=format&fit=crop',
   },
+  // Chef privé / traiteur gastronomique — photos sélectionnées à la main pour Le Tour du Chef
+  catering: {
+    // Maison élégante, porte d'entrée chaleureusement éclairée au crépuscule
+    arrivee:   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=88&w=1920&auto=format&fit=crop',
+    // Chef en pleine préparation, gros plan sur les mains et la cuisson
+    cuisine:   'https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=88&w=1920&auto=format&fit=crop',
+    // Table dressée élégante, chandelles, ambiance feutrée
+    table:     'https://images.unsplash.com/photo-1559339352-11d035aa65de?q=88&w=1920&auto=format&fit=crop',
+    // Plat gastronomique dressé avec soin
+    plat:      'https://images.unsplash.com/photo-1547573854-74d2a71d0826?q=88&w=1920&auto=format&fit=crop',
+    // Réception / cocktail dînatoire, convives
+    reception: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=88&w=1920&auto=format&fit=crop',
+    // Portrait de chef en action
+    portrait:  'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?q=88&w=1920&auto=format&fit=crop',
+  },
 };
 
 // ── Fonction principale ───────────────────────────────────────────

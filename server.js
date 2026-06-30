@@ -1387,11 +1387,301 @@ async function reimport(force){
   res.send(html);
 });
 
+// ── Import automatique des vraies photos de Le Tour du Chef (côté serveur) ──
+// Même logique que Kóz : crawle letourduchef.com, télécharge les meilleures
+// photos par rôle et les place dans les 6 emplacements du site bespoke.
+const LTC_SLOTS = ['arrivee', 'cuisine', 'table', 'plat', 'reception', 'portrait'];
+
+async function ltcDownload(url) {
+  const r = await fetch(url, {
+    headers: { 'User-Agent': KOZ_UA, 'Accept': 'image/avif,image/webp,image/png,image/jpeg,*/*', 'Referer': 'https://letourduchef.com/' },
+    redirect: 'follow',
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const buf = Buffer.from(await r.arrayBuffer());
+  if (buf.length < 3000) throw new Error('trop petit (' + buf.length + 'o)');
+  const jpg = buf[0] === 0xFF && buf[1] === 0xD8;
+  const png = buf[0] === 0x89 && buf[1] === 0x50;
+  const webp = buf.slice(0, 4).toString('ascii') === 'RIFF' && buf.slice(8, 12).toString('ascii') === 'WEBP';
+  if (!jpg && !png && !webp) throw new Error('pas une image');
+  return buf;
+}
+
+const LTC_PAGES = [
+  'https://letourduchef.com/',
+  'https://letourduchef.com/menus/',
+  'https://letourduchef.com/galerie/',
+  'https://letourduchef.com/a-propos/',
+  'https://letourduchef.com/evenements/',
+  'https://letourduchef.com/contact/',
+];
+
+const LTC_PHOTO_VERSION = '1';
+
+async function importLtcPhotos({ force = false } = {}) {
+  const imagesDir = path.join(outputDir, 'images');
+  if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
+  const file = s => path.join(imagesDir, `ltc-${s}.jpg`);
+  const vFile = path.join(imagesDir, '.ltc-version');
+
+  const isValid = s => { const f=file(s); return fs.existsSync(f) && fs.statSync(f).size > 80_000; };
+
+  const savedVer = fs.existsSync(vFile) ? fs.readFileSync(vFile,'utf8').trim() : '';
+  if (!force && savedVer === LTC_PHOTO_VERSION && LTC_SLOTS.every(s => isValid(s))) {
+    return { skipped: true };
+  }
+
+  const { fetchSiteHtml } = require('./discover');
+  const allCandidates = [];
+  const seen = new Set();
+
+  async function crawlPage(pageUrl) {
+    try {
+      const { html } = await fetchSiteHtml(pageUrl);
+      const imgRe = /(?:src|data-src|data-lazy-src|data-original)=["']([^"'#\s]{8,}\.(?:jpe?g|png|webp)(?:\?[^"']*)?)/gi;
+      const bgRe  = /url\(["']?(https?:[^"')]+\.(?:jpe?g|png|webp)[^"')]*)/gi;
+      const vidRe = /poster=["']([^"']+)/gi;
+      for (const re of [imgRe, bgRe, vidRe]) {
+        let m;
+        while ((m = re.exec(html)) !== null) {
+          const u = m[1].startsWith('//') ? 'https:' + m[1] : m[1];
+          if (!u.startsWith('http')) continue;
+          if (seen.has(u)) continue;
+          if (/icon|logo|badge|pixel|1x1|sprite|favicon|arrow|thumb-\d+x\d+/i.test(u)) continue;
+          seen.add(u);
+          let score = 10;
+          if (/arriv|entree|exterior|outside|porte|door/i.test(u)) score += 35;
+          if (/cuisine|kitchen|prep|mise.?en.?place|cooking/i.test(u)) score += 35;
+          if (/table|dining|salle|dress/i.test(u)) score += 35;
+          if (/plat|food|dish|assiette|plating/i.test(u)) score += 30;
+          if (/reception|event|cocktail|mariage|wedding/i.test(u)) score += 30;
+          if (/antoine|chef|portrait/i.test(u)) score += 25;
+          if (/\d{4}x\d{4}|\d{3,}w|large|full|hero|banner|cover/i.test(u)) score += 20;
+          if (re === vidRe) score += 50;
+          allCandidates.push({ url: u, score, pageUrl });
+        }
+      }
+      console.log(`[ltc-crawl] ${pageUrl} → ${seen.size} URLs vues`);
+    } catch(e) {
+      console.log(`[ltc-crawl] ${pageUrl} → ${e.message}`);
+    }
+  }
+
+  await Promise.allSettled(LTC_PAGES.map(p => crawlPage(p)));
+
+  let pa = null;
+  if (allCandidates.length < 3) {
+    try {
+      const { researchBrand } = require('./brand-research');
+      const research = await researchBrand('https://letourduchef.com/');
+      if (research?.photoAssignment) pa = research.photoAssignment;
+    } catch(e) { console.warn('[ltc-import] brand-research:', e.message); }
+  }
+
+  allCandidates.sort((a, b) => b.score - a.score);
+
+  const paPool = pa ? [].concat(pa.exterior||[], pa.interior||[], pa.service||[], pa.about||[]) : [];
+  const allPool = [...new Set([...allCandidates.map(c=>c.url), ...paPool])];
+
+  const wanted = {
+    arrivee:   allCandidates.find(c=>/arriv|entree|exterior|outside|porte|door/i.test(c.url))?.url || (pa?.exterior?.[0]),
+    cuisine:   allCandidates.find(c=>/cuisine|kitchen|prep|cooking/i.test(c.url))?.url || (pa?.interior?.[0]),
+    table:     allCandidates.find(c=>/table|dining|salle|dress/i.test(c.url))?.url || (pa?.interior?.[1]),
+    plat:      allCandidates.find(c=>/plat|food|dish|assiette|plating/i.test(c.url))?.url || (pa?.service?.[0]),
+    reception: allCandidates.find(c=>/reception|event|cocktail|mariage|wedding/i.test(c.url))?.url || (pa?.service?.[1]) || (pa?.service?.[0]),
+    portrait:  allCandidates.find(c=>/antoine|chef|portrait/i.test(c.url))?.url || (pa?.about?.[0]),
+  };
+
+  const slotsStillNeeded = LTC_SLOTS.filter(s => !force && !fs.existsSync(file(s)) && !wanted[s]);
+  let searchPhotos = {};
+  if (slotsStillNeeded.length > 0 || allCandidates.length < 3) {
+    try {
+      const { findPhotosForBusiness, getApiStatus } = require('./photo-search');
+      const apiStatus = getApiStatus();
+      console.log(`[ltc-import] photo-search mode: ${apiStatus.mode}`);
+      searchPhotos = await findPhotosForBusiness({
+        industry:  'catering',
+        slots:     LTC_SLOTS,
+        specialty: ['private chef', 'french gastronomy', 'fine dining'],
+        name:      'Le Tour du Chef',
+        location:  'Montreal Quebec',
+      });
+      console.log(`[ltc-import] photo-search trouvé: ${Object.keys(searchPhotos).length} slots`);
+    } catch(e) {
+      console.warn('[ltc-import] photo-search:', e.message);
+    }
+  }
+
+  const result = {};
+  const usedUrls = new Set();
+  for (const s of LTC_SLOTS) {
+    if (!force && fs.existsSync(file(s))) { result[s] = 'déjà présente'; continue; }
+
+    let url = wanted[s];
+    if (!url || usedUrls.has(url)) url = allPool.find(u => u && !usedUrls.has(u));
+    if (!url && searchPhotos[s]) url = searchPhotos[s].url;
+
+    if (!url) { result[s] = 'aucune candidate'; continue; }
+
+    const source = allCandidates.some(c=>c.url===url) ? 'letourduchef.com'
+                 : searchPhotos[s]?.url === url        ? (searchPhotos[s]?.source || 'search')
+                 : 'pool';
+    try {
+      const buf = await ltcDownload(url);
+      fs.writeFileSync(file(s), buf);
+      usedUrls.add(url);
+      result[s] = `ok ${Math.round(buf.length/1024)}ko [${source}]`;
+    } catch(e) {
+      const fallback = searchPhotos[s]?.url;
+      if (fallback && fallback !== url) {
+        try {
+          const buf = await ltcDownload(fallback);
+          fs.writeFileSync(file(s), buf);
+          result[s] = `ok fallback ${Math.round(buf.length/1024)}ko`;
+        } catch(e2) { result[s] = 'échec total: ' + e.message; }
+      } else {
+        result[s] = 'échec: ' + e.message;
+      }
+      usedUrls.add(url);
+    }
+  }
+  if (LTC_SLOTS.every(s => isValid(s))) {
+    fs.writeFileSync(vFile, LTC_PHOTO_VERSION);
+  }
+  return { result, candidates: allCandidates.length, searchMode: Object.keys(searchPhotos).length > 0 };
+}
+
+// Endpoint d'état / re-déclenchement manuel (filet de sécurité)
+app.get('/ltc-import-status', async (req, res) => {
+  const imagesDir = path.join(outputDir, 'images');
+  const status = {};
+  for (const s of LTC_SLOTS) {
+    const f = path.join(imagesDir, `ltc-${s}.jpg`);
+    status[s] = fs.existsSync(f) ? `${Math.round(fs.statSync(f).size / 1024)}ko` : 'absente';
+  }
+  if (req.query.run === '1') {
+    const run = await importLtcPhotos({ force: req.query.force === '1' });
+    return res.json({ status, run });
+  }
+  res.json({ status });
+});
+
+// ── Admin : coller une URL de photo pour un slot spécifique ──────
+app.post('/ltc-photos/set', async (req, res) => {
+  const { slot, url, pass } = req.body;
+  if ((pass || req.headers['x-admin-pass']) !== ADMIN_PASS) return res.status(401).json({ error: 'Non autorisé' });
+  if (!LTC_SLOTS.includes(slot)) return res.status(400).json({ error: `Slot invalide. Valides: ${LTC_SLOTS.join(', ')}` });
+  if (!url || !url.startsWith('http')) return res.status(400).json({ error: 'URL invalide' });
+  try {
+    const buf = await ltcDownload(url);
+    const dest = path.join(outputDir, 'images', `ltc-${slot}.jpg`);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, buf);
+    res.json({ ok: true, slot, size: Math.round(buf.length / 1024) + 'ko' });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Page admin photos Le Tour du Chef (UI pour coller des URLs) ──
+app.get('/ltc-photos', (req, res) => {
+  const imagesDir = path.join(outputDir, 'images');
+  const slots = LTC_SLOTS.map(s => {
+    const f = path.join(imagesDir, `ltc-${s}.jpg`);
+    const exists = fs.existsSync(f);
+    return { s, exists, size: exists ? Math.round(fs.statSync(f).size/1024)+'ko' : null };
+  });
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Photos Le Tour du Chef — Admin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#15110b;color:#f2e9da;padding:40px 24px}
+h1{font-size:22px;margin-bottom:8px;color:#c9a24b}
+.sub{font-size:13px;color:#8a8070;margin-bottom:32px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.card{background:#221a10;border:1px solid #3a2d1c;border-radius:10px;padding:20px}
+.card h3{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#b5651d;margin-bottom:12px}
+.preview{width:100%;aspect-ratio:16/9;background:#1a140d;border-radius:6px;overflow:hidden;margin-bottom:12px;position:relative}
+.preview img{width:100%;height:100%;object-fit:cover}
+.preview .absent{display:flex;align-items:center;justify-content:center;height:100%;font-size:12px;color:#60564a}
+.status{font-size:12px;color:#5a8060;margin-bottom:12px}
+input{width:100%;padding:10px 12px;background:#1a140d;border:1px solid #3a3020;border-radius:6px;color:#f2e9da;font-size:13px;margin-bottom:10px}
+input:focus{outline:none;border-color:#c9a24b}
+button{width:100%;padding:10px;background:#b5651d;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer}
+button:hover{background:#d89759}
+.msg{margin-top:8px;font-size:12px;min-height:18px}
+.ok{color:#5a8060}.err{color:#c84040}
+.actions{display:flex;gap:10px;margin-bottom:24px}
+.btn-sm{padding:10px 20px;background:#2a2014;border:1px solid #4a3a24;color:#c9b89c;border-radius:6px;font-size:13px;cursor:pointer;text-decoration:none}
+.btn-sm:hover{background:#3a2d1c;color:#f2e9da}
+a.view{display:block;margin-top:8px;font-size:12px;color:#c9a24b;text-decoration:none}
+a.view:hover{text-decoration:underline}
+</style>
+</head><body>
+<h1>Photos Le Tour du Chef</h1>
+<p class="sub">Colle l'URL de n'importe quelle photo — le serveur la télécharge et la sauvegarde. Mot de passe admin requis.</p>
+<div class="actions">
+  <a href="/showcase/le-tour-du-chef.html" class="btn-sm" target="_blank">Voir le site →</a>
+  <button class="btn-sm" onclick="reimport()">Réimporter (crawl auto)</button>
+  <button class="btn-sm" onclick="reimport(true)">Forcer réimport</button>
+</div>
+<div class="grid">
+${slots.map(({s, exists, size}) => `
+  <div class="card" id="card-${s}">
+    <h3>${s}</h3>
+    <div class="preview">
+      ${exists
+        ? `<img id="img-${s}" src="/demo/images/ltc-${s}.jpg?t=${Date.now()}" onerror="this.style.display='none'">`
+        : `<div class="absent">absente</div>`}
+    </div>
+    <div class="status">${exists ? `✓ ${size}` : '✗ Manquante'}</div>
+    <input id="url-${s}" placeholder="https://letourduchef.com/wp-content/uploads/...jpg" type="url">
+    <input id="pass-${s}" placeholder="Mot de passe admin" type="password" value="">
+    <button onclick="setPhoto('${s}')">Enregistrer cette photo</button>
+    <div class="msg" id="msg-${s}"></div>
+    ${exists ? `<a class="view" href="/demo/images/ltc-${s}.jpg" target="_blank">Voir la photo actuelle →</a>` : ''}
+  </div>`).join('')}
+</div>
+<script>
+async function setPhoto(slot){
+  const url=document.getElementById('url-'+slot).value.trim();
+  const pass=document.getElementById('pass-'+slot).value.trim();
+  const msg=document.getElementById('msg-'+slot);
+  if(!url){msg.className='msg err';msg.textContent='URL requise';return;}
+  msg.className='msg';msg.textContent='Téléchargement...';
+  try{
+    const r=await fetch('/ltc-photos/set',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slot,url,pass})});
+    const j=await r.json();
+    if(j.ok){
+      msg.className='msg ok';msg.textContent='✓ Enregistrée ('+j.size+')';
+      const img=document.getElementById('img-'+slot);
+      if(img)img.src='/demo/images/ltc-'+slot+'.jpg?t='+Date.now();
+      else location.reload();
+    } else {
+      msg.className='msg err';msg.textContent='Erreur: '+j.error;
+    }
+  }catch(e){msg.className='msg err';msg.textContent='Erreur réseau';}
+}
+async function reimport(force){
+  const r=await fetch('/ltc-import-status?run=1'+(force?'&force=1':''));
+  const j=await r.json();
+  alert(JSON.stringify(j.run,null,2));
+  location.reload();
+}
+</script>
+</body></html>`;
+  res.send(html);
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Novalis Preview en ligne → http://0.0.0.0:${PORT}`);
-  // Import auto des photos Kóz, en arrière-plan (ne bloque pas le démarrage)
+  // Import auto des photos Kóz et Le Tour du Chef, en arrière-plan (ne bloque pas le démarrage)
   importKozPhotos()
     .then(r => console.log('[koz-import]', JSON.stringify(r)))
     .catch(e => console.warn('[koz-import] erreur:', e.message));
+  importLtcPhotos()
+    .then(r => console.log('[ltc-import]', JSON.stringify(r)))
+    .catch(e => console.warn('[ltc-import] erreur:', e.message));
 });
