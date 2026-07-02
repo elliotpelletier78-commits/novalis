@@ -1,9 +1,13 @@
 name: site-check
-# Diagnostic du site en production — déclenché manuellement uniquement.
+# Diagnostic du site en production — déclenché en poussant une
+# modification du fichier .site-check-trigger (le token d'intégration
+# n'a pas la permission workflow_dispatch).
 # Le runner a un réseau ouvert : il vérifie les endpoints, prend des
 # captures d'écran du site réel et les encode en base64 dans les logs
 # (lisibles ensuite via l'API, y compris depuis un environnement sandboxé).
-on: workflow_dispatch
+on:
+  push:
+    paths: ['.site-check-trigger']
 
 jobs:
   check:
