@@ -615,7 +615,7 @@ const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 // Lenis smooth scroll
 let lenis=null;
 if(typeof Lenis!=='undefined'&&!reduce){
-  lenis=new Lenis({duration:1.2,smoothWheel:true});
+  lenis=new Lenis({duration:1.5,smoothWheel:true});
   lenis.on('scroll',ScrollTrigger.update);
   gsap.ticker.add(t=>lenis.raf(t*1000));
   gsap.ticker.lagSmoothing(0);
@@ -756,6 +756,23 @@ if(galTrack&&matchMedia('(min-width:821px)').matches){
 gsap.fromTo('.evenements-bg',{yPercent:-6},{yPercent:6,ease:'none',scrollTrigger:{trigger:'.evenements',start:'top bottom',end:'bottom top',scrub:true}});
 // ── Editorial parallax ──
 gsap.fromTo('.ed-bg',{yPercent:-5},{yPercent:5,ease:'none',scrollTrigger:{trigger:'#editorial',start:'top bottom',end:'bottom top',scrub:true}});
+
+// ── Pushback cinématique : chaque section recule en sortant du cadre ──
+// (l'effet « vidéo continue » — rien n'est statique tant qu'on scrolle)
+['#story','#editorial','#forfaits','#kinetic','#methode','#avis'].forEach(sel=>{
+  const el=document.querySelector(sel);
+  if(!el)return;
+  gsap.fromTo(el,
+    {scale:1,filter:'brightness(1)'},
+    {scale:.962,filter:'brightness(.68)',ease:'none',transformOrigin:'50% 12%',
+     scrollTrigger:{trigger:el,start:'bottom 88%',end:'bottom 22%',scrub:true}});
+});
+
+// ── SUR MESURE : les lettres convergent en scrollant (kinetic spread) ──
+gsap.fromTo('#knWord',
+  {letterSpacing:'.42em',scale:1.04},
+  {letterSpacing:'-0.03em',scale:1,ease:'none',
+   scrollTrigger:{trigger:'#kinetic',start:'top bottom',end:'center 55%',scrub:true}});
 
 // ── Editorial break ──
 (function(){
