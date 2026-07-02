@@ -1581,23 +1581,17 @@ app.get('/ltc-import-status', async (req, res) => {
 
 // ── Vidéos d'ambiance (Pexels, licence libre) — téléchargées et
 //    auto-hébergées au démarrage, comme les photos ──────────────────
-// Chaque slot liste des IDs Pexels candidats ; pour chaque ID on tente
-// plusieurs conventions de nommage de fichier, puis l'endpoint /download.
+// URLs exactes vérifiées (import test réussi le 2026-07-02) — paysage 1080p.
 const LTC_VIDEO_SLOTS = {
-  cuisine: [2882090, 4253333],   // flamme de wok / brigade en cuisine
-  table:   [7707974, 6989463],   // table de dîner / bougie qui vacille
+  cuisine: [ // flamme de wok au ralenti, cinématique
+    'https://videos.pexels.com/video-files/2882090/2882090-hd_1920_1080_24fps.mp4',
+  ],
+  table: [ // vin versé au verre, gros plan élégant ; repas au jardin en secours
+    'https://videos.pexels.com/video-files/1003928/1003928-hd_1920_1080_25fps.mp4',
+    'https://videos.pexels.com/video-files/5617252/5617252-hd_1920_1080_25fps.mp4',
+  ],
 };
-const LTC_VIDEO_VERSION = '1';
-
-function pexelsCandidates(id) {
-  const names = [
-    `hd_1920_1080_25fps`, `hd_1920_1080_30fps`, `hd_1920_1080_24fps`,
-    `hd_1280_720_25fps`, `hd_1280_720_30fps`, `sd_960_540_25fps`,
-  ];
-  const urls = names.map(n => `https://videos.pexels.com/video-files/${id}/${id}-${n}.mp4`);
-  urls.push(`https://www.pexels.com/download/video/${id}/`);
-  return urls;
-}
+const LTC_VIDEO_VERSION = '2';
 
 async function ltcDownloadVideo(url) {
   const r = await fetch(url, {
@@ -1620,23 +1614,21 @@ async function importLtcVideos({ force = false } = {}) {
   if (savedVer !== LTC_VIDEO_VERSION) force = true;
 
   const result = {};
-  for (const [slot, ids] of Object.entries(LTC_VIDEO_SLOTS)) {
+  for (const [slot, urls] of Object.entries(LTC_VIDEO_SLOTS)) {
     if (!force && fs.existsSync(file(slot)) && fs.statSync(file(slot)).size > 300_000) {
       result[slot] = 'déjà présente'; continue;
     }
     let saved = false;
-    outer: for (const id of ids) {
-      for (const url of pexelsCandidates(id)) {
-        try {
-          const buf = await ltcDownloadVideo(url);
-          fs.writeFileSync(file(slot), buf);
-          result[slot] = `ok ${Math.round(buf.length/1024/1024*10)/10}Mo (pexels ${id})`;
-          saved = true;
-          break outer;
-        } catch(e) { /* candidat suivant */ }
-      }
+    for (const url of urls) {
+      try {
+        const buf = await ltcDownloadVideo(url);
+        fs.writeFileSync(file(slot), buf);
+        result[slot] = `ok ${Math.round(buf.length/1024/1024*10)/10}Mo`;
+        saved = true;
+        break;
+      } catch(e) { result[slot] = 'échec: ' + e.message; }
     }
-    if (!saved) result[slot] = 'aucun candidat téléchargeable';
+    if (!saved && !result[slot]) result[slot] = 'aucun candidat téléchargeable';
   }
   if (Object.entries(LTC_VIDEO_SLOTS).every(([s]) => fs.existsSync(file(s)) && fs.statSync(file(s)).size > 300_000)) {
     fs.writeFileSync(vFile, LTC_VIDEO_VERSION);
