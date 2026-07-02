@@ -1418,6 +1418,37 @@ const LTC_PAGES = [
 
 const LTC_PHOTO_VERSION = '2';
 
+// ── Compression des photos : les PNG 2K générés par IA pèsent 8-9 Mo
+//    pièce — injouable en web. On les ramène à ~300-500 ko (JPEG q82,
+//    max 2000px), soit ~20× moins, sans perte visible en fond de page. ──
+async function compressPhoto(buf) {
+  const sharp = require('sharp');
+  return sharp(buf).rotate()
+    .resize({ width: 2000, withoutEnlargement: true })
+    .jpeg({ quality: 82, mozjpeg: true })
+    .toBuffer();
+}
+
+async function compressExistingImages() {
+  const dir = path.join(outputDir, 'images');
+  if (!fs.existsSync(dir)) return { skipped: true };
+  const result = {};
+  for (const f of fs.readdirSync(dir)) {
+    if (!/\.jpe?g$/i.test(f)) continue;
+    const p = path.join(dir, f);
+    const size = fs.statSync(p).size;
+    if (size < 1_500_000) continue; // déjà raisonnable
+    try {
+      const out = await compressPhoto(fs.readFileSync(p));
+      if (out.length < size) {
+        fs.writeFileSync(p, out);
+        result[f] = `${Math.round(size/1024)}ko → ${Math.round(out.length/1024)}ko`;
+      }
+    } catch(e) { result[f] = 'échec: ' + e.message; }
+  }
+  return result;
+}
+
 // Visuels IA générés sur mesure (Higgsfield/Nano Banana) — source prioritaire.
 // Le serveur les télécharge et s'en fait une copie locale permanente.
 const LTC_AI_PHOTOS = {
@@ -1683,7 +1714,8 @@ app.post('/ltc-photos/set', async (req, res) => {
   if (!LTC_SLOTS.includes(slot)) return res.status(400).json({ error: `Slot invalide. Valides: ${LTC_SLOTS.join(', ')}` });
   if (!url || !url.startsWith('http')) return res.status(400).json({ error: 'URL invalide' });
   try {
-    const buf = await ltcDownload(url);
+    let buf = await ltcDownload(url);
+    if (buf.length > 1_500_000) { try { buf = await compressPhoto(buf); } catch(e) {} }
     const dest = path.join(outputDir, 'images', `ltc-${slot}.jpg`);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.writeFileSync(dest, buf);
@@ -1788,13 +1820,20 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Novalis Preview en ligne → http://0.0.0.0:${PORT}`);
   // Import auto des photos Kóz et Le Tour du Chef, en arrière-plan (ne bloque pas le démarrage)
-  importKozPhotos()
-    .then(r => console.log('[koz-import]', JSON.stringify(r)))
-    .catch(e => console.warn('[koz-import] erreur:', e.message));
-  importLtcPhotos()
-    .then(r => console.log('[ltc-import]', JSON.stringify(r)))
-    .catch(e => console.warn('[ltc-import] erreur:', e.message));
-  importLtcVideos()
-    .then(r => console.log('[ltc-videos]', JSON.stringify(r)))
-    .catch(e => console.warn('[ltc-videos] erreur:', e.message));
+  Promise.allSettled([
+    importKozPhotos()
+      .then(r => console.log('[koz-import]', JSON.stringify(r)))
+      .catch(e => console.warn('[koz-import] erreur:', e.message)),
+    importLtcPhotos()
+      .then(r => console.log('[ltc-import]', JSON.stringify(r)))
+      .catch(e => console.warn('[ltc-import] erreur:', e.message)),
+    importLtcVideos()
+      .then(r => console.log('[ltc-videos]', JSON.stringify(r)))
+      .catch(e => console.warn('[ltc-videos] erreur:', e.message)),
+  ]).then(() =>
+    // Après les imports : recompresser toute image trop lourde (photos IA 8-9 Mo)
+    compressExistingImages()
+      .then(r => console.log('[compress]', JSON.stringify(r)))
+      .catch(e => console.warn('[compress] erreur:', e.message))
+  );
 });

@@ -1,0 +1,7 @@
+/showcase/le-tour-du-chef.html                200  58489 octets
+/showcase/vendor/gsap.min.js                  200  72214 octets
+/showcase/vendor/lenis.min.js                 200  18429 octets
+/demo/videos/ltc-cuisine.mp4                  200  8099912 octets
+/demo/videos/ltc-table.mp4                    200  6580282 octets
+/demo/images/ltc-arrivee.jpg                  200  9313258 octets
+/demo/images/ltc-table.jpg                    200  8401045 octets
