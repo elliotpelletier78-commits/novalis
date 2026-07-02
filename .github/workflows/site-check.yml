@@ -9,11 +9,15 @@ on:
   push:
     paths: ['.site-check-trigger']
 
+permissions:
+  contents: write
+
 jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v4
       - name: Endpoints & fichiers
         run: |
           echo "=== ltc-video-status ==="
@@ -26,7 +30,9 @@ jobs:
           for u in /showcase/le-tour-du-chef.html /showcase/vendor/gsap.min.js /showcase/vendor/lenis.min.js /demo/videos/ltc-cuisine.mp4 /demo/videos/ltc-table.mp4 /demo/images/ltc-arrivee.jpg /demo/images/ltc-table.jpg; do
             printf "%-45s " "$u"
             curl -sS -o /dev/null --max-time 20 -w "%{http_code}  %{size_download} octets\n" "https://novalisia.ca$u" || echo "ERREUR"
-          done
+          done | tee http-codes.txt
+          curl -sS --max-time 20 https://novalisia.ca/ltc-video-status > video-status.json || true
+          curl -sS --max-time 20 https://novalisia.ca/ltc-import-status > import-status.json || true
 
       - name: Captures d'écran du site réel
         run: |
@@ -59,12 +65,21 @@ jobs:
               await page.screenshot({ path: `shot-${name}.jpg`, type: 'jpeg', quality: 40 });
             }
             console.log('===ERRORS===', JSON.stringify(errors));
+            require('fs').writeFileSync('page-info.json', JSON.stringify({ info, errors }, null, 1));
             await browser.close();
           })();
           EOF
           node shot.js
-          for f in shot-*.jpg; do
-            echo "===SHOT:$f==="
-            base64 -w 3800 "$f"
-            echo "===END:$f==="
-          done
+
+      - name: Publier les captures dans la branche site-checks
+        if: always()
+        run: |
+          git config user.name "site-check"
+          git config user.email "site-check@users.noreply.github.com"
+          mkdir -p out
+          mv -f shot-*.jpg page-info.json video-status.json import-status.json http-codes.txt out/ 2>/dev/null || true
+          git checkout --orphan site-checks
+          git rm -rf --cached . >/dev/null 2>&1 || true
+          git add -f out
+          git commit -m "site-check $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push -f origin site-checks
