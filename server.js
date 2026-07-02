@@ -1579,6 +1579,85 @@ app.get('/ltc-import-status', async (req, res) => {
   res.json({ status });
 });
 
+// ── Vidéos d'ambiance (Pexels, licence libre) — téléchargées et
+//    auto-hébergées au démarrage, comme les photos ──────────────────
+// Chaque slot liste des IDs Pexels candidats ; pour chaque ID on tente
+// plusieurs conventions de nommage de fichier, puis l'endpoint /download.
+const LTC_VIDEO_SLOTS = {
+  cuisine: [2882090, 4253333],   // flamme de wok / brigade en cuisine
+  table:   [7707974, 6989463],   // table de dîner / bougie qui vacille
+};
+const LTC_VIDEO_VERSION = '1';
+
+function pexelsCandidates(id) {
+  const names = [
+    `hd_1920_1080_25fps`, `hd_1920_1080_30fps`, `hd_1920_1080_24fps`,
+    `hd_1280_720_25fps`, `hd_1280_720_30fps`, `sd_960_540_25fps`,
+  ];
+  const urls = names.map(n => `https://videos.pexels.com/video-files/${id}/${id}-${n}.mp4`);
+  urls.push(`https://www.pexels.com/download/video/${id}/`);
+  return urls;
+}
+
+async function ltcDownloadVideo(url) {
+  const r = await fetch(url, {
+    headers: { 'User-Agent': KOZ_UA, 'Accept': 'video/mp4,video/*,*/*' },
+    redirect: 'follow',
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const buf = Buffer.from(await r.arrayBuffer());
+  if (buf.length < 300_000) throw new Error('trop petit (' + Math.round(buf.length/1024) + 'ko)');
+  if (buf.slice(4, 8).toString('ascii') !== 'ftyp') throw new Error('pas un mp4');
+  return buf;
+}
+
+async function importLtcVideos({ force = false } = {}) {
+  const videosDir = path.join(outputDir, 'videos');
+  if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
+  const file = s => path.join(videosDir, `ltc-${s}.mp4`);
+  const vFile = path.join(videosDir, '.ltc-vid-version');
+  const savedVer = fs.existsSync(vFile) ? fs.readFileSync(vFile,'utf8').trim() : '';
+  if (savedVer !== LTC_VIDEO_VERSION) force = true;
+
+  const result = {};
+  for (const [slot, ids] of Object.entries(LTC_VIDEO_SLOTS)) {
+    if (!force && fs.existsSync(file(slot)) && fs.statSync(file(slot)).size > 300_000) {
+      result[slot] = 'déjà présente'; continue;
+    }
+    let saved = false;
+    outer: for (const id of ids) {
+      for (const url of pexelsCandidates(id)) {
+        try {
+          const buf = await ltcDownloadVideo(url);
+          fs.writeFileSync(file(slot), buf);
+          result[slot] = `ok ${Math.round(buf.length/1024/1024*10)/10}Mo (pexels ${id})`;
+          saved = true;
+          break outer;
+        } catch(e) { /* candidat suivant */ }
+      }
+    }
+    if (!saved) result[slot] = 'aucun candidat téléchargeable';
+  }
+  if (Object.entries(LTC_VIDEO_SLOTS).every(([s]) => fs.existsSync(file(s)) && fs.statSync(file(s)).size > 300_000)) {
+    fs.writeFileSync(vFile, LTC_VIDEO_VERSION);
+  }
+  return result;
+}
+
+app.get('/ltc-video-status', async (req, res) => {
+  const videosDir = path.join(outputDir, 'videos');
+  const status = {};
+  for (const s of Object.keys(LTC_VIDEO_SLOTS)) {
+    const f = path.join(videosDir, `ltc-${s}.mp4`);
+    status[s] = fs.existsSync(f) ? `${Math.round(fs.statSync(f).size / 1024 / 1024 * 10) / 10}Mo` : 'absente';
+  }
+  if (req.query.run === '1') {
+    const run = await importLtcVideos({ force: req.query.force === '1' });
+    return res.json({ status, run });
+  }
+  res.json({ status });
+});
+
 // ── Admin : coller une URL de photo pour un slot spécifique ──────
 app.post('/ltc-photos/set', async (req, res) => {
   const { slot, url, pass } = req.body;
@@ -1697,4 +1776,7 @@ app.listen(PORT, '0.0.0.0', () => {
   importLtcPhotos()
     .then(r => console.log('[ltc-import]', JSON.stringify(r)))
     .catch(e => console.warn('[ltc-import] erreur:', e.message));
+  importLtcVideos()
+    .then(r => console.log('[ltc-videos]', JSON.stringify(r)))
+    .catch(e => console.warn('[ltc-videos] erreur:', e.message));
 });

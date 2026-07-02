@@ -331,6 +331,11 @@ footer{background:var(--noir-deep);padding:72px clamp(20px,5vw,64px) 30px}
 .kn-word{font-family:'Fraunces',serif;font-weight:600;font-size:clamp(46px,12vw,200px);line-height:.9;letter-spacing:-.03em;color:var(--ink);user-select:none}
 .kn-sub{margin-top:clamp(18px,2.5vh,40px);font-size:12px;letter-spacing:.38em;text-transform:uppercase;color:var(--cream-dim);opacity:0}
 
+/* Vidéos d'ambiance auto-hébergées — invisibles tant qu'elles ne
+   peuvent pas jouer ; la photo en dessous reste le fallback. */
+.bg-vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.4s ease;filter:saturate(1.06) contrast(1.1) brightness(.5) sepia(.12) hue-rotate(-6deg)}
+.bg-vid.on{opacity:1}
+
 /* Ken Burns — les photos vivent en permanence, comme de la vidéo */
 @keyframes kenburns{
   0%{transform:scale(1.02) translate3d(0,0,0)}
@@ -371,7 +376,7 @@ footer{background:var(--noir-deep);padding:72px clamp(20px,5vw,64px) 30px}
 <div class="journey">
   <div class="j-sticky">
     <div class="scene" id="sc-arrive"><div class="scene-bg"></div></div>
-    <div class="scene" id="sc-cuisine"><div class="scene-bg"></div></div>
+    <div class="scene" id="sc-cuisine"><div class="scene-bg"></div><video class="bg-vid" src="/demo/videos/ltc-cuisine.mp4" muted loop playsinline autoplay preload="metadata" aria-hidden="true"></video></div>
     <div class="scene" id="sc-table"><div class="scene-bg"></div></div>
     <div class="scene" id="sc-final">
       <div class="splash">
@@ -441,7 +446,7 @@ footer{background:var(--noir-deep);padding:72px clamp(20px,5vw,64px) 30px}
 
 <!-- ════ EDITORIAL BREAK ════ -->
 <section id="editorial">
-  <div class="ed-bg" aria-hidden="true"><div class="ed-bg-in"></div></div>
+  <div class="ed-bg" aria-hidden="true"><div class="ed-bg-in"></div><video class="bg-vid" src="/demo/videos/ltc-table.mp4" muted loop playsinline autoplay preload="metadata"></video></div>
   <div class="ed-veil" aria-hidden="true"></div>
   <div class="ed-inner">
     <div class="ed-rule"></div>
@@ -779,6 +784,17 @@ gsap.fromTo('.ed-bg',{yPercent:-5},{yPercent:5,ease:'none',scrollTrigger:{trigge
     {scale:1,opacity:1},
     {scale:.962,opacity:.5,ease:'none',transformOrigin:'50% 12%',
      scrollTrigger:{trigger:el,start:'bottom 88%',end:'bottom 22%',scrub:true}});
+});
+
+// ── Vidéos d'ambiance : n'apparaissent que si elles jouent vraiment ──
+document.querySelectorAll('.bg-vid').forEach(v=>{
+  v.addEventListener('canplay',()=>v.classList.add('on'),{once:true});
+  v.addEventListener('error',()=>v.remove(),{once:true});
+  if(reduce){v.remove();return;}
+  const io=new IntersectionObserver(es=>es.forEach(e=>{
+    if(e.isIntersecting){v.play().catch(()=>{});}else{v.pause();}
+  }),{rootMargin:'25%'});
+  io.observe(v);
 });
 
 // ── SUR MESURE : les lettres convergent en scrollant (kinetic spread) ──
