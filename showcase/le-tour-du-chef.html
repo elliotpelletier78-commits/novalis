@@ -385,8 +385,8 @@ footer{background:var(--noir-deep);padding:72px clamp(20px,5vw,64px) 30px}
   <div class="j-sticky">
     <video class="pov-vid" id="povVid" src="/demo/videos/ltc-pov.mp4" muted playsinline preload="auto" aria-hidden="true"></video>
     <div class="scene" id="sc-arrive"><div class="scene-bg"></div></div>
-    <div class="scene" id="sc-cuisine"><div class="scene-bg"></div><video class="bg-vid" src="/demo/videos/ltc-cuisine.mp4" muted loop playsinline autoplay preload="metadata" aria-hidden="true"></video></div>
-    <div class="scene" id="sc-table"><div class="scene-bg"></div></div>
+    <div class="scene" id="sc-cuisine"><div class="scene-bg"></div><video class="bg-vid" id="vidCuisine" data-scrub src="/demo/videos/ltc-cuisine.mp4" muted playsinline preload="auto" aria-hidden="true"></video></div>
+    <div class="scene" id="sc-table"><div class="scene-bg"></div><video class="bg-vid" id="vidTable" data-scrub src="/demo/videos/ltc-table.mp4" muted playsinline preload="auto" aria-hidden="true"></video></div>
     <div class="scene" id="sc-final">
       <div class="splash">
         <div class="splash-mark">Le Tour <span class="o">du Chef</span></div>
@@ -721,7 +721,7 @@ tl
   .to('#sc-cuisine .scene-bg,#sc-cuisine .bg-vid',{xPercent:-9,ease:'power1.in',duration:.75},6.2)
   .to('#sc-cuisine',{opacity:0,duration:.55},6.3)
   .fromTo('#sc-table',{opacity:0},{opacity:1,duration:.9,ease:'power2.out'},6.25)
-  .fromTo('#sc-table .scene-bg',{xPercent:11,scale:1.22},{xPercent:0,scale:1.12,ease:'power2.out',duration:1.15},6.25)
+  .fromTo('#sc-table .scene-bg,#sc-table .bg-vid',{xPercent:11,scale:1.22},{xPercent:0,scale:1.12,ease:'power2.out',duration:1.15},6.25)
   .to('#jt-table',{opacity:1,y:0,duration:.5},6.5)
   .to('#jt-table',{opacity:0,y:-10,duration:.4},7.3)
   .to('#jBottomBar',{opacity:0,duration:.5},7.3)
@@ -760,6 +760,37 @@ tl
   // les métadonnées peuvent être prêtes avant que ce script ne s'exécute
   if(v.readyState>=1)arm();
   else v.addEventListener('loadedmetadata',arm,{once:true});
+})();
+
+// ── Scènes scrubbed : sans plan-séquence complet, chaque vidéo de scène
+//    avance au rythme du scroll dans sa bande de progression du journey.
+//    La flamme monte quand on scrolle la cuisine ; le vin se verse quand
+//    on scrolle la table. Scroll arrière = tout rembobine.
+(function(){
+  if(reduce)return;
+  const scenes=[
+    {v:document.getElementById('vidCuisine'),b0:.42,b1:.75},
+    {v:document.getElementById('vidTable'),b0:.69,b1:.88},
+  ].filter(s=>s.v);
+  if(!scenes.length)return;
+  let p=0;
+  ScrollTrigger.create({trigger:'.journey',start:'top top',end:'bottom bottom',onUpdate:s=>{p=s.progress;}});
+  scenes.forEach(s=>{
+    const arm=()=>{if(s.v.duration>1)s.armed=true;};
+    if(s.v.readyState>=1)arm();
+    else s.v.addEventListener('loadedmetadata',arm,{once:true});
+    s.v.addEventListener('error',()=>{s.armed=false;},{once:true});
+  });
+  gsap.ticker.add(()=>{
+    if(document.querySelector('.j-sticky.pov'))return; // le vrai POV a priorité
+    scenes.forEach(s=>{
+      if(!s.armed)return;
+      const lp=Math.min(1,Math.max(0,(p-s.b0)/(s.b1-s.b0)));
+      const t=lp*(s.v.duration-.08);
+      const cur=s.v.currentTime,next=cur+(t-cur)*.14;
+      if(Math.abs(next-cur)>.004){try{s.v.currentTime=next;}catch(e){}}
+    });
+  });
 })();
 
 // ── Kinetic scramble reveal (le "wow" — sur le wordmark final) ──
@@ -833,10 +864,13 @@ gsap.fromTo('.ed-bg',{yPercent:-5},{yPercent:5,ease:'none',scrollTrigger:{trigge
 });
 
 // ── Vidéos d'ambiance : n'apparaissent que si elles jouent vraiment ──
+// (les vidéos data-scrub ne sont jamais lues : leur currentTime est
+//  piloté par le scroll plus bas — zéro autoplay dans le journey)
 document.querySelectorAll('.bg-vid').forEach(v=>{
   v.addEventListener('canplay',()=>v.classList.add('on'),{once:true});
   v.addEventListener('error',()=>v.remove(),{once:true});
   if(reduce){v.remove();return;}
+  if(v.dataset.scrub!==undefined)return;
   const io=new IntersectionObserver(es=>es.forEach(e=>{
     if(e.isIntersecting){v.play().catch(()=>{});}else{v.pause();}
   }),{rootMargin:'25%'});
