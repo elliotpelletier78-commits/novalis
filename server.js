@@ -1416,7 +1416,17 @@ const LTC_PAGES = [
   'https://letourduchef.com/contact/',
 ];
 
-const LTC_PHOTO_VERSION = '1';
+const LTC_PHOTO_VERSION = '2';
+
+// Visuels IA générés sur mesure (Higgsfield/Nano Banana) — source prioritaire.
+// Le serveur les télécharge et s'en fait une copie locale permanente.
+const LTC_AI_PHOTOS = {
+  arrivee:   'https://d8j0ntlcm91z4.cloudfront.net/user_3F2nqARsy1FsulepE1Njuilz5Px/hf_20260701_041701_8bd1067c-1442-4116-a9de-102d4f042adf.png',
+  cuisine:   'https://d8j0ntlcm91z4.cloudfront.net/user_3F2nqARsy1FsulepE1Njuilz5Px/hf_20260701_041705_0c23e977-0e40-46ab-a2b2-8875ea594ec6.png',
+  table:     'https://d8j0ntlcm91z4.cloudfront.net/user_3F2nqARsy1FsulepE1Njuilz5Px/hf_20260701_041707_127a426d-ae60-4d82-ace2-6c111f1d3a49.png',
+  plat:      'https://d8j0ntlcm91z4.cloudfront.net/user_3F2nqARsy1FsulepE1Njuilz5Px/hf_20260701_041709_3bba1d46-9b9f-40cf-8e5e-4d4f26827494.png',
+  reception: 'https://d8j0ntlcm91z4.cloudfront.net/user_3F2nqARsy1FsulepE1Njuilz5Px/hf_20260701_041710_0d6c8d11-fa29-4d3b-b220-6a17e7b9b72f.png',
+};
 
 async function importLtcPhotos({ force = false } = {}) {
   const imagesDir = path.join(outputDir, 'images');
@@ -1430,6 +1440,8 @@ async function importLtcPhotos({ force = false } = {}) {
   if (!force && savedVer === LTC_PHOTO_VERSION && LTC_SLOTS.every(s => isValid(s))) {
     return { skipped: true };
   }
+  // Version obsolète → on remplace les fichiers existants (ils datent d'un ancien import)
+  if (savedVer !== LTC_PHOTO_VERSION) force = true;
 
   const { fetchSiteHtml } = require('./discover');
   const allCandidates = [];
@@ -1517,13 +1529,14 @@ async function importLtcPhotos({ force = false } = {}) {
   for (const s of LTC_SLOTS) {
     if (!force && fs.existsSync(file(s))) { result[s] = 'déjà présente'; continue; }
 
-    let url = wanted[s];
+    let url = LTC_AI_PHOTOS[s] || wanted[s];
     if (!url || usedUrls.has(url)) url = allPool.find(u => u && !usedUrls.has(u));
     if (!url && searchPhotos[s]) url = searchPhotos[s].url;
 
     if (!url) { result[s] = 'aucune candidate'; continue; }
 
-    const source = allCandidates.some(c=>c.url===url) ? 'letourduchef.com'
+    const source = LTC_AI_PHOTOS[s] === url             ? 'ia-novalis'
+                 : allCandidates.some(c=>c.url===url) ? 'letourduchef.com'
                  : searchPhotos[s]?.url === url        ? (searchPhotos[s]?.source || 'search')
                  : 'pool';
     try {
