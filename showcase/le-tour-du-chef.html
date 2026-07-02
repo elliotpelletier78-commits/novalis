@@ -661,9 +661,14 @@ function stopAmbientZoom(){
     loader.classList.add('done');document.body.style.overflow='';
     if(lenis)lenis.start();
     document.getElementById('nav').classList.add('show');
-    gsap.fromTo('#jt-hero',{opacity:0,y:22},{opacity:1,y:0,duration:1.6,delay:.7,ease:'power3.out'});
+    // Ne rejouer l'intro du héros que si on est encore en haut — sinon
+    // (scroll rapide, restauration de position) elle écraserait le timeline.
+    if(scrollY<innerHeight*.4){
+      gsap.fromTo('#jt-hero',{opacity:0,y:22},{opacity:1,y:0,duration:1.6,delay:.7,ease:'power3.out',
+        onStart:()=>{if(scrollY>innerHeight*.4)gsap.set('#jt-hero',{opacity:0})}});
+      setTimeout(startAmbientZoom,800);
+    }
     gsap.to('#jBottomBar',{opacity:1,duration:1.2,delay:1.5,ease:'power2.out'});
-    setTimeout(startAmbientZoom,800);
   }
   if(reduce){loader.style.display='none';document.body.style.overflow='';gsap.set('#jt-hero',{opacity:1});document.getElementById('nav').classList.add('show');return;}
   gsap.to(sub,{opacity:1,duration:.8,delay:.2});
@@ -696,15 +701,18 @@ tl
   .fromTo('#sc-cuisine',{opacity:0,scale:1.5},{opacity:1,scale:1.0,duration:1.8,ease:'power2.out'},3.8)
   .to('#doorVeil',{opacity:0,duration:1.6,ease:'power2.out'},4.0)
 
-  // ── Phase 4 : la mise en place (5.0-6.3)
-  .to('#sc-cuisine .scene-bg',{scale:1.22,ease:'none',duration:1.8},5.0)
+  // ── Phase 4 : la mise en place (5.0-6.3) — la caméra pousse (photo + vidéo)
+  .to('#sc-cuisine .scene-bg,#sc-cuisine .bg-vid',{scale:1.22,ease:'none',duration:1.8},5.0)
   .to('#jt-cuisine',{opacity:1,y:0,duration:.55},5.1)
   .to('#jt-cuisine',{opacity:0,y:-10,duration:.4},6.0)
 
-  // ── Phase 5 : la table dressée, le service (6.3-7.5)
+  // ── Phase 5 : match cut — la caméra suit le plat de la cuisine à la table.
+  //    Les deux plans glissent dans la même direction, à la même vitesse :
+  //    l'œil lit un seul mouvement continu, pas une coupe. (6.2-7.5)
+  .to('#sc-cuisine .scene-bg,#sc-cuisine .bg-vid',{xPercent:-9,ease:'power1.in',duration:.75},6.2)
   .to('#sc-cuisine',{opacity:0,duration:.55},6.3)
-  .fromTo('#sc-table',{opacity:0,scale:1.18},{opacity:1,scale:1.0,duration:1.0,ease:'power2.out'},6.3)
-  .to('#sc-table .scene-bg',{scale:1.12,ease:'none',duration:1.1},6.4)
+  .fromTo('#sc-table',{opacity:0},{opacity:1,duration:.9,ease:'power2.out'},6.25)
+  .fromTo('#sc-table .scene-bg',{xPercent:11,scale:1.22},{xPercent:0,scale:1.12,ease:'power2.out',duration:1.15},6.25)
   .to('#jt-table',{opacity:1,y:0,duration:.5},6.5)
   .to('#jt-table',{opacity:0,y:-10,duration:.4},7.3)
   .to('#jBottomBar',{opacity:0,duration:.5},7.3)
