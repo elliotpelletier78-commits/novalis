@@ -218,7 +218,9 @@ section{position:relative}
 .gal-track{display:flex;align-items:center;gap:3vw;padding:0 clamp(20px,5vw,64px);will-change:transform}
 .gal-head{flex-shrink:0;width:34vw;min-width:300px}
 .gal-item{flex-shrink:0;position:relative}
-.gal-img{width:46vw;max-width:680px;aspect-ratio:4/3;background-size:cover;background-position:center;filter:saturate(1.06) contrast(1.12) brightness(.82) sepia(.10) hue-rotate(-5deg)}
+.gal-clip{overflow:hidden}
+.gal-img{width:46vw;max-width:680px;aspect-ratio:4/3;background-size:cover;background-position:center;filter:saturate(1.06) contrast(1.12) brightness(.82) sepia(.10) hue-rotate(-5deg);animation:kenburns 24s ease-in-out infinite}
+.gal-item:nth-child(even) .gal-img{animation-direction:reverse;animation-duration:29s}
 .gal-cap{position:absolute;left:0;bottom:-36px;display:flex;gap:14px;align-items:baseline}
 .gal-cap .n{font-family:'Fraunces',serif;font-style:italic;color:var(--gold);font-size:14px}
 .gal-cap .t{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--cream-muted)}
@@ -234,7 +236,8 @@ section{position:relative}
 
 /* ── Événements (full-bleed parallax) ── */
 .evenements{position:relative;height:100vh;min-height:580px;overflow:hidden;display:flex;align-items:flex-end}
-.evenements-bg{position:absolute;inset:-6%;background-color:#231a12;background-image:url('/demo/images/ltc-reception.jpg'),url('https://d8j0ntlcm91z4.cloudfront.net/user_3F2nqARsy1FsulepE1Njuilz5Px/hf_20260701_041710_0d6c8d11-fa29-4d3b-b220-6a17e7b9b72f.png'),url('https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=90&w=2600&auto=format&fit=crop');background-size:cover;background-position:center;filter:saturate(1.08) contrast(1.10) brightness(.56) sepia(.12) hue-rotate(-6deg);will-change:transform}
+.evenements-bg{position:absolute;inset:-6%;will-change:transform}
+.evt-bg-in{position:absolute;inset:0;background-color:#231a12;background-image:url('/demo/images/ltc-reception.jpg'),url('https://d8j0ntlcm91z4.cloudfront.net/user_3F2nqARsy1FsulepE1Njuilz5Px/hf_20260701_041710_0d6c8d11-fa29-4d3b-b220-6a17e7b9b72f.png'),url('https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=90&w=2600&auto=format&fit=crop');background-size:cover;background-position:center;filter:saturate(1.08) contrast(1.10) brightness(.56) sepia(.12) hue-rotate(-6deg);animation:kenburns 32s ease-in-out infinite reverse;will-change:transform}
 .evenements::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(11,8,5,.88),transparent 55%);pointer-events:none}
 .evenements-content{position:relative;z-index:2;padding:0 clamp(20px,5vw,64px) 13vh;max-width:760px}
 .evenements-content .h2{color:#fff}
@@ -306,11 +309,13 @@ footer{background:var(--noir-deep);padding:72px clamp(20px,5vw,64px) 30px}
 
 /* ── Editorial break (statement plein écran sur photo) ── */
 #editorial{position:relative;background:var(--noir-deep);overflow:hidden}
-.ed-bg{position:absolute;inset:-4%;background-color:#221a10;
+.ed-bg{position:absolute;inset:-4%;will-change:transform}
+.ed-bg-in{position:absolute;inset:0;background-color:#221a10;
   background-image:url('/demo/images/ltc-table.jpg'),
     url('https://d8j0ntlcm91z4.cloudfront.net/user_3F2nqARsy1FsulepE1Njuilz5Px/hf_20260701_041707_127a426d-ae60-4d82-ace2-6c111f1d3a49.png'),
     url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=90&w=2600&auto=format&fit=crop');
-  background-size:cover;background-position:center;filter:saturate(1.05) contrast(1.08) brightness(.42) sepia(.12) hue-rotate(-6deg);will-change:transform}
+  background-size:cover;background-position:center;filter:saturate(1.05) contrast(1.08) brightness(.42) sepia(.12) hue-rotate(-6deg);
+  animation:kenburns 28s ease-in-out infinite;will-change:transform}
 .ed-veil{position:absolute;inset:0;background:radial-gradient(ellipse 75% 65% at 50% 48%,rgba(11,8,5,.1) 0%,rgba(11,8,5,.72) 100%)}
 .ed-inner{position:relative;z-index:2;text-align:center;padding:clamp(120px,22vh,240px) clamp(20px,7vw,120px)}
 .ed-rule{width:0;height:1px;background:var(--gold);margin:0 auto clamp(40px,6vh,80px)}
@@ -326,9 +331,17 @@ footer{background:var(--noir-deep);padding:72px clamp(20px,5vw,64px) 30px}
 .kn-word{font-family:'Fraunces',serif;font-weight:600;font-size:clamp(46px,12vw,200px);line-height:.9;letter-spacing:-.03em;color:var(--ink);user-select:none}
 .kn-sub{margin-top:clamp(18px,2.5vh,40px);font-size:12px;letter-spacing:.38em;text-transform:uppercase;color:var(--cream-dim);opacity:0}
 
+/* Ken Burns — les photos vivent en permanence, comme de la vidéo */
+@keyframes kenburns{
+  0%{transform:scale(1.02) translate3d(0,0,0)}
+  50%{transform:scale(1.09) translate3d(1.4%,-1%,0)}
+  100%{transform:scale(1.02) translate3d(0,0,0)}
+}
+
 @media(prefers-reduced-motion:reduce){
   .mask>span{transform:none!important}
   .scroll-rail::after{animation:none}
+  .ed-bg-in,.evt-bg-in,.gal-img{animation:none}
 }
 </style>
 </head>
@@ -428,7 +441,7 @@ footer{background:var(--noir-deep);padding:72px clamp(20px,5vw,64px) 30px}
 
 <!-- ════ EDITORIAL BREAK ════ -->
 <section id="editorial">
-  <div class="ed-bg" aria-hidden="true"></div>
+  <div class="ed-bg" aria-hidden="true"><div class="ed-bg-in"></div></div>
   <div class="ed-veil" aria-hidden="true"></div>
   <div class="ed-inner">
     <div class="ed-rule"></div>
@@ -477,10 +490,10 @@ footer{background:var(--noir-deep);padding:72px clamp(20px,5vw,64px) 30px}
         <div class="kicker">En images</div>
         <h2 class="h2">Ça se dresse<br>autant que ça se <em>goûte</em>.</h2>
       </div>
-      <div class="gal-item"><div class="gal-img g1"></div><div class="gal-cap"><span class="n">01</span><span class="t">La table dressée</span></div></div>
-      <div class="gal-item"><div class="gal-img g2"></div><div class="gal-cap"><span class="n">02</span><span class="t">Le plat signature</span></div></div>
-      <div class="gal-item"><div class="gal-img g3"></div><div class="gal-cap"><span class="n">03</span><span class="t">La mise en place</span></div></div>
-      <div class="gal-item"><div class="gal-img g4"></div><div class="gal-cap"><span class="n">04</span><span class="t">Les réceptions</span></div></div>
+      <div class="gal-item"><div class="gal-clip"><div class="gal-img g1"></div></div><div class="gal-cap"><span class="n">01</span><span class="t">La table dressée</span></div></div>
+      <div class="gal-item"><div class="gal-clip"><div class="gal-img g2"></div></div><div class="gal-cap"><span class="n">02</span><span class="t">Le plat signature</span></div></div>
+      <div class="gal-item"><div class="gal-clip"><div class="gal-img g3"></div></div><div class="gal-cap"><span class="n">03</span><span class="t">La mise en place</span></div></div>
+      <div class="gal-item"><div class="gal-clip"><div class="gal-img g4"></div></div><div class="gal-cap"><span class="n">04</span><span class="t">Les réceptions</span></div></div>
     </div>
   </div>
 </div>
@@ -497,7 +510,7 @@ footer{background:var(--noir-deep);padding:72px clamp(20px,5vw,64px) 30px}
 
 <!-- ════ ÉVÉNEMENTS ════ -->
 <section class="evenements" id="evenements">
-  <div class="evenements-bg"></div>
+  <div class="evenements-bg"><div class="evt-bg-in"></div></div>
   <div class="evenements-content">
     <div class="kicker" style="color:var(--gold)">Les grandes occasions</div>
     <h2 class="h2">Mariages, réceptions,<br>soirées <em>corporatives</em>.</h2>
@@ -763,8 +776,8 @@ gsap.fromTo('.ed-bg',{yPercent:-5},{yPercent:5,ease:'none',scrollTrigger:{trigge
   const el=document.querySelector(sel);
   if(!el)return;
   gsap.fromTo(el,
-    {scale:1,filter:'brightness(1)'},
-    {scale:.962,filter:'brightness(.68)',ease:'none',transformOrigin:'50% 12%',
+    {scale:1,opacity:1},
+    {scale:.962,opacity:.5,ease:'none',transformOrigin:'50% 12%',
      scrollTrigger:{trigger:el,start:'bottom 88%',end:'bottom 22%',scrub:true}});
 });
 
