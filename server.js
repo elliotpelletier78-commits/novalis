@@ -1590,6 +1590,10 @@ const LTC_VIDEO_SLOTS = {
     'https://videos.pexels.com/video-files/1003928/1003928-hd_1920_1080_25fps.mp4',
     'https://videos.pexels.com/video-files/5617252/5617252-hd_1920_1080_25fps.mp4',
   ],
+  // Plan-séquence POV cuisine→table (scrubbing au scroll). Aucun stock
+  // convenable n'existe : à filmer (gimbal) ou générer, puis brancher
+  // via POST /ltc-videos/set {slot:'pov', url, pass}.
+  pov: [],
 };
 const LTC_VIDEO_VERSION = '2';
 
@@ -1615,6 +1619,10 @@ async function importLtcVideos({ force = false } = {}) {
 
   const result = {};
   for (const [slot, urls] of Object.entries(LTC_VIDEO_SLOTS)) {
+    if (!urls.length) { // slot manuel (via /ltc-videos/set), jamais écrasé
+      result[slot] = fs.existsSync(file(slot)) ? 'présente (manuelle)' : 'en attente (manuel)';
+      continue;
+    }
     if (!force && fs.existsSync(file(slot)) && fs.statSync(file(slot)).size > 300_000) {
       result[slot] = 'déjà présente'; continue;
     }
@@ -1630,7 +1638,8 @@ async function importLtcVideos({ force = false } = {}) {
     }
     if (!saved && !result[slot]) result[slot] = 'aucun candidat téléchargeable';
   }
-  if (Object.entries(LTC_VIDEO_SLOTS).every(([s]) => fs.existsSync(file(s)) && fs.statSync(file(s)).size > 300_000)) {
+  const autoSlots = Object.entries(LTC_VIDEO_SLOTS).filter(([,u]) => u.length);
+  if (autoSlots.every(([s]) => fs.existsSync(file(s)) && fs.statSync(file(s)).size > 300_000)) {
     fs.writeFileSync(vFile, LTC_VIDEO_VERSION);
   }
   return result;
@@ -1648,6 +1657,23 @@ app.get('/ltc-video-status', async (req, res) => {
     return res.json({ status, run });
   }
   res.json({ status });
+});
+
+// ── Admin : coller une URL de vidéo pour un slot spécifique ──────
+app.post('/ltc-videos/set', async (req, res) => {
+  const { slot, url, pass } = req.body;
+  if ((pass || req.headers['x-admin-pass']) !== ADMIN_PASS) return res.status(401).json({ error: 'Non autorisé' });
+  if (!Object.keys(LTC_VIDEO_SLOTS).includes(slot)) return res.status(400).json({ error: `Slot invalide. Valides: ${Object.keys(LTC_VIDEO_SLOTS).join(', ')}` });
+  if (!url || !url.startsWith('http')) return res.status(400).json({ error: 'URL invalide' });
+  try {
+    const buf = await ltcDownloadVideo(url);
+    const dest = path.join(outputDir, 'videos', `ltc-${slot}.mp4`);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, buf);
+    res.json({ ok: true, slot, size: Math.round(buf.length / 1024 / 1024 * 10) / 10 + 'Mo' });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── Admin : coller une URL de photo pour un slot spécifique ──────

@@ -331,6 +331,14 @@ footer{background:var(--noir-deep);padding:72px clamp(20px,5vw,64px) 30px}
 .kn-word{font-family:'Fraunces',serif;font-weight:600;font-size:clamp(46px,12vw,200px);line-height:.9;letter-spacing:-.03em;color:var(--ink);user-select:none}
 .kn-sub{margin-top:clamp(18px,2.5vh,40px);font-size:12px;letter-spacing:.38em;text-transform:uppercase;color:var(--cream-dim);opacity:0}
 
+/* POV plan-séquence : vidéo scrubbed au scroll (aucun autoplay).
+   Invisible tant que le fichier /demo/videos/ltc-pov.mp4 n'existe pas —
+   les scènes photo/vidéo classiques restent alors le fallback. */
+.pov-vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;display:none;
+  filter:saturate(1.06) contrast(1.12) brightness(.62) sepia(.1) hue-rotate(-5deg)}
+.j-sticky.pov .pov-vid{display:block}
+.j-sticky.pov #sc-arrive,.j-sticky.pov #sc-cuisine,.j-sticky.pov #sc-table,.j-sticky.pov #doorVeil{display:none}
+
 /* Vidéos d'ambiance auto-hébergées — invisibles tant qu'elles ne
    peuvent pas jouer ; la photo en dessous reste le fallback. */
 .bg-vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.4s ease;filter:saturate(1.06) contrast(1.1) brightness(.5) sepia(.12) hue-rotate(-6deg)}
@@ -375,6 +383,7 @@ footer{background:var(--noir-deep);padding:72px clamp(20px,5vw,64px) 30px}
 <!-- ════ CINEMATIC JOURNEY ════ -->
 <div class="journey">
   <div class="j-sticky">
+    <video class="pov-vid" id="povVid" src="/demo/videos/ltc-pov.mp4" muted playsinline preload="auto" aria-hidden="true"></video>
     <div class="scene" id="sc-arrive"><div class="scene-bg"></div></div>
     <div class="scene" id="sc-cuisine"><div class="scene-bg"></div><video class="bg-vid" src="/demo/videos/ltc-cuisine.mp4" muted loop playsinline autoplay preload="metadata" aria-hidden="true"></video></div>
     <div class="scene" id="sc-table"><div class="scene-bg"></div></div>
@@ -723,6 +732,35 @@ tl
   .to('.splash-mark',{y:0,opacity:1,duration:.85},7.7)
   .to('.splash-line',{y:0,opacity:1,duration:.7},8.1)
   .to('.splash-scroll',{opacity:1,duration:.6},8.5);
+
+// ── POV plan-séquence : la vidéo est scrubbed par le scroll (zéro autoplay).
+//    Le currentTime suit la progression du journey avec un lissage exponentiel
+//    (les seeks bruts saccadent sur les mp4 à GOP normal). Scroll bas = le
+//    serveur avance vers la table ; scroll haut = il recule vers la cuisine.
+//    Les narrations (#jt-arrive/#jt-cuisine/#jt-table) restent pilotées par
+//    le même timeline, donc synchronisées aux mêmes bandes de progression.
+(function(){
+  const v=document.getElementById('povVid');
+  if(!v||reduce)return;
+  v.addEventListener('error',()=>v.remove(),{once:true});
+  let armed=false;
+  function arm(){
+    if(armed||!(v.duration>1))return;
+    armed=true;
+    document.querySelector('.j-sticky').classList.add('pov');
+    let target=0;
+    const st=ScrollTrigger.create({trigger:'.journey',start:'top top',end:'bottom bottom',
+      onUpdate:s=>{target=s.progress*(v.duration-.08);}});
+    target=st.progress*(v.duration-.08);
+    gsap.ticker.add(()=>{
+      const cur=v.currentTime,next=cur+(target-cur)*.14;
+      if(Math.abs(next-cur)>.004){try{v.currentTime=next;}catch(e){}}
+    });
+  }
+  // les métadonnées peuvent être prêtes avant que ce script ne s'exécute
+  if(v.readyState>=1)arm();
+  else v.addEventListener('loadedmetadata',arm,{once:true});
+})();
 
 // ── Kinetic scramble reveal (le "wow" — sur le wordmark final) ──
 (function(){
