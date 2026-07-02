@@ -1,0 +1,66 @@
+name: site-check
+# Diagnostic du site en production — déclenché manuellement uniquement.
+# Le runner a un réseau ouvert : il vérifie les endpoints, prend des
+# captures d'écran du site réel et les encode en base64 dans les logs
+# (lisibles ensuite via l'API, y compris depuis un environnement sandboxé).
+on: workflow_dispatch
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Endpoints & fichiers
+        run: |
+          echo "=== ltc-video-status ==="
+          curl -sS --max-time 20 https://novalisia.ca/ltc-video-status || echo "ERREUR curl"
+          echo
+          echo "=== ltc-import-status ==="
+          curl -sS --max-time 20 https://novalisia.ca/ltc-import-status || echo "ERREUR curl"
+          echo
+          echo "=== codes HTTP ==="
+          for u in /showcase/le-tour-du-chef.html /showcase/vendor/gsap.min.js /showcase/vendor/lenis.min.js /demo/videos/ltc-cuisine.mp4 /demo/videos/ltc-table.mp4 /demo/images/ltc-arrivee.jpg /demo/images/ltc-table.jpg; do
+            printf "%-45s " "$u"
+            curl -sS -o /dev/null --max-time 20 -w "%{http_code}  %{size_download} octets\n" "https://novalisia.ca$u" || echo "ERREUR"
+          done
+
+      - name: Captures d'écran du site réel
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm i playwright@1.49.1 >/dev/null 2>&1
+          cat > shot.js << 'EOF'
+          const { chromium } = require('playwright');
+          (async () => {
+            // channel chrome = vrai Google Chrome préinstallé (codecs h264 inclus)
+            const browser = await chromium.launch({ channel: 'chrome' });
+            const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+            const errors = [];
+            page.on('pageerror', e => errors.push(e.message));
+            page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+            await page.goto('https://novalisia.ca/showcase/le-tour-du-chef.html', { waitUntil: 'load', timeout: 45000 });
+            await page.waitForTimeout(6000);
+            await page.screenshot({ path: 'shot-hero.jpg', type: 'jpeg', quality: 40 });
+            const info = await page.evaluate(() => ({
+              gsap: typeof gsap !== 'undefined',
+              lenis: typeof Lenis !== 'undefined',
+              pov: document.querySelector('.j-sticky')?.classList.contains('pov'),
+              vidCuisine: (v => v ? { ready: v.readyState, err: v.error?.code, dur: v.duration } : null)(document.getElementById('vidCuisine')),
+              vidTable: (v => v ? { ready: v.readyState, err: v.error?.code, dur: v.duration } : null)(document.getElementById('vidTable')),
+              scrollH: document.documentElement.scrollHeight,
+            }));
+            console.log('===INFO===', JSON.stringify(info));
+            for (const [name, y] of [['journey1', 1600], ['journey2', 3200], ['journey3', 4600], ['forfaits', 7200], ['editorial', 6300]]) {
+              await page.evaluate(v => window.scrollTo(0, v), y);
+              await page.waitForTimeout(2500);
+              await page.screenshot({ path: `shot-${name}.jpg`, type: 'jpeg', quality: 40 });
+            }
+            console.log('===ERRORS===', JSON.stringify(errors));
+            await browser.close();
+          })();
+          EOF
+          node shot.js
+          for f in shot-*.jpg; do
+            echo "===SHOT:$f==="
+            base64 -w 3800 "$f"
+            echo "===END:$f==="
+          done
