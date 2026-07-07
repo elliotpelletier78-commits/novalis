@@ -16,6 +16,8 @@ const { createAlerter } = require('./alerts');
 const PIPELINES = [
   require('./pipelines/audit-prospect'),
   require('./pipelines/demo-prospect'),
+  require('./pipelines/genere-site-ia'),
+  require('./pipelines/modifie-site-ia'),
 ];
 
 /**
@@ -31,6 +33,10 @@ function initCore(db, env = process.env) {
   const llm = createLlmGateway(db, env.ANTHROPIC_API_KEY);
   const alerter = createAlerter(env);
   const worker = startWorker(queue, PIPELINES, {
+    // Dépendances injectées dans le ctx de chaque step (ctx.deps) :
+    // les pipelines IA ont besoin de la passerelle LLM, de la base et
+    // de l'invalidation de step. Injection > require direct : testable.
+    deps: { llm, db, queue },
     // Un job mort = intervention humaine requise → alerte immédiate,
     // avec le lien direct vers la page d'exploitation.
     onDead: (job, err) => {

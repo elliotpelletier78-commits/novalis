@@ -1894,6 +1894,13 @@ app.get('/core/credentials/:clientId', adminOnly, coreReady, (req, res) => {
   res.json({ credentials: core.vault.list(parseInt(req.params.clientId, 10)) });
 });
 
+// Sites générés/gérés par le moteur IA (Novalis Studio).
+app.get('/core/sites', adminOnly, coreReady, (req, res) => {
+  const rows = db.prepare(`SELECT s.id, s.client_id, c.nom AS client_nom, s.slug, s.nom, s.statut, s.created_at, s.updated_at
+    FROM sites s JOIN clients c ON c.id = s.client_id ORDER BY s.updated_at DESC LIMIT 100`).all();
+  res.json({ sites: rows });
+});
+
 // Page d'exploitation (runs, steps, coûts, relance) — auth par ?pass=
 // au premier accès, ensuite localStorage + header.
 const { renderAdminHtml } = require('./core/admin-page');

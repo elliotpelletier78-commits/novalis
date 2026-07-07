@@ -15,11 +15,12 @@ const STALE_SWEEP_EVERY = 150; // ~5 min (150 ticks de 2 s)
 /**
  * @param {ReturnType<import('./queue').createQueue>} queue
  * @param {Array<{type:string, steps:Array}>} pipelines
- * @param {{log?:(...a:any)=>void, onDead?:(job:object, err:Error)=>void}} [opts]
+ * @param {{log?:(...a:any)=>void, onDead?:(job:object, err:Error)=>void, deps?:object}} [opts]
  */
 function startWorker(queue, pipelines, opts = {}) {
   const log = opts.log || ((...a) => console.log('[worker]', ...a));
   const onDead = opts.onDead || (() => {});
+  const deps = opts.deps || {};
   const registry = new Map(pipelines.map(p => [p.type, p]));
   let busy = false;
   let ticks = 0;
@@ -53,7 +54,7 @@ function startWorker(queue, pipelines, opts = {}) {
     const hb = setInterval(() => queue.heartbeat(job.id), 60_000);
     try {
       log(`job #${job.id} ${job.type} (client ${job.client_id}, tentative ${job.attempts}/${job.max_attempts})`);
-      const ctx = await pipeline.steps ? await queue.runSteps(job, pipeline.steps) : null;
+      const ctx = await pipeline.steps ? await queue.runSteps(job, pipeline.steps, { deps }) : null;
       const final = ctx ? ctx.outputs[pipeline.steps[pipeline.steps.length - 1].name] : null;
       queue.complete(job.id, final);
       log(`job #${job.id} terminé en ${Math.round((Date.now() - t0) / 1000)}s`);

@@ -48,20 +48,28 @@ function renderAdminHtml() {
   <h2>Lancer un audit</h2>
   <form id="frm">
     <select name="type" id="selType">
-      <option value="demo-prospect">demo-prospect (audit + site démo)</option>
+      <option value="genere-site-ia">genere-site-ia (site complet par IA)</option>
+      <option value="modifie-site-ia">modifie-site-ia (édition par chat)</option>
+      <option value="demo-prospect">demo-prospect (audit + démo template)</option>
       <option value="audit-prospect">audit-prospect (audit seul)</option>
     </select>
     <input name="clientId" type="number" value="1" min="1" style="width:80px" title="ID client">
-    <input name="url" type="url" placeholder="https://site-de-la-pme.com" required>
+    <input name="url" type="url" placeholder="https://site-de-la-pme.com" data-champ="prospect">
+    <input name="nom" placeholder="Nom de l'entreprise" data-champ="ia" style="width:200px">
     <select name="secteur" id="selSecteur">
       <option value="restaurant">restaurant</option><option value="garage">garage</option>
       <option value="salon">salon</option><option value="construction">construction</option>
       <option value="health">santé</option><option value="fitness">fitness</option>
       <option value="plombier">plombier</option><option value="electricien">électricien</option>
+      <option value="traiteur">traiteur</option><option value="autre">autre</option>
     </select>
-    <input name="ville" placeholder="Ville (optionnel)" style="width:140px">
+    <input name="ville" placeholder="Ville" style="width:120px">
+    <input name="telephone" placeholder="Téléphone" data-champ="ia" style="width:130px">
+    <input name="slugSite" placeholder="slug du site" data-champ="edition" style="width:150px">
     <button type="submit">Lancer</button><span id="msg"></span>
   </form>
+  <textarea name="texteLong" id="texteLong" rows="3" placeholder="Description de l'entreprise (génération) ou instruction de modification (édition)"
+    style="width:100%;margin-top:10px;background:var(--noir);border:1px solid rgba(242,233,218,.2);color:var(--cream);border-radius:6px;padding:8px 10px;font:inherit"></textarea>
 </section>
 
 <section>
@@ -69,6 +77,14 @@ function renderAdminHtml() {
   <table>
     <thead><tr><th>#</th><th>Type</th><th>Client</th><th>Statut</th><th>Tentatives</th><th>Créé</th><th>Détail / erreur</th><th></th></tr></thead>
     <tbody id="runs"><tr><td colspan="8" style="color:var(--dim)">Chargement…</td></tr></tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Sites (Novalis Studio)</h2>
+  <table>
+    <thead><tr><th>Slug</th><th>Nom</th><th>Client</th><th>Modifié</th><th></th></tr></thead>
+    <tbody id="sites"><tr><td colspan="5" style="color:var(--dim)">Chargement…</td></tr></tbody>
   </table>
 </section>
 
@@ -130,23 +146,54 @@ function renderAdminHtml() {
       '<tr><td>'+esc(c.nom)+'</td><td class="num">'+c.appels+'</td><td class="num">'+c.tokens_in.toLocaleString()+'</td>'+
       '<td class="num">'+c.tokens_out.toLocaleString()+'</td><td class="num">'+(c.cout_cents/100).toFixed(2)+' $US</td></tr>').join('');
   }
-  // Le champ secteur ne concerne que demo-prospect
-  const majSecteur=()=>{const demo=document.getElementById('selType').value==='demo-prospect';
-    document.getElementById('selSecteur').style.display=demo?'':'none';
-    document.querySelector('input[name=ville]').style.display=demo?'':'none';};
-  document.getElementById('selType').onchange=majSecteur;majSecteur();
+  // Affichage des champs selon le pipeline choisi
+  const CHAMPS={'genere-site-ia':['ia'],'modifie-site-ia':['edition'],'demo-prospect':['prospect'],'audit-prospect':['prospect']};
+  function majChamps(){
+    const t=document.getElementById('selType').value, actifs=CHAMPS[t]||[];
+    document.querySelectorAll('[data-champ]').forEach(el=>{el.style.display=actifs.includes(el.dataset.champ)?'':'none';});
+    const secteurVille=t==='genere-site-ia'||t==='demo-prospect';
+    document.getElementById('selSecteur').style.display=secteurVille?'':'none';
+    document.querySelector('input[name=ville]').style.display=secteurVille?'':'none';
+    document.getElementById('texteLong').style.display=(t==='genere-site-ia'||t==='modifie-site-ia')?'':'none';
+    document.getElementById('texteLong').placeholder=t==='modifie-site-ia'
+      ?'Instruction de modification (ex: « Ajoute une section traiteur avec 3 forfaits, garde le reste identique »)'
+      :'Description de l\\'entreprise : histoire, spécialités, ce qui la distingue…';
+  }
+  document.getElementById('selType').onchange=majChamps;majChamps();
 
   document.getElementById('frm').onsubmit=async e=>{
     e.preventDefault();
     const f=new FormData(e.target);
-    const payload={url:f.get('url')};
-    if(f.get('type')==='demo-prospect'){payload.secteur=f.get('secteur');if(f.get('ville'))payload.ville=f.get('ville');}
-    const r=await api('/core/enqueue',{method:'POST',body:JSON.stringify({type:f.get('type'),clientId:+f.get('clientId'),payload})});
+    const t=f.get('type');
+    let payload={};
+    if(t==='genere-site-ia'){
+      payload={nom:f.get('nom'),secteur:f.get('secteur'),ville:f.get('ville')||undefined,
+        telephone:f.get('telephone')||undefined,description:document.getElementById('texteLong').value||undefined};
+    }else if(t==='modifie-site-ia'){
+      payload={slug:f.get('slugSite'),instruction:document.getElementById('texteLong').value};
+    }else{
+      payload={url:f.get('url')};
+      if(t==='demo-prospect'){payload.secteur=f.get('secteur');if(f.get('ville'))payload.ville=f.get('ville');}
+    }
+    const r=await api('/core/enqueue',{method:'POST',body:JSON.stringify({type:t,clientId:+f.get('clientId'),payload})});
     document.getElementById('msg').textContent=r.ok?('✓ job #'+r.id+' en file'):('Erreur: '+(r.error||'?'));
-    chargerRuns();
+    chargerRuns();chargerSites();
   };
-  chargerRuns();chargerCouts();
-  setInterval(()=>{chargerRuns();chargerCouts();},10000);
+
+  async function chargerSites(){
+    try{
+      const {sites}=await api('/core/sites');
+      const el=document.getElementById('sites');
+      if(!el)return;
+      el.innerHTML=sites.length?sites.map(s=>
+        '<tr><td>'+esc(s.slug)+'</td><td>'+esc(s.nom)+'</td><td>'+esc(s.client_nom)+'</td>'+
+        '<td>'+esc(s.updated_at)+'</td><td><a href="/demo/'+esc(s.slug)+'.html" target="_blank" style="color:var(--gold)">Voir →</a></td></tr>').join('')
+        :'<tr><td colspan="5" style="color:var(--dim)">Aucun site généré encore.</td></tr>';
+    }catch(e){/* silencieux */}
+  }
+  window.chargerSites=chargerSites;
+  chargerRuns();chargerCouts();chargerSites();
+  setInterval(()=>{chargerRuns();chargerCouts();chargerSites();},10000);
 })();
 </script>
 </body>

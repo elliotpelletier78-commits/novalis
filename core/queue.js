@@ -41,6 +41,7 @@ function createQueue(db) {
       WHERE id = ?`),
     stepFail: db.prepare(`UPDATE job_steps SET status = 'failed', finished_at = datetime('now'), error_text = ?
       WHERE id = ?`),
+    stepInvalidate: db.prepare(`DELETE FROM job_steps WHERE job_id = ? AND step_name = ? AND status = 'done'`),
     lastDoneStep: db.prepare(`SELECT step_name, output FROM job_steps
       WHERE job_id = ? AND status = 'done' ORDER BY id ASC`),
     listRecent: db.prepare(`SELECT j.*, c.nom AS client_nom FROM jobs j
@@ -115,18 +116,29 @@ function createQueue(db) {
   function requeue(jobId) { return stmts.requeueDead.run(jobId).changes === 1; }
 
   /**
+   * Invalide un step « done » : au prochain essai du job, ce step sera
+   * réexécuté au lieu d'être rejoué depuis sa sortie enregistrée.
+   * Usage : un step de validation qui rejette la sortie d'un step payant
+   * (ex. HTML généré invalide → forcer une NOUVELLE génération).
+   */
+  function invalidateStep(jobId, stepName) {
+    return stmts.stepInvalidate.run(jobId, stepName).changes > 0;
+  }
+
+  /**
    * Exécute la chaîne de steps d'un pipeline avec reprise : les steps
    * déjà « done » lors d'une tentative précédente sont rejoués depuis
    * leur sortie enregistrée, pas réexécutés.
    * @param {object} job job réservé par claim()
    * @param {Array<{name:string, run:(ctx:object)=>Promise<any>}>} steps
+   * @param {object} [extra] propriétés supplémentaires du ctx (deps injectées)
    * @returns {Promise<object>} ctx final (sorties de tous les steps)
    */
-  async function runSteps(job, steps) {
+  async function runSteps(job, steps, extra = {}) {
     const doneBefore = new Map(
       stmts.lastDoneStep.all(job.id).map(r => [r.step_name, safeParse(r.output, null)])
     );
-    const ctx = { job, outputs: {} };
+    const ctx = { job, outputs: {}, ...extra };
     for (const step of steps) {
       if (doneBefore.has(step.name)) {
         ctx.outputs[step.name] = doneBefore.get(step.name);
@@ -153,7 +165,7 @@ function createQueue(db) {
     return stmts.stepsForJob.all(jobId).map(s => ({ ...s, output: safeParse(s.output, null) }));
   }
 
-  return { enqueue, claim, heartbeat, complete, fail, recoverStale, requeue, runSteps, listRecent, stepsForJob };
+  return { enqueue, claim, heartbeat, complete, fail, recoverStale, requeue, invalidateStep, runSteps, listRecent, stepsForJob };
 }
 
 function safeParse(s, fallback) {
