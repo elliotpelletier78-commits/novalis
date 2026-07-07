@@ -20,6 +20,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Endpoints & fichiers
         run: |
+          echo "=== core-health ==="
+          curl -sS --max-time 20 https://novalisia.ca/core/health || echo "ERREUR curl"
+          echo
+          echo "=== admin sans pass (attendu: 401) ==="
+          curl -sS -o /dev/null --max-time 20 -w "%{http_code}\n" https://novalisia.ca/core/admin || echo "ERREUR"
           echo "=== ltc-video-status ==="
           curl -sS --max-time 20 https://novalisia.ca/ltc-video-status || echo "ERREUR curl"
           echo
@@ -33,6 +38,7 @@ jobs:
           done | tee http-codes.txt
           curl -sS --max-time 20 https://novalisia.ca/ltc-video-status > video-status.json || true
           curl -sS --max-time 20 https://novalisia.ca/ltc-import-status > import-status.json || true
+          curl -sS --max-time 20 https://novalisia.ca/core/health > core-health.json || true
 
       - name: Captures d'écran du site réel
         run: |
@@ -77,7 +83,7 @@ jobs:
           git config user.name "site-check"
           git config user.email "site-check@users.noreply.github.com"
           mkdir -p out
-          mv -f shot-*.jpg page-info.json video-status.json import-status.json http-codes.txt out/ 2>/dev/null || true
+          mv -f shot-*.jpg page-info.json video-status.json import-status.json core-health.json http-codes.txt out/ 2>/dev/null || true
           git checkout --orphan site-checks
           git rm -rf --cached . >/dev/null 2>&1 || true
           git add -f out
