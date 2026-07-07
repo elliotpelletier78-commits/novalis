@@ -1,0 +1,31 @@
+#!/bin/sh
+# Pre-commit hook — vérifier qu'aucun secret n'est commité
+
+set -e
+
+# Patterns de secrets à détecter
+PATTERNS=(
+  "sk-ant-"                    # Anthropic API key
+  "ANTHROPIC_API_KEY"
+  "ADMIN_PASS"
+  "MASTER_KEY"
+  "TWILIO_AUTH_TOKEN"
+  "TWILIO_ACCOUNT_SID"
+  "FB_APP_SECRET"
+  "ELEVENLABS_API_KEY"
+  "PLATFORM_SECRET"
+)
+
+echo "🔐 Vérification des secrets..."
+
+for pattern in "${PATTERNS[@]}"; do
+  if git diff --cached --name-only | xargs grep -l "$pattern" 2>/dev/null; then
+    echo "❌ ERREUR: Pattern '$pattern' détecté dans les fichiers à commiter"
+    echo "   Utilisez Railway Variables ou .env.local, jamais le code"
+    exit 1
+  fi
+done
+
+echo "✅ Aucun secret détecté"
+exit 0
+
