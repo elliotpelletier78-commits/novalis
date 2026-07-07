@@ -9,8 +9,10 @@
 // Chaque step est repris individuellement : si la génération échoue, le
 // retry ne re-télécharge ni ne ré-audite (sorties déjà en base).
 
+const fs = require('fs');
+const path = require('path');
 const { fetchSiteHtml, extractName } = require('../../discover');
-const { generate, extractBrandColor } = require('../../generate');
+const { generate, extractBrandColor, slugify } = require('../../generate');
 const { analyserHtml } = require('./audit-prospect');
 
 /** Téléphone nord-américain depuis le HTML (href tel: prioritaire). */
@@ -66,7 +68,13 @@ module.exports = {
       async run(ctx) {
         const infos = ctx.outputs['extraire-infos'];
         const audit = ctx.outputs['audit'];
+        // Anti-collision : si une démo porte déjà ce slug (démo semée,
+        // showcase bespoke, ou prospect homonyme d'un autre client), on
+        // suffixe avec l'id du job au lieu d'écraser silencieusement.
+        const slugBase = slugify(infos.nom);
+        const dejaPris = fs.existsSync(path.join(__dirname, '..', '..', 'output', `${slugBase}.html`));
         const result = await generate({
+          slugSuffix: dejaPris ? `p${ctx.job.id}` : undefined,
           nom: infos.nom,
           secteur: infos.secteur,
           ville: infos.ville,

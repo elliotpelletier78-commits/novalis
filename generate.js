@@ -973,7 +973,7 @@ async function generate(data) {
     const remaining = rHtml.match(/\{\{[A-Z_]+\}\}/g);
     if (remaining) console.warn('⚠️  Variables non remplacées (restaurant):', [...new Set(remaining)].join(', '));
 
-    const slug = slugify(nom);
+    const slug = slugify(nom) + (data.slugSuffix ? '-' + String(data.slugSuffix).replace(/[^a-z0-9-]/gi, '') : '');
     const outputDir = path.join(__dirname, 'output');
     if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
     const outputPath = path.join(outputDir, `${slug}.html`);
@@ -1037,7 +1037,7 @@ async function generate(data) {
     const remaining = cHtml.match(/\{\{[A-Z_]+\}\}/g);
     if (remaining) console.warn('⚠️  Variables non remplacées (cinematic):', [...new Set(remaining)].join(', '));
 
-    const slug = slugify(nom);
+    const slug = slugify(nom) + (data.slugSuffix ? '-' + String(data.slugSuffix).replace(/[^a-z0-9-]/gi, '') : '');
     const outputDir = path.join(__dirname, 'output');
     if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
     const outputPath = path.join(outputDir, `${slug}.html`);
@@ -1157,7 +1157,7 @@ async function generate(data) {
   }
 
   // Sauvegarder
-  const slug = slugify(nom);
+  const slug = slugify(nom) + (data.slugSuffix ? '-' + String(data.slugSuffix).replace(/[^a-z0-9-]/gi, '') : '');
   const outputDir = path.join(__dirname, 'output');
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
@@ -1169,4 +1169,4 @@ async function generate(data) {
   return { slug, outputPath };
 }
 
-module.exports = { generate, extractBrandColor, applyBrandColor, extractSitePhotos };
+module.exports = { generate, extractBrandColor, applyBrandColor, extractSitePhotos, slugify };
