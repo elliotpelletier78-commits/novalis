@@ -15,6 +15,7 @@ const { createAlerter } = require('./alerts');
 
 const PIPELINES = [
   require('./pipelines/audit-prospect'),
+  require('./pipelines/demo-prospect'),
 ];
 
 /**

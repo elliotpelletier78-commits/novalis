@@ -47,9 +47,19 @@ function renderAdminHtml() {
 <section>
   <h2>Lancer un audit</h2>
   <form id="frm">
-    <select name="type"><option value="audit-prospect">audit-prospect</option></select>
+    <select name="type" id="selType">
+      <option value="demo-prospect">demo-prospect (audit + site démo)</option>
+      <option value="audit-prospect">audit-prospect (audit seul)</option>
+    </select>
     <input name="clientId" type="number" value="1" min="1" style="width:80px" title="ID client">
     <input name="url" type="url" placeholder="https://site-de-la-pme.com" required>
+    <select name="secteur" id="selSecteur">
+      <option value="restaurant">restaurant</option><option value="garage">garage</option>
+      <option value="salon">salon</option><option value="construction">construction</option>
+      <option value="health">santé</option><option value="fitness">fitness</option>
+      <option value="plombier">plombier</option><option value="electricien">électricien</option>
+    </select>
+    <input name="ville" placeholder="Ville (optionnel)" style="width:140px">
     <button type="submit">Lancer</button><span id="msg"></span>
   </form>
 </section>
@@ -95,6 +105,7 @@ function renderAdminHtml() {
         '<td><span class="badge b-'+j.status+'">'+j.status+'</span></td>'+
         '<td>'+j.attempts+'/'+j.max_attempts+'</td><td>'+esc(j.created_at)+'</td>'+
         '<td>'+(j.error_text?'<div class="err-txt">'+esc(j.error_text)+'</div>':'')+
+          (j.output&&j.output.demo_url?'<a href="'+esc(j.output.demo_url)+'" target="_blank" style="color:var(--gold)">Voir la démo →</a>':'')+
           '<ul class="steps" id="st-'+j.id+'"></ul></td>'+
         '<td>'+(j.status==='dead'||j.status==='failed'
           ?'<button data-rq="'+j.id+'">Relancer</button> '
@@ -119,10 +130,18 @@ function renderAdminHtml() {
       '<tr><td>'+esc(c.nom)+'</td><td class="num">'+c.appels+'</td><td class="num">'+c.tokens_in.toLocaleString()+'</td>'+
       '<td class="num">'+c.tokens_out.toLocaleString()+'</td><td class="num">'+(c.cout_cents/100).toFixed(2)+' $US</td></tr>').join('');
   }
+  // Le champ secteur ne concerne que demo-prospect
+  const majSecteur=()=>{const demo=document.getElementById('selType').value==='demo-prospect';
+    document.getElementById('selSecteur').style.display=demo?'':'none';
+    document.querySelector('input[name=ville]').style.display=demo?'':'none';};
+  document.getElementById('selType').onchange=majSecteur;majSecteur();
+
   document.getElementById('frm').onsubmit=async e=>{
     e.preventDefault();
     const f=new FormData(e.target);
-    const r=await api('/core/enqueue',{method:'POST',body:JSON.stringify({type:f.get('type'),clientId:+f.get('clientId'),payload:{url:f.get('url')}})});
+    const payload={url:f.get('url')};
+    if(f.get('type')==='demo-prospect'){payload.secteur=f.get('secteur');if(f.get('ville'))payload.ville=f.get('ville');}
+    const r=await api('/core/enqueue',{method:'POST',body:JSON.stringify({type:f.get('type'),clientId:+f.get('clientId'),payload})});
     document.getElementById('msg').textContent=r.ok?('✓ job #'+r.id+' en file'):('Erreur: '+(r.error||'?'));
     chargerRuns();
   };

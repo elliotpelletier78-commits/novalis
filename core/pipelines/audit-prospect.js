@@ -57,6 +57,7 @@ function analyserHtml(html, url) {
  */
 module.exports = {
   type: 'audit-prospect',
+  analyserHtml, // réutilisé par le pipeline demo-prospect
   steps: [
     {
       name: 'telecharger-accueil',
