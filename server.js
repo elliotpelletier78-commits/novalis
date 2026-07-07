@@ -1824,6 +1824,76 @@ async function reimport(force){
   res.send(html);
 });
 
+// ══ Noyau d'automatisation : file de jobs, coffre, passerelle LLM ══
+// initCore applique les migrations et démarre le worker in-process.
+// En cas d'échec (migration cassée), on log fort mais le site vitrine
+// continue de servir — le noyau est dégradable, pas le site de vente.
+const { initCore } = require('./core');
+let core = null;
+try {
+  core = initCore(db);
+  console.log('[core] prêt — pipelines:', core.pipelines.join(', '));
+} catch (e) {
+  console.error('[core] échec d\'initialisation:', e.message);
+}
+
+function adminOnly(req, res, next) {
+  const given = req.headers['x-admin-pass'] || req.query.pass || (req.body && req.body.pass);
+  if (given !== ADMIN_PASS) return res.status(401).json({ error: 'Non autorisé' });
+  next();
+}
+function coreReady(req, res, next) {
+  if (!core) return res.status(503).json({ error: 'noyau non initialisé (voir logs serveur)' });
+  next();
+}
+
+// Lancer un pipeline. Ex: {"type":"audit-prospect","clientId":1,"payload":{"url":"https://..."}}
+app.post('/core/enqueue', adminOnly, coreReady, (req, res) => {
+  try {
+    const { type, clientId, payload, dedupeKey, priority } = req.body || {};
+    const r = core.queue.enqueue({ type, clientId, payload, dedupeKey, priority });
+    res.status(202).json({ ok: true, ...r });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Liste des runs récents avec leur statut (l'outil d'exploitation).
+app.get('/core/runs', adminOnly, coreReady, (req, res) => {
+  res.json({ runs: core.queue.listRecent(Math.min(parseInt(req.query.limit, 10) || 50, 200)) });
+});
+
+// Détail d'un run : la timeline de ses steps — où exactement ça a échoué.
+app.get('/core/runs/:id', adminOnly, coreReady, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  res.json({ steps: core.queue.stepsForJob(id) });
+});
+
+// Relance d'un job mort après correction de la cause.
+app.post('/core/runs/:id/requeue', adminOnly, coreReady, (req, res) => {
+  res.json({ ok: core.queue.requeue(parseInt(req.params.id, 10)) });
+});
+
+// Coûts/tokens LLM du mois courant, par client.
+app.get('/core/costs', adminOnly, coreReady, (req, res) => {
+  res.json({ mois_courant: core.llm.rollupMois() });
+});
+
+// Coffre : écrire un credential client (la valeur n'est JAMAIS relisible
+// via HTTP — get n'existe volontairement pas ici, seulement la liste des noms).
+app.post('/core/credentials', adminOnly, coreReady, (req, res) => {
+  try {
+    const { clientId, name, value } = req.body || {};
+    core.vault.set(clientId, name, value);
+    res.json({ ok: true, clientId, name });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+app.get('/core/credentials/:clientId', adminOnly, coreReady, (req, res) => {
+  res.json({ credentials: core.vault.list(parseInt(req.params.clientId, 10)) });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Novalis Preview en ligne → http://0.0.0.0:${PORT}`);

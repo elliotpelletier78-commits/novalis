@@ -1,0 +1,27 @@
+name: tests
+# Tests du noyau (file de jobs, coffre chiffré) à chaque push sur main.
+# Périmètre volontairement restreint aux modules critiques : c'est la
+# garantie que la queue et le chiffrement ne régressent jamais en silence.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'core/**'
+      - 'tests/**'
+      - 'server.js'
+      - 'package.json'
+      - '.github/workflows/tests.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm test
+      - name: Le serveur démarre sans erreur de syntaxe
+        run: node --check server.js
