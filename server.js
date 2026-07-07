@@ -93,6 +93,14 @@ for (const m of BUNDLED_META) {
 
 // Fichiers statiques — volume output/ (inclut maintenant les démos seedées)
 const staticOpts = { setHeaders: (res) => res.setHeader('X-Frame-Options', 'SAMEORIGIN') };
+// La base SQLite et ses fichiers WAL vivent dans output/ : ils ne doivent
+// JAMAIS être servis (fuite de données sinon — prospects, credentials).
+app.use('/demo', (req, res, next) => {
+  if (/\.(db|sqlite3?|db-wal|db-shm|jsonl?)$/i.test(req.path) || /(^|\/)\./.test(req.path)) {
+    return res.status(404).end();
+  }
+  next();
+});
 app.use('/demo', express.static(outputDir, staticOpts));
 // Vitrine — fichiers bespoke servis depuis le code déployé (hors volume)
 app.use('/showcase', express.static(path.join(__dirname, 'showcase'), staticOpts));
