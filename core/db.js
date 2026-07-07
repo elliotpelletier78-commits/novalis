@@ -38,7 +38,7 @@ function runMigrations(db) {
     } catch (e) {
       // Une migration qui casse doit arrêter le démarrage : continuer
       // avec un schéma partiel produirait des corruptions silencieuses.
-      throw new Error(`Migration ${file} échouée: ${e.message}`);
+      throw new Error(`Migration ${file} échouée: ${e.message}`, { cause: e });
     }
   }
   return { applied };
