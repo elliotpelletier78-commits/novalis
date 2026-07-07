@@ -11,6 +11,7 @@ const { createQueue } = require('./queue');
 const { createVault } = require('./secrets');
 const { createLlmGateway } = require('./llm');
 const { startWorker } = require('./worker');
+const { createAlerter } = require('./alerts');
 
 const PIPELINES = [
   require('./pipelines/audit-prospect'),
@@ -27,9 +28,19 @@ function initCore(db, env = process.env) {
   const queue = createQueue(db);
   const vault = createVault(db, env.MASTER_KEY);
   const llm = createLlmGateway(db, env.ANTHROPIC_API_KEY);
-  const worker = startWorker(queue, PIPELINES);
+  const alerter = createAlerter(env);
+  const worker = startWorker(queue, PIPELINES, {
+    // Un job mort = intervention humaine requise → alerte immédiate,
+    // avec le lien direct vers la page d'exploitation.
+    onDead: (job, err) => {
+      alerter.alert(
+        `Job #${job.id} mort (${job.type})`,
+        `Client ${job.client_id} · ${job.attempts} tentatives · ${err.message}\nRelancer : /core/admin`
+      );
+    },
+  });
 
-  return { queue, vault, llm, worker, pipelines: PIPELINES.map(p => p.type) };
+  return { queue, vault, llm, worker, alerter, pipelines: PIPELINES.map(p => p.type) };
 }
 
 module.exports = { initCore };

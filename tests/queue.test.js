@@ -103,4 +103,14 @@ describe('file de jobs SQLite', () => {
   it('exige un clientId entier (isolation multi-tenant)', () => {
     expect(() => q.enqueue({ type: 't' })).toThrow(/clientId/);
   });
+
+  it('fail retourne le statut résultant (pour les alertes)', () => {
+    const { id } = q.enqueue({ type: 't', clientId: 1, maxAttempts: 2 });
+    q.claim();
+    expect(q.fail(id, new Error('a'))).toBe('queued');   // retry planifié
+    db.prepare(`UPDATE jobs SET run_at = datetime('now', '-1 second') WHERE id = ?`).run(id);
+    q.claim();
+    expect(q.fail(id, new Error('b'))).toBe('dead');     // lettre morte → alerte
+    expect(q.fail(999999, new Error('c'))).toBeNull();   // job inexistant
+  });
 });

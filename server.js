@@ -1894,6 +1894,26 @@ app.get('/core/credentials/:clientId', adminOnly, coreReady, (req, res) => {
   res.json({ credentials: core.vault.list(parseInt(req.params.clientId, 10)) });
 });
 
+// Page d'exploitation (runs, steps, coûts, relance) — auth par ?pass=
+// au premier accès, ensuite localStorage + header.
+const { renderAdminHtml } = require('./core/admin-page');
+app.get('/core/admin', adminOnly, coreReady, (req, res) => {
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.send(renderAdminHtml());
+});
+
+// Santé du noyau : profondeur de file, morts, âge du plus vieux job en
+// attente — de quoi brancher un uptime-monitor externe gratuit.
+app.get('/core/health', coreReady, (req, res) => {
+  const s = db.prepare(`SELECT
+      SUM(CASE WHEN status='queued' THEN 1 ELSE 0 END) AS queued,
+      SUM(CASE WHEN status='running' THEN 1 ELSE 0 END) AS running,
+      SUM(CASE WHEN status='dead' THEN 1 ELSE 0 END) AS dead,
+      MIN(CASE WHEN status='queued' THEN created_at END) AS oldest_queued
+    FROM jobs`).get();
+  res.json({ ok: (s.dead || 0) === 0, ...s });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Novalis Preview en ligne → http://0.0.0.0:${PORT}`);

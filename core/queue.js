@@ -92,18 +92,20 @@ function createQueue(db) {
    * Échec d'un job : backoff exponentiel puis lettre morte.
    * Le run reprendra AU step échoué (voir runSteps) — on ne repaie
    * jamais un appel API déjà réussi.
+   * @returns {'queued'|'dead'|null} statut résultant (pour les alertes)
    */
   function fail(jobId, err) {
     const job = stmts.getById.get(jobId);
-    if (!job) return;
+    if (!job) return null;
     const msg = String(err && err.message ? err.message : err).slice(0, 2000);
     if (job.attempts >= job.max_attempts) {
       stmts.fail.run('dead', msg, job.run_at, new Date().toISOString(), jobId);
-    } else {
-      const delayS = Math.min(BACKOFF_BASE_S * 2 ** (job.attempts - 1), BACKOFF_MAX_S);
-      const runAt = new Date(Date.now() + delayS * 1000).toISOString().replace('T', ' ').slice(0, 19);
-      stmts.fail.run('queued', msg, runAt, null, jobId);
+      return 'dead';
     }
+    const delayS = Math.min(BACKOFF_BASE_S * 2 ** (job.attempts - 1), BACKOFF_MAX_S);
+    const runAt = new Date(Date.now() + delayS * 1000).toISOString().replace('T', ' ').slice(0, 19);
+    stmts.fail.run('queued', msg, runAt, null, jobId);
+    return 'queued';
   }
 
   /** Au boot et périodiquement : libère les jobs orphelins d'un crash. */

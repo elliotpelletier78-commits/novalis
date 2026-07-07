@@ -15,10 +15,11 @@ const STALE_SWEEP_EVERY = 150; // ~5 min (150 ticks de 2 s)
 /**
  * @param {ReturnType<import('./queue').createQueue>} queue
  * @param {Array<{type:string, steps:Array}>} pipelines
- * @param {{log?:(...a:any)=>void}} [opts]
+ * @param {{log?:(...a:any)=>void, onDead?:(job:object, err:Error)=>void}} [opts]
  */
 function startWorker(queue, pipelines, opts = {}) {
   const log = opts.log || ((...a) => console.log('[worker]', ...a));
+  const onDead = opts.onDead || (() => {});
   const registry = new Map(pipelines.map(p => [p.type, p]));
   let busy = false;
   let ticks = 0;
@@ -40,7 +41,8 @@ function startWorker(queue, pipelines, opts = {}) {
     if (!pipeline) {
       // Type inconnu = bug de config, pas une erreur transitoire :
       // inutile de retenter, on tue le job avec un message clair.
-      queue.fail(job.id, new Error(`type de job inconnu: ${job.type} (pipelines: ${[...registry.keys()].join(', ')})`));
+      const err = new Error(`type de job inconnu: ${job.type} (pipelines: ${[...registry.keys()].join(', ')})`);
+      if (queue.fail(job.id, err) === 'dead') onDead(job, err);
       return;
     }
 
@@ -56,8 +58,9 @@ function startWorker(queue, pipelines, opts = {}) {
       queue.complete(job.id, final);
       log(`job #${job.id} terminé en ${Math.round((Date.now() - t0) / 1000)}s`);
     } catch (e) {
-      queue.fail(job.id, e);
-      log(`job #${job.id} échec: ${e.message}`);
+      const statut = queue.fail(job.id, e);
+      log(`job #${job.id} échec (${statut}): ${e.message}`);
+      if (statut === 'dead') onDead(job, e);
     } finally {
       clearInterval(hb);
       busy = false;
