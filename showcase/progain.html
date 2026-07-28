@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProGain — Applied AI, built to ship. | Montreal AI Boutique</title>
+<meta name="description" content="ProGain is a father and son AI boutique in Montreal. AI applications for health, markets and security — and AI integration consulting for companies worldwide, in English and French.">
+<meta property="og:title" content="ProGain — Applied AI, built to ship.">
+<meta property="og:description" content="Montreal AI boutique. Three products, one standard. AI consulting worldwide, bilingual by design.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Hanken+Grotesk:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ProfessionalService",
+  "name": "ProGain.ai",
+  "description": "AI applications and AI integration consulting. Based in Montreal, serving clients worldwide in English and French.",
+  "address": { "@type": "PostalAddress", "addressLocality": "Montréal", "addressRegion": "QC", "addressCountry": "CA" },
+  "areaServed": "Worldwide",
+  "knowsLanguage": ["en", "fr"],
+  "makesOffer": [
+    { "@type": "Offer", "itemOffered": { "@type": "SoftwareApplication", "name": "ProGain Coach", "applicationCategory": "HealthApplication" } },
+    { "@type": "Offer", "itemOffered": { "@type": "SoftwareApplication", "name": "ProGain Markets", "applicationCategory": "FinanceApplication" } },
+    { "@type": "Offer", "itemOffered": { "@type": "SoftwareApplication", "name": "ProGain Sentinel", "applicationCategory": "SecurityApplication" } }
+  ]
+}
+</script>
+<style>
+:root{
+  --void:#070B09;         /* obsidian teinté vert — le noir ProGain */
+  --deep:#0B120E;         /* panneaux profonds */
+  --panel:#101A15;        /* cartes */
+  --jade:#2FD08C;         /* le vert ProGain, élevé en jade lumineux */
+  --jade-dim:#1A7A4F;     /* leur vert d'origine, pour les états calmes */
+  --amber:#E8B44C;        /* Markets */
+  --steel:#6FA8DC;        /* Sentinel */
+  --bone:#EDF3EE;         /* texte principal sur sombre */
+  --bone-dim:#93A79A;     /* texte secondaire */
+  --hair:rgba(237,243,238,.08);
+  --paper:#F4F6F3;        /* la section claire — écho de leur identité actuelle */
+  --ink:#0B120E;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:auto}
+html.lenis,html.lenis body{height:auto}
+.lenis.lenis-smooth{scroll-behavior:auto!important}
+body{background:var(--void);color:var(--bone);font-family:'Hanken Grotesk',sans-serif;font-weight:300;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+::selection{background:var(--jade);color:var(--void)}
+a{color:inherit}
+
+/* ── Curseur ── */
+.cur-ring{position:fixed;top:0;left:0;width:34px;height:34px;border:1.5px solid var(--jade);border-radius:50%;pointer-events:none;z-index:9999;opacity:0;transform:translate(-50%,-50%) scale(0);transition:width .3s cubic-bezier(.22,1,.36,1),height .3s cubic-bezier(.22,1,.36,1),opacity .25s}
+.cur-dot{position:fixed;top:0;left:0;width:4px;height:4px;background:var(--jade);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%)}
+body.cur-link .cur-ring{width:56px;height:56px;background:rgba(47,208,140,.06)}
+@media(hover:none){.cur-ring,.cur-dot{display:none}}
+
+/* ── Loader ── */
+#loader{position:fixed;inset:0;z-index:1000;background:var(--void);display:flex;align-items:center;justify-content:center;flex-direction:column;transition:transform 1s cubic-bezier(.76,0,.24,1)}
+#loader.done{transform:translateY(-101%);pointer-events:none}
+.load-word{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(34px,6vw,64px);letter-spacing:-.02em}
+.load-word .g{color:var(--jade)}
+.load-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--bone-dim);margin-top:14px;opacity:0}
+.load-bar{position:absolute;bottom:0;left:0;height:2px;background:var(--jade);width:0}
+
+/* ── Nav ── */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:22px clamp(20px,4vw,56px);opacity:0;pointer-events:none;transition:background .4s,padding .4s;}
+.nav.show{opacity:1;pointer-events:auto}
+.nav.scrolled{background:rgba(7,11,9,.82);backdrop-filter:blur(14px);padding-top:14px;padding-bottom:14px;border-bottom:1px solid var(--hair)}
+.nav-mark{font-family:'Fraunces',serif;font-weight:500;font-size:21px;letter-spacing:-.01em;text-decoration:none}
+.nav-mark .g{color:var(--jade)}
+.nav-links{display:flex;gap:34px;list-style:none}
+.nav-links a{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--bone-dim);text-decoration:none;transition:color .2s}
+.nav-links a:hover{color:var(--jade)}
+.nav-cta{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--void);background:var(--jade);padding:11px 22px;border-radius:3px;text-decoration:none;transition:transform .2s,background .2s}
+.nav-cta:hover{transform:translateY(-2px);background:var(--bone)}
+@media(max-width:820px){.nav-links{display:none}}
+
+/* ── Héros : réseau neuronal en canvas ── */
+.hero{position:relative;min-height:100vh;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+#net{position:absolute;inset:0;width:100%;height:100%}
+.hero-veil{position:absolute;inset:0;background:radial-gradient(ellipse 75% 65% at 50% 45%,transparent 0%,rgba(7,11,9,.82) 100%),linear-gradient(to bottom,rgba(7,11,9,.5) 0%,transparent 30%,transparent 62%,var(--void) 100%);pointer-events:none}
+.hero-inner{position:relative;z-index:2;text-align:center;padding:0 clamp(20px,5vw,64px);max-width:1000px;margin:0 auto}
+.hero-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.42em;text-transform:uppercase;color:var(--jade);margin-bottom:28px;opacity:0}
+.hero-title{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(44px,7.6vw,108px);line-height:1.02;letter-spacing:-.03em;margin-bottom:26px}
+.hero-title .l{display:block;overflow:hidden}
+.hero-title .l>span{display:inline-block;transform:translateY(110%)}
+.hero-title em{font-style:italic;color:var(--jade)}
+.hero-sub{font-size:clamp(15px,1.4vw,18px);line-height:1.75;color:var(--bone-dim);max-width:620px;margin:0 auto 38px;opacity:0}
+.hero-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;opacity:0}
+.btn-solid{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;background:var(--jade);color:var(--void);padding:15px 32px;border-radius:3px;text-decoration:none;transition:transform .2s,background .2s}
+.btn-solid:hover{transform:translateY(-2px);background:var(--bone)}
+.btn-ghost{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--bone);border:1px solid rgba(237,243,238,.25);padding:15px 32px;border-radius:3px;text-decoration:none;transition:border-color .2s,color .2s}
+.btn-ghost:hover{border-color:var(--jade);color:var(--jade)}
+.hero-strip{position:absolute;bottom:0;left:0;right:0;z-index:2;display:flex;justify-content:center;gap:clamp(26px,6vw,90px);padding:22px clamp(20px,4vw,56px);border-top:1px solid var(--hair);flex-wrap:wrap;opacity:0}
+.strip-item{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:var(--bone-dim)}
+.strip-item b{color:var(--bone);font-weight:500}
+
+/* ── Sections communes ── */
+section{position:relative}
+.wrap{max-width:1240px;margin:0 auto;padding:clamp(90px,13vh,170px) clamp(20px,5vw,64px)}
+.kicker{display:flex;align-items:center;gap:14px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--jade);margin-bottom:26px}
+.kicker::before{content:'';width:34px;height:1px;background:var(--jade);flex-shrink:0}
+.h2{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(32px,4.6vw,64px);line-height:1.06;letter-spacing:-.025em}
+.h2 em{font-style:italic;color:var(--jade)}
+.mask{display:block;overflow:hidden}
+.mask>span{display:block;transform:translateY(110%)}
+
+/* ── Manifesto : révélation mot à mot au scroll ── */
+#manifesto{background:var(--void)}
+.mani{font-family:'Fraunces',serif;font-weight:400;font-size:clamp(26px,3.6vw,52px);line-height:1.34;letter-spacing:-.015em;max-width:1000px}
+.mani .w{opacity:.14;transition:none}
+.mani em{font-style:italic;color:var(--jade)}
+.mani-tail{margin-top:34px;font-size:clamp(14px,1.3vw,17px);line-height:1.8;color:var(--bone-dim);max-width:560px}
+
+/* ── Produits ── */
+#products{background:var(--deep);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+.prod-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:64px}
+.prod{position:relative;background:var(--panel);border:1px solid var(--hair);border-radius:6px;padding:38px 32px 30px;display:flex;flex-direction:column;min-height:420px;transition:transform .35s cubic-bezier(.22,1,.36,1),border-color .35s,box-shadow .35s;overflow:hidden}
+.prod::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--acc,--jade);opacity:.85}
+.prod:hover{transform:translateY(-6px);border-color:rgba(237,243,238,.16);box-shadow:0 24px 60px -20px rgba(0,0,0,.6)}
+.prod-glow{position:absolute;top:-40%;right:-30%;width:80%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,var(--accSoft,rgba(47,208,140,.12)) 0%,transparent 70%);opacity:0;transition:opacity .5s;pointer-events:none}
+.prod:hover .prod-glow{opacity:1}
+.prod-code{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.22em;color:var(--acc);margin-bottom:22px}
+.prod-name{font-family:'Fraunces',serif;font-weight:500;font-size:27px;letter-spacing:-.01em;margin-bottom:6px}
+.prod-tag{font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.04em;color:var(--acc);margin-bottom:18px}
+.prod-desc{font-size:14.5px;line-height:1.75;color:var(--bone-dim);flex-grow:1}
+.prod-note{font-size:11.5px;color:rgba(147,167,154,.65);margin-top:12px;font-style:italic}
+.prod-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.pill{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;color:var(--bone-dim);border:1px solid var(--hair);padding:6px 12px;border-radius:100px}
+.pill.on{color:var(--acc);border-color:color-mix(in srgb,var(--acc) 40%,transparent)}
+@media(max-width:960px){.prod-grid{grid-template-columns:1fr}}
+
+/* ── Services (section claire — écho de leur identité) ── */
+#services{background:var(--paper);color:var(--ink)}
+#services .kicker{color:var(--jade-dim)}
+#services .kicker::before{background:var(--jade-dim)}
+#services .h2{color:var(--ink)}
+#services .h2 em{color:var(--jade-dim)}
+.svc-lead{margin-top:22px;font-size:clamp(15px,1.4vw,18px);line-height:1.8;color:rgba(11,18,14,.66);max-width:640px}
+.svc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0 44px;margin-top:60px}
+.svc{border-top:1px solid rgba(11,18,14,.9);padding:26px 0 40px;transition:border-color .3s}
+.svc:hover{border-top-color:var(--jade-dim)}
+.svc-num{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.2em;color:var(--jade-dim);margin-bottom:14px}
+.svc h3{font-family:'Fraunces',serif;font-weight:500;font-size:21px;margin-bottom:10px;letter-spacing:-.01em}
+.svc p{font-size:14px;line-height:1.75;color:rgba(11,18,14,.62)}
+@media(max-width:960px){.svc-grid{grid-template-columns:1fr}}
+
+/* ── Méthode : timeline ── */
+#method{background:var(--void)}
+.steps-wrap{display:grid;grid-template-columns:1fr 1.15fr;gap:clamp(44px,7vw,110px);align-items:start;margin-top:clamp(40px,6vh,80px)}
+.steps-left p{font-size:15px;line-height:1.8;color:var(--bone-dim);max-width:400px;margin-top:18px}
+.steps{position:relative}
+.steps::before{content:'';position:absolute;left:0;top:14px;bottom:14px;width:1px;background:linear-gradient(to bottom,rgba(47,208,140,.55),rgba(47,208,140,.08))}
+.step{position:relative;padding:clamp(20px,3vh,32px) 0 clamp(20px,3vh,32px) clamp(34px,3.5vw,54px)}
+.step::before{content:'';position:absolute;left:-3.5px;top:calc(clamp(20px,3vh,32px) + 14px);width:8px;height:8px;border-radius:50%;background:var(--jade)}
+.step-num{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.2em;color:var(--jade);margin-bottom:10px}
+.step-t{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(19px,1.7vw,24px);margin-bottom:8px}
+.step p{font-size:14px;line-height:1.75;color:var(--bone-dim);max-width:440px}
+@media(max-width:820px){.steps-wrap{grid-template-columns:1fr;gap:48px}}
+
+/* ── Fondateurs ── */
+#founders{background:var(--deep);border-top:1px solid var(--hair)}
+.found-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(44px,6vw,96px);align-items:center}
+.found-body{margin-top:26px;font-size:15.5px;line-height:1.85;color:var(--bone-dim);max-width:520px}
+.cred-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.cred{background:var(--panel);border:1px solid var(--hair);border-radius:6px;padding:24px 22px;transition:border-color .3s,transform .3s}
+.cred:hover{border-color:rgba(47,208,140,.35);transform:translateY(-3px)}
+.cred b{display:block;font-family:'Fraunces',serif;font-weight:500;font-size:18px;margin-bottom:8px}
+.cred span{font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.6;letter-spacing:.04em;color:var(--bone-dim);display:block}
+@media(max-width:820px){.found-grid{grid-template-columns:1fr}.cred-grid{grid-template-columns:1fr}}
+
+/* ── Kinetic ── */
+#kinetic{position:relative;background:var(--void);overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:88vh}
+.kn-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(47,208,140,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(47,208,140,.05) 1px,transparent 1px);background-size:56px 56px;pointer-events:none}
+.kn-inner{position:relative;z-index:2;text-align:center;padding:clamp(40px,8vh,80px) clamp(20px,5vw,64px)}
+.kn-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.44em;text-transform:uppercase;color:var(--jade);margin-bottom:clamp(16px,2.5vh,36px);opacity:0}
+.kn-word{font-family:'Fraunces',serif;font-weight:600;font-size:clamp(52px,14vw,220px);line-height:.9;letter-spacing:-.03em;color:var(--bone);user-select:none}
+.kn-sub{font-family:'IBM Plex Mono',monospace;margin-top:clamp(18px,2.5vh,40px);font-size:11px;letter-spacing:.38em;text-transform:uppercase;color:var(--bone-dim);opacity:0}
+
+/* ── CTA final ── */
+#contact{position:relative;background:var(--deep);text-align:center;overflow:hidden;border-top:1px solid var(--hair)}
+#net2{position:absolute;inset:0;width:100%;height:100%;opacity:.5}
+#contact .veil2{position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 50% 45%,transparent 0%,rgba(11,18,14,.9) 100%)}
+#contact .wrap{position:relative;z-index:2}
+.cta-line{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;color:var(--bone-dim);margin:26px 0 38px}
+.cta-line b{color:var(--jade);font-weight:500}
+
+/* ── Footer ── */
+footer{background:var(--void);border-top:1px solid var(--hair)}
+.foot{max-width:1240px;margin:0 auto;padding:64px clamp(20px,5vw,64px) 30px;display:grid;grid-template-columns:2fr 1fr 1fr;gap:44px}
+.foot-mark{font-family:'Fraunces',serif;font-weight:500;font-size:26px}
+.foot-mark .g{color:var(--jade)}
+.foot-tag{margin-top:14px;font-size:13.5px;line-height:1.7;color:var(--bone-dim);max-width:340px}
+.foot h4{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--jade);margin-bottom:16px}
+.foot a,.foot p{display:block;font-size:13.5px;color:var(--bone-dim);text-decoration:none;margin-bottom:9px;line-height:1.6}
+.foot a:hover{color:var(--jade)}
+.foot-bar{max-width:1240px;margin:0 auto;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:22px clamp(20px,5vw,64px) 30px;font-size:11.5px;color:rgba(147,167,154,.55)}
+.foot-bar a{color:var(--bone-dim);text-decoration:none;border-bottom:1px solid rgba(237,243,238,.2)}
+@media(max-width:820px){.foot{grid-template-columns:1fr;gap:32px}}
+
+@media(prefers-reduced-motion:reduce){
+  .mask>span,.hero-title .l>span{transform:none!important}
+  .hero-eyebrow,.hero-sub,.hero-actions,.hero-strip,.kn-eyebrow,.kn-sub{opacity:1!important}
+  .mani .w{opacity:1!important}
+}
+</style>
+</head>
+<body>
+
+<div class="cur-ring" id="curRing"></div>
+<div class="cur-dot" id="curDot"></div>
+
+<div id="loader">
+  <div class="load-word">Pro<span class="g">Gain</span>.ai</div>
+  <div class="load-sub" id="loadSub">Applied AI · Montréal</div>
+  <div class="load-bar" id="loadBar"></div>
+</div>
+
+<nav class="nav" id="nav">
+  <a class="nav-mark" href="#top">Pro<span class="g">Gain</span>.ai</a>
+  <ul class="nav-links">
+    <li><a href="#products">Products</a></li>
+    <li><a href="#services">Services</a></li>
+    <li><a href="#method">Method</a></li>
+    <li><a href="#founders">About</a></li>
+  </ul>
+  <a href="#contact" class="nav-cta">Talk to us</a>
+</nav>
+
+<!-- ════ HERO ════ -->
+<header class="hero" id="top">
+  <canvas id="net" aria-hidden="true"></canvas>
+  <div class="hero-veil" aria-hidden="true"></div>
+  <div class="hero-inner">
+    <p class="hero-eyebrow">AI Boutique · Montréal, Worldwide</p>
+    <h1 class="hero-title">
+      <span class="l"><span>Applied AI,</span></span>
+      <span class="l"><span>built to <em>ship</em>.</span></span>
+    </h1>
+    <p class="hero-sub">ProGain is a father and son AI boutique in Montréal. We design and sell our own AI applications — and we bring the same craft to companies anywhere that want AI working inside their business.</p>
+    <div class="hero-actions">
+      <a href="#products" class="btn-solid">Explore the apps</a>
+      <a href="#contact" class="btn-ghost">Talk to us about consulting</a>
+    </div>
+  </div>
+  <div class="hero-strip">
+    <span class="strip-item"><b>EN · FR</b> bilingual by design</span>
+    <span class="strip-item"><b>iOS · Android · Web</b> distribution</span>
+    <span class="strip-item"><b>Worldwide</b> consulting</span>
+  </div>
+</header>
+
+<!-- ════ MANIFESTO ════ -->
+<section id="manifesto"><div class="wrap">
+  <div class="kicker">Why we exist</div>
+  <p class="mani" id="mani">Most companies do not have an <em>AI problem</em>. They have a process that leaks time, a decision made on stale data, a customer who waits too long. We find where AI actually <em>pays off</em> — then we build it, and we ship it.</p>
+  <p class="mani-tail">No lab experiments that never leave the deck. No pilots that die in committee. Software that earns its place in your business, or it doesn't ship.</p>
+</div></section>
+
+<!-- ════ PRODUCTS ════ -->
+<section id="products"><div class="wrap">
+  <div class="kicker">Built in our studio</div>
+  <h2 class="h2"><span class="mask"><span>Three products.</span></span><span class="mask"><span>One <em>standard</em>.</span></span></h2>
+  <div class="prod-grid">
+    <div class="prod" style="--acc:#2FD08C;--accSoft:rgba(47,208,140,.14)">
+      <div class="prod-glow"></div>
+      <div class="prod-code">PG—01 / HEALTH</div>
+      <div class="prod-name">ProGain Coach</div>
+      <div class="prod-tag">Your nutrition and training, understood.</div>
+      <p class="prod-desc">An AI companion that counts calories from a photo, plans workouts around your life, and keeps weight loss honest.</p>
+      <div class="prod-pills"><span class="pill">App Store · soon</span><span class="pill">Google Play · soon</span><span class="pill on">Web · request access</span></div>
+    </div>
+    <div class="prod" style="--acc:#E8B44C;--accSoft:rgba(232,180,76,.13)">
+      <div class="prod-glow"></div>
+      <div class="prod-code">PG—02 / MARKETS</div>
+      <div class="prod-name">ProGain Markets</div>
+      <div class="prod-tag">See your commodities positions clearly.</div>
+      <p class="prod-desc">Analytics for traders of commodities and options on futures. Volatility, term structure, and scenario views in one workspace.</p>
+      <p class="prod-note">Educational analytics, not investment advice.</p>
+      <div class="prod-pills"><span class="pill on">Web · request access</span><span class="pill">macOS · Windows · soon</span></div>
+    </div>
+    <div class="prod" style="--acc:#6FA8DC;--accSoft:rgba(111,168,220,.13)">
+      <div class="prod-glow"></div>
+      <div class="prod-code">PG—03 / SECURITY</div>
+      <div class="prod-name">ProGain Sentinel</div>
+      <div class="prod-tag">Find the data leaks in your AI stack.</div>
+      <p class="prod-desc">Scans workflows, connectors, code, and app-building platforms for exposure of personal and sensitive information — then delivers a clear diagnostic with suggestions.</p>
+      <div class="prod-pills"><span class="pill on">Web · request access</span><span class="pill">macOS · Windows · soon</span></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ════ SERVICES (clair) ════ -->
+<section id="services"><div class="wrap">
+  <div class="kicker">Consulting</div>
+  <h2 class="h2"><span class="mask"><span>AI that earns its place</span></span><span class="mask"><span>in your <em>business</em>.</span></span></h2>
+  <p class="svc-lead">We find where AI actually pays off, then we build it and integrate it — quietly, inside the tools your team already uses.</p>
+  <div class="svc-grid">
+    <div class="svc"><div class="svc-num">S/01</div><h3>Opportunity assessment</h3><p>A clear reading of where AI creates value in your operation, and where it does not.</p></div>
+    <div class="svc"><div class="svc-num">S/02</div><h3>Hiring tools for HR</h3><p>Screening and evaluation assistants that read applications the way your best recruiter does.</p></div>
+    <div class="svc"><div class="svc-num">S/03</div><h3>AI receptionist &amp; sales rep</h3><p>Answers your clients with your inventory, calendar, price sheets, and client profiles at hand.</p></div>
+    <div class="svc"><div class="svc-num">S/04</div><h3>Knowledge assistants (RAG)</h3><p>Your documents become answers. Retrieval-augmented generation built on your company's own data.</p></div>
+    <div class="svc"><div class="svc-num">S/05</div><h3>AI training</h3><p>We teach your team to work with Claude and modern AI tools — hands on.</p></div>
+    <div class="svc"><div class="svc-num">S/06</div><h3>Integration &amp; automation</h3><p>AI connected to the tools your team already uses, working quietly in the background.</p></div>
+  </div>
+</div></section>
+
+<!-- ════ MÉTHODE ════ -->
+<section id="method"><div class="wrap">
+  <div class="kicker">How we work</div>
+  <h2 class="h2"><span class="mask"><span>From first call</span></span><span class="mask"><span>to software in <em>production</em>.</span></span></h2>
+  <div class="steps-wrap">
+    <div class="steps-left">
+      <p>The same discipline behind our own products, applied to yours. Small scope, fast proof, honest verdicts — and nothing ships until it holds the standard.</p>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="step-num">01 / ASSESS</div><div class="step-t">Find where AI pays off</div><p>We map your operation and give a straight verdict — including where AI is <i>not</i> worth it.</p></div>
+      <div class="step"><div class="step-num">02 / PROTOTYPE</div><div class="step-t">Prove it on your data</div><p>A working prototype on your real documents, calendars and price sheets — not a slide deck.</p></div>
+      <div class="step"><div class="step-num">03 / SHIP</div><div class="step-t">Put it in production</div><p>Deployed, monitored, and connected to the tools your team already lives in.</p></div>
+      <div class="step"><div class="step-num">04 / INTEGRATE</div><div class="step-t">Make it disappear</div><p>The best AI is invisible — it answers, files, drafts and flags in the background while your team works.</p></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ════ FONDATEURS ════ -->
+<section id="founders"><div class="wrap found-grid">
+  <div>
+    <div class="kicker">Who we are</div>
+    <h2 class="h2"><span class="mask"><span>Two founders.</span></span><span class="mask"><span>One <em>standard</em>.</span></span></h2>
+    <p class="found-body">A father and son team in Montréal. One builds like a mathematician, the other like an operator — every product and every client system passes both filters before it ships. Bilingual by design, from Montréal to anywhere.</p>
+  </div>
+  <div class="cred-grid">
+    <div class="cred"><b>MIT</b><span>Post-graduate studies — data science &amp; machine learning</span></div>
+    <div class="cred"><b>UT Austin</b><span>Post-graduate program — generative &amp; agentic AI</span></div>
+    <div class="cred"><b>Université de Montréal</b><span>B.Sc. Mathematics</span></div>
+    <div class="cred"><b>Université de Sherbrooke</b><span>Business administration studies</span></div>
+  </div>
+</div></section>
+
+<!-- ════ KINETIC ════ -->
+<div id="kinetic">
+  <div class="kn-grid" aria-hidden="true"></div>
+  <div class="kn-inner">
+    <p class="kn-eyebrow">The only metric that matters</p>
+    <div class="kn-word" id="knWord">SHIPPED.</div>
+    <p class="kn-sub">Designed · Built · In production</p>
+  </div>
+</div>
+
+<!-- ════ CTA ════ -->
+<section id="contact">
+  <canvas id="net2" aria-hidden="true"></canvas>
+  <div class="veil2" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="kicker" style="justify-content:center">Start here</div>
+    <h2 class="h2"><span class="mask"><span>Tell us what slows</span></span><span class="mask"><span>your business <em>down</em>.</span></span></h2>
+    <p class="cta-line">From <b>Montréal</b> · in <b>English</b> and in <b>French</b> · for clients anywhere in the world</p>
+    <a href="mailto:hello@progain.ai" class="btn-solid">Start the conversation</a>
+  </div>
+</section>
+
+<footer>
+  <div class="foot">
+    <div>
+      <div class="foot-mark">Pro<span class="g">Gain</span>.ai</div>
+      <p class="foot-tag">AI applications and AI integration consulting. Based in Montréal, serving clients worldwide in English and French.</p>
+    </div>
+    <div>
+      <h4>Company</h4>
+      <a href="#services">Services</a><a href="#products">Products</a><a href="#founders">About</a><a href="#contact">Contact</a>
+    </div>
+    <div>
+      <h4>Products</h4>
+      <a href="#products">ProGain Coach</a><a href="#products">ProGain Markets</a><a href="#products">ProGain Sentinel</a>
+    </div>
+  </div>
+  <div class="foot-bar">
+    <span>© 2026 ProGain.ai — ProGain Markets provides educational analytics, not investment advice.</span>
+    <span>Concept by <a href="https://novalisia.ca" target="_blank" rel="noopener">Novalis Studio</a></span>
+  </div>
+</footer>
+
+<script src="vendor/lenis.min.js"></script>
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/ScrollTrigger.min.js"></script>
+<script>
+// Mode dégradé : tout doit rester lisible sans GSAP
+if(typeof gsap==='undefined'||typeof ScrollTrigger==='undefined'){
+  const s=document.createElement('style');
+  s.textContent='#loader{display:none}.nav{opacity:1;pointer-events:auto;background:rgba(7,11,9,.9)}.mask>span,.hero-title .l>span{transform:none}.hero-eyebrow,.hero-sub,.hero-actions,.hero-strip,.kn-eyebrow,.kn-sub{opacity:1}.mani .w{opacity:1}';
+  document.head.appendChild(s);
+  console.warn('GSAP indisponible — mode dégradé');
+}else{
+gsap.registerPlugin(ScrollTrigger);
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ── Lenis ──
+let lenis=null;
+if(typeof Lenis!=='undefined'&&!reduce){
+  lenis=new Lenis({duration:1.5,smoothWheel:true});
+  lenis.on('scroll',ScrollTrigger.update);
+  gsap.ticker.add(t=>lenis.raf(t*1000));
+  gsap.ticker.lagSmoothing(0);
+}
+
+// ── Réseau neuronal en canvas (héros + CTA) ──
+// Pur canvas 2D, zéro dépendance : des nœuds qui dérivent lentement,
+// reliés quand ils sont proches — l'image de marque d'une maison d'IA.
+function neuralNet(canvasId,{count=70,drift=.16,linkDist=150,mouse=true}={}){
+  const cv=document.getElementById(canvasId);
+  if(!cv)return;
+  const ctx=cv.getContext('2d');
+  let w,h,nodes=[],mx=-9999,my=-9999,raf=null,visible=false;
+  function размер(){} // (garde-fou nommage — jamais appelé)
+  function resize(){
+    const r=cv.getBoundingClientRect();
+    w=cv.width=Math.round(r.width*devicePixelRatio);
+    h=cv.height=Math.round(r.height*devicePixelRatio);
+  }
+  function init(){
+    resize();
+    nodes=Array.from({length:count},()=>({
+      x:Math.random()*w,y:Math.random()*h,
+      vx:(Math.random()-.5)*drift*devicePixelRatio,
+      vy:(Math.random()-.5)*drift*devicePixelRatio,
+      r:(Math.random()*1.4+.8)*devicePixelRatio
+    }));
+  }
+  function tick(){
+    if(!visible){raf=null;return;}
+    ctx.clearRect(0,0,w,h);
+    const ld=linkDist*devicePixelRatio;
+    for(const n of nodes){
+      n.x+=n.vx;n.y+=n.vy;
+      if(n.x<0||n.x>w)n.vx*=-1;
+      if(n.y<0||n.y>h)n.vy*=-1;
+    }
+    ctx.lineWidth=1;
+    for(let i=0;i<nodes.length;i++){
+      for(let j=i+1;j<nodes.length;j++){
+        const a=nodes[i],b=nodes[j];
+        const dx=a.x-b.x,dy=a.y-b.y,d=Math.hypot(dx,dy);
+        if(d<ld){
+          ctx.strokeStyle=`rgba(47,208,140,${(1-d/ld)*.16})`;
+          ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+        }
+      }
+      const n=nodes[i];
+      const md=Math.hypot(n.x-mx,n.y-my);
+      const lit=md<180*devicePixelRatio;
+      ctx.fillStyle=lit?'rgba(47,208,140,.9)':'rgba(47,208,140,.45)';
+      ctx.beginPath();ctx.arc(n.x,n.y,lit?n.r*1.6:n.r,0,Math.PI*2);ctx.fill();
+    }
+    raf=requestAnimationFrame(tick);
+  }
+  if(mouse){
+    addEventListener('mousemove',e=>{
+      const r=cv.getBoundingClientRect();
+      mx=(e.clientX-r.left)*devicePixelRatio;my=(e.clientY-r.top)*devicePixelRatio;
+    },{passive:true});
+  }
+  addEventListener('resize',()=>{resize();},{passive:true});
+  // pause hors écran (performance)
+  new IntersectionObserver(es=>es.forEach(e=>{
+    visible=e.isIntersecting;
+    if(visible&&!raf)raf=requestAnimationFrame(tick);
+  }),{rootMargin:'10%'}).observe(cv);
+  init();
+}
+if(!reduce){neuralNet('net');neuralNet('net2',{count:44,linkDist:130,mouse:false});}
+
+// ── Loader ──
+(function(){
+  const loader=document.getElementById('loader'),bar=document.getElementById('loadBar'),sub=document.getElementById('loadSub');
+  if(lenis)lenis.stop();document.body.style.overflow='hidden';
+  function finish(){
+    loader.classList.add('done');document.body.style.overflow='';
+    if(lenis)lenis.start();
+    document.getElementById('nav').classList.add('show');
+    if(scrollY<innerHeight*.4){
+      gsap.to('.hero-eyebrow',{opacity:1,duration:.9,delay:.55,ease:'power2.out'});
+      gsap.to('.hero-title .l>span',{y:0,duration:1.25,stagger:.14,delay:.35,ease:'power3.out'});
+      gsap.to('.hero-sub',{opacity:1,duration:1,delay:1.0,ease:'power2.out'});
+      gsap.to('.hero-actions',{opacity:1,duration:1,delay:1.25,ease:'power2.out'});
+      gsap.to('.hero-strip',{opacity:1,duration:1,delay:1.5,ease:'power2.out'});
+    }else{
+      gsap.set('.hero-eyebrow,.hero-sub,.hero-actions,.hero-strip',{opacity:1});
+      gsap.set('.hero-title .l>span',{y:0});
+    }
+  }
+  if(reduce){loader.style.display='none';document.body.style.overflow='';document.getElementById('nav').classList.add('show');return;}
+  gsap.to(sub,{opacity:1,duration:.7,delay:.2});
+  gsap.to(bar,{width:'100%',duration:1.4,ease:'power2.inOut',delay:.1,onComplete:()=>setTimeout(finish,180)});
+  setTimeout(finish,2600);
+})();
+
+// Nav scrolled
+addEventListener('scroll',()=>{document.getElementById('nav').classList.toggle('scrolled',scrollY>60);},{passive:true});
+
+// Ancres via Lenis
+document.querySelectorAll('a[href^="#"]').forEach(a=>{
+  a.addEventListener('click',e=>{const id=a.getAttribute('href');if(id.length>1&&lenis&&document.querySelector(id)){e.preventDefault();lenis.scrollTo(id,{offset:-10});}});
+});
+
+// ── Manifesto : mot à mot au scrub ──
+(function(){
+  const el=document.getElementById('mani');
+  const walk=node=>{
+    [...node.childNodes].forEach(ch=>{
+      if(ch.nodeType===3){
+        const frag=document.createDocumentFragment();
+        ch.textContent.split(/(\s+)/).forEach(part=>{
+          if(/^\s+$/.test(part)||part===''){frag.appendChild(document.createTextNode(part));}
+          else{const s=document.createElement('span');s.className='w';s.textContent=part;frag.appendChild(s);}
+        });
+        node.replaceChild(frag,ch);
+      }else if(ch.nodeType===1){walk(ch);}
+    });
+  };
+  walk(el);
+  gsap.to('#mani .w',{opacity:1,stagger:.06,ease:'none',
+    scrollTrigger:{trigger:'#manifesto',start:'top 72%',end:'center 45%',scrub:1}});
+})();
+
+// ── Reveals de titres par masque ──
+document.querySelectorAll('.h2 .mask>span').forEach((s,i)=>{
+  gsap.to(s,{y:0,duration:1.1,delay:(i%2)*.14,ease:'power3.out',
+    scrollTrigger:{trigger:s.closest('section,div'),start:'top 78%',once:true}});
+});
+
+// ── Cascades ──
+function stagger(sel,trigger){
+  gsap.fromTo(sel,{opacity:0,y:30},{opacity:1,y:0,duration:.9,stagger:.12,ease:'power3.out',
+    scrollTrigger:{trigger,start:'top 76%',once:true}});
+}
+stagger('.prod','.prod-grid');
+stagger('.svc','.svc-grid');
+stagger('.step','.steps');
+stagger('.cred','.cred-grid');
+
+// ── Pushback cinématique (GPU only) ──
+['#manifesto','#products','#services','#method','#founders','#kinetic'].forEach(sel=>{
+  const el=document.querySelector(sel);
+  if(!el)return;
+  gsap.fromTo(el,{scale:1,opacity:1},{scale:.965,opacity:.5,ease:'none',transformOrigin:'50% 12%',
+    scrollTrigger:{trigger:el,start:'bottom 88%',end:'bottom 22%',scrub:true}});
+});
+
+// ── SHIPPED. : convergence de lettres + scramble ──
+gsap.fromTo('#knWord',{letterSpacing:'.4em',scale:1.04},{letterSpacing:'-0.03em',scale:1,ease:'none',
+  scrollTrigger:{trigger:'#kinetic',start:'top bottom',end:'center 55%',scrub:true}});
+gsap.to('.kn-eyebrow',{opacity:1,duration:.8,scrollTrigger:{trigger:'#kinetic',start:'top 60%',once:true}});
+gsap.to('.kn-sub',{opacity:1,duration:.8,delay:.3,scrollTrigger:{trigger:'#kinetic',start:'top 60%',once:true}});
+(function(){
+  const el=document.getElementById('knWord');
+  if(!el||reduce)return;
+  const glyphs='01<>/{}[]#&$%@';
+  const target=el.textContent;
+  let done=false;
+  ScrollTrigger.create({trigger:'#kinetic',start:'top 55%',once:true,onEnter:()=>{
+    if(done)return;done=true;
+    let frame=0;const total=26;
+    const fixed=target.split('');
+    const iv=setInterval(()=>{
+      frame++;
+      const p=frame/total;
+      el.textContent=fixed.map((ch,i)=>{
+        if(ch===' '||ch==='.')return ch;
+        if(i<p*fixed.length)return ch;
+        return glyphs[(i*7+frame*13)%glyphs.length];
+      }).join('');
+      if(frame>=total){clearInterval(iv);el.textContent=target;}
+    },42);
+  }});
+})();
+
+// ── Curseur ──
+(function(){
+  if(matchMedia('(hover: none)').matches||reduce)return;
+  const ring=document.getElementById('curRing'),dot=document.getElementById('curDot');
+  let rx=0,ry=0,tx=0,ty=0;
+  addEventListener('mousemove',e=>{tx=e.clientX;ty=e.clientY;dot.style.left=tx+'px';dot.style.top=ty+'px';ring.style.opacity=1;ring.style.transform='translate(-50%,-50%) scale(1)';},{passive:true});
+  gsap.ticker.add(()=>{rx+=(tx-rx)*.14;ry+=(ty-ry)*.14;ring.style.left=rx+'px';ring.style.top=ry+'px';});
+  document.querySelectorAll('a,button,.prod,.svc,.cred').forEach(el=>{
+    el.addEventListener('mouseenter',()=>document.body.classList.add('cur-link'));
+    el.addEventListener('mouseleave',()=>document.body.classList.remove('cur-link'));
+  });
+})();
+}
+</script>
+</body>
+</html>
