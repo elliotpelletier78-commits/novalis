@@ -1879,6 +1879,65 @@ app.get('/core/costs', adminOnly, coreReady, (req, res) => {
   res.json({ mois_courant: core.llm.rollupMois() });
 });
 
+// ── Formulaire de contact des sites vitrines ─────────────────────
+// Public par nécessité (un formulaire doit être soumissible), donc
+// durci : limite de débit par IP, plafonds de taille, piège à robots
+// côté client, et aucune donnée renvoyée dans la réponse.
+const leadHits = new Map();
+function leadRateLimit(req, res, next) {
+  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  const now = Date.now();
+  const win = 10 * 60 * 1000, max = 5;
+  const hits = (leadHits.get(ip) || []).filter(t => now - t < win);
+  if (hits.length >= max) return res.status(429).json({ error: 'Trop de soumissions, réessayez plus tard.' });
+  hits.push(now);
+  leadHits.set(ip, hits);
+  if (leadHits.size > 5000) leadHits.clear(); // garde-fou mémoire
+  req._leadIp = ip;
+  next();
+}
+
+app.post('/api/:site/contact', leadRateLimit, express.json({ limit: '32kb' }), (req, res) => {
+  const site = String(req.params.site || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(site)) return res.status(400).json({ error: 'Site invalide' });
+  const b = req.body || {};
+  const nom = String(b.name || '').trim().slice(0, 120);
+  const courriel = String(b.email || '').trim().slice(0, 180);
+  const message = String(b.message || '').trim().slice(0, 4000);
+  const entreprise = String(b.company || '').trim().slice(0, 140) || null;
+  const sujets = Array.isArray(b.topics) ? JSON.stringify(b.topics.slice(0, 12).map(s => String(s).slice(0, 40))) : null;
+  const langue = /^(en|fr)$/.test(b.lang) ? b.lang : null;
+
+  if (!nom || !message || message.length < 10) return res.status(400).json({ error: 'Champs requis manquants' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(courriel)) return res.status(400).json({ error: 'Courriel invalide' });
+
+  try {
+    const ipHash = require('crypto').createHash('sha256')
+      .update(String(req._leadIp) + (process.env.MASTER_KEY || 'sel')).digest('hex').slice(0, 16);
+    const info = db.prepare(`INSERT INTO leads (source, nom, courriel, entreprise, message, sujets, langue, ip_hash)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(site, nom, courriel, entreprise, message, sujets, langue, ipHash);
+    console.log(`[lead:${site}] #${info.lastInsertRowid} ${nom} <${courriel}>`);
+    // Alerte immédiate : un prospect qui écrit ne doit pas attendre.
+    if (core && core.alerter) {
+      core.alerter.alert(`Nouveau message — ${site}`,
+        `${nom}${entreprise ? ' (' + entreprise + ')' : ''} · ${courriel}\n${message.slice(0, 400)}`);
+    }
+    res.status(201).json({ ok: true });
+  } catch (e) {
+    console.error('[lead] erreur:', e.message);
+    res.status(500).json({ error: 'Enregistrement impossible' });
+  }
+});
+
+// Consultation des messages reçus (admin).
+app.get('/core/leads', adminOnly, coreReady, (req, res) => {
+  const site = req.query.site ? String(req.query.site).slice(0, 40) : null;
+  const rows = site
+    ? db.prepare('SELECT * FROM leads WHERE source = ? ORDER BY id DESC LIMIT 200').all(site)
+    : db.prepare('SELECT * FROM leads ORDER BY id DESC LIMIT 200').all();
+  res.json({ leads: rows.map(r => ({ ...r, sujets: r.sujets ? JSON.parse(r.sujets) : [] })) });
+});
+
 // Coffre : écrire un credential client (la valeur n'est JAMAIS relisible
 // via HTTP — get n'existe volontairement pas ici, seulement la liste des noms).
 app.post('/core/credentials', adminOnly, coreReady, (req, res) => {
