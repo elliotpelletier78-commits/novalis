@@ -1,0 +1,90 @@
+name: prospect-check
+# Reconnaissance d'un site prospect : le runner (réseau ouvert) télécharge
+# le HTML, capture des écrans desktop/mobile à plusieurs positions de
+# scroll, et publie le tout dans la branche site-checks (dossier
+# out-prospect/). L'URL cible est lue depuis .prospect-check-trigger.
+on:
+  push:
+    paths: ['.prospect-check-trigger']
+
+permissions:
+  contents: write
+
+jobs:
+  recon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lire la cible
+        id: cible
+        run: |
+          URL=$(head -1 .prospect-check-trigger | tr -d '[:space:]')
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Cible: $URL"
+
+      - name: Télécharger le HTML
+        run: |
+          curl -sSL --max-time 30 -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" \
+            "${{ steps.cible.outputs.url }}" -o page.html || echo "ERREUR" > page.html
+          wc -c page.html
+
+      - name: Captures d'écran
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm i playwright@1.49.1 >/dev/null 2>&1
+          cat > shot.js << 'EOF'
+          const { chromium } = require('playwright');
+          (async () => {
+            const url = process.env.CIBLE;
+            const browser = await chromium.launch({ channel: 'chrome' });
+            // Desktop
+            const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+            const errors = [];
+            page.on('pageerror', e => errors.push(e.message));
+            await page.goto(url, { waitUntil: 'networkidle', timeout: 45000 }).catch(e => errors.push('goto: ' + e.message));
+            await page.waitForTimeout(4000);
+            const h = await page.evaluate(() => document.documentElement.scrollHeight);
+            const positions = [0, .25, .5, .75, 1];
+            for (let i = 0; i < positions.length; i++) {
+              await page.evaluate(y => window.scrollTo(0, y), Math.round(positions[i] * Math.max(0, h - 900)));
+              await page.waitForTimeout(1500);
+              await page.screenshot({ path: `pshot-d${i}.jpg`, type: 'jpeg', quality: 45 });
+            }
+            // Mobile
+            const mob = await browser.newPage({ viewport: { width: 390, height: 844 }, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15' });
+            await mob.goto(url, { waitUntil: 'networkidle', timeout: 45000 }).catch(() => {});
+            await mob.waitForTimeout(3000);
+            await mob.screenshot({ path: 'pshot-mobile.jpg', type: 'jpeg', quality: 45 });
+            const info = await page.evaluate(() => ({
+              title: document.title,
+              metaDesc: document.querySelector('meta[name=description]')?.content || null,
+              h1: [...document.querySelectorAll('h1,h2')].slice(0, 12).map(e => e.textContent.trim().slice(0, 120)),
+              liens: [...document.querySelectorAll('a[href]')].slice(0, 40).map(a => a.getAttribute('href')),
+              scrollH: document.documentElement.scrollHeight,
+            }));
+            require('fs').writeFileSync('prospect-info.json', JSON.stringify({ url, info, errors }, null, 1));
+            await browser.close();
+          })();
+          EOF
+          CIBLE="${{ steps.cible.outputs.url }}" node shot.js || true
+
+      - name: Publier dans site-checks
+        if: always()
+        run: |
+          git config user.name "prospect-check"
+          git config user.email "prospect-check@users.noreply.github.com"
+          mkdir -p out-prospect
+          mv -f pshot-*.jpg prospect-info.json page.html out-prospect/ 2>/dev/null || true
+          git fetch origin site-checks || true
+          # Conserver le contenu existant de la branche (out/ des site-checks)
+          if git checkout site-checks 2>/dev/null; then
+            git add -f out-prospect
+          else
+            git checkout --orphan site-checks
+            git rm -rf --cached . >/dev/null 2>&1 || true
+            git add -f out-prospect
+          fi
+          git commit -m "prospect-check $(date -u +%Y-%m-%dT%H:%M:%SZ)" || echo "rien à committer"
+          git push -f origin site-checks
