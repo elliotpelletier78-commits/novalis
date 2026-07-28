@@ -1,0 +1,45 @@
+{
+ "url": "https://progain-ai-staging.netlify.app/",
+ "info": {
+  "title": "ProGain · Applied AI, built to ship",
+  "metaDesc": "ProGain is a Montreal AI boutique. We design and sell AI applications for health, markets, and security, and we integrate AI into businesses worldwide.",
+  "h1": [
+   "Applied AI, built to ship.",
+   "Built in our studio.",
+   "AI that earns its place in your business.",
+   "Two founders. One standard.",
+   "Tell us what slows your business down."
+  ],
+  "liens": [
+   "/",
+   "/services/",
+   "/products/",
+   "/about/",
+   "/contact/",
+   "/",
+   "/fr/",
+   "/contact/",
+   "/services/",
+   "/products/",
+   "/about/",
+   "/contact/",
+   "/products/",
+   "/services/",
+   "/products/progain-coach/",
+   "/products/progain-markets/",
+   "/products/progain-sentinel/",
+   "/contact/",
+   "/",
+   "/services/",
+   "/products/",
+   "/about/",
+   "/contact/",
+   "/products/progain-coach/",
+   "/products/progain-markets/",
+   "/products/progain-sentinel/",
+   "/legal/"
+  ],
+  "scrollH": 3720
+ },
+ "errors": []
+}
