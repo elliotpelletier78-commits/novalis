@@ -403,14 +403,79 @@ const PG = (() => {
     });
   }
 
+  /* ── Moment signature : le nom comme fenêtre sur le réseau ────
+     Un <text> SVG utilisé comme masque : le canvas du réseau neuronal
+     n'est visible qu'à travers les lettres. La marque devient
+     littéralement ce qu'elle fabrique.                              */
+  function initNetmask() {
+    const box = document.querySelector('.netmask');
+    if (!box) return;
+    const svg = box.querySelector('svg');
+    const label = box.dataset.word || 'ProGain';
+    const id = 'nm' + Math.random().toString(36).slice(2, 8);
+    // Le rectangle opaque (couleur de fond) cache le canvas partout
+    // SAUF où le masque est noir : le texte, en noir, y perce une
+    // fenêtre. Le réseau derrière ne devient visible qu'à travers
+    // les lettres — la marque littéralement faite de son produit.
+    svg.innerHTML = `
+      <defs>
+        <mask id="${id}">
+          <rect width="100%" height="100%" fill="white"/>
+          <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
+            font-family="Fraunces, serif" font-weight="600" font-size="${box.dataset.size || '15vw'}"
+            fill="black">${label}</text>
+        </mask>
+      </defs>
+      <rect width="100%" height="100%" fill="var(--void)" mask="url(#${id})"/>`;
+  }
+
+  /* ── Piste horizontale de produits, pilotée par le scroll ─────
+     La section reste épinglée en plein écran pendant que la rangée
+     de cartes défile horizontalement au rythme du scroll vertical —
+     le tour de force qui manque le plus aux sites « une colonne ».  */
+  function initTrack() {
+    const pin = document.querySelector('.track-pin');
+    const track = document.querySelector('.track');
+    if (!pin || !track || !hasGsap || RM) return;
+    // --gut est un clamp() : getComputedStyle sur la custom property
+    // renvoie la chaîne NON résolue ("clamp(20px,5vw,64px)"), pas un
+    // pixel. On lit plutôt le padding-left réellement calculé du
+    // conteneur, qui lui est toujours une valeur en pixels correcte.
+    const gutPx = () => {
+      const w = document.querySelector('.wrap') || document.body;
+      return parseFloat(getComputedStyle(w).paddingLeft) || 24;
+    };
+    const distance = () => Math.max(0, track.scrollWidth - innerWidth + 2 * gutPx());
+    gsap.to(track, {
+      x: () => -distance(),
+      ease: 'none',
+      scrollTrigger: {
+        trigger: pin.closest('.track-sec'), start: 'top top', end: () => '+=' + distance(),
+        scrub: true, pin: true, anticipatePin: 1, invalidateOnRefresh: true,
+      },
+    });
+  }
+
+  /* ── Chiffres fantômes : parallaxe très lente ────────────────── */
+  function initGhosts() {
+    if (!hasGsap) return;
+    document.querySelectorAll('.ghost').forEach(g => {
+      gsap.fromTo(g, { yPercent: -6 }, { yPercent: 6, ease: 'none',
+        scrollTrigger: { trigger: g.closest('section'), start: 'top bottom', end: 'bottom top', scrub: true } });
+    });
+  }
+
   /* ── Démarrage ───────────────────────────────────────────────── */
   function boot() {
     initLang(); initNav(); initAnchors(); initTransitions(); initProgress();
     initCursor(); initLoader(); initReveals(); initStats(); initKinetic();
-    initFaq(); initCopy();
+    initFaq(); initCopy(); initNetmask(); initTrack(); initGhosts();
     if (document.getElementById('net')) neuralNet('net');
     if (document.getElementById('net2')) neuralNet('net2', { count: 52, linkDist: 140, drift: .1, mouse: false });
     if (document.getElementById('net3')) neuralNet('net3', { count: 40, linkDist: 130, drift: .09, mouse: false, pulses: true });
+    // Plus dense que les autres réseaux : les nœuds doivent remplir
+    // les lettres, pas seulement flotter dans la boîte qui les entoure.
+    if (document.getElementById('netmaskCv')) neuralNet('netmaskCv', { count: 220, linkDist: 90, drift: .14, mouse: true, pulses: true });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
