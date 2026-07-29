@@ -174,6 +174,7 @@ ${CTA}`;
 function productPage({ id, acc, accSoft, crumb, crumbFr, h1a, h1aFr, h1b, h1bFr, lead, leadFr,
                        mock, feats, lab, labId, faq, note, noteFr }) {
   return `<header class="phead">
+  <canvas id="phnet" class="phnet" data-acc="${acc}" aria-hidden="true"></canvas>
   <div class="phead-grid" aria-hidden="true"></div>
   <div class="phead-in">
     <div class="crumb"><a href="index.html">ProGain</a> / <a href="products.html" data-fr="Produits">Products</a> / <span data-fr="${esc(crumbFr)}">${crumb}</span></div>

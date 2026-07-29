@@ -193,10 +193,16 @@ const PG = (() => {
      déplace la caméra, ce qui crée une parallaxe entre les plans.
      Des impulsions voyagent le long des liens : le réseau « pense ».
      DPR plafonné à 2 et rendu suspendu hors écran.                 */
+  function hex2rgb(hex) {
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
+    return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [47, 208, 140];
+  }
   function neuralNet(canvasId, opt) {
-    const o = Object.assign({ count: 88, drift: .13, linkDist: 155, mouse: true, pulses: true }, opt || {});
+    const o = Object.assign({ count: 88, drift: .13, linkDist: 155, mouse: true, pulses: true, color: '#2FD08C' }, opt || {});
     const cv = document.getElementById(canvasId);
     if (!cv || RM) return;
+    const [cr, cg, cb] = hex2rgb(o.color);
+    const lit = [Math.min(255, cr + 113), Math.min(255, cg + 47), Math.min(255, cb + 65)];
     const ctx = cv.getContext('2d', { alpha: true });
     let w = 0, h = 0, dpr = 1, nodes = [], links = [], sig = [],
         camX = 0, camY = 0, tCamX = 0, tCamY = 0, mx = -9999, my = -9999,
@@ -237,7 +243,7 @@ const PG = (() => {
           const d = Math.hypot(a._x - b._x, a._y - b._y);
           if (d < o.linkDist && Math.abs(a.z - b.z) < 260) {
             const alpha = (1 - d / o.linkDist) * .2 * ((a._s + b._s) / 2);
-            ctx.strokeStyle = 'rgba(47,208,140,' + alpha.toFixed(3) + ')';
+            ctx.strokeStyle = 'rgba(' + cr + ',' + cg + ',' + cb + ',' + alpha.toFixed(3) + ')';
             ctx.lineWidth = Math.max(.4, (a._s + b._s) / 2);
             ctx.beginPath(); ctx.moveTo(a._x, a._y); ctx.lineTo(b._x, b._y); ctx.stroke();
             if (links.length < 420) links.push([a, b]);
@@ -254,17 +260,17 @@ const PG = (() => {
           if (s.t >= 1) { sig.splice(k, 1); continue; }
           const x = s.a._x + (s.b._x - s.a._x) * s.t, y = s.a._y + (s.b._y - s.a._y) * s.t;
           const fade = Math.sin(s.t * Math.PI);
-          ctx.beginPath(); ctx.fillStyle = 'rgba(140,255,205,' + (fade * .85).toFixed(3) + ')';
+          ctx.beginPath(); ctx.fillStyle = 'rgba(' + lit[0] + ',' + lit[1] + ',' + lit[2] + ',' + (fade * .85).toFixed(3) + ')';
           ctx.arc(x, y, 1.9 * fade + .5, 0, Math.PI * 2); ctx.fill();
         }
       }
       for (const n of nodes) {
-        const lit = Math.hypot(n._x - mx, n._y - my) < 150;
-        const r = Math.max(.5, n.r * n._s * (lit ? 2.1 : 1));
+        const near = Math.hypot(n._x - mx, n._y - my) < 150;
+        const r = Math.max(.5, n.r * n._s * (near ? 2.1 : 1));
         ctx.beginPath();
-        ctx.fillStyle = lit ? 'rgba(160,255,212,.95)' : 'rgba(47,208,140,' + (.22 + n._s * .5).toFixed(3) + ')';
+        ctx.fillStyle = near ? 'rgba(' + lit[0] + ',' + lit[1] + ',' + lit[2] + ',.95)' : 'rgba(' + cr + ',' + cg + ',' + cb + ',' + (.22 + n._s * .5).toFixed(3) + ')';
         ctx.arc(n._x, n._y, r, 0, Math.PI * 2); ctx.fill();
-        if (lit) { ctx.beginPath(); ctx.fillStyle = 'rgba(47,208,140,.1)'; ctx.arc(n._x, n._y, r * 3.4, 0, Math.PI * 2); ctx.fill(); }
+        if (near) { ctx.beginPath(); ctx.fillStyle = 'rgba(' + cr + ',' + cg + ',' + cb + ',.1)'; ctx.arc(n._x, n._y, r * 3.4, 0, Math.PI * 2); ctx.fill(); }
       }
       raf = requestAnimationFrame(tick);
     };
@@ -465,17 +471,97 @@ const PG = (() => {
     });
   }
 
+  /* ── Manifeste : chaque mot s'éclaire au rythme du défilement ──
+     Un texte qu'on lit habituellement d'un coup devient une lecture
+     que le scroll rythme lui-même — le lecteur « active » la phrase
+     en descendant la page, comme chez Stripe ou Apple.               */
+  function initManifesto() {
+    const el = document.getElementById('mani');
+    if (!el) return;
+    let st = null;
+    const setup = () => {
+      if (st) { st.kill(); st = null; }
+      const walk = node => {
+        Array.from(node.childNodes).forEach(child => {
+          if (child.nodeType === 3) {
+            const frag = document.createDocumentFragment();
+            child.textContent.split(/(\s+)/).forEach(w => {
+              if (!w.trim()) { frag.appendChild(document.createTextNode(w)); return; }
+              const s = document.createElement('span');
+              s.className = 'w'; s.textContent = w;
+              frag.appendChild(s);
+            });
+            node.replaceChild(frag, child);
+          } else if (child.nodeType === 1) walk(child);
+        });
+      };
+      walk(el);
+      if (!hasGsap || RM) return;
+      const words = el.querySelectorAll('.w');
+      st = ScrollTrigger.create({
+        trigger: el, start: 'top 78%', end: 'bottom 52%', scrub: .4,
+        onUpdate: self => {
+          const n = words.length;
+          words.forEach((w, i) => { w.style.opacity = self.progress > i / n ? 1 : .24; });
+        },
+      });
+    };
+    setup();
+    document.addEventListener('pg:lang', setup);
+  }
+
+  /* ── Boutons magnétiques : le CTA se penche vers le curseur ──── */
+  function initMagnetic() {
+    if (RM || matchMedia('(hover: none)').matches) return;
+    document.querySelectorAll('.btn-solid, .nav-cta').forEach(b => {
+      if (b._mag) return; b._mag = 1;
+      let qx, qy;
+      if (hasGsap) { qx = gsap.quickTo(b, 'x', { duration: .35, ease: 'power3.out' }); qy = gsap.quickTo(b, 'y', { duration: .35, ease: 'power3.out' }); }
+      b.addEventListener('mousemove', e => {
+        const r = b.getBoundingClientRect();
+        const x = (e.clientX - r.left - r.width / 2) * .32, y = (e.clientY - r.top - r.height / 2) * .32;
+        if (hasGsap) { qx(x); qy(y); } else b.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+      });
+      b.addEventListener('mouseleave', () => { if (hasGsap) { qx(0); qy(0); } else b.style.transform = ''; });
+    });
+  }
+
+  /* ── Bascule 3D : les cartes suivent le curseur en perspective ── */
+  function initTilt() {
+    if (RM || matchMedia('(hover: none)').matches || !hasGsap) return;
+    document.querySelectorAll('.prod, .card').forEach(el => {
+      if (el._tilt) return; el._tilt = 1;
+      el.style.transition = 'border-color .35s, box-shadow .35s';
+      gsap.set(el, { transformPerspective: 800 });
+      const qrx = gsap.quickTo(el, 'rotationX', { duration: .5, ease: 'power3.out' });
+      const qry = gsap.quickTo(el, 'rotationY', { duration: .5, ease: 'power3.out' });
+      const qy = gsap.quickTo(el, 'y', { duration: .5, ease: 'power3.out' });
+      el.addEventListener('mousemove', e => {
+        const r = el.getBoundingClientRect();
+        const px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
+        qry((px - .5) * 9); qrx(-(py - .5) * 9);
+      });
+      el.addEventListener('mouseenter', () => qy(-6));
+      el.addEventListener('mouseleave', () => { qrx(0); qry(0); qy(0); });
+    });
+  }
+
   /* ── Démarrage ───────────────────────────────────────────────── */
   function boot() {
     initLang(); initNav(); initAnchors(); initTransitions(); initProgress();
     initCursor(); initLoader(); initReveals(); initStats(); initKinetic();
     initFaq(); initCopy(); initNetmask(); initTrack(); initGhosts();
+    initManifesto(); initMagnetic(); initTilt();
     if (document.getElementById('net')) neuralNet('net');
     if (document.getElementById('net2')) neuralNet('net2', { count: 52, linkDist: 140, drift: .1, mouse: false });
     if (document.getElementById('net3')) neuralNet('net3', { count: 40, linkDist: 130, drift: .09, mouse: false, pulses: true });
     // Plus dense que les autres réseaux : les nœuds doivent remplir
     // les lettres, pas seulement flotter dans la boîte qui les entoure.
     if (document.getElementById('netmaskCv')) neuralNet('netmaskCv', { count: 220, linkDist: 90, drift: .14, mouse: true, pulses: true });
+    // Chaque page produit reçoit le réseau teinté de sa propre couleur —
+    // la même signature que l'accueil, déclinée par produit.
+    const phnet = document.getElementById('phnet');
+    if (phnet) neuralNet('phnet', { count: 64, linkDist: 130, drift: .09, mouse: true, pulses: true, color: phnet.dataset.acc });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
