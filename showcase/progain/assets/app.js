@@ -583,6 +583,18 @@ const PG = (() => {
       const ring = []; for (let i = 0; i <= 24; i++) ring.push(toVec((i / 24) * 180 - 90, lon));
       gridLon.push(ring);
     }
+    // Nuage de points façon « réseau de données » réparti uniformément
+    // sur la sphère (distribution de Fibonacci) — donne au globe sa
+    // texture dense, plutôt qu'une simple grille filaire.
+    const MESH_N = 340, mesh = [], GOLD = Math.PI * (3 - Math.sqrt(5));
+    for (let i = 0; i < MESH_N; i++) {
+      const y = 1 - (i / (MESH_N - 1)) * 2, rad = Math.sqrt(Math.max(0, 1 - y * y)), th = GOLD * i;
+      // Un peu de bruit déterministe par point : certains « signalent »
+      // plus fort que d'autres, pour une texture organique plutôt qu'un
+      // semis parfaitement uniforme.
+      const twinkle = .55 + ((i * 2654435761) % 1000) / 1000 * .8;
+      mesh.push([Math.cos(th) * rad, y, Math.sin(th) * rad, twinkle]);
+    }
     const slerp = (a, b, t) => {
       const dot = Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
       const omega = Math.acos(dot);
@@ -592,9 +604,10 @@ const PG = (() => {
     };
 
     let w = 0, h = 0, dpr = 1, R = 0, cx = 0, cy = 0;
-    const TILT = 16 * Math.PI / 180;
-    const cosT = Math.cos(TILT), sinT = Math.sin(TILT);
-    let rot = .5, targetRot = .5, activeIdx = 0, cycleFrame = 0, visible = false, raf = null, dragging = false, lastX = 0;
+    const BASE_TILT = 16 * Math.PI / 180;
+    let cosT = Math.cos(BASE_TILT), sinT = Math.sin(BASE_TILT);
+    let rot = .5, targetRot = .5, vel = 0, dynTilt = 0, dynTiltTarget = 0,
+        activeIdx = 0, cycleFrame = 0, visible = false, raf = null, dragging = false, lastX = 0;
 
     const resize = () => {
       const r = box.getBoundingClientRect();
@@ -605,6 +618,9 @@ const PG = (() => {
       R = Math.min(w, h) * .36; cx = w / 2; cy = h / 2;
     };
 
+    // Une légère inclinaison supplémentaire suit la position du curseur
+    // même sans glisser — le globe reste vivant, jamais tout à fait figé.
+    const setTilt = () => { const t = BASE_TILT + dynTilt; cosT = Math.cos(t); sinT = Math.sin(t); };
     const tilted = v => [v[0], v[1] * cosT - v[2] * sinT, v[1] * sinT + v[2] * cosT];
     const spin = (v, a) => {
       const ca = Math.cos(a), sa = Math.sin(a);
@@ -675,9 +691,26 @@ const PG = (() => {
     scheduleCycle();
 
     const draw = () => {
+      setTilt();
       ctx.clearRect(0, 0, w, h);
+      // Halo atmosphérique + ombrage interne : donne du volume à la
+      // sphère avant même que la première ligne ne soit tracée.
+      const glow = ctx.createRadialGradient(cx, cy, R * .8, cx, cy, R * 1.34);
+      glow.addColorStop(0, 'rgba(47,208,140,0)'); glow.addColorStop(.65, 'rgba(47,208,140,.05)'); glow.addColorStop(1, 'rgba(47,208,140,0)');
+      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, R * 1.34, 0, Math.PI * 2); ctx.fill();
+      const shade = ctx.createRadialGradient(cx - R * .32, cy - R * .32, R * .08, cx, cy, R * 1.05);
+      shade.addColorStop(0, 'rgba(160,255,212,.07)'); shade.addColorStop(1, 'rgba(47,208,140,0)');
+      ctx.fillStyle = shade; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(47,208,140,.16)'; ctx.lineWidth = 1; ctx.stroke();
+      // Nuage de données : texture dense sur toute la sphère.
+      mesh.forEach(v => {
+        const p = project(spin(tilted(v), rot));
+        if (p.z < -.1) return;
+        const al = Math.max(.05, Math.min(.85, (.16 + p.z * .62) * v[3]));
+        ctx.beginPath(); ctx.fillStyle = 'rgba(47,208,140,' + al.toFixed(3) + ')';
+        ctx.arc(p.x, p.y, 1.35 * p.s, 0, Math.PI * 2); ctx.fill();
+      });
       const drawRing = ring => {
         for (let i = 0; i < ring.length - 1; i++) {
           const a = project(spin(tilted(ring[i]), rot)), b = project(spin(tilted(ring[i + 1]), rot));
@@ -725,7 +758,13 @@ const PG = (() => {
     const tick = () => {
       if (!visible) { raf = null; return; }
       cycleFrame++;
-      if (!dragging) {
+      dynTilt += (dynTiltTarget - dynTilt) * .045;
+      if (dragging) {
+        // le glissement pilote rot directement (voir mousemove)
+      } else if (Math.abs(vel) > .0003) {
+        // inertie : la sphère continue sur son élan puis ralentit
+        rot += vel; targetRot = rot; vel *= .945;
+      } else {
         let d = targetRot - rot; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
         rot += d * .04 + (RM ? 0 : .0009);
       }
@@ -733,18 +772,24 @@ const PG = (() => {
       raf = requestAnimationFrame(tick);
     };
 
-    box.addEventListener('mousedown', e => { dragging = true; lastX = e.clientX; box.style.cursor = 'grabbing'; });
+    box.addEventListener('mousedown', e => { dragging = true; vel = 0; lastX = e.clientX; box.style.cursor = 'grabbing'; });
     addEventListener('mousemove', e => {
+      const r = box.getBoundingClientRect();
+      const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      dynTiltTarget = (!dragging && inside) ? ((e.clientY - r.top) / r.height - .5) * .24 : (dragging ? dynTiltTarget : 0);
       if (!dragging) return;
       const dx = e.clientX - lastX; lastX = e.clientX;
-      rot += dx * .006; targetRot = rot;
+      const dr = Math.max(-.12, Math.min(.12, dx * .006));
+      rot += dr; targetRot = rot; vel = dr;
       if (RM) draw();
     }, { passive: true });
     addEventListener('mouseup', () => { dragging = false; box.style.cursor = 'grab'; });
-    box.addEventListener('touchstart', e => { dragging = true; lastX = e.touches[0].clientX; }, { passive: true });
+    box.addEventListener('touchstart', e => { dragging = true; vel = 0; lastX = e.touches[0].clientX; }, { passive: true });
     box.addEventListener('touchmove', e => {
       const dx = e.touches[0].clientX - lastX; lastX = e.touches[0].clientX;
-      rot += dx * .006; targetRot = rot; draw();
+      const dr = Math.max(-.12, Math.min(.12, dx * .006));
+      rot += dr; targetRot = rot; vel = dr;
+      draw();
     }, { passive: true });
     addEventListener('touchend', () => { dragging = false; }, { passive: true });
 

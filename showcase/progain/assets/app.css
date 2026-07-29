@@ -62,11 +62,20 @@ body.cur-link .cur-ring{width:56px;height:56px;background:rgba(47,208,140,.06)}
 .prog{position:fixed;top:0;left:0;height:2px;width:0;background:var(--jade);z-index:200;transition:width .1s linear}
 
 /* ════ Rideau de transition entre pages ════ */
-.curtain{position:fixed;inset:0;z-index:998;background:var(--void);transform:translateY(100%);pointer-events:none;display:flex;align-items:center;justify-content:center}
+.curtain{position:fixed;inset:0;z-index:998;background:var(--void);transform:translateY(100%);pointer-events:none;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .curtain.in{transform:translateY(0);transition:transform .55s var(--ease)}
 .curtain.out{transform:translateY(-100%);transition:transform .55s var(--ease)}
-.curtain-mark{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(26px,4vw,42px);opacity:.9}
+.curtain-mark{position:relative;font-family:'Fraunces',serif;font-weight:500;font-size:clamp(26px,4vw,42px);opacity:.9}
 .curtain-mark .g{color:var(--jade)}
+.curtain::before{content:'';position:absolute;left:0;right:0;top:-2px;height:2px;
+  background:linear-gradient(90deg,transparent,var(--jade),transparent);opacity:0}
+.curtain.in::before{animation:curtain-scan .75s var(--ease) .05s both}
+@keyframes curtain-scan{
+  0%{top:-2px;opacity:0}
+  12%{opacity:.9}
+  85%{opacity:.55}
+  100%{top:100%;opacity:0}
+}
 
 /* ════ Chargeur ════ */
 #loader{position:fixed;inset:0;z-index:1000;background:var(--void);display:flex;align-items:center;justify-content:center;flex-direction:column;transition:transform 1s var(--ease)}
