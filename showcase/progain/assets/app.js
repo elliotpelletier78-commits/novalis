@@ -546,12 +546,224 @@ const PG = (() => {
     });
   }
 
+  /* ── Globe mondial : le siège à Montréal, des chantiers ailleurs ──
+     Un globe filaire en canvas 2D (même technique de projection en
+     perspective que le réseau neuronal), qui tourne, qu'on peut faire
+     pivoter à la souris, et sur lequel un arc lumineux voyage vers une
+     ville qui change — avec l'heure locale réelle, en direct.          */
+  function initGlobe() {
+    const box = document.getElementById('globeBox');
+    const cv = document.getElementById('globeCv');
+    if (!box || !cv) return;
+    const ctx = cv.getContext('2d', { alpha: true });
+    const CITIES = [
+      { key: 'mtl', en: 'Montréal', fr: 'Montréal', lat: 45.5017, lon: -73.5673, tz: 'America/Toronto', hub: true },
+      { key: 'nyc', en: 'New York', fr: 'New York', lat: 40.7128, lon: -74.0060, tz: 'America/New_York' },
+      { key: 'par', en: 'Paris', fr: 'Paris', lat: 48.8566, lon: 2.3522, tz: 'Europe/Paris' },
+      { key: 'lon', en: 'London', fr: 'Londres', lat: 51.5074, lon: -0.1278, tz: 'Europe/London' },
+      { key: 'dxb', en: 'Dubai', fr: 'Dubaï', lat: 25.2048, lon: 55.2708, tz: 'Asia/Dubai' },
+      { key: 'tok', en: 'Tokyo', fr: 'Tokyo', lat: 35.6762, lon: 139.6503, tz: 'Asia/Tokyo' },
+      { key: 'sao', en: 'São Paulo', fr: 'São Paulo', lat: -23.5505, lon: -46.6333, tz: 'America/Sao_Paulo' },
+    ];
+    const toVec = (lat, lon) => {
+      const phi = (90 - lat) * Math.PI / 180, theta = (lon + 180) * Math.PI / 180;
+      return [Math.sin(phi) * Math.cos(theta), Math.cos(phi), Math.sin(phi) * Math.sin(theta)];
+    };
+    CITIES.forEach(c => { c.v = toVec(c.lat, c.lon); });
+    const hub = CITIES.find(c => c.hub), dest = CITIES.filter(c => !c.hub);
+
+    // Grille de latitude / longitude, calculée une fois.
+    const gridLat = [];
+    for (let lat = -60; lat <= 60; lat += 30) {
+      const ring = []; for (let i = 0; i <= 48; i++) ring.push(toVec(lat, (i / 48) * 360 - 180));
+      gridLat.push(ring);
+    }
+    const gridLon = [];
+    for (let lon = -180; lon < 180; lon += 30) {
+      const ring = []; for (let i = 0; i <= 24; i++) ring.push(toVec((i / 24) * 180 - 90, lon));
+      gridLon.push(ring);
+    }
+    const slerp = (a, b, t) => {
+      const dot = Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
+      const omega = Math.acos(dot);
+      if (omega < 1e-4) return a;
+      const sA = Math.sin((1 - t) * omega) / Math.sin(omega), sB = Math.sin(t * omega) / Math.sin(omega);
+      return [a[0] * sA + b[0] * sB, a[1] * sA + b[1] * sB, a[2] * sA + b[2] * sB];
+    };
+
+    let w = 0, h = 0, dpr = 1, R = 0, cx = 0, cy = 0;
+    const TILT = 16 * Math.PI / 180;
+    const cosT = Math.cos(TILT), sinT = Math.sin(TILT);
+    let rot = .5, targetRot = .5, activeIdx = 0, cycleFrame = 0, visible = false, raf = null, dragging = false, lastX = 0;
+
+    const resize = () => {
+      const r = box.getBoundingClientRect();
+      dpr = Math.min(devicePixelRatio || 1, 2);
+      w = Math.max(1, Math.round(r.width)); h = Math.max(1, Math.round(r.height));
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      R = Math.min(w, h) * .36; cx = w / 2; cy = h / 2;
+    };
+
+    const tilted = v => [v[0], v[1] * cosT - v[2] * sinT, v[1] * sinT + v[2] * cosT];
+    const spin = (v, a) => {
+      const ca = Math.cos(a), sa = Math.sin(a);
+      return { x: v[0] * ca + v[2] * sa, y: v[1], z: -v[0] * sa + v[2] * ca };
+    };
+    const FOCAL = () => R * 3.2;
+    const project = p => {
+      const s = FOCAL() / (FOCAL() + p.z * R);
+      return { x: cx + p.x * R * s, y: cy - p.y * R * s, z: p.z, s };
+    };
+    const faceRot = v => {
+      const t = tilted(v);
+      return Math.atan2(-t[0], t[2]);
+    };
+
+    const setActive = (idx, immediate) => {
+      activeIdx = idx; cycleFrame = 0;
+      targetRot = faceRot(dest[idx].v);
+      if (immediate) rot = targetRot;
+      updateHud();
+    };
+
+    const hudName = document.getElementById('globeActiveName');
+    const hudTime = document.getElementById('globeTime');
+    const listEl = document.getElementById('globeList');
+    if (listEl && !listEl.childElementCount) {
+      dest.forEach((c, i) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.innerHTML = '<span class="globe-dot" aria-hidden="true"></span><span class="globe-list-n"></span>';
+        b.addEventListener('click', () => { setActive(i, false); if (RM) draw(); scheduleCycle(); });
+        b._city = c;
+        listEl.appendChild(b);
+      });
+    }
+    const updateHud = () => {
+      const c = dest[activeIdx];
+      if (hudName) hudName.textContent = LANG === 'fr' ? c.fr : c.en;
+      if (listEl) listEl.querySelectorAll('button').forEach((b, i) => {
+        b.classList.toggle('on', i === activeIdx);
+        b.querySelector('.globe-dot').classList.toggle('on', i === activeIdx);
+        b.querySelector('.globe-list-n').textContent = LANG === 'fr' ? b._city.fr : b._city.en;
+      });
+    };
+    const tickTime = () => {
+      if (!hudTime) return;
+      const c = dest[activeIdx];
+      try {
+        hudTime.textContent = new Intl.DateTimeFormat(LANG === 'fr' ? 'fr-CA' : 'en-CA',
+          { timeZone: c.tz, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
+      } catch (e) { hudTime.textContent = '—:—'; }
+    };
+    setActive(0, true);
+    tickTime();
+    document.addEventListener('pg:lang', () => { updateHud(); tickTime(); });
+    setInterval(tickTime, 15000);
+    // Minuterie auto-relançable plutôt qu'un setInterval fixe : un clic
+    // sur une ville doit garder sa sélection un plein cycle avant que
+    // le globe reprenne la main, sinon le clic semble ignoré.
+    let cycleTimer = null;
+    const scheduleCycle = () => {
+      clearTimeout(cycleTimer);
+      cycleTimer = setTimeout(() => {
+        if (!dragging) { setActive((activeIdx + 1) % dest.length, false); if (RM) draw(); }
+        scheduleCycle();
+      }, 4800);
+    };
+    scheduleCycle();
+
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(47,208,140,.16)'; ctx.lineWidth = 1; ctx.stroke();
+      const drawRing = ring => {
+        for (let i = 0; i < ring.length - 1; i++) {
+          const a = project(spin(tilted(ring[i]), rot)), b = project(spin(tilted(ring[i + 1]), rot));
+          const az = (a.z + b.z) / 2;
+          const alpha = Math.max(.02, Math.min(.5, .12 + az * .32));
+          ctx.beginPath(); ctx.strokeStyle = 'rgba(47,208,140,' + alpha.toFixed(3) + ')'; ctx.lineWidth = .8;
+          ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        }
+      };
+      gridLat.forEach(drawRing); gridLon.forEach(drawRing);
+      // Arc lumineux du siège vers la ville active, légèrement soulevé
+      // au-dessus de la sphère — comme une trajectoire de vol.
+      const active = dest[activeIdx];
+      const N = 40, pts = [];
+      for (let i = 0; i <= N; i++) {
+        const t = i / N;
+        const p = slerp(hub.v, active.v, t);
+        const lift = 1 + .22 * Math.sin(t * Math.PI);
+        pts.push(project(spin(tilted([p[0] * lift, p[1] * lift, p[2] * lift]), rot)));
+      }
+      ctx.beginPath();
+      pts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+      ctx.strokeStyle = 'rgba(140,255,205,.55)'; ctx.lineWidth = 1.3; ctx.stroke();
+      if (!RM) {
+        const pt = (cycleFrame % 260) / 260;
+        const idx = Math.min(N, Math.floor(pt * N));
+        const p = pts[idx];
+        if (p && p.z > -.3) {
+          ctx.beginPath(); ctx.fillStyle = 'rgba(160,255,212,.95)'; ctx.arc(p.x, p.y, 2.6, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.fillStyle = 'rgba(47,208,140,.14)'; ctx.arc(p.x, p.y, 9, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      // Points-villes
+      CITIES.forEach(c => {
+        const p = project(spin(tilted(c.v), rot));
+        const front = p.z > -.15;
+        const isHub = c.hub, isActive = !isHub && c === active;
+        const r = isHub ? 4 : (isActive ? 3.4 : 2.1);
+        const al = front ? (isHub ? .95 : (isActive ? .9 : .35)) : .08;
+        ctx.beginPath(); ctx.fillStyle = isHub || isActive ? 'rgba(140,255,205,' + al.toFixed(2) + ')' : 'rgba(47,208,140,' + al.toFixed(2) + ')';
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+        if ((isHub || isActive) && front) { ctx.beginPath(); ctx.fillStyle = 'rgba(47,208,140,.12)'; ctx.arc(p.x, p.y, r * 3.2, 0, Math.PI * 2); ctx.fill(); }
+      });
+    };
+    const tick = () => {
+      if (!visible) { raf = null; return; }
+      cycleFrame++;
+      if (!dragging) {
+        let d = targetRot - rot; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
+        rot += d * .04 + (RM ? 0 : .0009);
+      }
+      draw();
+      raf = requestAnimationFrame(tick);
+    };
+
+    box.addEventListener('mousedown', e => { dragging = true; lastX = e.clientX; box.style.cursor = 'grabbing'; });
+    addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const dx = e.clientX - lastX; lastX = e.clientX;
+      rot += dx * .006; targetRot = rot;
+      if (RM) draw();
+    }, { passive: true });
+    addEventListener('mouseup', () => { dragging = false; box.style.cursor = 'grab'; });
+    box.addEventListener('touchstart', e => { dragging = true; lastX = e.touches[0].clientX; }, { passive: true });
+    box.addEventListener('touchmove', e => {
+      const dx = e.touches[0].clientX - lastX; lastX = e.touches[0].clientX;
+      rot += dx * .006; targetRot = rot; draw();
+    }, { passive: true });
+    addEventListener('touchend', () => { dragging = false; }, { passive: true });
+
+    let rt = null;
+    addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { resize(); draw(); }, 150); }, { passive: true });
+    new IntersectionObserver(es => es.forEach(e => {
+      visible = e.isIntersecting;
+      if (visible && !raf && !RM) raf = requestAnimationFrame(tick);
+      if (visible && RM) draw();
+    }), { rootMargin: '10%' }).observe(cv);
+    resize(); draw();
+  }
+
   /* ── Démarrage ───────────────────────────────────────────────── */
   function boot() {
     initLang(); initNav(); initAnchors(); initTransitions(); initProgress();
     initCursor(); initLoader(); initReveals(); initStats(); initKinetic();
     initFaq(); initCopy(); initNetmask(); initTrack(); initGhosts();
-    initManifesto(); initMagnetic(); initTilt();
+    initManifesto(); initMagnetic(); initTilt(); initGlobe();
     if (document.getElementById('net')) neuralNet('net');
     if (document.getElementById('net2')) neuralNet('net2', { count: 52, linkDist: 140, drift: .1, mouse: false });
     if (document.getElementById('net3')) neuralNet('net3', { count: 40, linkDist: 130, drift: .09, mouse: false, pulses: true });
