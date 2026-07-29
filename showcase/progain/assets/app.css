@@ -169,6 +169,15 @@ section{position:relative}
 .ticker span b{color:var(--jade);font-weight:500}
 @keyframes slide{to{transform:translateX(-50%)}}
 
+/* ════ Bandeau système en direct (au-dessus du pied de page) ════ */
+.syslog{overflow:hidden;border-top:1px solid var(--hair);background:var(--void);padding:11px 0}
+.syslog-in{display:flex;gap:38px;width:max-content;animation:slide 46s linear infinite}
+.syslog-i{display:inline-flex;align-items:center;gap:9px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.04em;color:var(--bone-faint);white-space:nowrap}
+.syslog-dot{width:5px;height:5px;border-radius:50%;background:var(--jade);flex-shrink:0;animation:pulse 2.2s ease-in-out infinite}
+.syslog-tag{color:var(--jade);font-weight:500;letter-spacing:.1em;text-transform:uppercase;font-size:9.5px}
+.syslog-ms{color:var(--bone-faint);opacity:.7}
+@media(prefers-reduced-motion:reduce){.syslog-dot{animation:none}}
+
 /* ════ Cartes ════ */
 .card{background:var(--panel);border:1px solid var(--hair);border-radius:6px;padding:32px 28px;transition:transform .35s var(--ease),border-color .35s,box-shadow .35s}
 .card:hover{transform:translateY(-5px);border-color:var(--hair-2);box-shadow:0 22px 56px -22px rgba(0,0,0,.6)}
@@ -196,6 +205,32 @@ section{position:relative}
 .prod-more{margin-top:20px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);display:inline-flex;align-items:center;gap:8px}
 .prod-more::after{content:'→';transition:transform .3s var(--ease)}
 .prod:hover .prod-more::after{transform:translateX(5px)}
+
+/* ── Aperçu au survol : au lieu d'un simple lueur, un mini-instantané
+   du produit qui s'anime réellement — pas une image, du vrai SVG/CSS. ── */
+.prod-preview{position:absolute;inset:0;padding:38px 32px 30px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:14px;
+  background:linear-gradient(165deg,var(--panel) 0%,var(--panel) 62%,rgba(16,26,21,.85) 100%);opacity:0;pointer-events:none;transition:opacity .4s var(--ease);z-index:2}
+.prod:hover .prod-preview,.prod:focus-visible .prod-preview{opacity:1}
+.pv-label{font-size:10.5px;letter-spacing:.14em;color:var(--acc);text-transform:uppercase}
+.pv-r{transition:stroke-dashoffset 0s}
+.prod:hover .pv-r1{stroke-dashoffset:58;transition:stroke-dashoffset 1.05s var(--ease) .05s}
+.prod:hover .pv-r2{stroke-dashoffset:66;transition:stroke-dashoffset 1.05s var(--ease) .18s}
+.prod:hover .pv-r3{stroke-dashoffset:36;transition:stroke-dashoffset 1.05s var(--ease) .3s}
+.pv-line{stroke-dasharray:420;stroke-dashoffset:420;transition:stroke-dashoffset 0s}
+.prod:hover .pv-line{stroke-dashoffset:0;transition:stroke-dashoffset 1.1s var(--ease) .05s}
+.pv-scan{display:flex;flex-direction:column;gap:11px;width:100%}
+.pv-row{display:flex;align-items:center;gap:10px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--bone-dim);opacity:0;transform:translateX(-8px);transition:opacity 0s,transform 0s}
+.prod:hover .pv-row{opacity:1;transform:none;transition:opacity .4s var(--ease) var(--d),transform .4s var(--ease) var(--d)}
+.pv-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.pv-dot.crit{background:var(--rust)}
+.pv-dot.warn{background:var(--amber)}
+.pv-dot.ok{background:var(--jade)}
+@media(prefers-reduced-motion:reduce){
+  .prod-preview{transition:opacity .15s linear}
+  .pv-r,.pv-line,.pv-row{transition:none!important}
+  .prod:hover .pv-r1{stroke-dashoffset:58}.prod:hover .pv-r2{stroke-dashoffset:66}.prod:hover .pv-r3{stroke-dashoffset:36}
+  .prod:hover .pv-line{stroke-dashoffset:0}
+}
 
 /* ════ Liste de services ════ */
 .svc{border-top:1px solid rgba(11,18,14,.9);padding:26px 0 40px;transition:border-color .3s}
@@ -344,6 +379,7 @@ footer{background:var(--void);border-top:1px solid var(--hair)}
   .mask>span{transform:none!important}
   .kin-eyebrow,.kin-sub{opacity:1!important}
   .ticker-in{animation:none}
+  .syslog-in{animation:none}
   .curtain{display:none}
   *{scroll-behavior:auto!important}
 }
@@ -434,6 +470,37 @@ input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;bac
 .sn-sum.on{opacity:1}
 @media(max-width:860px){.sn-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.plate-scan,.sn-sweep{display:none}.lab-live::before{animation:none}}
+
+/* — Objectif calorique (Coach) : le curseur qui pilote un budget — */
+.coach-goal{margin-top:22px;padding-top:18px;border-top:1px solid var(--hair)}
+.cg-track{height:6px;background:rgba(237,243,238,.08);border-radius:100px;margin:14px 0 12px;overflow:hidden}
+.cg-fill{height:100%;width:0;border-radius:100px;background:var(--jade);transition:width .3s var(--ease),background .3s}
+
+/* — Terminal IA (Services) : une réponse qui s'écrit en direct — */
+.term{background:var(--panel);border:1px solid var(--hair);border-radius:8px;overflow:hidden;margin-top:36px}
+.term-body{padding:22px 24px;min-height:230px;font-family:'IBM Plex Mono',monospace;font-size:13px;line-height:1.9;max-height:340px;overflow-y:auto}
+.term-line{white-space:pre-wrap;word-break:break-word;margin-bottom:4px}
+.term-prompt{color:var(--bone-faint)}
+.term-a .term-prompt{color:var(--jade)}
+.term-q .term-text{color:var(--bone-dim)}
+.term-a .term-text{color:var(--bone)}
+.term-cursor{display:inline-block;width:7px;height:14px;background:var(--jade);margin-left:2px;vertical-align:middle;animation:term-blink 1s step-end infinite}
+@keyframes term-blink{50%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.term-cursor{display:none}}
+
+/* — Comparateur avant/après (Sentinel) : on fait glisser pour voir — */
+.cmp{--p:50%;position:relative;height:clamp(230px,32vw,340px);border-radius:8px;overflow:hidden;border:1px solid var(--hair);margin-top:36px;cursor:ew-resize;user-select:none;background:#0d1418}
+.cmp-pane{position:absolute;inset:0;padding:24px 26px}
+.cmp-before{z-index:1}
+.cmp-after{z-index:2;clip-path:inset(0 0 0 var(--p));background:#0e1a14}
+.cmp-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:14px}
+.cmp-before .cmp-tag{color:var(--rust)}
+.cmp-after .cmp-tag{color:var(--jade)}
+.cmp-log{font-family:'IBM Plex Mono',monospace;font-size:11.5px;line-height:1.95;color:var(--bone-dim);white-space:pre-wrap;margin:0}
+.cmp-handle{position:absolute;top:0;bottom:0;left:var(--p);transform:translateX(-50%);width:2px;background:var(--jade);z-index:3;cursor:ew-resize}
+.cmp-handle-grip{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:50%;background:var(--jade);color:var(--void);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;box-shadow:0 6px 20px -4px rgba(0,0,0,.7)}
+.cmp-hint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--bone-faint);z-index:3;pointer-events:none}
+@media(max-width:640px){.cmp{height:clamp(300px,72vw,420px)}.cmp-pane{padding:20px}}
 
 /* ════════════════════════════════════════════════════════════════
    COUCHE ESTHÉTIQUE — grain, cassure de grille, profondeur

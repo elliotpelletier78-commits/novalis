@@ -24,6 +24,11 @@
         { s: 'HIGH', t: 'API key stored in plaintext environment variable.', p: 'Zapier automation' },
         { s: 'MEDIUM', t: 'Retrieval returns whole documents; no field-level filtering.', p: 'Postgres · vectors' },
       ],
+      goal: { under: 'On track — this meal fits your remaining budget.', tight: 'Tight — this meal is most of what you have left today.', over: 'Over — you have room tomorrow, not today.' },
+      term: [
+        { q: 'How much of our support inbox could actually be automated?', a: "Reading your last 200 tickets... 61% are order status, returns or hours questions. Those get an accurate answer today. The other 39% need a person — and should keep getting one." },
+        { q: 'Is our client data safe if we plug in an AI model?', a: "Not by default. Redact personal fields before anything leaves your system, scope every connector to read-only where possible, and keep an audit log. That is the baseline, not the upgrade." },
+      ],
     },
     fr: {
       scanning: 'Analyse en cours…', detecting: 'Détection des aliments…',
@@ -36,6 +41,11 @@
         { s: 'CRITIQUE', t: 'Données personnelles (noms, courriels) transmises au modèle tiers sans masquage.', p: 'Notion → point de terminaison LLM' },
         { s: 'ÉLEVÉ', t: "Clé d'API stockée en clair dans une variable d'environnement.", p: 'Automatisation Zapier' },
         { s: 'MOYEN', t: 'La récupération renvoie les documents complets ; aucun filtrage au niveau des champs.', p: 'Postgres · vecteurs' },
+      ],
+      goal: { under: "Dans la marge — ce repas tient dans votre budget restant.", tight: "Serré — ce repas représente presque tout ce qu'il vous reste aujourd'hui.", over: "Dépassé — il vous reste de la marge demain, pas aujourd'hui." },
+      term: [
+        { q: 'Quelle part de notre boîte de support pourrait vraiment être automatisée ?', a: "Lecture de vos 200 derniers tickets... 61 % concernent le statut d'une commande, un retour ou les heures d'ouverture. Ceux-là ont une réponse exacte dès aujourd'hui. Les 39 % restants ont besoin d'une personne — et devraient continuer de l'avoir." },
+        { q: "Nos données clients sont-elles en sécurité si on branche un modèle d'IA ?", a: "Pas par défaut. Masquez les champs personnels avant que quoi que ce soit ne quitte votre système, limitez chaque connecteur à la lecture seule quand c'est possible, et gardez un journal d'audit. C'est la base, pas une option." },
       ],
     },
   };
@@ -94,6 +104,24 @@
     coachBusy = false; coachRan = true;
   }
   if (btnC) btnC.onclick = coachRun;
+
+  /* ── Budget restant : le curseur qui pilote un état en direct ──
+     Même principe que le choc de scénario chez Markets, appliqué à
+     Coach — un seul curseur, plusieurs sorties qui réagissent.       */
+  const goalSl = document.getElementById('goalSlider');
+  function updateGoal() {
+    if (!goalSl) return;
+    const goal = parseInt(goalSl.value, 10);
+    const pct = Math.min(999, TOT.kcal / goal * 100);
+    const fill = document.getElementById('goalFill'), val = document.getElementById('goalVal'), note = document.getElementById('goalNote');
+    if (fill) {
+      fill.style.width = Math.min(100, pct) + '%';
+      fill.style.background = pct > 100 ? 'var(--rust)' : pct > 75 ? 'var(--amber)' : 'var(--jade)';
+    }
+    if (val) val.textContent = goal.toLocaleString(L() === 'fr' ? 'fr-CA' : 'en-CA') + ' kcal';
+    if (note) note.textContent = (pct > 100 ? T().goal.over : pct > 75 ? T().goal.tight : T().goal.under) + '  (' + Math.round(pct) + '%)';
+  }
+  if (goalSl) { goalSl.addEventListener('input', updateGoal); updateGoal(); }
 
   /* ════ PG—02 · Markets ═════════════════════════════════════════
      Surface paramétrique honnête : pente positive par échéance, vol
@@ -220,6 +248,87 @@
   }
   if (btnS) btnS.onclick = snRun;
 
+  /* ════ Terminal IA (Services) : une réponse qui s'écrit en direct ═
+     Pas d'appel réseau — le texte est pré-écrit, mais il s'affiche
+     caractère par caractère comme un vrai flux de génération.        */
+  let termStop = null, termLoop = null, termStarted = false, termRun = null;
+  function initTerminal() {
+    const body = document.getElementById('termBody');
+    const box = document.getElementById('aiTerm');
+    if (!body || !box) return;
+    const typeLine = async (prefix, text, cls, stopFlag) => {
+      const line = document.createElement('div');
+      line.className = 'term-line ' + cls;
+      const promptSpan = document.createElement('span'); promptSpan.className = 'term-prompt'; promptSpan.textContent = prefix;
+      const textSpan = document.createElement('span'); textSpan.className = 'term-text';
+      line.appendChild(promptSpan); line.appendChild(textSpan);
+      let cursor = null;
+      if (!RM) { cursor = document.createElement('span'); cursor.className = 'term-cursor'; line.appendChild(cursor); }
+      body.appendChild(line);
+      body.scrollTop = body.scrollHeight;
+      if (RM) { textSpan.textContent = text; return; }
+      for (let i = 0; i < text.length; i++) {
+        if (stopFlag.v) return;
+        textSpan.textContent += text[i];
+        if (i % 4 === 0) body.scrollTop = body.scrollHeight;
+        await wait(text[i] === ' ' ? 6 : 10 + Math.random() * 22);
+      }
+      if (cursor) cursor.remove();
+    };
+    const run = async () => {
+      const stopFlag = { v: false };
+      termStop = () => { stopFlag.v = true; };
+      body.innerHTML = '';
+      for (const item of T().term) {
+        if (stopFlag.v) return;
+        await typeLine('you@progain ~ $ ', item.q, 'term-q', stopFlag);
+        if (stopFlag.v) return;
+        await wait(RM ? 0 : 500);
+        if (stopFlag.v) return;
+        await typeLine('ai › ', item.a, 'term-a', stopFlag);
+        if (stopFlag.v) return;
+        await wait(RM ? 500 : 2400);
+      }
+      if (!stopFlag.v) termLoop = setTimeout(run, 1600);
+    };
+    termRun = run;
+    new IntersectionObserver((es, ob) => es.forEach(e => {
+      if (e.isIntersecting && !termStarted) { termStarted = true; run(); ob.disconnect(); }
+    }), { threshold: .25 }).observe(box);
+  }
+  initTerminal();
+
+  /* ════ Comparateur avant/après (Sentinel) : glisser pour révéler ═ */
+  function initCompare() {
+    const box = document.getElementById('snCompare'), handle = document.getElementById('cmpHandle');
+    if (!box || !handle) return;
+    let dragging = false;
+    const setPct = clientX => {
+      const r = box.getBoundingClientRect();
+      const pct = Math.max(4, Math.min(96, (clientX - r.left) / r.width * 100));
+      box.style.setProperty('--p', pct + '%');
+      handle.setAttribute('aria-valuenow', String(Math.round(pct)));
+    };
+    const stepPct = delta => {
+      const cur = parseFloat(getComputedStyle(box).getPropertyValue('--p')) || 50;
+      const pct = Math.max(4, Math.min(96, cur + delta));
+      box.style.setProperty('--p', pct + '%');
+      handle.setAttribute('aria-valuenow', String(Math.round(pct)));
+    };
+    handle.addEventListener('mousedown', e => { dragging = true; e.preventDefault(); });
+    box.addEventListener('mousedown', e => { if (e.target === handle || handle.contains(e.target)) return; dragging = true; setPct(e.clientX); });
+    addEventListener('mousemove', e => { if (dragging) setPct(e.clientX); }, { passive: true });
+    addEventListener('mouseup', () => { dragging = false; });
+    handle.addEventListener('touchstart', () => { dragging = true; }, { passive: true });
+    box.addEventListener('touchmove', e => { if (dragging) setPct(e.touches[0].clientX); }, { passive: true });
+    addEventListener('touchend', () => { dragging = false; }, { passive: true });
+    handle.addEventListener('keydown', e => {
+      if (e.key === 'ArrowLeft') { stepPct(-5); e.preventDefault(); }
+      if (e.key === 'ArrowRight') { stepPct(5); e.preventDefault(); }
+    });
+  }
+  initCompare();
+
   /* ── Suivi de la langue pour les textes dynamiques ───────────── */
   const syncLang = () => {
     if (btnC && !coachBusy) btnC.textContent = coachRan ? T().coachAgain : T().coachRun;
@@ -227,6 +336,8 @@
     if (!snBusy && snRan) renderFindings(false);
     if (!snRan) { const e = document.getElementById('snEmpty'); if (e) e.innerHTML = T().snIdle; }
     if (sl) mkUpdate(parseFloat(sl.value));
+    if (goalSl) updateGoal();
+    if (termStarted && termRun) { if (termStop) termStop(); clearTimeout(termLoop); termRun(); }
   };
   document.addEventListener('pg:lang', syncLang);
   document.addEventListener('pg:lang:init', syncLang);

@@ -192,7 +192,7 @@ ${CTA}`;
 
 /* ════════════ Fabrique de page produit ════════════ */
 function productPage({ id, acc, accSoft, crumb, crumbFr, h1a, h1aFr, h1b, h1bFr, lead, leadFr,
-                       mock, feats, lab, labId, faq, note, noteFr }) {
+                       mock, feats, lab, labId, faq, note, noteFr, extra }) {
   return `<header class="phead">
   <canvas id="phnet" class="phnet" data-acc="${acc}" aria-hidden="true"></canvas>
   <div class="phead-grid" aria-hidden="true"></div>
@@ -232,6 +232,8 @@ ${faq ? `<section><div class="wrap">
   <div class="faq">${faq.map(f =>
     '<button class="faq-q" data-fr="' + esc(f[1]) + '">' + f[0] + '</button><div class="faq-a"><div class="faq-a-in" data-fr="' + esc(f[3]) + '">' + f[2] + '</div></div>').join('')}</div>
 </div></section>` : ''}
+
+${extra || ''}
 
 ${CTA}`;
 }
@@ -310,6 +312,65 @@ const mockText = (kicker, kickerFr, h, hFr, p, pFr, extra) => `<div>
   ${extra || ''}
 </div>`;
 
+/* ── Comparateur avant/après (Sentinel) : on glisse pour voir la
+   différence entre un appel non protégé et le même appel une fois
+   les renseignements personnels masqués avant d'atteindre le modèle. */
+const SN_BEFORE = `POST /webhook/support-ticket
+{
+  "customer": "Jean Tremblay",
+  "email": "jean.tremblay@clientco.ca",
+  "phone": "514-555-0142",
+  "card": "4532 1188 0043 9812",
+  "message": "Can you check my balance?"
+}
+→ forwarded to the model, unredacted`;
+const SN_BEFORE_FR = `POST /webhook/support-ticket
+{
+  "customer": "Jean Tremblay",
+  "email": "jean.tremblay@clientco.ca",
+  "phone": "514-555-0142",
+  "card": "4532 1188 0043 9812",
+  "message": "Pouvez-vous vérifier mon solde ?"
+}
+→ transmis au modèle, sans masquage`;
+const SN_AFTER = `POST /webhook/support-ticket
+{
+  "customer": "[REDACTED]",
+  "email": "[REDACTED]",
+  "phone": "[REDACTED]",
+  "card": "[REDACTED]",
+  "message": "Can you check my balance?"
+}
+→ PII masked before the model ever sees it`;
+const SN_AFTER_FR = `POST /webhook/support-ticket
+{
+  "customer": "[MASQUÉ]",
+  "email": "[MASQUÉ]",
+  "phone": "[MASQUÉ]",
+  "card": "[MASQUÉ]",
+  "message": "Pouvez-vous vérifier mon solde ?"
+}
+→ renseignements masqués avant que le modèle ne les voie`;
+const SN_COMPARE = `<section><div class="wrap">
+  <div class="kicker" data-fr="Avant / après">Before / after</div>
+  <h2 class="h2" style="margin-bottom:16px"><span class="mask"><span data-fr="Le même appel,">The same call,</span></span><span class="mask"><span data-fr="deux &lt;em&gt;résultats&lt;/em&gt;.">two <em>outcomes</em>.</span></span></h2>
+  <p class="lead" style="max-width:560px;margin-bottom:8px" data-fr="Un appel de support ordinaire, avant et après Sentinel. Faites glisser pour comparer.">An ordinary support call, before and after Sentinel. Drag to compare.</p>
+  <div class="cmp" id="snCompare">
+    <div class="cmp-pane cmp-before">
+      <div class="cmp-tag" data-fr="Avant Sentinel">Before Sentinel</div>
+      <pre class="cmp-log" data-fr="${esc(SN_BEFORE_FR)}">${SN_BEFORE}</pre>
+    </div>
+    <div class="cmp-pane cmp-after">
+      <div class="cmp-tag" data-fr="Après Sentinel">After Sentinel</div>
+      <pre class="cmp-log" data-fr="${esc(SN_AFTER_FR)}">${SN_AFTER}</pre>
+    </div>
+    <div class="cmp-hint mono" data-fr="Glissez">Drag</div>
+    <div class="cmp-handle" id="cmpHandle" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" tabindex="0" aria-label="Drag to compare before and after Sentinel">
+      <div class="cmp-handle-grip" aria-hidden="true">↔</div>
+    </div>
+  </div>
+</div></section>`;
+
 /* ════════════ SERVICES ════════════ */
 const SERVICES_PAGE = `<header class="phead">
   <div class="phead-grid" aria-hidden="true"></div>
@@ -344,6 +405,16 @@ const SERVICES_PAGE = `<header class="phead">
       <div class="step"><div class="step-num" data-fr="03 / LIVRER">03 / SHIP</div><div class="step-t" data-fr="Le mettre en production">Put it in production</div><p data-fr="Déployé, surveillé, journalisé. Vous savez ce qu'il fait, ce qu'il coûte, et quand il se trompe.">Deployed, monitored, logged. You know what it does, what it costs, and when it gets things wrong.</p></div>
       <div class="step"><div class="step-num" data-fr="04 / INTÉGRER">04 / INTEGRATE</div><div class="step-t" data-fr="Le faire disparaître">Make it disappear</div><p data-fr="Branché aux outils existants, formation de l'équipe, documentation. À la fin, vous n'avez plus besoin de nous — c'est le but.">Wired into existing tools, team trained, documented. At the end you no longer need us — that is the point.</p></div>
     </div>
+  </div>
+</div></section>
+
+<section style="background:var(--deep);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)"><div class="wrap">
+  <div class="kicker" data-fr="Voyez-le fonctionner">See it work</div>
+  <h2 class="h2" style="margin-bottom:14px"><span class="mask"><span data-fr="Pas une promesse.">Not a promise.</span></span><span class="mask"><span data-fr="Une &lt;em&gt;réponse&lt;/em&gt;.">An <em>answer</em>.</span></span></h2>
+  <p class="lead" style="max-width:560px" data-fr="Deux questions qu'on nous pose vraiment, avec le genre de réponse directe qu'on donne en évaluation — pas un argumentaire de vente.">Two questions we actually get, answered the way we would in an assessment call — not a sales pitch.</p>
+  <div class="term" id="aiTerm">
+    <div class="win-bar"><span class="win-dot"></span><span class="win-dot"></span><span class="win-dot"></span><span class="win-t">progain — assessment</span></div>
+    <div class="term-body" id="termBody"></div>
   </div>
 </div></section>
 
@@ -703,9 +774,10 @@ module.exports = [
          "Non. C'est un diagnostic technique qui rend possible une conversation de conformité, avec des preuves que votre auditeur peut lire."],
       ],
       note: '', noteFr: '',
+      extra: SN_COMPARE,
     }) },
 
-  { file: 'services.html', title: 'Services — AI integration consulting | ProGain.ai',
+  { file: 'services.html', demos: true, title: 'Services — AI integration consulting | ProGain.ai',
     desc: 'Opportunity assessment, AI receptionists, knowledge assistants (RAG), HR tools, training and integration. From Montréal, in English and French, for clients worldwide.',
     body: SERVICES_PAGE },
 

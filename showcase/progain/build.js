@@ -99,6 +99,25 @@ const TICKER = `<div class="ticker" aria-hidden="true"><div class="ticker-in">${
   [...tickerItems, ...tickerItems].map(t => '<span>' + t + '</span>').join('')
 }</div></div>`;
 
+/* ── Bandeau système en direct : le site a l'air d'un produit qui
+   tourne, pas d'une vitrine statique. Événements simulés, mais le
+   genre d'événement que ces trois produits génèrent vraiment.        */
+const sysItems = [
+  { tag: 'Sentinel', en: 'Leak detected and patched', fr: 'Fuite détectée et corrigée', ms: '0.3s' },
+  { tag: 'Coach', en: 'Macros computed from photo', fr: "Macros calculées depuis une photo", ms: '0.4s' },
+  { tag: 'Markets', en: 'Volatility surface repriced', fr: 'Surface de volatilité recalculée', ms: '0.2s' },
+  { tag: 'Sentinel', en: 'Secret key flagged in automation step', fr: "Clé secrète signalée dans une étape d'automatisation", ms: '0.5s' },
+  { tag: 'Coach', en: 'Weekly plan rebalanced', fr: 'Plan hebdomadaire réajusté', ms: '0.3s' },
+  { tag: 'Markets', en: 'Scenario shock applied to book', fr: 'Choc de scénario appliqué au livre', ms: '0.2s' },
+  { tag: 'RAG', en: 'Answer sourced from client documents', fr: 'Réponse sourcée depuis les documents client', ms: '0.6s' },
+  { tag: 'Reception', en: 'Inquiry routed to the right person', fr: 'Demande acheminée à la bonne personne', ms: '0.1s' },
+];
+const sysItem = it => '<span class="syslog-i"><i class="syslog-dot"></i><b class="syslog-tag">' + it.tag + '</b>' +
+  '<span data-fr="' + esc(it.fr) + '">' + it.en + '</span><span class="syslog-ms">· ' + it.ms + '</span></span>';
+const LIVE_TICKER = `<div class="syslog" aria-hidden="true"><div class="syslog-in">${
+  [...sysItems, ...sysItems].map(sysItem).join('')
+}</div></div>`;
+
 /* ── Shell ────────────────────────────────────────────────────── */
 function shell(p) {
   const loader = p.loader ? `<div id="loader">
@@ -137,6 +156,7 @@ ${NAV}
 <main>
 ${p.body}
 </main>
+${LIVE_TICKER}
 ${FOOT}
 <script src="../vendor/lenis.min.js"></script>
 <script src="../vendor/gsap.min.js"></script>
@@ -158,6 +178,15 @@ const PRODUCTS = [
     descFr: "Un compagnon d'IA qui compte les calories à partir d'une photo, planifie les entraînements autour de votre vie et garde la perte de poids honnête.",
     pills: [['App Store · soon', 'App Store · bientôt', 0], ['Google Play · soon', 'Google Play · bientôt', 0], ['Web · request access', 'Web · demander un accès', 1]],
     note: '', noteFr: '',
+    preview: `<svg class="pv-rings" viewBox="0 0 80 80" width="58" height="58" aria-hidden="true">
+      <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(237,243,238,.08)" stroke-width="5"/>
+      <circle class="pv-r pv-r1" cx="40" cy="40" r="34" fill="none" stroke="#2FD08C" stroke-width="5" stroke-linecap="round" stroke-dasharray="214" stroke-dashoffset="214" transform="rotate(-90 40 40)"/>
+      <circle cx="40" cy="40" r="25" fill="none" stroke="rgba(237,243,238,.08)" stroke-width="5"/>
+      <circle class="pv-r pv-r2" cx="40" cy="40" r="25" fill="none" stroke="#E8B44C" stroke-width="5" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157" transform="rotate(-90 40 40)"/>
+      <circle cx="40" cy="40" r="16" fill="none" stroke="rgba(237,243,238,.08)" stroke-width="5"/>
+      <circle class="pv-r pv-r3" cx="40" cy="40" r="16" fill="none" stroke="#6FA8DC" stroke-width="5" stroke-linecap="round" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 40 40)"/>
+    </svg>
+    <span class="pv-label mono" data-fr="1 842 kcal · en direct">1,842 kcal · live</span>`,
   },
   {
     file: 'markets.html', code: 'PG—02 / MARKETS', codeFr: 'PG—02 / MARCHÉS', acc: '#E8B44C', accSoft: 'rgba(232,180,76,.13)',
@@ -167,6 +196,10 @@ const PRODUCTS = [
     descFr: "Analytique pour les négociateurs de matières premières et d'options sur contrats à terme. Volatilité, structure par échéance et scénarios dans un seul espace.",
     pills: [['Web · request access', 'Web · demander un accès', 1], ['macOS · Windows · soon', 'macOS · Windows · bientôt', 0]],
     note: 'Educational analytics, not investment advice.', noteFr: "Analytique éducative, pas un conseil en placement.",
+    preview: `<svg class="pv-chart" viewBox="0 0 160 54" width="150" height="54" aria-hidden="true">
+      <polyline class="pv-line" points="0,40 18,33 36,37 54,20 72,26 90,12 108,18 126,8 144,15 160,6" fill="none" stroke="#E8B44C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span class="pv-label mono" data-fr="Structure de volatilité · en direct">Vol term structure · live</span>`,
   },
   {
     file: 'sentinel.html', code: 'PG—03 / SECURITY', codeFr: 'PG—03 / SÉCURITÉ', acc: '#6FA8DC', accSoft: 'rgba(111,168,220,.13)',
@@ -176,6 +209,11 @@ const PRODUCTS = [
     descFr: "Analyse les flux, connecteurs, code et plateformes de création d'applications à la recherche d'expositions de renseignements personnels et sensibles — puis livre un diagnostic clair avec des suggestions.",
     pills: [['Web · request access', 'Web · demander un accès', 1], ['macOS · Windows · soon', 'macOS · Windows · bientôt', 0]],
     note: '', noteFr: '',
+    preview: `<div class="pv-scan">
+      <div class="pv-row" style="--d:0s"><i class="pv-dot crit"></i><span>Notion → LLM</span></div>
+      <div class="pv-row" style="--d:.14s"><i class="pv-dot warn"></i><span>Zapier</span></div>
+      <div class="pv-row" style="--d:.28s"><i class="pv-dot ok"></i><span>Slack ingest</span></div>
+    </div>`,
   },
 ];
 
@@ -188,6 +226,7 @@ const prodCard = p => `<a class="prod" href="${p.file}" style="--acc:${p.acc};--
   ${p.note ? '<p class="prod-note" data-fr="' + esc(p.noteFr) + '">' + p.note + '</p>' : ''}
   <div class="prod-pills">${p.pills.map(x => '<span class="pill' + (x[2] ? ' on' : '') + '" data-fr="' + esc(x[1]) + '">' + x[0] + '</span>').join('')}</div>
   <span class="prod-more" data-fr="Découvrir">Explore</span>
+  ${p.preview ? '<div class="prod-preview" aria-hidden="true">' + p.preview + '</div>' : ''}
 </a>`;
 
 function esc(s) { return String(s).replace(/"/g, '&quot;'); }
@@ -217,6 +256,13 @@ const LAB_COACH = `<div class="lab-head">
       <div class="macro"><div class="macro-top"><span data-fr="Lipides">Fat</span><b><span id="mF">0</span> g</b></div><div class="macro-track"><div class="macro-fill" id="fF" style="background:#6FA8DC"></div></div></div>
     </div>
     <div class="conf" id="coachConf" data-fr="En attente de l'analyse…">Awaiting analysis…</div>
+    <div class="coach-goal">
+      <div class="mk-lab" data-fr="Budget restant pour aujourd'hui">Remaining budget for today</div>
+      <div class="mk-shock" id="goalVal">700 kcal</div>
+      <input type="range" id="goalSlider" min="300" max="1200" step="25" value="700" aria-label="Remaining calorie budget for today">
+      <div class="cg-track"><div class="cg-fill" id="goalFill"></div></div>
+      <p class="mk-note" id="goalNote"></p>
+    </div>
   </div>
 </div>`;
 

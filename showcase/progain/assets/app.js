@@ -803,12 +803,23 @@ const PG = (() => {
     resize(); draw();
   }
 
+  /* ── Message caché dans la console ───────────────────────────── */
+  function easterEgg() {
+    try {
+      console.log('%cPro%cGain%c.ai', 'color:#EDF3EE;font:600 22px Georgia,serif',
+        'color:#2FD08C;font:600 22px Georgia,serif', 'color:#93A79A;font:400 22px Georgia,serif');
+      console.log('%cBuilt to ship, not just to pitch. If you\'re reading the source, you already know good work when you see it.',
+        'color:#93A79A;font:12px monospace');
+      console.log('%cWe hire for craft, not credentials → hello@progain.ai', 'color:#2FD08C;font:12px monospace');
+    } catch (e) { /* console indisponible dans certains environnements */ }
+  }
+
   /* ── Démarrage ───────────────────────────────────────────────── */
   function boot() {
     initLang(); initNav(); initAnchors(); initTransitions(); initProgress();
     initCursor(); initLoader(); initReveals(); initStats(); initKinetic();
     initFaq(); initCopy(); initNetmask(); initTrack(); initGhosts();
-    initManifesto(); initMagnetic(); initTilt(); initGlobe();
+    initManifesto(); initMagnetic(); initTilt(); initGlobe(); easterEgg();
     if (document.getElementById('net')) neuralNet('net');
     if (document.getElementById('net2')) neuralNet('net2', { count: 52, linkDist: 140, drift: .1, mouse: false });
     if (document.getElementById('net3')) neuralNet('net3', { count: 40, linkDist: 130, drift: .09, mouse: false, pulses: true });
