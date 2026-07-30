@@ -17,10 +17,10 @@ const BASE = 'https://novalisia.ca/showcase/progain';
 /* ── Favicon : nœud de réseau en SVG, encodé en data URI ───────── */
 const FAVICON = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
-  '<rect width="32" height="32" rx="7" fill="#070B09"/>' +
-  '<g stroke="#2FD08C" stroke-width="1.1" opacity=".55">' +
+  '<rect width="32" height="32" rx="7" fill="#FAF9F4"/>' +
+  '<g stroke="#2B5B42" stroke-width="1.1" opacity=".6">' +
   '<path d="M16 16 L8 9M16 16 L24 10M16 16 L10 24M16 16 L23 23"/></g>' +
-  '<g fill="#2FD08C"><circle cx="16" cy="16" r="3.4"/><circle cx="8" cy="9" r="1.7"/>' +
+  '<g fill="#2B5B42"><circle cx="16" cy="16" r="3.4"/><circle cx="8" cy="9" r="1.7"/>' +
   '<circle cx="24" cy="10" r="1.7"/><circle cx="10" cy="24" r="1.7"/><circle cx="23" cy="23" r="1.7"/></g></svg>'
 );
 
@@ -79,8 +79,6 @@ const FOOT = `<footer>
 
 /* ── CTA final réutilisable ───────────────────────────────────── */
 const CTA = `<section class="cta">
-  <canvas id="net2" aria-hidden="true"></canvas>
-  <div class="cta-veil" aria-hidden="true"></div>
   <div class="wrap">
     <div class="kicker mid" data-fr="Commencez ici">Start here</div>
     <h2 class="h2"><span class="mask"><span data-fr="Dites-nous ce qui ralentit">Tell us what slows</span></span><span class="mask"><span data-fr="votre &lt;em&gt;entreprise&lt;/em&gt;.">your business <em>down</em>.</span></span></h2>
@@ -171,7 +169,7 @@ ${p.demos ? '<script src="assets/demos.js"></script>' : ''}
 /* ── Fragments réutilisables ──────────────────────────────────── */
 const PRODUCTS = [
   {
-    file: 'coach.html', code: 'PG—01 / HEALTH', codeFr: 'PG—01 / SANTÉ', acc: '#2FD08C', accSoft: 'rgba(47,208,140,.14)',
+    file: 'coach.html', code: 'PG—01 / HEALTH', codeFr: 'PG—01 / SANTÉ', acc: '#2B5B42', accSoft: 'rgba(43,91,66,.1)',
     name: 'ProGain Coach',
     tag: 'Your nutrition and training, understood.', tagFr: 'Votre nutrition et vos entraînements, compris.',
     desc: 'An AI companion that counts calories from a photo, plans workouts around your life, and keeps weight loss honest.',
@@ -179,17 +177,17 @@ const PRODUCTS = [
     pills: [['App Store · soon', 'App Store · bientôt', 0], ['Google Play · soon', 'Google Play · bientôt', 0], ['Web · request access', 'Web · demander un accès', 1]],
     note: '', noteFr: '',
     preview: `<svg class="pv-rings" viewBox="0 0 80 80" width="58" height="58" aria-hidden="true">
-      <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(237,243,238,.08)" stroke-width="5"/>
-      <circle class="pv-r pv-r1" cx="40" cy="40" r="34" fill="none" stroke="#2FD08C" stroke-width="5" stroke-linecap="round" stroke-dasharray="214" stroke-dashoffset="214" transform="rotate(-90 40 40)"/>
-      <circle cx="40" cy="40" r="25" fill="none" stroke="rgba(237,243,238,.08)" stroke-width="5"/>
-      <circle class="pv-r pv-r2" cx="40" cy="40" r="25" fill="none" stroke="#E8B44C" stroke-width="5" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157" transform="rotate(-90 40 40)"/>
-      <circle cx="40" cy="40" r="16" fill="none" stroke="rgba(237,243,238,.08)" stroke-width="5"/>
-      <circle class="pv-r pv-r3" cx="40" cy="40" r="16" fill="none" stroke="#6FA8DC" stroke-width="5" stroke-linecap="round" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 40 40)"/>
+      <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(24,27,20,.08)" stroke-width="5"/>
+      <circle class="pv-r pv-r1" cx="40" cy="40" r="34" fill="none" stroke="#2B5B42" stroke-width="5" stroke-linecap="round" stroke-dasharray="214" stroke-dashoffset="214" transform="rotate(-90 40 40)"/>
+      <circle cx="40" cy="40" r="25" fill="none" stroke="rgba(24,27,20,.08)" stroke-width="5"/>
+      <circle class="pv-r pv-r2" cx="40" cy="40" r="25" fill="none" stroke="#93672E" stroke-width="5" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157" transform="rotate(-90 40 40)"/>
+      <circle cx="40" cy="40" r="16" fill="none" stroke="rgba(24,27,20,.08)" stroke-width="5"/>
+      <circle class="pv-r pv-r3" cx="40" cy="40" r="16" fill="none" stroke="#3E5F7D" stroke-width="5" stroke-linecap="round" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 40 40)"/>
     </svg>
     <span class="pv-label mono" data-fr="1 842 kcal · en direct">1,842 kcal · live</span>`,
   },
   {
-    file: 'markets.html', code: 'PG—02 / MARKETS', codeFr: 'PG—02 / MARCHÉS', acc: '#E8B44C', accSoft: 'rgba(232,180,76,.13)',
+    file: 'markets.html', code: 'PG—02 / MARKETS', codeFr: 'PG—02 / MARCHÉS', acc: '#93672E', accSoft: 'rgba(147,103,46,.1)',
     name: 'ProGain Markets',
     tag: 'See your commodities positions clearly.', tagFr: 'Voyez clairement vos positions sur les matières premières.',
     desc: 'Analytics for traders of commodities and options on futures. Volatility, term structure, and scenario views in one workspace.',
@@ -197,12 +195,12 @@ const PRODUCTS = [
     pills: [['Web · request access', 'Web · demander un accès', 1], ['macOS · Windows · soon', 'macOS · Windows · bientôt', 0]],
     note: 'Educational analytics, not investment advice.', noteFr: "Analytique éducative, pas un conseil en placement.",
     preview: `<svg class="pv-chart" viewBox="0 0 160 54" width="150" height="54" aria-hidden="true">
-      <polyline class="pv-line" points="0,40 18,33 36,37 54,20 72,26 90,12 108,18 126,8 144,15 160,6" fill="none" stroke="#E8B44C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <polyline class="pv-line" points="0,40 18,33 36,37 54,20 72,26 90,12 108,18 126,8 144,15 160,6" fill="none" stroke="#93672E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
     <span class="pv-label mono" data-fr="Structure de volatilité · en direct">Vol term structure · live</span>`,
   },
   {
-    file: 'sentinel.html', code: 'PG—03 / SECURITY', codeFr: 'PG—03 / SÉCURITÉ', acc: '#6FA8DC', accSoft: 'rgba(111,168,220,.13)',
+    file: 'sentinel.html', code: 'PG—03 / SECURITY', codeFr: 'PG—03 / SÉCURITÉ', acc: '#3E5F7D', accSoft: 'rgba(62,95,125,.1)',
     name: 'ProGain Sentinel',
     tag: 'Find the data leaks in your AI stack.', tagFr: 'Trouvez les fuites de données dans votre pile IA.',
     desc: 'Scans workflows, connectors, code, and app-building platforms for exposure of personal and sensitive information — then delivers a clear diagnostic with suggestions.',
@@ -251,9 +249,9 @@ const LAB_COACH = `<div class="lab-head">
     <div class="kcal" id="kcal">0</div>
     <div class="kcal-u" data-fr="kcal estimées">estimated kcal</div>
     <div style="margin-top:26px">
-      <div class="macro"><div class="macro-top"><span data-fr="Protéines">Protein</span><b><span id="mP">0</span> g</b></div><div class="macro-track"><div class="macro-fill" id="fP" style="background:#2FD08C"></div></div></div>
-      <div class="macro"><div class="macro-top"><span data-fr="Glucides">Carbs</span><b><span id="mC">0</span> g</b></div><div class="macro-track"><div class="macro-fill" id="fC" style="background:#E8B44C"></div></div></div>
-      <div class="macro"><div class="macro-top"><span data-fr="Lipides">Fat</span><b><span id="mF">0</span> g</b></div><div class="macro-track"><div class="macro-fill" id="fF" style="background:#6FA8DC"></div></div></div>
+      <div class="macro"><div class="macro-top"><span data-fr="Protéines">Protein</span><b><span id="mP">0</span> g</b></div><div class="macro-track"><div class="macro-fill" id="fP" style="background:#2B5B42"></div></div></div>
+      <div class="macro"><div class="macro-top"><span data-fr="Glucides">Carbs</span><b><span id="mC">0</span> g</b></div><div class="macro-track"><div class="macro-fill" id="fC" style="background:#93672E"></div></div></div>
+      <div class="macro"><div class="macro-top"><span data-fr="Lipides">Fat</span><b><span id="mF">0</span> g</b></div><div class="macro-track"><div class="macro-fill" id="fF" style="background:#3E5F7D"></div></div></div>
     </div>
     <div class="conf" id="coachConf" data-fr="En attente de l'analyse…">Awaiting analysis…</div>
     <div class="coach-goal">
@@ -278,9 +276,9 @@ const LAB_MARKETS = `<div class="lab-head">
   <div>
     <div class="mk-chart"><canvas id="volCv" aria-label="Implied volatility term structure"></canvas></div>
     <div class="mk-legend">
-      <span><i style="background:#6FA8DC"></i>90% <span data-fr="moneyness (vente)">moneyness (puts)</span></span>
-      <span><i style="background:#E8B44C"></i>100% <span data-fr="à parité">at-the-money</span></span>
-      <span><i style="background:#2FD08C"></i>110% <span data-fr="moneyness (achat)">moneyness (calls)</span></span>
+      <span><i style="background:#3E5F7D"></i>90% <span data-fr="moneyness (vente)">moneyness (puts)</span></span>
+      <span><i style="background:#93672E"></i>100% <span data-fr="à parité">at-the-money</span></span>
+      <span><i style="background:#2B5B42"></i>110% <span data-fr="moneyness (achat)">moneyness (calls)</span></span>
     </div>
   </div>
   <div class="mk-ctl">

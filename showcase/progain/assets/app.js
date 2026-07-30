@@ -195,14 +195,16 @@ const PG = (() => {
      DPR plafonné à 2 et rendu suspendu hors écran.                 */
   function hex2rgb(hex) {
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
-    return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [47, 208, 140];
+    return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [43, 91, 66];
   }
   function neuralNet(canvasId, opt) {
-    const o = Object.assign({ count: 88, drift: .13, linkDist: 155, mouse: true, pulses: true, color: '#2FD08C' }, opt || {});
+    const o = Object.assign({ count: 88, drift: .13, linkDist: 155, mouse: true, pulses: true, color: '#2B5B42' }, opt || {});
     const cv = document.getElementById(canvasId);
     if (!cv || RM) return;
     const [cr, cg, cb] = hex2rgb(o.color);
-    const lit = [Math.min(255, cr + 113), Math.min(255, cg + 47), Math.min(255, cb + 65)];
+    // Le point survolé doit se démarquer sur fond clair : plus saturé,
+    // pas plus pâle comme sur un fond sombre.
+    const lit = [Math.min(210, Math.round(cr * 1.75)), Math.min(210, Math.round(cg * 1.75)), Math.min(210, Math.round(cb * 1.75))];
     const ctx = cv.getContext('2d', { alpha: true });
     let w = 0, h = 0, dpr = 1, nodes = [], links = [], sig = [],
         camX = 0, camY = 0, tCamX = 0, tCamY = 0, mx = -9999, my = -9999,
@@ -407,32 +409,6 @@ const PG = (() => {
         } catch (e) { location.href = 'mailto:' + v; }
       };
     });
-  }
-
-  /* ── Moment signature : le nom comme fenêtre sur le réseau ────
-     Un <text> SVG utilisé comme masque : le canvas du réseau neuronal
-     n'est visible qu'à travers les lettres. La marque devient
-     littéralement ce qu'elle fabrique.                              */
-  function initNetmask() {
-    const box = document.querySelector('.netmask');
-    if (!box) return;
-    const svg = box.querySelector('svg');
-    const label = box.dataset.word || 'ProGain';
-    const id = 'nm' + Math.random().toString(36).slice(2, 8);
-    // Le rectangle opaque (couleur de fond) cache le canvas partout
-    // SAUF où le masque est noir : le texte, en noir, y perce une
-    // fenêtre. Le réseau derrière ne devient visible qu'à travers
-    // les lettres — la marque littéralement faite de son produit.
-    svg.innerHTML = `
-      <defs>
-        <mask id="${id}">
-          <rect width="100%" height="100%" fill="white"/>
-          <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
-            font-family="Fraunces, serif" font-weight="600" font-size="${box.dataset.size || '15vw'}"
-            fill="black">${label}</text>
-        </mask>
-      </defs>
-      <rect width="100%" height="100%" fill="var(--void)" mask="url(#${id})"/>`;
   }
 
   /* ── Piste horizontale de produits, pilotée par le scroll ─────
@@ -693,36 +669,31 @@ const PG = (() => {
     const draw = () => {
       setTilt();
       ctx.clearRect(0, 0, w, h);
-      // Halo atmosphérique + ombrage interne : donne du volume à la
-      // sphère avant même que la première ligne ne soit tracée.
-      const glow = ctx.createRadialGradient(cx, cy, R * .8, cx, cy, R * 1.34);
-      glow.addColorStop(0, 'rgba(47,208,140,0)'); glow.addColorStop(.65, 'rgba(47,208,140,.05)'); glow.addColorStop(1, 'rgba(47,208,140,0)');
-      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, R * 1.34, 0, Math.PI * 2); ctx.fill();
-      const shade = ctx.createRadialGradient(cx - R * .32, cy - R * .32, R * .08, cx, cy, R * 1.05);
-      shade.addColorStop(0, 'rgba(160,255,212,.07)'); shade.addColorStop(1, 'rgba(47,208,140,0)');
-      ctx.fillStyle = shade; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+      // Rendu très atténué et encadré : un diagramme technique discret,
+      // pas un néon — l'atmosphère lumineuse d'origine ne servait qu'un
+      // fond sombre et a été retirée.
       ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(47,208,140,.16)'; ctx.lineWidth = 1; ctx.stroke();
-      // Nuage de données : texture dense sur toute la sphère.
+      ctx.strokeStyle = 'rgba(43,91,66,.18)'; ctx.lineWidth = 1; ctx.stroke();
+      // Nuage de données : texture discrète sur toute la sphère.
       mesh.forEach(v => {
         const p = project(spin(tilted(v), rot));
         if (p.z < -.1) return;
-        const al = Math.max(.05, Math.min(.85, (.16 + p.z * .62) * v[3]));
-        ctx.beginPath(); ctx.fillStyle = 'rgba(47,208,140,' + al.toFixed(3) + ')';
-        ctx.arc(p.x, p.y, 1.35 * p.s, 0, Math.PI * 2); ctx.fill();
+        const al = Math.max(.04, Math.min(.5, (.1 + p.z * .4) * v[3]));
+        ctx.beginPath(); ctx.fillStyle = 'rgba(43,91,66,' + al.toFixed(3) + ')';
+        ctx.arc(p.x, p.y, 1.25 * p.s, 0, Math.PI * 2); ctx.fill();
       });
       const drawRing = ring => {
         for (let i = 0; i < ring.length - 1; i++) {
           const a = project(spin(tilted(ring[i]), rot)), b = project(spin(tilted(ring[i + 1]), rot));
           const az = (a.z + b.z) / 2;
-          const alpha = Math.max(.02, Math.min(.5, .12 + az * .32));
-          ctx.beginPath(); ctx.strokeStyle = 'rgba(47,208,140,' + alpha.toFixed(3) + ')'; ctx.lineWidth = .8;
+          const alpha = Math.max(.015, Math.min(.32, .07 + az * .2));
+          ctx.beginPath(); ctx.strokeStyle = 'rgba(43,91,66,' + alpha.toFixed(3) + ')'; ctx.lineWidth = .8;
           ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
         }
       };
       gridLat.forEach(drawRing); gridLon.forEach(drawRing);
-      // Arc lumineux du siège vers la ville active, légèrement soulevé
-      // au-dessus de la sphère — comme une trajectoire de vol.
+      // Arc du siège vers la ville active, légèrement soulevé au-dessus
+      // de la sphère — comme une trajectoire de vol.
       const active = dest[activeIdx];
       const N = 40, pts = [];
       for (let i = 0; i <= N; i++) {
@@ -733,14 +704,14 @@ const PG = (() => {
       }
       ctx.beginPath();
       pts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
-      ctx.strokeStyle = 'rgba(140,255,205,.55)'; ctx.lineWidth = 1.3; ctx.stroke();
+      ctx.strokeStyle = 'rgba(43,91,66,.55)'; ctx.lineWidth = 1.2; ctx.stroke();
       if (!RM) {
         const pt = (cycleFrame % 260) / 260;
         const idx = Math.min(N, Math.floor(pt * N));
         const p = pts[idx];
         if (p && p.z > -.3) {
-          ctx.beginPath(); ctx.fillStyle = 'rgba(160,255,212,.95)'; ctx.arc(p.x, p.y, 2.6, 0, Math.PI * 2); ctx.fill();
-          ctx.beginPath(); ctx.fillStyle = 'rgba(47,208,140,.14)'; ctx.arc(p.x, p.y, 9, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.fillStyle = 'rgba(58,140,98,.95)'; ctx.arc(p.x, p.y, 2.4, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.fillStyle = 'rgba(43,91,66,.1)'; ctx.arc(p.x, p.y, 8, 0, Math.PI * 2); ctx.fill();
         }
       }
       // Points-villes
@@ -749,10 +720,10 @@ const PG = (() => {
         const front = p.z > -.15;
         const isHub = c.hub, isActive = !isHub && c === active;
         const r = isHub ? 4 : (isActive ? 3.4 : 2.1);
-        const al = front ? (isHub ? .95 : (isActive ? .9 : .35)) : .08;
-        ctx.beginPath(); ctx.fillStyle = isHub || isActive ? 'rgba(140,255,205,' + al.toFixed(2) + ')' : 'rgba(47,208,140,' + al.toFixed(2) + ')';
+        const al = front ? (isHub ? .95 : (isActive ? .85 : .4)) : .1;
+        ctx.beginPath(); ctx.fillStyle = isHub || isActive ? 'rgba(58,140,98,' + al.toFixed(2) + ')' : 'rgba(43,91,66,' + al.toFixed(2) + ')';
         ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
-        if ((isHub || isActive) && front) { ctx.beginPath(); ctx.fillStyle = 'rgba(47,208,140,.12)'; ctx.arc(p.x, p.y, r * 3.2, 0, Math.PI * 2); ctx.fill(); }
+        if ((isHub || isActive) && front) { ctx.beginPath(); ctx.fillStyle = 'rgba(43,91,66,.1)'; ctx.arc(p.x, p.y, r * 3, 0, Math.PI * 2); ctx.fill(); }
       });
     };
     const tick = () => {
@@ -806,11 +777,11 @@ const PG = (() => {
   /* ── Message caché dans la console ───────────────────────────── */
   function easterEgg() {
     try {
-      console.log('%cPro%cGain%c.ai', 'color:#EDF3EE;font:600 22px Georgia,serif',
-        'color:#2FD08C;font:600 22px Georgia,serif', 'color:#93A79A;font:400 22px Georgia,serif');
+      console.log('%cPro%cGain%c.ai', 'color:#181B14;font:600 22px Georgia,serif',
+        'color:#2B5B42;font:600 22px Georgia,serif', 'color:#5B6156;font:400 22px Georgia,serif');
       console.log('%cBuilt to ship, not just to pitch. If you\'re reading the source, you already know good work when you see it.',
-        'color:#93A79A;font:12px monospace');
-      console.log('%cWe hire for craft, not credentials → hello@progain.ai', 'color:#2FD08C;font:12px monospace');
+        'color:#5B6156;font:12px monospace');
+      console.log('%cWe hire for craft, not credentials → hello@progain.ai', 'color:#2B5B42;font:12px monospace');
     } catch (e) { /* console indisponible dans certains environnements */ }
   }
 
@@ -818,18 +789,12 @@ const PG = (() => {
   function boot() {
     initLang(); initNav(); initAnchors(); initTransitions(); initProgress();
     initCursor(); initLoader(); initReveals(); initStats(); initKinetic();
-    initFaq(); initCopy(); initNetmask(); initTrack(); initGhosts();
+    initFaq(); initCopy(); initTrack(); initGhosts();
     initManifesto(); initMagnetic(); initTilt(); initGlobe(); easterEgg();
-    if (document.getElementById('net')) neuralNet('net');
-    if (document.getElementById('net2')) neuralNet('net2', { count: 52, linkDist: 140, drift: .1, mouse: false });
-    if (document.getElementById('net3')) neuralNet('net3', { count: 40, linkDist: 130, drift: .09, mouse: false, pulses: true });
-    // Plus dense que les autres réseaux : les nœuds doivent remplir
-    // les lettres, pas seulement flotter dans la boîte qui les entoure.
-    if (document.getElementById('netmaskCv')) neuralNet('netmaskCv', { count: 220, linkDist: 90, drift: .14, mouse: true, pulses: true });
-    // Chaque page produit reçoit le réseau teinté de sa propre couleur —
-    // la même signature que l'accueil, déclinée par produit.
+    // Chaque page produit reçoit un réseau très atténué, teinté de sa
+    // propre couleur — un fond technique discret, pas un néon.
     const phnet = document.getElementById('phnet');
-    if (phnet) neuralNet('phnet', { count: 64, linkDist: 130, drift: .09, mouse: true, pulses: true, color: phnet.dataset.acc });
+    if (phnet) neuralNet('phnet', { count: 46, linkDist: 120, drift: .07, mouse: true, pulses: false, color: phnet.dataset.acc });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();

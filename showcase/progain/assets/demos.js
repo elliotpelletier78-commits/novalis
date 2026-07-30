@@ -128,7 +128,7 @@
      inversement corrélée au sous-jacent, asymétrie qui s'aplatit
      dans le temps. Le P&L combine delta et véga du livre de démo.  */
   const MAT = [1, 2, 3, 6, 9, 12, 18, 24];
-  const MON = [{ m: .90, c: '#6FA8DC' }, { m: 1, c: '#E8B44C' }, { m: 1.10, c: '#2FD08C' }];
+  const MON = [{ m: .90, c: '#3E5F7D' }, { m: 1, c: '#93672E' }, { m: 1.10, c: '#2B5B42' }];
   const DELTA$ = 4200, VEGA$ = 3100;
   const volAt = (t, m, shock) => {
     const base = 21 + 6.5 * (1 - Math.exp(-t / 7));
@@ -152,8 +152,8 @@
     const lo = 14, hi = 44, gy = v => padT + (h - padT - padB) * (1 - (v - lo) / (hi - lo));
     ctx.clearRect(0, 0, w, h);
     ctx.font = '9px "IBM Plex Mono", monospace';
-    ctx.fillStyle = 'rgba(147,167,154,.55)';
-    ctx.strokeStyle = 'rgba(237,243,238,.06)'; ctx.lineWidth = 1;
+    ctx.fillStyle = 'rgba(24,27,20,.48)';
+    ctx.strokeStyle = 'rgba(24,27,20,.08)'; ctx.lineWidth = 1;
     for (let v = lo; v <= hi; v += 6) {
       const y = gy(v);
       ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
@@ -168,7 +168,7 @@
       if (j === 1) {
         ctx.lineTo(gx(MAT.length - 1), h - padB); ctx.lineTo(gx(0), h - padB); ctx.closePath();
         const g = ctx.createLinearGradient(0, padT, 0, h - padB);
-        g.addColorStop(0, 'rgba(232,180,76,.14)'); g.addColorStop(1, 'rgba(232,180,76,0)');
+        g.addColorStop(0, 'rgba(147,103,46,.12)'); g.addColorStop(1, 'rgba(147,103,46,0)');
         ctx.fillStyle = g; ctx.fill();
       }
       MAT.forEach((_, i) => { ctx.beginPath(); ctx.fillStyle = o.c; ctx.arc(gx(i), gy(cur[i][j]), 2.4, 0, Math.PI * 2); ctx.fill(); });
@@ -206,7 +206,7 @@
 
   /* ════ PG—03 · Sentinel ════════════════════════════════════════ */
   const btnS = document.getElementById('snRun');
-  const SEV = { CRITICAL: '#E06B4B', CRITIQUE: '#E06B4B', HIGH: '#E8B44C', 'ÉLEVÉ': '#E8B44C', MEDIUM: '#6FA8DC', MOYEN: '#6FA8DC' };
+  const SEV = { CRITICAL: '#9C4632', CRITIQUE: '#9C4632', HIGH: '#93672E', 'ÉLEVÉ': '#93672E', MEDIUM: '#3E5F7D', MOYEN: '#3E5F7D' };
   let snBusy = false, snRan = false;
 
   function renderFindings(animate) {
@@ -217,7 +217,7 @@
     F.forEach((f, i) => {
       const d = document.createElement('div');
       d.className = 'find';
-      d.style.setProperty('--sev', SEV[f.s] || '#6FA8DC');
+      d.style.setProperty('--sev', SEV[f.s] || '#3E5F7D');
       d.innerHTML = `<div class="find-sev">${f.s}</div><div class="find-t">${f.t}</div><div class="find-p">${f.p}</div>`;
       out.appendChild(d);
       if (animate) setTimeout(() => d.classList.add('on'), 120 * i); else d.classList.add('on');

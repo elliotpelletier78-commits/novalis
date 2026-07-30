@@ -17,9 +17,7 @@ const ORG = {
 };
 
 /* ════════════ ACCUEIL ════════════ */
-const HOME = `<header class="hero" style="position:relative;min-height:100vh;display:flex;flex-direction:column;justify-content:center;overflow:hidden">
-  <canvas id="net" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
-  <div aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 75% 65% at 50% 45%,transparent 0%,rgba(7,11,9,.82) 100%),linear-gradient(to bottom,rgba(7,11,9,.5) 0%,transparent 30%,transparent 62%,var(--void) 100%)"></div>
+const HOME = `<header class="hero" style="position:relative;min-height:92vh;display:flex;flex-direction:column;justify-content:center;overflow:hidden">
   <div style="position:relative;z-index:2;text-align:center;padding:0 var(--gut);max-width:1000px;margin:0 auto">
     <p class="mono" data-rise style="font-size:11px;letter-spacing:.42em;text-transform:uppercase;color:var(--jade);margin-bottom:28px" data-fr="Boutique d'IA · Montréal, partout dans le monde">AI Boutique · Montréal, Worldwide</p>
     <h1 class="h1" style="margin-bottom:26px">
@@ -62,14 +60,6 @@ ${TICKER}
   <p class="lead" style="margin-top:34px;max-width:560px" data-fr="Pas d'expériences de laboratoire qui ne quittent jamais la présentation. Pas de projets pilotes qui meurent en comité. Du logiciel qui gagne sa place dans votre entreprise, sinon il ne sort pas.">No lab experiments that never leave the deck. No pilots that die in committee. Software that earns its place in your business, or it doesn't ship.</p>
 </div></section>
 
-<div class="netmask" data-word="ProGain" data-size="16vw">
-  <canvas id="netmaskCv" aria-hidden="true"></canvas>
-  <div class="netmask-ghost" aria-hidden="true">ProGain</div>
-  <svg aria-hidden="true"></svg>
-  <div class="netmask-edge" aria-hidden="true"></div>
-  <div class="netmask-cap" data-fr="Le réseau, vu à travers le nom">The network, seen through the name</div>
-</div>
-
 <section id="products" class="track-sec" style="background:var(--deep);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)">
   <div class="ghost r" aria-hidden="true">03</div>
   <div class="track-pin">
@@ -87,14 +77,14 @@ ${TICKER}
   <h2 class="h2"><span class="mask"><span data-fr="Ne nous croyez pas">Don't take our word</span></span><span class="mask"><span data-fr="sur &lt;em&gt;parole&lt;/em&gt;.">for <em>it</em>.</span></span></h2>
   <p class="lead" style="margin-top:22px;max-width:640px" data-fr="Trois aperçus jouables de ce que nous construisons. Chacun tourne entièrement dans votre navigateur — appuyez sur le bouton et regardez.">Three playable slices of what we build. Each one runs entirely in your browser — press the button and watch.</p>
   <div class="lab-tabs" role="tablist" data-rise=".lab-tab">
-    <button class="lab-tab on" data-tab="coach" style="--tabAcc:#2FD08C" role="tab">PG—01 · Coach</button>
-    <button class="lab-tab" data-tab="markets" style="--tabAcc:#E8B44C" role="tab">PG—02 · Markets</button>
-    <button class="lab-tab" data-tab="sentinel" style="--tabAcc:#6FA8DC" role="tab">PG—03 · Sentinel</button>
+    <button class="lab-tab on" data-tab="coach" style="--tabAcc:#2B5B42" role="tab">PG—01 · Coach</button>
+    <button class="lab-tab" data-tab="markets" style="--tabAcc:#93672E" role="tab">PG—02 · Markets</button>
+    <button class="lab-tab" data-tab="sentinel" style="--tabAcc:#3E5F7D" role="tab">PG—03 · Sentinel</button>
   </div>
   <div class="lab-stage">
-    <div class="lab-panel on" id="p-coach" style="--acc:#2FD08C">${LAB_COACH}</div>
-    <div class="lab-panel" id="p-markets" style="--acc:#E8B44C">${LAB_MARKETS}</div>
-    <div class="lab-panel" id="p-sentinel" style="--acc:#6FA8DC">${LAB_SENTINEL}</div>
+    <div class="lab-panel on" id="p-coach" style="--acc:#2B5B42">${LAB_COACH}</div>
+    <div class="lab-panel" id="p-markets" style="--acc:#93672E">${LAB_MARKETS}</div>
+    <div class="lab-panel" id="p-sentinel" style="--acc:#3E5F7D">${LAB_SENTINEL}</div>
   </div>
 </div></section>
 
@@ -241,7 +231,7 @@ ${CTA}`;
 /* ── Maquette téléphone (Coach) ─────────────────────────────── */
 const RING = (r, pct, color, w) => {
   const c = 2 * Math.PI * r;
-  return '<circle cx="66" cy="66" r="' + r + '" fill="none" stroke="rgba(237,243,238,.08)" stroke-width="' + w + '"/>' +
+  return '<circle cx="66" cy="66" r="' + r + '" fill="none" stroke="rgba(24,27,20,.08)" stroke-width="' + w + '"/>' +
          '<circle cx="66" cy="66" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="' + w +
          '" stroke-linecap="round" stroke-dasharray="' + c + '" stroke-dashoffset="' + (c * (1 - pct)) + '"/>';
 };
@@ -252,7 +242,7 @@ const PHONE_COACH = `<div class="phone" aria-label="ProGain Coach app interface"
     <div class="scr-top"><div class="scr-h" data-fr="Aujourd'hui">Today</div><div class="scr-d" data-fr="Mar 14 mai">Tue May 14</div></div>
     <div class="rings">
       <svg width="132" height="132" viewBox="0 0 132 132">
-        ${RING(58, .72, '#2FD08C', 7)}${RING(46, .58, '#E8B44C', 7)}${RING(34, .41, '#6FA8DC', 7)}
+        ${RING(58, .72, '#2B5B42', 7)}${RING(46, .58, '#93672E', 7)}${RING(34, .41, '#3E5F7D', 7)}
       </svg>
       <div class="rings-c"><div class="rings-n">1 842</div><div class="rings-l" data-fr="sur 2 550 kcal">of 2,550 kcal</div></div>
     </div>
@@ -289,9 +279,9 @@ const WIN_SENTINEL = `<div class="win" aria-label="ProGain Sentinel dashboard">
   <div class="win-bar"><span class="win-dot"></span><span class="win-dot"></span><span class="win-dot"></span><span class="win-t">ProGain Sentinel — Posture</span></div>
   <div class="win-body">
     <div class="stats" style="grid-template-columns:1fr 1fr 1fr;border:0;background:transparent;gap:12px">
-      <div class="stat" style="border:1px solid rgba(224,107,75,.35);border-radius:5px;padding:18px 16px"><div class="stat-n" style="color:var(--rust);font-size:32px">3</div><div class="stat-l" data-fr="critiques">critical</div></div>
-      <div class="stat" style="border:1px solid rgba(232,180,76,.3);border-radius:5px;padding:18px 16px"><div class="stat-n" style="color:var(--amber);font-size:32px">7</div><div class="stat-l" data-fr="à surveiller">warnings</div></div>
-      <div class="stat" style="border:1px solid rgba(47,208,140,.3);border-radius:5px;padding:18px 16px"><div class="stat-n" style="font-size:32px">41</div><div class="stat-l" data-fr="conformes">passing</div></div>
+      <div class="stat" style="border:1px solid rgba(156,70,50,.35);border-radius:5px;padding:18px 16px"><div class="stat-n" style="color:var(--rust);font-size:32px">3</div><div class="stat-l" data-fr="critiques">critical</div></div>
+      <div class="stat" style="border:1px solid rgba(147,103,46,.3);border-radius:5px;padding:18px 16px"><div class="stat-n" style="color:var(--amber);font-size:32px">7</div><div class="stat-l" data-fr="à surveiller">warnings</div></div>
+      <div class="stat" style="border:1px solid rgba(43,91,66,.3);border-radius:5px;padding:18px 16px"><div class="stat-n" style="font-size:32px">41</div><div class="stat-l" data-fr="conformes">passing</div></div>
     </div>
     <table class="tbl" style="margin-top:18px">
       <thead><tr><th data-fr="Composant">Component</th><th data-fr="Exposition">Exposure</th><th data-fr="Sévérité">Severity</th></tr></thead>
@@ -675,7 +665,7 @@ module.exports = [
     title: 'ProGain Coach — Your nutrition and training, understood | ProGain.ai',
     desc: 'An AI companion that counts calories from a photo, plans workouts around your life, and keeps weight loss honest. Try the food-detection demo in your browser.',
     body: productPage({
-      id: 'PG—01 / HEALTH', acc: '#2FD08C', crumb: 'Coach', crumbFr: 'Coach',
+      id: 'PG—01 / HEALTH', acc: '#2B5B42', crumb: 'Coach', crumbFr: 'Coach',
       h1a: 'One photo.', h1aFr: 'Une photo.', h1b: 'Macros <em>counted</em>.', h1bFr: 'Les macros <em>comptées</em>.',
       lead: 'Counting macros by hand is the chore that makes people quit. Coach removes it: photograph the plate, get the numbers, keep the habit.',
       leadFr: "Compter ses macros à la main est la corvée qui fait abandonner. Coach l'enlève : photographiez l'assiette, obtenez les chiffres, gardez l'habitude.",
@@ -710,7 +700,7 @@ module.exports = [
     title: 'ProGain Markets — See your commodities positions clearly | ProGain.ai',
     desc: 'Analytics for traders of commodities and options on futures: volatility, term structure and scenario views in one workspace. Educational analytics, not investment advice.',
     body: productPage({
-      id: 'PG—02 / MARKETS', acc: '#E8B44C', crumb: 'Markets', crumbFr: 'Markets',
+      id: 'PG—02 / MARKETS', acc: '#93672E', crumb: 'Markets', crumbFr: 'Markets',
       h1a: 'Move the market.', h1aFr: 'Déplacez le marché.', h1b: 'See the <em>book</em>.', h1bFr: 'Voyez le <em>livre</em>.',
       lead: 'Volatility, term structure and scenarios in one workspace — so a shock you are worried about becomes a number instead of a feeling.',
       leadFr: "Volatilité, structure par échéance et scénarios dans un seul espace — pour qu'un choc qui vous inquiète devienne un chiffre au lieu d'une impression.",
@@ -745,7 +735,7 @@ module.exports = [
     title: 'ProGain Sentinel — Find the data leaks in your AI stack | ProGain.ai',
     desc: 'Sentinel scans workflows, connectors, code and app-building platforms for exposure of personal and sensitive information, then delivers a clear diagnostic with fixes.',
     body: productPage({
-      id: 'PG—03 / SECURITY', acc: '#6FA8DC', crumb: 'Sentinel', crumbFr: 'Sentinel',
+      id: 'PG—03 / SECURITY', acc: '#3E5F7D', crumb: 'Sentinel', crumbFr: 'Sentinel',
       h1a: 'Every connector', h1aFr: 'Chaque connecteur', h1b: 'is a <em>door</em>.', h1bFr: 'est une <em>porte</em>.',
       lead: 'Teams wire AI into their tools in an afternoon. Sentinel tells you what walked out the door while you did — and what to close first.',
       leadFr: "Une équipe branche l'IA à ses outils en un après-midi. Sentinel vous dit ce qui est sorti pendant ce temps-là — et ce qu'il faut fermer en premier.",

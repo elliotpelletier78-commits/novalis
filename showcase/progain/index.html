@@ -12,7 +12,7 @@
 <meta property="og:description" content="ProGain is a father and son AI boutique in Montréal. Three AI products for health, markets and security — plus AI integration consulting worldwide, in English and French.">
 <meta property="og:url" content="https://novalisia.ca/showcase/progain/index.html">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%23070B09%22%2F%3E%3Cg%20stroke%3D%22%232FD08C%22%20stroke-width%3D%221.1%22%20opacity%3D%22.55%22%3E%3Cpath%20d%3D%22M16%2016%20L8%209M16%2016%20L24%2010M16%2016%20L10%2024M16%2016%20L23%2023%22%2F%3E%3C%2Fg%3E%3Cg%20fill%3D%22%232FD08C%22%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%223.4%22%2F%3E%3Ccircle%20cx%3D%228%22%20cy%3D%229%22%20r%3D%221.7%22%2F%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2210%22%20r%3D%221.7%22%2F%3E%3Ccircle%20cx%3D%2210%22%20cy%3D%2224%22%20r%3D%221.7%22%2F%3E%3Ccircle%20cx%3D%2223%22%20cy%3D%2223%22%20r%3D%221.7%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%23FAF9F4%22%2F%3E%3Cg%20stroke%3D%22%232B5B42%22%20stroke-width%3D%221.1%22%20opacity%3D%22.6%22%3E%3Cpath%20d%3D%22M16%2016%20L8%209M16%2016%20L24%2010M16%2016%20L10%2024M16%2016%20L23%2023%22%2F%3E%3C%2Fg%3E%3Cg%20fill%3D%22%232B5B42%22%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%223.4%22%2F%3E%3Ccircle%20cx%3D%228%22%20cy%3D%229%22%20r%3D%221.7%22%2F%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2210%22%20r%3D%221.7%22%2F%3E%3Ccircle%20cx%3D%2210%22%20cy%3D%2224%22%20r%3D%221.7%22%2F%3E%3Ccircle%20cx%3D%2223%22%20cy%3D%2223%22%20r%3D%221.7%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Hanken+Grotesk:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -47,9 +47,7 @@
   </div>
 </nav>
 <main>
-<header class="hero" style="position:relative;min-height:100vh;display:flex;flex-direction:column;justify-content:center;overflow:hidden">
-  <canvas id="net" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
-  <div aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 75% 65% at 50% 45%,transparent 0%,rgba(7,11,9,.82) 100%),linear-gradient(to bottom,rgba(7,11,9,.5) 0%,transparent 30%,transparent 62%,var(--void) 100%)"></div>
+<header class="hero" style="position:relative;min-height:92vh;display:flex;flex-direction:column;justify-content:center;overflow:hidden">
   <div style="position:relative;z-index:2;text-align:center;padding:0 var(--gut);max-width:1000px;margin:0 auto">
     <p class="mono" data-rise style="font-size:11px;letter-spacing:.42em;text-transform:uppercase;color:var(--jade);margin-bottom:28px" data-fr="Boutique d'IA · Montréal, partout dans le monde">AI Boutique · Montréal, Worldwide</p>
     <h1 class="h1" style="margin-bottom:26px">
@@ -92,14 +90,6 @@
   <p class="lead" style="margin-top:34px;max-width:560px" data-fr="Pas d'expériences de laboratoire qui ne quittent jamais la présentation. Pas de projets pilotes qui meurent en comité. Du logiciel qui gagne sa place dans votre entreprise, sinon il ne sort pas.">No lab experiments that never leave the deck. No pilots that die in committee. Software that earns its place in your business, or it doesn't ship.</p>
 </div></section>
 
-<div class="netmask" data-word="ProGain" data-size="16vw">
-  <canvas id="netmaskCv" aria-hidden="true"></canvas>
-  <div class="netmask-ghost" aria-hidden="true">ProGain</div>
-  <svg aria-hidden="true"></svg>
-  <div class="netmask-edge" aria-hidden="true"></div>
-  <div class="netmask-cap" data-fr="Le réseau, vu à travers le nom">The network, seen through the name</div>
-</div>
-
 <section id="products" class="track-sec" style="background:var(--deep);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)">
   <div class="ghost r" aria-hidden="true">03</div>
   <div class="track-pin">
@@ -107,7 +97,7 @@
       <div class="kicker" data-fr="Conçus dans notre studio">Built in our studio</div>
       <h2 class="h2"><span class="mask"><span data-fr="Trois produits.">Three products.</span></span><span class="mask"><span data-fr="Un seul &lt;em&gt;standard&lt;/em&gt;.">One <em>standard</em>.</span></span></h2>
     </div>
-    <div class="track" data-rise=".prod"><a class="prod" href="coach.html" style="--acc:#2FD08C;--accSoft:rgba(47,208,140,.14)">
+    <div class="track" data-rise=".prod"><a class="prod" href="coach.html" style="--acc:#2B5B42;--accSoft:rgba(43,91,66,.1)">
   <div class="prod-glow"></div>
   <div class="prod-code" data-fr="PG—01 / SANTÉ">PG—01 / HEALTH</div>
   <div class="prod-name">ProGain Coach</div>
@@ -117,15 +107,15 @@
   <div class="prod-pills"><span class="pill" data-fr="App Store · bientôt">App Store · soon</span><span class="pill" data-fr="Google Play · bientôt">Google Play · soon</span><span class="pill on" data-fr="Web · demander un accès">Web · request access</span></div>
   <span class="prod-more" data-fr="Découvrir">Explore</span>
   <div class="prod-preview" aria-hidden="true"><svg class="pv-rings" viewBox="0 0 80 80" width="58" height="58" aria-hidden="true">
-      <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(237,243,238,.08)" stroke-width="5"/>
-      <circle class="pv-r pv-r1" cx="40" cy="40" r="34" fill="none" stroke="#2FD08C" stroke-width="5" stroke-linecap="round" stroke-dasharray="214" stroke-dashoffset="214" transform="rotate(-90 40 40)"/>
-      <circle cx="40" cy="40" r="25" fill="none" stroke="rgba(237,243,238,.08)" stroke-width="5"/>
-      <circle class="pv-r pv-r2" cx="40" cy="40" r="25" fill="none" stroke="#E8B44C" stroke-width="5" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157" transform="rotate(-90 40 40)"/>
-      <circle cx="40" cy="40" r="16" fill="none" stroke="rgba(237,243,238,.08)" stroke-width="5"/>
-      <circle class="pv-r pv-r3" cx="40" cy="40" r="16" fill="none" stroke="#6FA8DC" stroke-width="5" stroke-linecap="round" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 40 40)"/>
+      <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(24,27,20,.08)" stroke-width="5"/>
+      <circle class="pv-r pv-r1" cx="40" cy="40" r="34" fill="none" stroke="#2B5B42" stroke-width="5" stroke-linecap="round" stroke-dasharray="214" stroke-dashoffset="214" transform="rotate(-90 40 40)"/>
+      <circle cx="40" cy="40" r="25" fill="none" stroke="rgba(24,27,20,.08)" stroke-width="5"/>
+      <circle class="pv-r pv-r2" cx="40" cy="40" r="25" fill="none" stroke="#93672E" stroke-width="5" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157" transform="rotate(-90 40 40)"/>
+      <circle cx="40" cy="40" r="16" fill="none" stroke="rgba(24,27,20,.08)" stroke-width="5"/>
+      <circle class="pv-r pv-r3" cx="40" cy="40" r="16" fill="none" stroke="#3E5F7D" stroke-width="5" stroke-linecap="round" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 40 40)"/>
     </svg>
     <span class="pv-label mono" data-fr="1 842 kcal · en direct">1,842 kcal · live</span></div>
-</a><a class="prod" href="markets.html" style="--acc:#E8B44C;--accSoft:rgba(232,180,76,.13)">
+</a><a class="prod" href="markets.html" style="--acc:#93672E;--accSoft:rgba(147,103,46,.1)">
   <div class="prod-glow"></div>
   <div class="prod-code" data-fr="PG—02 / MARCHÉS">PG—02 / MARKETS</div>
   <div class="prod-name">ProGain Markets</div>
@@ -135,10 +125,10 @@
   <div class="prod-pills"><span class="pill on" data-fr="Web · demander un accès">Web · request access</span><span class="pill" data-fr="macOS · Windows · bientôt">macOS · Windows · soon</span></div>
   <span class="prod-more" data-fr="Découvrir">Explore</span>
   <div class="prod-preview" aria-hidden="true"><svg class="pv-chart" viewBox="0 0 160 54" width="150" height="54" aria-hidden="true">
-      <polyline class="pv-line" points="0,40 18,33 36,37 54,20 72,26 90,12 108,18 126,8 144,15 160,6" fill="none" stroke="#E8B44C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <polyline class="pv-line" points="0,40 18,33 36,37 54,20 72,26 90,12 108,18 126,8 144,15 160,6" fill="none" stroke="#93672E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
     <span class="pv-label mono" data-fr="Structure de volatilité · en direct">Vol term structure · live</span></div>
-</a><a class="prod" href="sentinel.html" style="--acc:#6FA8DC;--accSoft:rgba(111,168,220,.13)">
+</a><a class="prod" href="sentinel.html" style="--acc:#3E5F7D;--accSoft:rgba(62,95,125,.1)">
   <div class="prod-glow"></div>
   <div class="prod-code" data-fr="PG—03 / SÉCURITÉ">PG—03 / SECURITY</div>
   <div class="prod-name">ProGain Sentinel</div>
@@ -162,12 +152,12 @@
   <h2 class="h2"><span class="mask"><span data-fr="Ne nous croyez pas">Don't take our word</span></span><span class="mask"><span data-fr="sur &lt;em&gt;parole&lt;/em&gt;.">for <em>it</em>.</span></span></h2>
   <p class="lead" style="margin-top:22px;max-width:640px" data-fr="Trois aperçus jouables de ce que nous construisons. Chacun tourne entièrement dans votre navigateur — appuyez sur le bouton et regardez.">Three playable slices of what we build. Each one runs entirely in your browser — press the button and watch.</p>
   <div class="lab-tabs" role="tablist" data-rise=".lab-tab">
-    <button class="lab-tab on" data-tab="coach" style="--tabAcc:#2FD08C" role="tab">PG—01 · Coach</button>
-    <button class="lab-tab" data-tab="markets" style="--tabAcc:#E8B44C" role="tab">PG—02 · Markets</button>
-    <button class="lab-tab" data-tab="sentinel" style="--tabAcc:#6FA8DC" role="tab">PG—03 · Sentinel</button>
+    <button class="lab-tab on" data-tab="coach" style="--tabAcc:#2B5B42" role="tab">PG—01 · Coach</button>
+    <button class="lab-tab" data-tab="markets" style="--tabAcc:#93672E" role="tab">PG—02 · Markets</button>
+    <button class="lab-tab" data-tab="sentinel" style="--tabAcc:#3E5F7D" role="tab">PG—03 · Sentinel</button>
   </div>
   <div class="lab-stage">
-    <div class="lab-panel on" id="p-coach" style="--acc:#2FD08C"><div class="lab-head">
+    <div class="lab-panel on" id="p-coach" style="--acc:#2B5B42"><div class="lab-head">
   <div>
     <div class="lab-live" data-fr="Vision · en direct">Vision · live</div>
     <div class="lab-h" style="margin-top:8px" data-fr="Une photo. Les macros, comptées.">One photo. Macros, counted.</div>
@@ -186,9 +176,9 @@
     <div class="kcal" id="kcal">0</div>
     <div class="kcal-u" data-fr="kcal estimées">estimated kcal</div>
     <div style="margin-top:26px">
-      <div class="macro"><div class="macro-top"><span data-fr="Protéines">Protein</span><b><span id="mP">0</span> g</b></div><div class="macro-track"><div class="macro-fill" id="fP" style="background:#2FD08C"></div></div></div>
-      <div class="macro"><div class="macro-top"><span data-fr="Glucides">Carbs</span><b><span id="mC">0</span> g</b></div><div class="macro-track"><div class="macro-fill" id="fC" style="background:#E8B44C"></div></div></div>
-      <div class="macro"><div class="macro-top"><span data-fr="Lipides">Fat</span><b><span id="mF">0</span> g</b></div><div class="macro-track"><div class="macro-fill" id="fF" style="background:#6FA8DC"></div></div></div>
+      <div class="macro"><div class="macro-top"><span data-fr="Protéines">Protein</span><b><span id="mP">0</span> g</b></div><div class="macro-track"><div class="macro-fill" id="fP" style="background:#2B5B42"></div></div></div>
+      <div class="macro"><div class="macro-top"><span data-fr="Glucides">Carbs</span><b><span id="mC">0</span> g</b></div><div class="macro-track"><div class="macro-fill" id="fC" style="background:#93672E"></div></div></div>
+      <div class="macro"><div class="macro-top"><span data-fr="Lipides">Fat</span><b><span id="mF">0</span> g</b></div><div class="macro-track"><div class="macro-fill" id="fF" style="background:#3E5F7D"></div></div></div>
     </div>
     <div class="conf" id="coachConf" data-fr="En attente de l'analyse…">Awaiting analysis…</div>
     <div class="coach-goal">
@@ -200,7 +190,7 @@
     </div>
   </div>
 </div></div>
-    <div class="lab-panel" id="p-markets" style="--acc:#E8B44C"><div class="lab-head">
+    <div class="lab-panel" id="p-markets" style="--acc:#93672E"><div class="lab-head">
   <div>
     <div class="lab-live" data-fr="Scénarios · en direct">Scenarios · live</div>
     <div class="lab-h" style="margin-top:8px" data-fr="Déplacez le marché. Voyez le livre.">Move the market. See the book.</div>
@@ -212,9 +202,9 @@
   <div>
     <div class="mk-chart"><canvas id="volCv" aria-label="Implied volatility term structure"></canvas></div>
     <div class="mk-legend">
-      <span><i style="background:#6FA8DC"></i>90% <span data-fr="moneyness (vente)">moneyness (puts)</span></span>
-      <span><i style="background:#E8B44C"></i>100% <span data-fr="à parité">at-the-money</span></span>
-      <span><i style="background:#2FD08C"></i>110% <span data-fr="moneyness (achat)">moneyness (calls)</span></span>
+      <span><i style="background:#3E5F7D"></i>90% <span data-fr="moneyness (vente)">moneyness (puts)</span></span>
+      <span><i style="background:#93672E"></i>100% <span data-fr="à parité">at-the-money</span></span>
+      <span><i style="background:#2B5B42"></i>110% <span data-fr="moneyness (achat)">moneyness (calls)</span></span>
     </div>
   </div>
   <div class="mk-ctl">
@@ -229,7 +219,7 @@
     <p class="mk-note" data-fr="Surface paramétrique de démonstration. Analytique éducative, pas un conseil en placement.">Parametric demo surface. Educational analytics, not investment advice.</p>
   </div>
 </div></div>
-    <div class="lab-panel" id="p-sentinel" style="--acc:#6FA8DC"><div class="lab-head">
+    <div class="lab-panel" id="p-sentinel" style="--acc:#3E5F7D"><div class="lab-head">
   <div>
     <div class="lab-live" data-fr="Analyse · en direct">Scan · live</div>
     <div class="lab-h" style="margin-top:8px" data-fr="Où fuient vos données ?">Where is your data leaking?</div>
@@ -313,8 +303,6 @@
 </div>
 
 <section class="cta">
-  <canvas id="net2" aria-hidden="true"></canvas>
-  <div class="cta-veil" aria-hidden="true"></div>
   <div class="wrap">
     <div class="kicker mid" data-fr="Commencez ici">Start here</div>
     <h2 class="h2"><span class="mask"><span data-fr="Dites-nous ce qui ralentit">Tell us what slows</span></span><span class="mask"><span data-fr="votre &lt;em&gt;entreprise&lt;/em&gt;.">your business <em>down</em>.</span></span></h2>
