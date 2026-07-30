@@ -24,7 +24,7 @@ const HOME = `<header class="hero" style="position:relative;min-height:92vh;disp
       <span class="mask"><span data-fr="L'IA appliquée,">Applied AI,</span></span>
       <span class="mask"><span data-fr="livrée en &lt;em&gt;production&lt;/em&gt;.">built to <em>ship</em>.</span></span>
     </h1>
-    <p class="lead" data-rise style="max-width:620px;margin:0 auto 38px" data-fr="ProGain est une boutique d'IA père et fils à Montréal. Nous concevons et vendons nos propres applications d'IA — et nous appliquons le même savoir-faire aux entreprises, partout, qui veulent l'IA au travail dans leurs opérations.">ProGain is a father and son AI boutique in Montréal. We design and sell our own AI applications — and we bring the same craft to companies anywhere that want AI working inside their business.</p>
+    <p class="lead" data-rise style="max-width:620px;margin:0 auto 38px" data-fr="ProGain est une boutique d'IA père et fils, basée à Montréal. On construit et on vend nos propres produits d'IA d'abord. Ce qu'on y apprend, on l'applique ensuite aux entreprises qui veulent que l'IA travaille vraiment, pas seulement qu'elle figure dans une présentation.">ProGain is a father-and-son AI boutique based in Montréal. We build and sell our own AI products first. What we learn there, we apply to companies that want AI actually working, not just sitting in a slide deck.</p>
     <div class="btn-row" data-rise style="justify-content:center">
       <a href="#lab" class="btn-solid" data-fr="Essayer les produits">Try the products live</a>
       <a href="services.html" class="btn-ghost" data-fr="Parlons de consultation">Talk to us about consulting</a>
@@ -37,8 +37,8 @@ ${TICKER}
 <section class="globe-sec" data-push>
   <div class="wrap tight" style="padding-bottom:0">
     <div class="kicker" data-fr="Portée mondiale">Worldwide reach</div>
-    <h2 class="h2" style="max-width:760px"><span class="mask"><span data-fr="Un bureau à Montréal.">One office in Montréal.</span></span><span class="mask"><span data-fr="Des chantiers &lt;em&gt;n'importe où&lt;/em&gt;.">Engagements <em>anywhere</em>.</span></span></h2>
-    <p class="lead" style="margin-top:20px;max-width:560px" data-fr="Le fuseau horaire du client ne change rien à la façon dont nous travaillons. Faites pivoter le globe.">A client's time zone changes nothing about how we work. Drag the globe.</p>
+    <h2 class="h2" style="max-width:760px"><span class="mask"><span data-fr="Basés à Montréal.">Based in Montréal.</span></span><span class="mask"><span data-fr="Votre fuseau horaire est notre &lt;em&gt;problème&lt;/em&gt;.">Your time zone is our <em>problem</em>.</span></span></h2>
+    <p class="lead" style="margin-top:20px;max-width:560px" data-fr="On a des clients qui se lèvent quand nous, on se couche. Ça change nos horaires d'appel, pas notre façon de travailler. Faites pivoter le globe.">We have clients waking up when we're going to bed. That changes our call schedule, not how we work. Drag the globe.</p>
   </div>
   <div class="globe-wrap">
     <div class="globe" id="globeBox">
@@ -59,8 +59,8 @@ ${TICKER}
   <div class="manifesto">
     <span class="manifesto-mark" aria-hidden="true">&ldquo;</span>
     <div class="manifesto-body">
-      <p class="h3" id="mani" style="font-family:'Fraunces',serif;font-weight:400;font-size:clamp(26px,3.6vw,52px);line-height:1.34;max-width:1000px" data-fr="La plupart des entreprises n'ont pas un &lt;em&gt;problème d'IA&lt;/em&gt;. Elles ont un processus qui perd du temps, une décision prise sur des données périmées, un client qui attend trop longtemps. Nous trouvons où l'IA &lt;em&gt;rapporte vraiment&lt;/em&gt; — puis nous la construisons, et nous la livrons.">Most companies do not have an <em>AI problem</em>. They have a process that leaks time, a decision made on stale data, a customer who waits too long. We find where AI actually <em>pays off</em> — then we build it, and we ship it.</p>
-      <p class="lead" style="margin-top:34px;max-width:560px" data-fr="Pas d'expériences de laboratoire qui ne quittent jamais la présentation. Pas de projets pilotes qui meurent en comité. Du logiciel qui gagne sa place dans votre entreprise, sinon il ne sort pas.">No lab experiments that never leave the deck. No pilots that die in committee. Software that earns its place in your business, or it doesn't ship.</p>
+      <p class="h3" id="mani" style="font-family:'Fraunces',serif;font-weight:400;font-size:clamp(26px,3.6vw,52px);line-height:1.34;max-width:1000px" data-fr="La plupart des entreprises à qui on parle n'ont pas vraiment un &lt;em&gt;problème d'IA&lt;/em&gt;. Elles ont un processus lent quelque part, ou une décision prise sur des données vieilles de trois semaines. C'est généralement par là qu'on commence : pas une grande stratégie, un endroit précis où ça &lt;em&gt;perd du temps&lt;/em&gt; ou de l'argent.">Most companies we talk to don't actually have an <em>AI problem</em>. They have a slow process somewhere, or a decision getting made on data that's three weeks old. That's usually where we start — not a grand strategy, one specific place where it's <em>leaking time</em> or money.</p>
+      <p class="lead" style="margin-top:34px;max-width:560px" data-fr="On a déjà tué nos propres prototypes plus d'une fois. S'il ne gagne pas sa place dans l'entreprise, il ne sort pas, peu importe à quel point la démo avait l'air bonne.">We've killed our own prototypes more than once. If it doesn't earn a spot in the business, it doesn't ship, no matter how good the demo looked.</p>
     </div>
   </div>
 </div></section>
@@ -70,7 +70,7 @@ ${TICKER}
   <div class="track-pin">
     <div class="track-head">
       <div class="kicker" data-fr="Conçus dans notre studio">Built in our studio</div>
-      <h2 class="h2"><span class="mask"><span data-fr="Trois produits.">Three products.</span></span><span class="mask"><span data-fr="Un seul &lt;em&gt;standard&lt;/em&gt;.">One <em>standard</em>.</span></span></h2>
+      <h2 class="h2"><span class="mask"><span data-fr="Trois problèmes qu'on avait">Three problems we had</span></span><span class="mask"><span data-fr="&lt;em&gt;nous-mêmes&lt;/em&gt;.">for <em>ourselves</em>.</span></span></h2>
     </div>
     <div class="track" data-rise=".prod">${PRODUCTS.map(prodCard).join('')}<div style="width:1px;flex-shrink:0" aria-hidden="true"></div></div>
     <div class="track-hint" data-fr="Faites défiler">Keep scrolling</div>
@@ -80,7 +80,7 @@ ${TICKER}
 <section id="lab"><div class="wrap">
   <div class="kicker" data-fr="Le laboratoire">The lab</div>
   <h2 class="h2"><span class="mask"><span data-fr="Ne nous croyez pas">Don't take our word</span></span><span class="mask"><span data-fr="sur &lt;em&gt;parole&lt;/em&gt;.">for <em>it</em>.</span></span></h2>
-  <p class="lead" style="margin-top:22px;max-width:640px" data-fr="Trois aperçus jouables de ce que nous construisons. Chacun tourne entièrement dans votre navigateur — appuyez sur le bouton et regardez.">Three playable slices of what we build. Each one runs entirely in your browser — press the button and watch.</p>
+  <p class="lead" style="margin-top:22px;max-width:640px" data-fr="Trois aperçus jouables de ce qu'on construit. Chacun tourne dans votre navigateur, rien n'est envoyé nulle part. Appuyez sur le bouton et regardez ce qui se passe.">Three playable slices of what we build. Each one runs in your browser, nothing gets sent anywhere. Press the button and see what happens.</p>
   <div class="lab-tabs" role="tablist" data-rise=".lab-tab">
     <button class="lab-tab on" data-tab="coach" style="--tabAcc:#2B5B42" role="tab">PG—01 · Coach</button>
     <button class="lab-tab" data-tab="markets" style="--tabAcc:#93672E" role="tab">PG—02 · Markets</button>
@@ -97,8 +97,8 @@ ${TICKER}
   <div class="ghost l" aria-hidden="true">06</div>
   <div class="wrap">
   <div class="kicker" data-fr="Consultation">Consulting</div>
-  <h2 class="h2"><span class="mask"><span data-fr="L'IA qui gagne sa place">AI that earns its place</span></span><span class="mask"><span data-fr="dans votre &lt;em&gt;entreprise&lt;/em&gt;.">in your <em>business</em>.</span></span></h2>
-  <p class="lead" style="margin-top:22px;max-width:640px" data-fr="Nous trouvons où l'IA rapporte vraiment, puis nous la construisons et l'intégrons — discrètement, dans les outils que votre équipe utilise déjà.">We find where AI actually pays off, then we build it and integrate it — quietly, inside the tools your team already uses.</p>
+  <h2 class="h2"><span class="mask"><span data-fr="On ne vend pas de l'IA.">We don't sell AI.</span></span><span class="mask"><span data-fr="On &lt;em&gt;règle des goulots&lt;/em&gt;.">We fix <em>bottlenecks</em>.</span></span></h2>
+  <p class="lead" style="margin-top:22px;max-width:640px" data-fr="On passe du temps dans vos opérations avant de proposer quoi que ce soit. Une fois qu'on sait où ça bloque vraiment, on construit et on branche ça dans les outils que votre équipe utilise déjà.">We spend time inside your operation before we propose anything. Once we know where it actually gets stuck, we build the fix and wire it into the tools your team already uses.</p>
   <div class="svc-grid" data-rise=".svc">
     <div class="svc"><div class="svc-num">S/01</div><h3 data-fr="Évaluation des occasions">Opportunity assessment</h3><p data-fr="Une lecture claire de là où l'IA crée de la valeur dans vos opérations — et de là où elle n'en crée pas.">A clear reading of where AI creates value in your operation, and where it does not.</p></div>
     <div class="svc"><div class="svc-num">S/02</div><h3 data-fr="Outils d'embauche pour les RH">Hiring tools for HR</h3><p data-fr="Des assistants de tri et d'évaluation qui lisent les candidatures comme votre meilleur recruteur.">Screening and evaluation assistants that read applications the way your best recruiter does.</p></div>
@@ -113,14 +113,14 @@ ${TICKER}
 
 <section data-push><div class="wrap">
   <div class="kicker" data-fr="Comment nous travaillons">How we work</div>
-  <h2 class="h2"><span class="mask"><span data-fr="Du premier appel">From first call</span></span><span class="mask"><span data-fr="au logiciel en &lt;em&gt;production&lt;/em&gt;.">to software in <em>production</em>.</span></span></h2>
+  <h2 class="h2"><span class="mask"><span data-fr="Un mandat ressemble">A client engagement</span></span><span class="mask"><span data-fr="à un lancement de &lt;em&gt;produit&lt;/em&gt;.">looks like a <em>product launch</em>.</span></span></h2>
   <div class="split" style="margin-top:clamp(40px,6vh,80px);align-items:start">
-    <div><p class="lead" style="max-width:400px" data-fr="La même discipline que derrière nos propres produits, appliquée aux vôtres. Portée réduite, preuve rapide, verdicts honnêtes — et rien ne sort avant d'atteindre le standard.">The same discipline behind our own products, applied to yours. Small scope, fast proof, honest verdicts — and nothing ships until it holds the standard.</p></div>
+    <div><p class="lead" style="max-width:400px" data-fr="C'est la même équipe, la même discipline, que ce soit pour Coach ou pour votre entreprise. Voici comment ça se déroule, dans l'ordre.">It's the same team and the same discipline whether we're shipping Coach or working inside your business. Here's the order it actually happens in.</p></div>
     <div class="steps" data-rise=".step">
-      <div class="step"><div class="step-num" data-fr="01 / ÉVALUER">01 / ASSESS</div><div class="step-t" data-fr="Trouver où l'IA rapporte">Find where AI pays off</div><p data-fr="Nous cartographions vos opérations et donnons un verdict franc — y compris là où l'IA ne vaut &lt;i&gt;pas&lt;/i&gt; la peine.">We map your operation and give a straight verdict — including where AI is <i>not</i> worth it.</p></div>
-      <div class="step"><div class="step-num" data-fr="02 / PROTOTYPER">02 / PROTOTYPE</div><div class="step-t" data-fr="Le prouver sur vos données">Prove it on your data</div><p data-fr="Un prototype fonctionnel sur vos vrais documents, calendriers et listes de prix — pas une présentation.">A working prototype on your real documents, calendars and price sheets — not a slide deck.</p></div>
-      <div class="step"><div class="step-num" data-fr="03 / LIVRER">03 / SHIP</div><div class="step-t" data-fr="Le mettre en production">Put it in production</div><p data-fr="Déployé, surveillé, et branché aux outils dans lesquels votre équipe vit déjà.">Deployed, monitored, and connected to the tools your team already lives in.</p></div>
-      <div class="step"><div class="step-num" data-fr="04 / INTÉGRER">04 / INTEGRATE</div><div class="step-t" data-fr="Le faire disparaître">Make it disappear</div><p data-fr="La meilleure IA est invisible — elle répond, classe, rédige et signale en arrière-plan pendant que votre équipe travaille.">The best AI is invisible — it answers, files, drafts and flags in the background while your team works.</p></div>
+      <div class="step"><div class="step-num" data-fr="01 / ÉVALUER">01 / ASSESS</div><div class="step-t" data-fr="On regarde d'abord">We look before we build</div><p data-fr="Deux semaines dans vos opérations. On repart parfois en disant que l'IA n'aiderait pas ici — ça arrive plus souvent qu'on pensait au début.">Two weeks inside your operation. Sometimes we come back and say AI won't help here — that happens more often than we expected when we started.</p></div>
+      <div class="step"><div class="step-num" data-fr="02 / PROTOTYPER">02 / PROTOTYPE</div><div class="step-t" data-fr="Sur vos vraies données">On your actual data</div><p data-fr="Un prototype qui tourne sur vos vrais documents et calendriers. Vous le testez vous-même, avant qu'on parle du reste.">A prototype that runs on your real documents and calendars. You test it yourself before we talk about the rest.</p></div>
+      <div class="step"><div class="step-num" data-fr="03 / LIVRER">03 / SHIP</div><div class="step-t" data-fr="En production, surveillé">In production, watched</div><p data-fr="Déployé et branché aux outils que votre équipe utilise déjà. On surveille les premières semaines de près.">Deployed and wired into the tools your team already uses. We watch the first few weeks closely.</p></div>
+      <div class="step"><div class="step-num" data-fr="04 / INTÉGRER">04 / INTEGRATE</div><div class="step-t" data-fr="Puis on s'efface">Then we get out of the way</div><p data-fr="Une fois que ça tourne tout seul, notre travail est fini. C'est votre équipe qui garde la main, pas nous.">Once it runs on its own, our job is done. Your team keeps the keys, not us.</p></div>
     </div>
   </div>
 </div></section>
@@ -128,8 +128,8 @@ ${TICKER}
 <section style="background:var(--deep);border-top:1px solid var(--hair)" data-push><div class="wrap split">
   <div>
     <div class="kicker" data-fr="Qui nous sommes">Who we are</div>
-    <h2 class="h2"><span class="mask"><span data-fr="Deux fondateurs.">Two founders.</span></span><span class="mask"><span data-fr="Un seul &lt;em&gt;standard&lt;/em&gt;.">One <em>standard</em>.</span></span></h2>
-    <p class="lead" style="margin-top:26px;max-width:520px" data-fr="Une équipe père et fils à Montréal. L'un construit comme un mathématicien, l'autre comme un opérateur — chaque produit et chaque système client passe les deux filtres avant d'être livré.">A father and son team in Montréal. One builds like a mathematician, the other like an operator — every product and every client system passes both filters before it ships.</p>
+    <h2 class="h2"><span class="mask"><span data-fr="On est deux.">There are two of us.</span></span><span class="mask"><span data-fr="C'est &lt;em&gt;voulu&lt;/em&gt;.">On <em>purpose</em>.</span></span></h2>
+    <p class="lead" style="margin-top:26px;max-width:520px" data-fr="Un père et son fils, à Montréal. L'un a la tête dans les mathématiques, l'autre dans l'opérationnel. On ne grandit pas plus vite qu'on ne peut lire chaque ligne de ce qui sort.">A father and his son, in Montréal. One of us thinks in math, the other in operations. We're not growing faster than we can read every line of what ships.</p>
     <div class="btn-row" style="margin-top:30px"><a href="about.html" class="btn-ghost" data-fr="Notre histoire">Our story</a></div>
   </div>
   <div class="grid-2" data-rise=".card">
@@ -156,8 +156,8 @@ const PRODUCTS_PAGE = `<header class="phead">
   <div class="phead-grid" aria-hidden="true"></div>
   <div class="phead-in">
     <div class="crumb"><a href="index.html">ProGain</a> / <span data-fr="Produits">Products</span></div>
-    <h1 class="h1"><span class="mask"><span data-fr="Conçus dans">Built in</span></span><span class="mask"><span data-fr="notre &lt;em&gt;studio&lt;/em&gt;.">our <em>studio</em>.</span></span></h1>
-    <p class="lead" data-fr="Trois applications que nous concevons, construisons et derrière lesquelles nous nous tenons. Chacune existe parce que nous avions nous-mêmes le problème.">Three applications we design, build, and stand behind. Each one exists because we had the problem ourselves.</p>
+    <h1 class="h1"><span class="mask"><span data-fr="On les utilise">We use them</span></span><span class="mask"><span data-fr="tous les &lt;em&gt;jours&lt;/em&gt;.">every <em>day</em>.</span></span></h1>
+    <p class="lead" data-fr="Trois applications qu'on a construites parce qu'on avait le problème nous-mêmes, et qu'on continue d'utiliser une fois le problème réglé.">Three applications we built because we had the problem ourselves, and keep using once the problem was solved.</p>
   </div>
 </header>
 
@@ -371,8 +371,8 @@ const SERVICES_PAGE = `<header class="phead">
   <div class="phead-grid" aria-hidden="true"></div>
   <div class="phead-in">
     <div class="crumb"><a href="index.html">ProGain</a> / Services</div>
-    <h1 class="h1"><span class="mask"><span data-fr="L'IA qui gagne">AI that earns</span></span><span class="mask"><span data-fr="sa &lt;em&gt;place&lt;/em&gt;.">its <em>place</em>.</span></span></h1>
-    <p class="lead" data-fr="Nous ne vendons pas de l'IA. Nous trouvons l'endroit précis où elle rapporte dans vos opérations, nous la construisons, et nous restons jusqu'à ce qu'elle tourne en production.">We don't sell AI. We find the precise place where it pays off in your operation, we build it, and we stay until it runs in production.</p>
+    <h1 class="h1"><span class="mask"><span data-fr="Ce qu'on vend, c'est">What we sell is</span></span><span class="mask"><span data-fr="un &lt;em&gt;verdict&lt;/em&gt;.">a <em>verdict</em>.</span></span></h1>
+    <p class="lead" data-fr="Le logiciel vient après. On commence par vous dire, honnêtement, si l'IA vaut la peine dans votre cas précis — et on reste jusqu'à ce que ce soit vrai en production, pas juste dans une démo.">The software comes after. We start by telling you, honestly, whether AI is worth it in your specific case, and we stay until it's true in production, not just in a demo.</p>
   </div>
 </header>
 
@@ -435,8 +435,8 @@ const ABOUT_PAGE = `<header class="phead">
   <div class="phead-grid" aria-hidden="true"></div>
   <div class="phead-in">
     <div class="crumb"><a href="index.html">ProGain</a> / <span data-fr="À propos">About</span></div>
-    <h1 class="h1"><span class="mask"><span data-fr="Deux fondateurs.">Two founders.</span></span><span class="mask"><span data-fr="Un seul &lt;em&gt;standard&lt;/em&gt;.">One <em>standard</em>.</span></span></h1>
-    <p class="lead" data-fr="Une boutique d'IA père et fils à Montréal. L'un construit comme un mathématicien, l'autre comme un opérateur — et rien ne sort avant d'avoir passé les deux filtres.">A father and son AI boutique in Montréal. One builds like a mathematician, the other like an operator — and nothing ships before it passes both filters.</p>
+    <h1 class="h1"><span class="mask"><span data-fr="Vous appelez, c'est">You call, and it's</span></span><span class="mask"><span data-fr="l'un de nous &lt;em&gt;deux&lt;/em&gt;.">one of <em>us</em>.</span></span></h1>
+    <p class="lead" data-fr="Une boutique d'IA père et fils à Montréal. Pas de compte gestionnaire, pas d'équipe de dix personnes en coulisses — juste les deux mêmes personnes du premier appel jusqu'à la mise en production.">A father-and-son AI boutique in Montréal. No account manager, no ten-person team behind the curtain — the same two people from the first call through to production.</p>
   </div>
 </header>
 
@@ -453,8 +453,8 @@ const ABOUT_PAGE = `<header class="phead">
   <div>
     <div class="kicker" data-fr="L'histoire">The story</div>
     <h2 class="h2"><span class="mask"><span data-fr="Nous avons commencé">We started</span></span><span class="mask"><span data-fr="par nos propres &lt;em&gt;problèmes&lt;/em&gt;.">with our own <em>problems</em>.</span></span></h2>
-    <p class="lead" style="margin-top:26px" data-fr="Coach est né parce que compter des macros à la main est une corvée qui fait abandonner. Markets, parce que lire une structure de volatilité dans un tableur est une perte de temps. Sentinel, parce qu'en branchant nos propres outils d'IA nous avons vu à quel point il est facile de laisser fuir des données sans le savoir.">Coach exists because counting macros by hand is the chore that makes people quit. Markets, because reading a volatility term structure in a spreadsheet is a waste of a morning. Sentinel, because while wiring up our own AI tools we saw how easy it is to leak data without knowing it.</p>
-    <p class="lead" style="margin-top:18px" data-fr="Trois produits, trois problèmes que nous avions nous-mêmes. C'est aussi comme ça que nous abordons un mandat client : trouver le vrai irritant, pas celui qui présente bien.">Three products, three problems we had ourselves. That is also how we approach a client engagement: find the real irritant, not the one that presents well.</p>
+    <p class="lead" style="margin-top:26px" data-fr="Coach a commencé parce qu'on en avait marre de compter des macros à la main tous les soirs. Markets est venu plus tard, un dimanche où lire une structure de volatilité dans un tableur nous a fait perdre une matinée entière. Sentinel, on l'a construit après avoir vu, en branchant nos propres outils d'IA, à quel point une donnée peut sortir sans que personne ne s'en aperçoive.">Coach started because we were tired of counting macros by hand every night. Markets came later, on a Sunday when reading a volatility term structure in a spreadsheet cost us an entire morning. Sentinel we built after seeing, while wiring up our own AI tools, how quietly a piece of data can walk out the door.</p>
+    <p class="lead" style="margin-top:18px" data-fr="Aucun des trois n'est parti d'une étude de marché. Chaque fois, c'était nous, avec le problème, cherchant une sortie. Quand un client nous appelle, on cherche la même chose chez lui : l'irritant qu'il a arrêté de mentionner parce qu'il pense que c'est normal.">None of the three started with a market study. Each time it was just us, stuck with the problem, looking for a way out. When a client calls, we're looking for the same thing in their business — the irritant they stopped mentioning because they think it's just normal.</p>
   </div>
   <div class="grid-2" data-rise=".card">
     <div class="card"><b class="h3" style="display:block;margin-bottom:10px">MIT</b><span class="mono" style="font-size:11px;line-height:1.7;color:var(--bone-dim);display:block" data-fr="Études de 2&lt;sup&gt;e&lt;/sup&gt; cycle — science des données et apprentissage machine">Post-graduate studies — data science &amp; machine learning</span></div>
@@ -468,10 +468,10 @@ const ABOUT_PAGE = `<header class="phead">
   <div class="kicker" data-fr="Ce à quoi nous tenons">What we hold to</div>
   <h2 class="h2" style="margin-bottom:20px"><span class="mask"><span data-fr="Quatre règles">Four rules</span></span><span class="mask"><span data-fr="qu'on ne &lt;em&gt;plie pas&lt;/em&gt;.">we don't <em>bend</em>.</span></span></h2>
   <div class="svc-grid dark-svc" data-rise=".svc" style="grid-template-columns:1fr 1fr">
-    <div class="svc"><div class="svc-num">R/01</div><h3 data-fr="Livré, ou ça ne compte pas">Shipped, or it doesn't count</h3><p data-fr="Un prototype qui ne va pas en production est une dépense, pas un investissement. Nous mesurons notre travail à ce qui tourne.">A prototype that never reaches production is an expense, not an investment. We measure our work by what runs.</p></div>
-    <div class="svc"><div class="svc-num">R/02</div><h3 data-fr="Le non arrive tôt">No comes early</h3><p data-fr="Si l'IA n'est pas la bonne réponse, nous le disons pendant l'évaluation — pas après trois mois de facturation.">If AI is not the right answer, we say so during the assessment — not after three months of billing.</p></div>
-    <div class="svc"><div class="svc-num">R/03</div><h3 data-fr="Vos données restent les vôtres">Your data stays yours</h3><p data-fr="Masquage avant les modèles, connecteurs à portée limitée, journal d'audit. Par défaut, pas sur demande.">Redaction before models, scoped connectors, an audit trail. By default, not on request.</p></div>
-    <div class="svc"><div class="svc-num">R/04</div><h3 data-fr="Bilingue, sans supplément">Bilingual, no premium</h3><p data-fr="Systèmes, documentation et formation en français et en anglais. Nous sommes à Montréal ; c'est la base, pas une option.">Systems, documentation and training in French and English. We are in Montréal; that is the baseline, not an add-on.</p></div>
+    <div class="svc"><div class="svc-num">R/01</div><h3 data-fr="Livré, ou ça ne compte pas">Shipped, or it doesn't count</h3><p data-fr="On a un prototype qui traîne depuis huit mois parce qu'on n'était jamais satisfaits. Ça nous a appris quelque chose : ce qui compte, c'est ce qui tourne, pas ce qu'on a construit.">We have a prototype that sat unfinished for eight months because we were never quite happy with it. It taught us something: what counts is what runs, not what got built.</p></div>
+    <div class="svc"><div class="svc-num">R/02</div><h3 data-fr="Le non arrive tôt">No comes early</h3><p data-fr="La pire chose qu'on puisse faire, c'est facturer trois mois avant de dire qu'on aurait dû s'arrêter à la première semaine. Le non, quand il vient, vient vite.">The worst thing we could do is bill for three months before saying we should have stopped in the first week. When the answer is no, it comes fast.</p></div>
+    <div class="svc"><div class="svc-num">R/03</div><h3 data-fr="Vos données restent les vôtres">Your data stays yours</h3><p data-fr="On masque avant que quoi que ce soit n'atteigne un modèle, on limite chaque connecteur, on garde un journal d'audit. C'est réglé comme ça avant même que vous le demandiez.">We redact before anything reaches a model, scope every connector, and keep an audit trail. It's set up that way before you'd ever think to ask.</p></div>
+    <div class="svc"><div class="svc-num">R/04</div><h3 data-fr="Bilingue, sans supplément">Bilingual, no premium</h3><p data-fr="On travaille dans les deux langues depuis le premier jour, parce qu'on est à Montréal et qu'on n'a jamais connu autre chose.">We've worked in both languages since day one, because we're in Montréal and never knew it any other way.</p></div>
   </div>
 </div></section>
 
@@ -672,8 +672,8 @@ module.exports = [
     body: productPage({
       id: 'PG—01 / HEALTH', acc: '#2B5B42', crumb: 'Coach', crumbFr: 'Coach',
       h1a: 'One photo.', h1aFr: 'Une photo.', h1b: 'Macros <em>counted</em>.', h1bFr: 'Les macros <em>comptées</em>.',
-      lead: 'Counting macros by hand is the chore that makes people quit. Coach removes it: photograph the plate, get the numbers, keep the habit.',
-      leadFr: "Compter ses macros à la main est la corvée qui fait abandonner. Coach l'enlève : photographiez l'assiette, obtenez les chiffres, gardez l'habitude.",
+      lead: "Counting macros by hand is the chore that makes people quit after two weeks. Coach skips the math — point your phone at the plate and the numbers are just there.",
+      leadFr: "Compter ses macros à la main, c'est la corvée qui fait tout abandonner après deux semaines. Coach saute le calcul : on pointe le téléphone vers l'assiette et les chiffres sont là.",
       mock: { wide: false, reverse: false, html: PHONE_COACH,
         text: mockText('The app', "L'application", 'Your day, in three rings.', 'Votre journée, en trois anneaux.',
           'Calories, protein and training load on one screen. Log a meal in two taps, and the plan adjusts to the week you are actually having — not the week you planned.',
@@ -707,8 +707,8 @@ module.exports = [
     body: productPage({
       id: 'PG—02 / MARKETS', acc: '#93672E', crumb: 'Markets', crumbFr: 'Markets',
       h1a: 'Move the market.', h1aFr: 'Déplacez le marché.', h1b: 'See the <em>book</em>.', h1bFr: 'Voyez le <em>livre</em>.',
-      lead: 'Volatility, term structure and scenarios in one workspace — so a shock you are worried about becomes a number instead of a feeling.',
-      leadFr: "Volatilité, structure par échéance et scénarios dans un seul espace — pour qu'un choc qui vous inquiète devienne un chiffre au lieu d'une impression.",
+      lead: "You already feel it in your gut when a move is coming. Markets puts a number on that feeling: volatility, term structure and scenarios, all in one workspace.",
+      leadFr: "Vous le sentez déjà venir, un mouvement qui s'en vient. Markets met un chiffre sur cette impression : volatilité, structure par échéance et scénarios, dans un seul espace.",
       mock: { wide: true, reverse: true, html: WIN_MARKETS,
         text: mockText('The workspace', "L'espace de travail", 'Your book, on one screen.', 'Votre livre, sur un écran.',
           'Positions, greeks and P&L in a single table that updates with the surface. No exporting to a spreadsheet to answer a question you will ask again tomorrow.',
@@ -742,8 +742,8 @@ module.exports = [
     body: productPage({
       id: 'PG—03 / SECURITY', acc: '#3E5F7D', crumb: 'Sentinel', crumbFr: 'Sentinel',
       h1a: 'Every connector', h1aFr: 'Chaque connecteur', h1b: 'is a <em>door</em>.', h1bFr: 'est une <em>porte</em>.',
-      lead: 'Teams wire AI into their tools in an afternoon. Sentinel tells you what walked out the door while you did — and what to close first.',
-      leadFr: "Une équipe branche l'IA à ses outils en un après-midi. Sentinel vous dit ce qui est sorti pendant ce temps-là — et ce qu'il faut fermer en premier.",
+      lead: "It takes an afternoon to wire AI into your tools. It can take months to notice what walked out the door while you did it. Sentinel tells you sooner.",
+      leadFr: "Ça prend un après-midi pour brancher l'IA à vos outils. Ça peut prendre des mois avant de remarquer ce qui en est sorti pendant ce temps-là. Sentinel vous le dit plus tôt.",
       mock: { wide: true, reverse: false, html: WIN_SENTINEL,
         text: mockText('The dashboard', 'Le tableau de bord', 'Posture, not paranoia.', 'Une posture, pas de la paranoïa.',
           'One view of every component that touches a model: what it can read, what it forwards, and which findings deserve your afternoon. Severity is ranked so you fix three things, not fifty.',
