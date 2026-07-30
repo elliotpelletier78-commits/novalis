@@ -571,6 +571,30 @@ const PG = (() => {
       const twinkle = .55 + ((i * 2654435761) % 1000) / 1000 * .8;
       mesh.push([Math.cos(th) * rad, y, Math.sin(th) * rad, twinkle]);
     }
+    // Continents en contour simplifié (bas-poly, à la main) — assez de
+    // sommets pour être reconnaissables, pas assez pour ressembler à des
+    // données SIG. Chaque forme est une boucle fermée [lat, lon].
+    const CONTINENTS = [
+      [[71, -156], [66, -166], [58, -157], [55, -162], [49, -123], [40, -124], [32, -117],
+       [23, -110], [20, -105], [16, -95], [19, -96], [21, -87], [16, -88], [11, -84], [9, -80],
+       [12, -72], [11, -62], [18, -66], [25, -80], [31, -81], [35, -76], [40, -74], [44, -66],
+       [47, -52], [53, -56], [58, -63], [60, -65], [63, -78], [68, -81], [70, -95], [71, -125], [71, -156]],
+      [[12, -72], [5, -52], [-5, -35], [-13, -39], [-23, -43], [-34, -58], [-38, -62], [-53, -68],
+       [-42, -73], [-33, -71], [-18, -70], [-4, -81], [2, -80], [7, -77], [12, -72]],
+      [[36, -9], [43, -9], [48, -4], [51, 1], [55, 8], [58, 6], [63, 10], [69, 19], [66, 30],
+       [60, 30], [52, 20], [45, 29], [41, 29], [37, 23], [38, 15], [40, 18], [43, 13], [40, 4], [36, -9]],
+      [[37, 10], [33, 12], [31, 25], [31, 32], [22, 38], [12, 43], [2, 45], [-1, 42], [-16, 40],
+       [-26, 33], [-34, 20], [-29, 17], [-17, 12], [-5, 12], [4, 9], [6, -3], [6, -10], [9, -14],
+       [15, -17], [21, -17], [31, -10], [35, -6], [37, 10]],
+      [[41, 29], [45, 38], [50, 55], [45, 62], [40, 55], [30, 48], [26, 56], [24, 67], [8, 77],
+       [22, 89], [16, 95], [10, 106], [1, 104], [-8, 115], [-6, 106], [10, 100], [23, 113], [31, 122],
+       [40, 124], [43, 132], [55, 137], [60, 163], [70, 170], [73, 140], [77, 105], [73, 80],
+       [70, 60], [55, 60], [48, 45], [41, 29]],
+      [[-11, 131], [-13, 143], [-17, 146], [-27, 153], [-38, 148], [-38, 141], [-35, 138],
+       [-32, 115], [-25, 113], [-20, 114], [-16, 123], [-14, 129], [-11, 131]],
+    ];
+    const continents = CONTINENTS.map(loop => loop.map(([lat, lon]) => toVec(lat, lon)));
+
     const slerp = (a, b, t) => {
       const dot = Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
       const omega = Math.acos(dot);
@@ -692,6 +716,26 @@ const PG = (() => {
         }
       };
       gridLat.forEach(drawRing); gridLon.forEach(drawRing);
+      // Contours des continents : trait plus appuyé que la grille, avec
+      // un remplissage très léger quand la forme est entièrement visible.
+      continents.forEach(loop => {
+        const pts = loop.map(v => project(spin(tilted(v), rot)));
+        for (let i = 0; i < pts.length - 1; i++) {
+          const a = pts[i], b = pts[i + 1];
+          const az = (a.z + b.z) / 2;
+          if (az < -.35) continue;
+          const alpha = Math.max(.05, Math.min(.85, .22 + az * .55));
+          ctx.beginPath(); ctx.strokeStyle = 'rgba(43,91,66,' + alpha.toFixed(3) + ')'; ctx.lineWidth = 1.1;
+          ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        }
+        if (pts.every(p => p.z > -.05)) {
+          ctx.beginPath();
+          pts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(43,91,66,.055)';
+          ctx.fill();
+        }
+      });
       // Arc du siège vers la ville active, légèrement soulevé au-dessus
       // de la sphère — comme une trajectoire de vol.
       const active = dest[activeIdx];

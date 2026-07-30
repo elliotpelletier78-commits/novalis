@@ -185,6 +185,11 @@ section{position:relative}
 .card{background:var(--panel);border:1px solid var(--hair);border-radius:6px;padding:32px 28px;transition:transform .35s var(--ease),border-color .35s,box-shadow .35s}
 .card:hover{transform:translateY(-5px);border-color:var(--hair-2);box-shadow:0 22px 48px -26px rgba(24,27,20,.22)}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+/* Léger décalage vertical en quinconce — une grille posée à la main,
+   pas générée au pixel près. */
+.grid-2 .card:nth-child(even){margin-top:26px}
+.grid-2 .card:nth-child(4n+3){margin-top:-8px}
+@media(max-width:640px){.grid-2 .card{margin-top:0!important}}
 .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
 .split{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(40px,6vw,90px);align-items:center}
 .split.wide-l{grid-template-columns:1.3fr .7fr}
@@ -554,6 +559,14 @@ body::after{content:'';position:fixed;inset:0;z-index:400;pointer-events:none;op
 
 /* ── Manifeste : mots révélés au rythme du défilement ── */
 #mani .w{transition:opacity .2s linear}
+
+/* ── Manifeste : guillemet hors-grille, comme une citation posée à
+   la main plutôt que centrée dans une boîte parfaite. ── */
+.manifesto{position:relative;display:grid;grid-template-columns:auto 1fr;column-gap:6px;align-items:start}
+.manifesto-mark{font-family:Georgia,'Fraunces',serif;font-weight:700;font-size:clamp(110px,15vw,240px);line-height:1;
+  color:var(--jade);opacity:.16;margin-left:clamp(-54px,-5vw,-16px);margin-top:-.24em;user-select:none}
+.manifesto-body{max-width:1000px}
+@media(max-width:760px){.manifesto{grid-template-columns:1fr}.manifesto-mark{display:none}}
 
 /* ── Boutons magnétiques / cartes en bascule 3D : GSAP pilote le
    transform directement, la transition CSS ne doit pas s'en mêler ── */
