@@ -6,8 +6,8 @@
 
 const { esc, icon, page } = require('./ui');
 
-const TYPE_LABEL = { reponse: 'Réponse', avis: 'Avis', devis: 'Devis', relance: 'Relance', rappel: 'Rappel', publication: 'Publication' };
-const ICN = { reponse: 'inbox', avis: 'phone', devis: 'file', relance: 'phone', rappel: 'clock', publication: 'file' };
+const TYPE_LABEL = { reponse: 'Réponse', avis: 'Avis', devis: 'Devis', relance: 'Relance', rappel: 'Rappel', fidelisation: 'Fidélisation', publication: 'Publication' };
+const ICN = { reponse: 'inbox', avis: 'phone', devis: 'file', relance: 'phone', rappel: 'clock', fidelisation: 'phone', publication: 'file' };
 
 const EXTRA = `
 .nova{border-radius:var(--r-lg);border:1px solid var(--line);background:var(--card);box-shadow:var(--sh-sm);margin-bottom:18px;overflow:hidden}

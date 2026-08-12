@@ -94,6 +94,9 @@ function sujetPour(type, cfg = {}) {
   if (type === 'rappel') {
     return cfg.nomCommerce ? `Rappel de votre rendez-vous — ${cfg.nomCommerce}` : 'Rappel de votre rendez-vous';
   }
+  if (type === 'fidelisation') {
+    return cfg.nomCommerce ? `On prend de vos nouvelles — ${cfg.nomCommerce}` : 'On prend de vos nouvelles';
+  }
   if (type === 'relance') {
     return cfg.nomCommerce ? `On revient vers vous — ${cfg.nomCommerce}` : 'On revient vers vous';
   }
@@ -134,6 +137,73 @@ function creerRelancePourLead(db, lead, cfg = {}) {
      VALUES (?, 'relance', 'lead', ?, ?, ?, ?, ?, 4)`
   ).run(lead.source, lead.id, titre, apercu, brouillon, lead.courriel || null);
   return info.changes ? { id: info.lastInsertRowid } : null;
+}
+
+// Accroche de fidélisation selon le métier (retour / entretien). Jamais de
+// promesse ni d'incitatif — une invitation sincère à revenir.
+const FIDELISATION_HOOK = {
+  garage: 'il est peut-être temps de penser à votre prochain entretien',
+  plombier: 'si vous avez un projet ou un entretien à prévoir, on est là',
+  electricien: 'si vous avez un projet ou une vérification à prévoir, on est là',
+  construction: 'si un nouveau projet mijote, ce serait un plaisir d\'en discuter',
+  salon: 'peut-être est-il temps de prévoir votre prochain rendez-vous',
+  health: 'un suivi est peut-être le bienvenu — nous sommes là quand vous le souhaitez',
+  restaurant: 'au plaisir de vous accueillir de nouveau bientôt',
+  fitness: 'prêt à reprendre le rythme quand vous voulez',
+  defaut: 'ce serait un plaisir de vous revoir',
+};
+
+/** Brouillon de fidélisation pour un ancien client (gagné il y a un moment). */
+function brouillonFidelisation(lead, cfg = {}) {
+  const commerce = cfg.nomCommerce || 'notre équipe';
+  const pn = prenom(lead.nom);
+  const salut = pn ? `Bonjour ${pn},` : 'Bonjour,';
+  const hook = FIDELISATION_HOOK[cfg.secteur] || FIDELISATION_HOOK.defaut;
+  const lignes = [
+    salut,
+    '',
+    `On prend de vos nouvelles depuis ${commerce} — ${hook}.`,
+    'Si on peut vous être utile, répondez simplement à ce message.',
+  ];
+  if (cfg.telephone) lignes.push('', `Ou joignez-nous au ${cfg.telephone}.`);
+  lignes.push('', 'Au plaisir,', commerce);
+  return lignes.join('\n');
+}
+
+/** Crée (idempotent) une proposition de fidélisation pour un ancien client. */
+function creerFidelisationPourLead(db, lead, cfg = {}) {
+  if (!lead || !lead.id || !lead.source) return null;
+  const brouillon = brouillonFidelisation(lead, cfg);
+  const info = db.prepare(
+    `INSERT OR IGNORE INTO propositions
+       (source, type, ref_type, ref_id, titre, apercu, brouillon, destinataire, priorite)
+     VALUES (?, 'fidelisation', 'lead', ?, ?, ?, ?, ?, 2)`
+  ).run(lead.source, lead.id, `Reprendre contact avec ${lead.nom || 'un client'}`,
+    'Ancien client — invitation à revenir', brouillon, lead.courriel || null);
+  return info.changes ? { id: info.lastInsertRowid } : null;
+}
+
+/**
+ * Balaye les anciens clients GAGNÉS (dans une fenêtre raisonnable) et prépare
+ * une invitation à revenir. Fenêtre par défaut : gagnés il y a entre 6 et 18
+ * mois (assez pour un retour, pas si vieux qu'on ratisse tout). Idempotent.
+ * @returns {number}
+ */
+function preparerFidelisations(db, source, opts = {}) {
+  const min = Math.max(1, parseInt(opts.moisMin, 10) || 6);
+  const max = Math.max(min + 1, parseInt(opts.moisMax, 10) || 18);
+  const cfg = opts.cfg || {};
+  let leads;
+  try {
+    leads = db.prepare(
+      `SELECT id, source, nom, courriel FROM leads
+       WHERE source = ? AND statut = 'gagne'
+         AND created_at <= datetime('now', ?) AND created_at >= datetime('now', ?)`
+    ).all(source, `-${min} months`, `-${max} months`);
+  } catch { return 0; }
+  let n = 0;
+  for (const l of leads) { if (creerFidelisationPourLead(db, l, cfg)) n++; }
+  return n;
 }
 
 /**
@@ -303,9 +373,10 @@ async function approuver(db, id, ctx = {}) {
 }
 
 module.exports = {
-  brouillonReponse, brouillonAvis, brouillonRelance, accuseReception, sujetAccuse,
+  brouillonReponse, brouillonAvis, brouillonRelance, brouillonFidelisation, accuseReception, sujetAccuse,
   sujetReponse, sujetPour,
   creerReponsePourLead, creerAvisPourLead, creerRelancePourLead, preparerRelances,
+  creerFidelisationPourLead, preparerFidelisations,
   lister, compteurs, get, modifier, rejeter, approuver,
   _prenom: prenom, _accroche: accroche,
 };

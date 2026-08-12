@@ -2264,8 +2264,11 @@ app.get('/core/aujourdhui', adminOnly, coreReady, (req, res) => {
   // pour chaque client devenu silencieux (si l'entreprise a consenti « rédiger »).
   // Idempotent, sans tâche planifiée ; ne doit jamais casser l'affichage.
   if (et.consent.rediger) {
-    try { propositions.preparerRelances(db, source, { jours: 3, cfg: { nomCommerce: et.identite.nom, telephone: et.identite.telephone } }); }
+    const cfgP = { nomCommerce: et.identite.nom, telephone: et.identite.telephone, secteur: et.identite.secteur };
+    try { propositions.preparerRelances(db, source, { jours: 3, cfg: cfgP }); }
     catch (e) { console.error('[relance] balayage échoué:', e.message); }
+    try { propositions.preparerFidelisations(db, source, { cfg: cfgP }); }
+    catch (e) { console.error('[fidelisation] balayage échoué:', e.message); }
   }
   const recu = reception.apercu(db, source, { jours: 30 });
   const pouls = pulse.apercu(db, source, { jours: 30 });

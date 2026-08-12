@@ -3,7 +3,7 @@ import Database from 'better-sqlite3';
 import { runMigrations } from '../core/db.js';
 import {
   brouillonReponse, brouillonAvis, brouillonRelance, creerReponsePourLead, creerAvisPourLead,
-  preparerRelances, sujetPour, lister, compteurs, get,
+  preparerRelances, preparerFidelisations, sujetPour, lister, compteurs, get,
   modifier, rejeter, approuver, _prenom, _accroche,
 } from '../core/propositions.js';
 
@@ -243,5 +243,45 @@ describe('approuver', () => {
     const c = compteurs(db, 'garage-x');
     expect(c.en_attente).toBe(1);
     expect(c.approuve).toBe(1);
+  });
+});
+
+describe('pilote Fidélisation (anciens clients gagnés)', () => {
+  function leadGagne(moisPasses, over = {}) {
+    const info = db.prepare(
+      `INSERT INTO leads (source, nom, courriel, message, statut, created_at)
+       VALUES (?,?,?,?, 'gagne', datetime('now', ?))`
+    ).run(over.source || 'garage-x', over.nom || 'Marie Roy', over.courriel || 'm@x.ca', 'ancien job', `-${moisPasses} months`);
+    return info.lastInsertRowid;
+  }
+
+  it('rédige une invitation à revenir, adaptée au secteur, sans incitatif', async () => {
+    const { brouillonFidelisation } = await import('../core/propositions.js');
+    const t = brouillonFidelisation({ nom: 'Marie Roy' }, { nomCommerce: 'Garage X', secteur: 'garage' });
+    expect(t).toContain('Bonjour Marie,');
+    expect(t).toMatch(/entretien/i);
+    expect(t).not.toMatch(/rabais|gratuit|\$|concours/i);
+  });
+
+  it('relance un client gagné dans la fenêtre (6–18 mois)', () => {
+    leadGagne(9);
+    expect(preparerFidelisations(db, 'garage-x', {})).toBe(1);
+    expect(lister(db, 'garage-x')[0].type).toBe('fidelisation');
+  });
+
+  it('ignore un client trop récent (<6 mois) ou trop vieux (>18 mois)', () => {
+    leadGagne(2);
+    leadGagne(24);
+    expect(preparerFidelisations(db, 'garage-x', {})).toBe(0);
+  });
+
+  it('idempotent : un client gagné n\'est relancé qu\'une fois', () => {
+    leadGagne(9);
+    preparerFidelisations(db, 'garage-x', {});
+    expect(preparerFidelisations(db, 'garage-x', {})).toBe(0);
+  });
+
+  it('sujet distinct', () => {
+    expect(sujetPour('fidelisation', { nomCommerce: 'G' })).toMatch(/vos nouvelles/i);
   });
 });
