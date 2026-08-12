@@ -2132,7 +2132,7 @@ app.get('/core/reception', adminOnly, coreReady, (req, res) => {
   const token = reception.jetonRapport(source, process.env.MASTER_KEY);
   const base = `${req.protocol}://${req.get('host')}`;
   res.setHeader('X-Frame-Options', 'DENY');
-  res.send(renderReception(data, { sources, pulse: pouls, rapportUrl: `${base}/r/${encodeURIComponent(source)}/${token}` }));
+  res.send(renderReception(data, { sources, pulse: pouls, pass: req.query.pass ? String(req.query.pass) : undefined, rapportUrl: `${base}/r/${encodeURIComponent(source)}/${token}` }));
 });
 
 // Configuration d'un site (onboarding client) — sans SQL, depuis le cockpit.
@@ -2165,7 +2165,9 @@ app.get('/core/branchement', adminOnly, coreReady, (req, res) => {
   const source = String(req.query.source || 'novalis').slice(0, 40);
   if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
   res.setHeader('X-Frame-Options', 'DENY');
-  res.send(renderBranchement(branchement.etat(db, source)));
+  const eBr = branchement.etat(db, source);
+  eBr.pass = req.query.pass ? String(req.query.pass) : undefined;
+  res.send(renderBranchement(eBr));
 });
 
 app.post('/core/branchement', adminOnly, coreReady, express.json({ limit: '8kb' }), (req, res) => {
@@ -2252,6 +2254,7 @@ app.get('/core/aujourdhui', adminOnly, coreReady, (req, res) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.send(renderAujourdhui({
     source, nom: et.identite.nom, salutation, dateLabel: dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1), sources,
+    pass: req.query.pass ? String(req.query.pass) : undefined,
     signaux: {
       a_approuver: propositions.compteurs(db, source).en_attente,
       contacts: recu.compteurs.contacts,
@@ -2271,7 +2274,7 @@ app.get('/core/devis', adminOnly, coreReady, (req, res) => {
   if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
   const et = branchement.etat(db, source);
   res.setHeader('X-Frame-Options', 'DENY');
-  res.send(renderDevis({ source, nom: et.identite.nom, services: devis.listerServices(db, source) }));
+  res.send(renderDevis({ source, nom: et.identite.nom, services: devis.listerServices(db, source), pass: req.query.pass ? String(req.query.pass) : undefined }));
 });
 app.post('/core/devis/service', adminOnly, coreReady, express.json({ limit: '4kb' }), (req, res) => {
   const b = req.body || {};
@@ -2322,7 +2325,7 @@ app.get('/core/propositions', adminOnly, coreReady, (req, res) => {
     source, nom: et.identite.nom,
     items: propositions.lister(db, source, { statut }),
     compteurs: propositions.compteurs(db, source),
-    statut, lienEspace,
+    statut, lienEspace, pass: req.query.pass ? String(req.query.pass) : undefined,
   }));
 });
 
