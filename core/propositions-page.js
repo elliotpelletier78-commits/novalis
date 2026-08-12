@@ -69,6 +69,8 @@ textarea:focus{outline:2px solid var(--jade);outline-offset:1px}
 .tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
 .tabs a{font-size:13px;font-weight:600;padding:7px 14px;border-radius:999px;border:1px solid var(--hair);color:var(--ink-2);text-decoration:none}
 .tabs a.on{background:var(--jade);color:#fff;border-color:var(--jade)}
+.share{margin-top:18px;font-size:13px;color:var(--muted);background:var(--card);border:1px solid var(--hair);border-radius:12px;padding:14px 16px}
+.share code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:var(--panel);padding:3px 7px;border-radius:6px;word-break:break-all}
 .foot{margin-top:26px;color:var(--faint);font-size:12.5px;text-align:center}
 `;
 
@@ -98,13 +100,17 @@ function carte(p) {
 }
 
 /**
- * @param {{source:string, nom?:string, items:Array, compteurs:object, statut:string}} data
+ * @param {{source:string, nom?:string, items:Array, compteurs:object, statut:string,
+ *          mode?:'admin'|'owner', token?:string}} data
  */
 function renderPropositions(data) {
   const nom = data.nom || data.source;
   const c = data.compteurs;
   const statut = data.statut || 'en_attente';
-  const tab = (s, label) => `<a href="?source=${encodeURIComponent(data.source)}&statut=${s}"${s === statut ? ' class="on"' : ''}>${label}</a>`;
+  const owner = data.mode === 'owner';
+  // En mode commerçant, la page vit sous /e/:source/:token — on garde le chemin
+  // et on ne change que le paramètre statut.
+  const tab = (s, label) => `<a href="${owner ? '' : '?source=' + encodeURIComponent(data.source)}${owner ? '?' : '&'}statut=${s}"${s === statut ? ' class="on"' : ''}>${label}</a>`;
 
   const corps = data.items.length
     ? data.items.map(carte).join('')
@@ -123,9 +129,12 @@ function renderPropositions(data) {
     ${tab('rejete', 'Rejetés')}
   </div>
   ${corps}
-  <div class="foot">Rien ne part sans votre approbation. Vous gardez la main sur chaque mot.</div>
+  ${!owner && data.lienEspace ? `<div class="share">Lien privé du commerçant (il approuve lui-même, sans mot de passe)&nbsp;: <code>${esc(data.lienEspace)}</code></div>` : ''}
+  <div class="foot">Rien ne part sans votre approbation. Vous gardez la main sur chaque mot.${owner ? ' Ceci est votre espace privé Novalis.' : ''}</div>
 </div>
 <script>
+var OWNER=${owner ? 'true' : 'false'};
+var ACTION_BASE=${owner ? JSON.stringify(`/e/${data.source}/${data.token}/prop`) : JSON.stringify('/core/propositions')};
 function pass(){return localStorage.getItem('novalis_admin')||new URLSearchParams(location.search).get('pass')||'';}
 (function(){var p=new URLSearchParams(location.search).get('pass'); if(p) localStorage.setItem('novalis_admin',p);})();
 document.querySelectorAll('.prop').forEach(function(card){
@@ -140,8 +149,9 @@ document.querySelectorAll('.prop').forEach(function(card){
       card.querySelectorAll('button').forEach(function(b){b.disabled=true;});
       msg.style.color=''; msg.textContent='…';
       try{
-        var r=await fetch('/core/propositions/'+id,{method:'POST',
-          headers:{'Content-Type':'application/json','x-admin-pass':pass()},body:JSON.stringify(body)});
+        var headers={'Content-Type':'application/json'};
+        if(!OWNER) headers['x-admin-pass']=pass();
+        var r=await fetch(ACTION_BASE+'/'+id,{method:'POST',headers:headers,body:JSON.stringify(body)});
         var j=await r.json().catch(function(){return {};});
         if(r.ok){
           if(a==='modifier'){ msg.style.color='#2E6B45'; msg.textContent='✓ Changements enregistrés';

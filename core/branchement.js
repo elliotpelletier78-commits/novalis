@@ -5,6 +5,21 @@
 // l'état du branchement et le CALCULE (progression, prêt-à-opérer) — les
 // secrets, eux, ne transitent jamais par ici : ils vont dans core/secrets.js.
 
+const crypto = require('crypto');
+
+// Jeton d'accès à l'espace commerçant — HMAC(source) tronqué. Un lien privé
+// non devinable ouvre SON poste de commande sans compte ni mot de passe (comme
+// le rapport mensuel, mais pour agir : approuver/modifier/rejeter).
+function jetonEspace(source, masterKey) {
+  return crypto.createHmac('sha256', String(masterKey || 'sel-espace'))
+    .update('espace:' + String(source)).digest('hex').slice(0, 24);
+}
+function jetonEspaceValide(source, jeton, masterKey) {
+  const a = Buffer.from(jetonEspace(source, masterKey));
+  const b = Buffer.from(String(jeton || ''));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 // Catalogue des « clés » qu'une entreprise peut remettre. `dispo` distingue ce
 // qui se branche aujourd'hui de ce qui arrive (connexion guidée à venir), pour
 // ne JAMAIS promettre une intégration qu'on ne peut pas encore tenir.
@@ -179,5 +194,5 @@ function etat(db, source) {
 module.exports = {
   CONNEXIONS, CONSENTEMENTS,
   definirEntreprise, definirConsentement, definirConnexion, assurerClient,
-  etat,
+  etat, jetonEspace, jetonEspaceValide,
 };

@@ -2293,47 +2293,91 @@ app.get('/core/propositions', adminOnly, coreReady, (req, res) => {
   if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
   const statut = ['en_attente', 'approuve', 'envoye', 'rejete'].includes(req.query.statut) ? req.query.statut : 'en_attente';
   const et = branchement.etat(db, source);
+  const base = `${req.protocol}://${req.get('host')}`;
+  const lienEspace = `${base}/e/${encodeURIComponent(source)}/${branchement.jetonEspace(source, process.env.MASTER_KEY)}`;
   res.setHeader('X-Frame-Options', 'DENY');
   res.send(renderPropositions({
     source, nom: et.identite.nom,
     items: propositions.lister(db, source, { statut }),
     compteurs: propositions.compteurs(db, source),
-    statut,
+    statut, lienEspace,
   }));
 });
 
-// Approuver / modifier / rejeter une proposition. L'approbation exécute l'envoi
-// SEULEMENT si l'entreprise a consenti à l'envoi et que le courriel est branché ;
-// sinon la proposition est « approuvée — à envoyer à la main » (jamais faux envoi).
+// Logique partagée d'action sur une proposition (approuver/modifier/rejeter),
+// utilisée par l'admin ET par l'espace commerçant (lien magique). L'approbation
+// n'envoie que si l'entreprise a consenti ET que le courriel est branché ; sinon
+// « approuvé — à envoyer à la main » (jamais de faux envoi).
+async function executerActionProposition(id, action, body) {
+  if (action === 'rejeter') return { code: 200, json: propositions.rejeter(db, id) };
+  if (action === 'modifier') return { code: 200, json: propositions.modifier(db, id, (body || {}).brouillon) };
+  if (action === 'approuver') {
+    const p = propositions.get(db, id);
+    if (!p) return { code: 404, json: { ok: false, raison: 'introuvable' } };
+    if (typeof (body || {}).brouillon === 'string') propositions.modifier(db, id, body.brouillon);
+    const et = branchement.etat(db, p.source);
+    const cxCourriel = et.connexions.find(x => x.type === 'courriel' && x.statut === 'branche');
+    const replyTo = et.identite.courriel
+      || (cxCourriel && /@/.test(String(cxCourriel.compte_label || '')) ? cxCourriel.compte_label : undefined);
+    const r = await propositions.approuver(db, id, {
+      peutEnvoyer: et.consent.envoyer && !!replyTo,
+      mailer, replyTo,
+      sujet: propositions.sujetPour(p.type, { nomCommerce: et.identite.nom }),
+    });
+    return { code: r.ok ? 200 : 400, json: r };
+  }
+  return { code: 400, json: { ok: false, raison: 'action inconnue' } };
+}
+
 app.post('/core/propositions/:id', adminOnly, coreReady, express.json({ limit: '16kb' }), async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (!Number.isInteger(id)) return res.status(400).json({ error: 'id invalide' });
-  const action = String((req.body || {}).action || '');
   try {
-    if (action === 'rejeter') return res.json(propositions.rejeter(db, id));
-    if (action === 'modifier') return res.json(propositions.modifier(db, id, (req.body || {}).brouillon));
-    if (action === 'approuver') {
-      const p = propositions.get(db, id);
-      if (!p) return res.status(404).json({ ok: false, raison: 'introuvable' });
-      // La modification éventuelle du brouillon est enregistrée avant l'envoi.
-      if (typeof (req.body || {}).brouillon === 'string') propositions.modifier(db, id, req.body.brouillon);
-      const et = branchement.etat(db, p.source);
-      // Adresse de réponse du commerce : son courriel d'identité, sinon celui
-      // branché comme connexion. Sans adresse de réponse, on N'ENVOIE PAS en
-      // son nom (les réponses du client tomberaient chez Novalis, pas chez lui) :
-      // la proposition reste « à envoyer à la main ».
-      const cxCourriel = et.connexions.find(x => x.type === 'courriel' && x.statut === 'branche');
-      const replyTo = et.identite.courriel
-        || (cxCourriel && /@/.test(String(cxCourriel.compte_label || '')) ? cxCourriel.compte_label : undefined);
-      const r = await propositions.approuver(db, id, {
-        peutEnvoyer: et.consent.envoyer && !!replyTo,
-        mailer,
-        replyTo,
-        sujet: propositions.sujetPour(p.type, { nomCommerce: et.identite.nom }),
-      });
-      return res.json(r);
-    }
-    return res.status(400).json({ ok: false, raison: 'action inconnue' });
+    const { code, json } = await executerActionProposition(id, String((req.body || {}).action || ''), req.body || {});
+    res.status(code).json(json);
+  } catch (e) { res.status(500).json({ ok: false, raison: e.message }); }
+});
+
+// ── Espace commerçant (lien magique, sans mot de passe) ─────────────
+// Le commerçant ouvre SON poste de commande via un lien privé signé et approuve
+// lui-même. Aucun compte. Le jeton n'autorise QUE sa propre entreprise.
+app.get('/e/:source/:token', coreReady, (req, res) => {
+  const source = String(req.params.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)
+    || !branchement.jetonEspaceValide(source, req.params.token, process.env.MASTER_KEY)) {
+    return res.status(403).type('text/plain').send('Lien invalide.');
+  }
+  // Préparer les relances silencieuses à l'ouverture (comme le tableau de bord).
+  const et = branchement.etat(db, source);
+  if (et.consent.rediger) {
+    try { propositions.preparerRelances(db, source, { jours: 3, cfg: { nomCommerce: et.identite.nom, telephone: et.identite.telephone } }); } catch { /* jamais bloquant */ }
+  }
+  const statut = ['en_attente', 'approuve', 'envoye', 'rejete'].includes(req.query.statut) ? req.query.statut : 'en_attente';
+  res.setHeader('X-Robots-Tag', 'noindex');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.send(renderPropositions({
+    source, nom: et.identite.nom,
+    items: propositions.lister(db, source, { statut }),
+    compteurs: propositions.compteurs(db, source),
+    statut, mode: 'owner', token: req.params.token,
+  }));
+});
+
+app.post('/e/:source/:token/prop/:id', coreReady, express.json({ limit: '16kb' }), async (req, res) => {
+  const source = String(req.params.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)
+    || !branchement.jetonEspaceValide(source, req.params.token, process.env.MASTER_KEY)) {
+    return res.status(403).json({ ok: false, raison: 'lien invalide' });
+  }
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) return res.status(400).json({ ok: false, raison: 'id invalide' });
+  // Garde de portée : le jeton d'une entreprise ne peut agir QUE sur ses propres
+  // propositions — jamais sur celles d'un autre commerce.
+  const p = propositions.get(db, id);
+  if (!p || p.source !== source) return res.status(404).json({ ok: false, raison: 'introuvable' });
+  try {
+    const { code, json } = await executerActionProposition(id, String((req.body || {}).action || ''), req.body || {});
+    res.status(code).json(json);
   } catch (e) { res.status(500).json({ ok: false, raison: e.message }); }
 });
 
