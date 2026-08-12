@@ -114,6 +114,23 @@ tr:last-child td{border-bottom:none}
 .cfg-btn:hover{filter:brightness(1.08)}
 .cfg-msg{margin-left:12px;font-size:13px;color:var(--ok)}
 @media(max-width:760px){.hero,.row2,.cfg-grid{grid-template-columns:1fr}}
+/* Novalis Pulse — entonnoir + diagnostic */
+.pulse-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pulse-conv{font-family:var(--serif);font-size:26px;font-weight:700;color:var(--jade);font-variant-numeric:tabular-nums}
+.funnel{margin-top:16px;display:flex;flex-direction:column;gap:9px}
+.fstep{display:grid;grid-template-columns:1fr;gap:4px}
+.fstep .flabel{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-2)}
+.fstep .flabel b{font-variant-numeric:tabular-nums;color:var(--ink)}
+.fbar{height:26px;border-radius:8px;background:var(--panel);overflow:hidden;position:relative}
+.fbar>span{display:block;height:100%;background:linear-gradient(90deg,var(--jade),var(--steel));border-radius:8px;min-width:2px;transition:width .4s}
+.fdrop{align-self:flex-end;font-size:11.5px;color:var(--risk);font-weight:650;margin-top:-2px}
+.diag{margin-top:18px;padding:16px 18px;border-radius:12px;background:var(--warn-soft);border:1px solid var(--hair)}
+.diag .dt{font-family:var(--serif);font-size:16px;font-weight:700;color:var(--ink);margin-bottom:6px}
+.diag .dt .tag{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--warn);margin-right:8px}
+.diag .dd{font-size:14px;color:var(--ink-2);margin-bottom:10px}
+.diag .dl{font-size:14px;color:var(--ink)}
+.diag .dl b{color:var(--jade)}
+.pulse-thin{margin-top:14px;padding:14px 16px;border-radius:11px;background:var(--panel);font-size:13.5px;color:var(--muted)}
 `;
 
 function sparkline(tendance) {
@@ -130,6 +147,49 @@ function sparkline(tendance) {
   return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Contacts par jour sur ${n} jours">
     <path class="area" d="${area}"/><path class="line" d="${line}"/>
     <circle class="dot" cx="${x(n - 1).toFixed(1)}" cy="${y(last.n).toFixed(1)}" r="3.5"/></svg>`;
+}
+
+/**
+ * Panneau Novalis Pulse — entonnoir de conversion + diagnostic n°1.
+ * @param p sortie de pulse.apercu() : {visiteurs, fiable, entonnoir, conversion_pct, fuite}
+ */
+function pulsePanel(p) {
+  if (!p) return '';
+  const head = `<div class="pulse-head"><div><h3>Parcours des visiteurs</h3>
+    <div class="hint">Où vos visiteurs avancent — et où ils décrochent.</div></div>
+    ${p.fiable ? `<div class="pulse-conv" title="Visiteurs qui vous ont contacté">${p.conversion_pct}%</div>` : ''}</div>`;
+
+  if (!p.visiteurs) {
+    return `<div class="panel">${head}
+      <div class="pulse-thin">La mesure démarre dès les premières visites. Aucun témoin, aucune donnée personnelle — conforme à la Loi 25.</div></div>`;
+  }
+
+  const base = p.entonnoir[0] ? p.entonnoir[0].sessions : 0;
+  const barres = p.entonnoir.map((e, i) => {
+    const w = base ? Math.max(2, Math.round(100 * e.sessions / base)) : 2;
+    const chute = i > 0 && p.entonnoir[i - 1].sessions > 0
+      ? Math.round(100 * (p.entonnoir[i - 1].sessions - e.sessions) / p.entonnoir[i - 1].sessions) : 0;
+    const marque = p.fuite && p.fuite.entre === `${p.entonnoir[i - 1] ? p.entonnoir[i - 1].etape : ''} → ${e.etape}`;
+    return `<div class="fstep">
+      <div class="flabel"><span>${esc(e.etape)}</span><b>${e.sessions} · ${e.pct}%</b></div>
+      <div class="fbar"><span style="width:${w}%"></span></div>
+      ${chute >= 25 && i > 0 ? `<div class="fdrop">${marque ? '➜ ' : ''}−${chute}% ici</div>` : ''}
+    </div>`;
+  }).join('');
+
+  let diag;
+  if (!p.fiable) {
+    diag = `<div class="pulse-thin">Encore trop peu de visiteurs (${p.visiteurs}) pour un diagnostic fiable — on ne devine pas. Il s'affichera dès ~25 visiteurs mesurés.</div>`;
+  } else if (p.fuite) {
+    diag = `<div class="diag">
+      <div class="dt"><span class="tag">Fuite n°1</span>${esc(p.fuite.titre)}</div>
+      <div class="dd">${esc(p.fuite.diagnostic)} <span style="color:var(--muted)">(${esc(p.fuite.entre)}, −${p.fuite.perte_pct}%)</span></div>
+      <div class="dl"><b>À changer&nbsp;:</b> ${esc(p.fuite.levier)}</div></div>`;
+  } else {
+    diag = `<div class="pulse-thin">Aucune fuite marquée — le parcours se tient bien. On continue de mesurer.</div>`;
+  }
+
+  return `<div class="panel">${head}<div class="funnel">${barres}</div>${diag}</div>`;
 }
 
 function ligneLead(l) {
@@ -205,6 +265,8 @@ function renderReception(data, opts = {}) {
       ${sparkline(data.tendance)}
     </div>
   </div>
+
+  ${pulsePanel(opts.pulse)}
 
   <details class="cfg">
     <summary>⚙︎ Configurer ce client — nom, secteur, valeur d'un client</summary>
@@ -295,6 +357,14 @@ function renderRapport(rap, opts = {}) {
     <div class="tile value"><div class="k">Valeur estimée</div><div class="v">${dollars(rap.valeur_captee_cents)}</div>
       <div class="d">de demande arrivée par votre site</div></div>
   </div>
+  ${(() => {
+    const p = opts.pulse;
+    if (!p || !p.fiable || !p.fuite) return '';
+    return `<div class="diag" style="margin-top:22px">
+      <div class="dt"><span class="tag">Le mois prochain</span>${esc(p.fuite.titre)}</div>
+      <div class="dd">${esc(p.fuite.diagnostic)}</div>
+      <div class="dl"><b>Ce qu'on ajuste&nbsp;:</b> ${esc(p.fuite.levier)}</div></div>`;
+  })()}
   <div class="rsig">Sans Réception, ${rap.hors_heures > 0 ? `ces ${rap.hors_heures} contacts hors heures seraient probablement passés inaperçus.` : 'ces contacts se seraient dispersés entre courriels, appels manqués et notes perdues.'} Ils sont maintenant tous captés, au même endroit.<br><br>— Novalis</div>
   <div class="foot">Chiffres comptés au ${new Date().toISOString().slice(0, 10)}. Rapport privé${opts.public ? '' : ' (interne)'}.</div>
 </div></body></html>`;

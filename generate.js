@@ -1035,6 +1035,53 @@ function injecterBeaconTap(html, source) {
   return html.includes('</body>') ? html.replace('</body>', script + '</body>') : html + script;
 }
 
+// ── Balise Novalis Pulse — mesure première-partie, respectueuse ──────
+// Émet des événements ANONYMES (vue, section vue, profondeur de défilement,
+// début/envoi de formulaire, clic tél/CTA) vers /api/pulse. Aucun témoin,
+// aucune donnée personnelle, jeton de session éphémère qui vit le temps de
+// la visite et n'est JAMAIS stocké côté visiteur. « Do Not Track » coupe la
+// mesure entièrement. C'est ce qui alimente l'entonnoir de conversion et le
+// diagnostic du commerçant, sans jamais surveiller qui que ce soit.
+function injecterBeaconPulse(html, source) {
+  if (!source || /\/api\/pulse/.test(html)) return html;
+  const s = JSON.stringify(String(source).replace(/[^a-z0-9-]/gi, ''));
+  const script = `<script>(function(){`
+    + `try{if(navigator.doNotTrack=='1'||window.doNotTrack=='1'||navigator.msDoNotTrack=='1')return;}catch(e){return;}`
+    // Jeton éphémère : vit en mémoire le temps de la visite, jamais stocké.
+    + `var tok=Math.random().toString(36).slice(2)+Date.now().toString(36);`
+    + `var file=[],minute=0,tmr=null;`
+    + `function envoi(){if(!file.length)return;var lot=file.splice(0,file.length);`
+    + `try{var u='/api/pulse?s='+${s};var b=JSON.stringify({t:tok,events:lot});`
+    + `if(navigator.sendBeacon){navigator.sendBeacon(u,new Blob([b],{type:'application/json'}));}`
+    + `else{fetch(u,{method:'POST',body:b,headers:{'Content-Type':'application/json'},keepalive:true});}}catch(e){}}`
+    + `function ev(t,et){if(file.length>60)return;file.push({type:t,etiquette:et?String(et).slice(0,60):undefined});`
+    + `clearTimeout(tmr);tmr=setTimeout(envoi,900);}`
+    + `ev('vue');`
+    // Profondeur : paliers 25/50/75/100 franchis une seule fois.
+    + `var paliers=[25,50,75,100],vus={};function prof(){try{var h=document.documentElement;`
+    + `var p=(h.scrollTop+window.innerHeight)/(h.scrollHeight||1)*100;`
+    + `for(var i=0;i<paliers.length;i++){if(p>=paliers[i]&&!vus[paliers[i]]){vus[paliers[i]]=1;ev('profondeur',paliers[i]);}}}catch(e){}}`
+    + `window.addEventListener('scroll',prof,{passive:true});prof();`
+    // Sections vues : une fois chacune, étiquetée par id ou premier titre.
+    + `try{if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){`
+    + `es.forEach(function(en){if(en.isIntersecting){var el=en.target;io.unobserve(el);`
+    + `var t=el.id||'';if(!t){var h=el.querySelector('h1,h2,h3');t=h?h.textContent:'';}`
+    + `ev('section',(t||'').trim().toLowerCase().slice(0,60));}});},{threshold:0.4});`
+    + `document.querySelectorAll('section,footer').forEach(function(el){io.observe(el);});}}catch(e){}`
+    // Amorce / envoi de formulaire (le formulaire de contact injecté).
+    + `var amorce=0;document.addEventListener('focusin',function(e){if(amorce)return;`
+    + `if(e.target.closest&&e.target.closest('form')){amorce=1;ev('form_start');}},true);`
+    + `document.addEventListener('submit',function(e){if(e.target&&e.target.tagName==='FORM')ev('form_submit');},true);`
+    // Clics tél / CTA (complète le funnel côté « amorce » et « converti »).
+    + `document.addEventListener('click',function(e){var t=e.target.closest&&e.target.closest('a[href^="tel:"],[data-cta],a.cta,.nvr-btn,.btn-primary');`
+    + `if(t){ev(t.matches('a[href^="tel:"]')?'tel':'cta');}},true);`
+    // Vidage garanti au départ (sendBeacon survit au unload).
+    + `document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')envoi();});`
+    + `window.addEventListener('pagehide',envoi);`
+    + `})();</script>`;
+  return html.includes('</body>') ? html.replace('</body>', script + '</body>') : html + script;
+}
+
 async function generate(data) {
   const {
     nom,
@@ -1132,6 +1179,7 @@ async function generate(data) {
     const outputPath = path.join(outputDir, `${slug}.html`);
     rHtml = injecterFormulaireContact(rHtml, slug, brandColor, nom);
     rHtml = injecterBeaconTap(rHtml, slug);
+    rHtml = injecterBeaconPulse(rHtml, slug);
     fs.writeFileSync(outputPath, rHtml, 'utf8');
     const colorUsed = brandColor ? ensureVibrancy(brandColor) : '#2563EB (défaut)';
     console.log(`✅ Site généré : output/${slug}.html  •  secteur: restaurant  •  couleur: ${colorUsed}`);
@@ -1199,6 +1247,7 @@ async function generate(data) {
     cHtml = injecterJsonLd(cHtml, data, secteur);
     cHtml = injecterFormulaireContact(cHtml, slug, brandColor, nom);
     cHtml = injecterBeaconTap(cHtml, slug);
+    cHtml = injecterBeaconPulse(cHtml, slug);
     fs.writeFileSync(outputPath, cHtml, 'utf8');
     const colorUsed = brandColor ? ensureVibrancy(brandColor) : '#2563EB (défaut)';
     console.log(`✅ Site généré : output/${slug}.html  •  secteur: ${secteur}  •  thème: ${themeMap[secteur] || 'dark'}  •  couleur: ${colorUsed}`);
@@ -1325,6 +1374,7 @@ async function generate(data) {
   html = injecterJsonLd(html, data, secteur);
   html = injecterFormulaireContact(html, slug, brandColor, nom);
   html = injecterBeaconTap(html, slug);
+  html = injecterBeaconPulse(html, slug);
   fs.writeFileSync(outputPath, html, 'utf8');
   const colorUsed = brandColor ? ensureVibrancy(brandColor) : '#2563EB (défaut)';
   console.log(`✅ Site généré : output/${slug}.html  •  couleur: ${colorUsed}`);

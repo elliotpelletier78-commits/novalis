@@ -2066,6 +2066,7 @@ app.get('/core/sites', adminOnly, coreReady, (req, res) => {
 // via une URL signée sans compte.
 const reception = require('./core/reception');
 const { renderReception, renderRapport } = require('./core/reception-page');
+const pulse = require('./core/pulse');
 
 function sourcesConnues() {
   const set = new Set();
@@ -2078,10 +2079,11 @@ app.get('/core/reception', adminOnly, coreReady, (req, res) => {
   const sources = sourcesConnues();
   const source = String(req.query.source || sources[0] || 'novalis').slice(0, 40);
   const data = reception.apercu(db, source, { jours: 30 });
+  const pouls = pulse.apercu(db, source, { jours: 30 });
   const token = reception.jetonRapport(source, process.env.MASTER_KEY);
   const base = `${req.protocol}://${req.get('host')}`;
   res.setHeader('X-Frame-Options', 'DENY');
-  res.send(renderReception(data, { sources, rapportUrl: `${base}/r/${encodeURIComponent(source)}/${token}` }));
+  res.send(renderReception(data, { sources, pulse: pouls, rapportUrl: `${base}/r/${encodeURIComponent(source)}/${token}` }));
 });
 
 // Configuration d'un site (onboarding client) — sans SQL, depuis le cockpit.
@@ -2149,6 +2151,46 @@ app.get('/api/tap', (req, res) => {
   res.status(204).end();
 });
 
+// ── Novalis Pulse — réception des événements anonymes ───────────────
+// POST /api/pulse?s=<source>  body: { t:<jeton éphémère>, events:[{type,etiquette}] }
+// Le jeton n'est JAMAIS stocké tel quel : on hache (jeton + IP + sel) pour
+// obtenir un session_hash qui regroupe une visite sans identifier personne.
+// Types énumérés côté serveur (aucune donnée libre). Anti-abus : plafond
+// d'événements par requête, dédoublonnage court par (session, type, étiquette).
+const pulseVus = new Map();
+app.post('/api/pulse', express.json({ limit: '16kb', type: () => true }), (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const source = String(req.query.s || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(204).end();
+  const TYPES = new Set(['vue', 'section', 'profondeur', 'form_start', 'form_submit', 'tel', 'cta']);
+  try {
+    const body = req.body || {};
+    const jeton = String(body.t || '').slice(0, 80);
+    const events = Array.isArray(body.events) ? body.events.slice(0, 60) : [];
+    if (!jeton || !events.length) return res.status(204).end();
+    // session_hash = hash(jeton éphémère + IP + source + sel). Jamais le jeton brut.
+    const sessionHash = pulse.saltHash(
+      jeton + '|' + (req.ip || '') + '|' + source,
+      process.env.MASTER_KEY || 'sel-pulse',
+    );
+    const now = Date.now();
+    const ins = db.prepare('INSERT INTO pulse_events (source, type, etiquette, session_hash) VALUES (?,?,?,?)');
+    const tx = db.transaction((evs) => {
+      for (const e of evs) {
+        if (!e || !TYPES.has(e.type)) continue;
+        const etq = e.etiquette != null ? String(e.etiquette).slice(0, 60) : null;
+        const cle = sessionHash + '|' + e.type + '|' + (etq || '');
+        if (pulseVus.get(cle) && now - pulseVus.get(cle) < 60000) continue; // même événement, 1 min
+        pulseVus.set(cle, now);
+        ins.run(source, e.type, etq, sessionHash);
+      }
+    });
+    tx(events);
+    if (pulseVus.size > 20000) pulseVus.clear();
+  } catch (e) { /* un beacon ne doit jamais faire d'erreur visible */ void e; }
+  res.status(204).end();
+});
+
 // Rapport mensuel du commerçant — URL signée, aucun compte. ?mois=YYYY-MM optionnel.
 app.get('/r/:source/:token', (req, res) => {
   const source = String(req.params.source || '').slice(0, 40);
@@ -2157,8 +2199,9 @@ app.get('/r/:source/:token', (req, res) => {
   }
   if (!core) return res.status(503).type('text/plain').send('Indisponible.');
   const rap = reception.rapportMensuel(db, source, req.query.mois);
+  const pouls = pulse.apercu(db, source, { jours: 30 });
   res.setHeader('X-Robots-Tag', 'noindex');
-  res.send(renderRapport(rap, { public: true }));
+  res.send(renderRapport(rap, { public: true, pulse: pouls }));
 });
 
 // Registre de R&D (RS&DE / IRAP) — assemblé à partir des tables de production.
