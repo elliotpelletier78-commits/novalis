@@ -950,6 +950,73 @@ function injecterJsonLd(html, data, secteur) {
   return html.includes('</head>') ? html.replace('</head>', ld + '\n</head>') : ld + html;
 }
 
+// Formulaire de contact — la moitié ÉCRITE des contacts. Sans lui, un client ne
+// peut que téléphoner ; il ne peut pas laisser de message le soir. On injecte un
+// formulaire professionnel, autonome (styles/classes préfixés « nvr- » pour ne
+// pas entrer en conflit avec le CSS du site), câblé à /api/{slug}/contact — le
+// même endpoint durci qui alimente Réception et déclenche l'alerte instantanée.
+function injecterFormulaireContact(html, slug, brandColor, nom) {
+  if (!slug || /id="nvr-ecrire"/.test(html)) return html;
+  const s = JSON.stringify(String(slug).replace(/[^a-z0-9-]/gi, ''));
+  // Même couleur d'accent que le reste du site (ensureVibrancy), pour que le
+  // bouton du formulaire s'harmonise exactement avec la marque, pas un bleu à côté.
+  const c = /^#?[0-9a-f]{6}$/i.test(String(brandColor || '')) ? ensureVibrancy(brandColor) : '#2563EB';
+  const titre = nom ? `Une question pour ${String(nom).replace(/[<>&"]/g, '')} ?` : 'Une question ? Écrivez-nous.';
+  const bloc = `
+<section id="nvr-ecrire" aria-label="Nous écrire">
+<style>
+#nvr-ecrire{all:initial;display:block;box-sizing:border-box;background:#f5f5f2;color:#1a1c17;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  padding:clamp(48px,8vw,88px) 20px;border-top:1px solid rgba(0,0,0,.07)}
+#nvr-ecrire *{box-sizing:border-box}
+#nvr-ecrire .nvr-wrap{max-width:600px;margin:0 auto}
+#nvr-ecrire h2{font-size:clamp(24px,4vw,34px);font-weight:700;line-height:1.15;margin:0 0 10px;letter-spacing:-.01em}
+#nvr-ecrire p.nvr-sub{font-size:16px;color:#5c5f55;margin:0 0 28px;line-height:1.5}
+#nvr-ecrire form{display:flex;flex-direction:column;gap:12px}
+#nvr-ecrire .nvr-row{display:flex;gap:12px}
+#nvr-ecrire .nvr-row>*{flex:1;min-width:0}
+#nvr-ecrire input,#nvr-ecrire textarea{width:100%;font:inherit;font-size:16px;color:#1a1c17;background:#fff;
+  border:1px solid rgba(0,0,0,.16);border-radius:11px;padding:14px 16px;outline:none;transition:border-color .15s,box-shadow .15s;resize:vertical}
+#nvr-ecrire input:focus,#nvr-ecrire textarea:focus{border-color:${c};box-shadow:0 0 0 3px ${c}22}
+#nvr-ecrire button{font:inherit;font-size:16px;font-weight:650;color:#fff;background:${c};border:none;border-radius:11px;
+  padding:15px 22px;cursor:pointer;transition:filter .15s;margin-top:4px}
+#nvr-ecrire button:hover{filter:brightness(1.07)}
+#nvr-ecrire button:disabled{opacity:.6;cursor:default}
+#nvr-ecrire .nvr-msg{font-size:14px;color:#9c4632;min-height:1px}
+#nvr-ecrire .nvr-ok{font-size:17px;color:#1a1c17;background:#fff;border:1px solid rgba(0,0,0,.1);
+  border-radius:14px;padding:26px;text-align:center;line-height:1.5}
+#nvr-ecrire .nvr-ok b{color:${c}}
+@media(max-width:520px){#nvr-ecrire .nvr-row{flex-direction:column}}
+</style>
+<div class="nvr-wrap">
+  <h2>${titre}</h2>
+  <p class="nvr-sub">Laissez-nous un mot, on vous répond rapidement — souvent le jour même.</p>
+  <form novalidate>
+    <div class="nvr-row">
+      <input name="name" placeholder="Votre nom" autocomplete="name" aria-label="Votre nom" required>
+      <input name="email" type="email" placeholder="Votre courriel" autocomplete="email" aria-label="Votre courriel" required>
+    </div>
+    <textarea name="message" rows="4" placeholder="Comment pouvons-nous vous aider ?" aria-label="Votre message" required></textarea>
+    <button type="submit">Envoyer le message</button>
+    <div class="nvr-msg" role="status" aria-live="polite"></div>
+  </form>
+  <div class="nvr-ok" hidden><b>Merci !</b> Votre message est bien reçu. On vous revient rapidement.</div>
+</div>
+<script>(function(){var slug=${s};var sec=document.getElementById('nvr-ecrire');var f=sec.querySelector('form');
+f.addEventListener('submit',async function(e){e.preventDefault();
+var b=f.querySelector('button'),msg=f.querySelector('.nvr-msg');
+var name=f.name.value.trim(),email=f.email.value.trim(),message=f.message.value.trim();
+if(!name||!/.+@.+\\..+/.test(email)||message.length<10){msg.textContent='Merci d\\'indiquer votre nom, un courriel valide et un court message.';return;}
+b.disabled=true;b.textContent='Envoi…';msg.textContent='';
+try{var r=await fetch('/api/'+slug+'/contact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email,message:message,lang:'fr'})});
+if(r.ok){f.style.display='none';sec.querySelector('.nvr-ok').hidden=false;}
+else{var j={};try{j=await r.json();}catch(_){}msg.textContent=j.error||'Un problème est survenu. Réessayez ou appelez-nous.';b.disabled=false;b.textContent='Envoyer le message';}}
+catch(_){msg.textContent='Vérifiez votre connexion et réessayez.';b.disabled=false;b.textContent='Envoyer le message';}});})();</script>
+</section>`;
+  if (/<footer/i.test(html)) return html.replace(/<footer/i, bloc + '\n<footer');
+  return html.includes('</body>') ? html.replace('</body>', bloc + '</body>') : html + bloc;
+}
+
 // Beacon Novalis Réception : chaque clic « appeler » depuis le site est une
 // intention d'achat. Le beacon la signale à /api/tap (même origine) sans ralentir
 // l'appel — c'est la moitié invisible des contacts (ceux qui n'écrivent pas).
@@ -1039,6 +1106,7 @@ async function generate(data) {
     const outputDir = path.join(__dirname, 'output');
     if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
     const outputPath = path.join(outputDir, `${slug}.html`);
+    rHtml = injecterFormulaireContact(rHtml, slug, brandColor, nom);
     rHtml = injecterBeaconTap(rHtml, slug);
     fs.writeFileSync(outputPath, rHtml, 'utf8');
     const colorUsed = brandColor ? ensureVibrancy(brandColor) : '#2563EB (défaut)';
@@ -1105,6 +1173,7 @@ async function generate(data) {
     if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
     const outputPath = path.join(outputDir, `${slug}.html`);
     cHtml = injecterJsonLd(cHtml, data, secteur);
+    cHtml = injecterFormulaireContact(cHtml, slug, brandColor, nom);
     cHtml = injecterBeaconTap(cHtml, slug);
     fs.writeFileSync(outputPath, cHtml, 'utf8');
     const colorUsed = brandColor ? ensureVibrancy(brandColor) : '#2563EB (défaut)';
@@ -1228,6 +1297,7 @@ async function generate(data) {
 
   const outputPath = path.join(outputDir, `${slug}.html`);
   html = injecterJsonLd(html, data, secteur);
+  html = injecterFormulaireContact(html, slug, brandColor, nom);
   html = injecterBeaconTap(html, slug);
   fs.writeFileSync(outputPath, html, 'utf8');
   const colorUsed = brandColor ? ensureVibrancy(brandColor) : '#2563EB (défaut)';

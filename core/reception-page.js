@@ -100,7 +100,20 @@ tr:last-child td{border-bottom:none}
 .share{margin-top:20px;font-size:13px;color:var(--muted)}
 .share code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:var(--panel);padding:3px 7px;border-radius:6px}
 .foot{margin-top:30px;color:var(--faint);font-size:12.5px;text-align:center}
-@media(max-width:760px){.hero,.row2{grid-template-columns:1fr}}
+.cfg{background:var(--card);border:1px solid var(--hair);border-radius:16px;box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden}
+.cfg summary{cursor:pointer;padding:16px 24px;font-weight:600;font-size:14.5px;color:var(--ink-2);list-style:none}
+.cfg summary::-webkit-details-marker{display:none}
+.cfg summary:hover{color:var(--jade)}
+.cfg-body{padding:0 24px 22px}
+.cfg-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px;margin:14px 0}
+.cfg-grid label{display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.cfg-grid input,.cfg-grid select{font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--paper);
+  border:1px solid var(--hair);border-radius:9px;padding:10px 12px}
+.cfg-grid input:focus,.cfg-grid select:focus{outline:2px solid var(--jade);outline-offset:1px}
+.cfg-btn{font-family:var(--sans);font-size:14px;font-weight:650;color:#fff;background:var(--jade);border:none;border-radius:10px;padding:11px 20px;cursor:pointer}
+.cfg-btn:hover{filter:brightness(1.08)}
+.cfg-msg{margin-left:12px;font-size:13px;color:var(--ok)}
+@media(max-width:760px){.hero,.row2,.cfg-grid{grid-template-columns:1fr}}
 `;
 
 function sparkline(tendance) {
@@ -193,6 +206,23 @@ function renderReception(data, opts = {}) {
     </div>
   </div>
 
+  <details class="cfg">
+    <summary>⚙︎ Configurer ce client — nom, secteur, valeur d'un client</summary>
+    <div class="cfg-body">
+      <div class="hint">Ce que le client voit dans son rapport, et comment la valeur captée est calculée.</div>
+      <div class="cfg-grid">
+        <label>Nom du commerce<input id="cfg-nom" type="text" value="${esc(data.config.nomCommerce || '')}" placeholder="Ex. Garage Beauchemin"></label>
+        <label>Secteur<select id="cfg-secteur">
+          ${['', 'garage', 'plombier', 'electricien', 'restaurant', 'salon', 'health', 'construction', 'fitness'].map(s =>
+            `<option value="${s}"${s === (data.config.secteur || '') ? ' selected' : ''}>${s ? { garage: 'Garage', plombier: 'Plombier', electricien: 'Électricien', restaurant: 'Restaurant', salon: 'Salon', health: 'Clinique', construction: 'Construction', fitness: 'Gym' }[s] : '—'}</option>`).join('')}
+        </select></label>
+        <label>Valeur d'un client ($)<input id="cfg-valeur" type="number" min="1" value="${Math.round((data.config.valeurLeadCents || 30000) / 100)}"></label>
+      </div>
+      <button id="cfg-save" class="cfg-btn">Enregistrer</button>
+      <span id="cfg-msg" class="cfg-msg"></span>
+    </div>
+  </details>
+
   <div class="panel">
     <h3>Contacts récents</h3>
     <div class="hint">Marquez chaque contact — le délai de réponse se calcule tout seul.</div>
@@ -222,6 +252,23 @@ document.querySelectorAll('.acts button').forEach(function(btn){
 });
 // Mémorise le mot de passe admin passé en ?pass= pour les actions ultérieures.
 (function(){var p=new URLSearchParams(location.search).get('pass'); if(p) localStorage.setItem('novalis_admin',p);})();
+// Enregistrement de la configuration du client (sans SQL).
+(function(){
+  var btn=document.getElementById('cfg-save'); if(!btn) return;
+  btn.addEventListener('click', async function(){
+    var msg=document.getElementById('cfg-msg'); btn.disabled=true; msg.textContent='';
+    var body={source:${JSON.stringify(data.source)},
+      nom_commerce:document.getElementById('cfg-nom').value.trim(),
+      secteur:document.getElementById('cfg-secteur').value,
+      valeur_dollars:document.getElementById('cfg-valeur').value};
+    try{
+      var res=await fetch('/core/reception/config',{method:'POST',headers:{'Content-Type':'application/json',
+        'x-admin-pass':localStorage.getItem('novalis_admin')||''},body:JSON.stringify(body)});
+      if(res.ok){msg.textContent='✓ Enregistré';setTimeout(function(){location.reload();},600);}
+      else{msg.style.color='#9c4632';msg.textContent='Non enregistré ('+res.status+')';btn.disabled=false;}
+    }catch(e){msg.style.color='#9c4632';msg.textContent='Erreur réseau';btn.disabled=false;}
+  });
+})();
 </script>
 </body></html>`;
 }

@@ -2084,6 +2084,28 @@ app.get('/core/reception', adminOnly, coreReady, (req, res) => {
   res.send(renderReception(data, { sources, rapportUrl: `${base}/r/${encodeURIComponent(source)}/${token}` }));
 });
 
+// Configuration d'un site (onboarding client) — sans SQL, depuis le cockpit.
+// Détermine le vrai nom affiché, le secteur, et la valeur d'un client capté.
+app.post('/core/reception/config', adminOnly, coreReady, express.json({ limit: '8kb' }), (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).json({ error: 'source invalide' });
+  const secteur = ['garage', 'plombier', 'electricien', 'restaurant', 'salon', 'health', 'construction', 'fitness'].includes(b.secteur) ? b.secteur : null;
+  const nom = b.nom_commerce ? String(b.nom_commerce).slice(0, 120) : null;
+  const valeurDollars = parseFloat(b.valeur_dollars);
+  const valeurCents = Number.isFinite(valeurDollars) && valeurDollars > 0 ? Math.round(valeurDollars * 100) : null;
+  try {
+    db.prepare(`INSERT INTO reception_config (source, secteur, nom_commerce, valeur_lead_cents)
+      VALUES (@source, @secteur, @nom, COALESCE(@valeur, 30000))
+      ON CONFLICT(source) DO UPDATE SET
+        secteur = COALESCE(@secteur, secteur),
+        nom_commerce = COALESCE(@nom, nom_commerce),
+        valeur_lead_cents = COALESCE(@valeur, valeur_lead_cents)`)
+      .run({ source, secteur, nom, valeur: valeurCents });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Mise à jour du cycle de vie d'un contact. Passer à « contacté/gagné/perdu »
 // capture le délai de réponse (repondu_le) s'il n'est pas déjà posé.
 app.post('/core/reception/lead/:id', adminOnly, coreReady, express.json({ limit: '8kb' }), (req, res) => {

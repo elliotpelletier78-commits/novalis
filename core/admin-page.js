@@ -43,6 +43,8 @@ function renderAdminHtml() {
 <body>
 <h1>Novalis <em>· exploitation</em></h1>
 <p class="sub">File de jobs, traçabilité par step, coûts IA par client. Rafraîchissement auto (10 s).</p>
+<p style="margin:-6px 0 22px"><a href="/core/reception" style="display:inline-block;background:#2B5B42;color:#fff;
+  text-decoration:none;font-weight:600;font-size:14px;padding:10px 18px;border-radius:10px">📞 Ouvrir Novalis Réception — contacts &amp; clients captés</a></p>
 
 <section>
   <h2>Lancer un audit</h2>
