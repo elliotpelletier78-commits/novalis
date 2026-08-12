@@ -42,7 +42,16 @@ body{background:var(--paper);color:var(--ink);font-family:var(--sans);line-heigh
 .brand em{font-style:normal;color:var(--jade)}
 .sel{font-family:var(--sans);font-size:14px;padding:8px 12px;border:1px solid var(--hair);border-radius:10px;background:var(--card);color:var(--ink)}
 .hello{font-family:var(--serif);font-size:clamp(22px,3vw,28px);font-weight:700;margin:16px 0 3px}
-.date{color:var(--muted);font-size:14px;margin-bottom:22px}
+.date{color:var(--muted);font-size:14px;margin-bottom:18px}
+.prio{display:flex;gap:16px;align-items:center;border-radius:16px;padding:20px 24px;margin-bottom:20px;box-shadow:var(--shadow);text-decoration:none;color:inherit;border:1px solid var(--hair)}
+.prio .icn{font-size:26px;flex:none;line-height:1}
+.prio .pk{font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.prio .pt{font-family:var(--serif);font-size:clamp(18px,2.4vw,22px);font-weight:700;margin:2px 0 2px}
+.prio .ps{font-size:13.5px;color:var(--ink-2)}
+.prio.urgent{background:var(--risk-soft);border-color:rgba(156,70,50,.25)}
+.prio.action{background:var(--jade-soft);border-color:rgba(43,91,66,.25)}
+.prio.info{background:var(--warn-soft);border-color:rgba(138,94,34,.22)}
+.prio.calme{background:var(--ok-soft);border-color:rgba(46,107,69,.22)}
 .nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
 .nav a{font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;border:1px solid var(--hair);color:var(--ink-2);text-decoration:none;background:var(--card)}
 .nav a:hover{border-color:var(--jade);color:var(--jade)}
@@ -122,6 +131,15 @@ function renderAujourdhui(d) {
   <div class="topbar"><div class="brand">Novalis <em>Aujourd'hui</em></div>${selecteur}</div>
   <div class="hello">${esc(d.salutation || 'Bonjour')} — voici ${esc(nom)} aujourd'hui.</div>
   <div class="date">${esc(d.dateLabel || '')}</div>
+  ${(() => {
+    const p = d.priorite; if (!p) return '';
+    const icn = { urgent: '⏱', action: '✓', info: '↗', calme: '☀' }[p.ton] || '•';
+    const href = { reception: '/core/reception', propositions: '/core/propositions', branchement: '/core/branchement', aujourdhui: '/core/aujourdhui' }[p.lien] || '/core/aujourdhui';
+    return `<a class="prio ${p.ton}" href="${href}?source=${encodeURIComponent(d.source)}">
+      <span class="icn">${icn}</span>
+      <span><span class="pk">Priorité du jour</span>
+        <div class="pt">${esc(p.titre)}</div><div class="ps">${esc(p.sousTitre)}</div></span></a>`;
+  })()}
 
   <div class="nav">
     <a href="/core/propositions?source=${encodeURIComponent(d.source)}">Poste de commande</a>

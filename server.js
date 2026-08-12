@@ -2087,6 +2087,7 @@ const { renderPropositions } = require('./core/propositions-page');
 const { renderAujourdhui } = require('./core/aujourdhui-page');
 const devis = require('./core/devis');
 const { renderDevis } = require('./core/devis-page');
+const { prioriteDuJour } = require('./core/priorite');
 const { createMailer } = require('./core/alerts');
 const mailer = createMailer(process.env);
 
@@ -2217,6 +2218,8 @@ app.get('/core/aujourdhui', adminOnly, coreReady, (req, res) => {
   const attente = recu.leads_recents.filter(l => l.statut === 'nouveau').slice(0, 5).map(l => ({
     nom: l.nom, apercu: String(l.message || '').slice(0, 70), ilya: ilYaCourt(l.created_at),
   }));
+  const propsAttente = propositions.lister(db, source, { statut: 'en_attente' }).slice(0, 4)
+    .map(p => ({ type: p.type, titre: p.titre, apercu: p.apercu }));
   res.setHeader('X-Frame-Options', 'DENY');
   res.send(renderAujourdhui({
     source, nom: et.identite.nom, salutation, dateLabel: dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1), sources,
@@ -2225,11 +2228,11 @@ app.get('/core/aujourdhui', adminOnly, coreReady, (req, res) => {
       contacts: recu.compteurs.contacts,
       en_attente: recu.compteurs.en_attente,
     },
-    propositions: propositions.lister(db, source, { statut: 'en_attente' }).slice(0, 4)
-      .map(p => ({ type: p.type, titre: p.titre, apercu: p.apercu })),
+    propositions: propsAttente,
     fuite: pouls,
     leads_attente: attente,
     pret_pct: et.pret_pct,
+    priorite: prioriteDuJour({ leads_attente: attente, propositions: propsAttente, fuite: pouls, pret_pct: et.pret_pct }),
   }));
 });
 
