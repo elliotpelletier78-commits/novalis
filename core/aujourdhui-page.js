@@ -126,6 +126,7 @@ function renderAujourdhui(d) {
   <div class="nav">
     <a href="/core/propositions?source=${encodeURIComponent(d.source)}">Poste de commande</a>
     <a href="/core/reception?source=${encodeURIComponent(d.source)}">Réception</a>
+    <a href="/core/devis?source=${encodeURIComponent(d.source)}">Devis</a>
     <a href="/core/branchement?source=${encodeURIComponent(d.source)}">Branchement</a>
   </div>
 

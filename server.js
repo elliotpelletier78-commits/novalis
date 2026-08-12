@@ -2085,6 +2085,8 @@ const { renderBranchement } = require('./core/branchement-page');
 const propositions = require('./core/propositions');
 const { renderPropositions } = require('./core/propositions-page');
 const { renderAujourdhui } = require('./core/aujourdhui-page');
+const devis = require('./core/devis');
+const { renderDevis } = require('./core/devis-page');
 const { createMailer } = require('./core/alerts');
 const mailer = createMailer(process.env);
 
@@ -2225,6 +2227,49 @@ app.get('/core/aujourdhui', adminOnly, coreReady, (req, res) => {
     leads_attente: attente,
     pret_pct: et.pret_pct,
   }));
+});
+
+// ── Novalis Devis — catalogue de services + composeur de soumissions ─
+app.get('/core/devis', adminOnly, coreReady, (req, res) => {
+  const source = String(req.query.source || 'novalis').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
+  const et = branchement.etat(db, source);
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.send(renderDevis({ source, nom: et.identite.nom, services: devis.listerServices(db, source) }));
+});
+app.post('/core/devis/service', adminOnly, coreReady, express.json({ limit: '4kb' }), (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).json({ error: 'source invalide' });
+  try {
+    res.json({ ok: true, ...devis.ajouterService(db, source, {
+      nom: b.nom, prix_cents: Number.isFinite(b.prix_cents) ? b.prix_cents : undefined, unite: b.unite }) });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+app.post('/core/devis/service/:id/suppr', adminOnly, coreReady, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'id invalide' });
+  res.json({ ok: devis.supprimerService(db, id) });
+});
+app.post('/core/devis', adminOnly, coreReady, express.json({ limit: '16kb' }), (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).json({ error: 'source invalide' });
+  const lignes = Array.isArray(b.lignes) ? b.lignes.slice(0, 40).map(l => ({
+    nom: String(l.nom || '').slice(0, 120),
+    quantite: Number.isFinite(l.quantite) ? l.quantite : 1,
+    prix_cents: Number.isFinite(l.prix_cents) ? l.prix_cents : null,
+  })) : [];
+  if (!lignes.length) return res.status(400).json({ error: 'au moins une ligne requise' });
+  try {
+    const et = branchement.etat(db, source);
+    const r = devis.creerDevis(db, {
+      source, client: b.client ? String(b.client).slice(0, 120) : null,
+      destinataire: b.courriel ? String(b.courriel).slice(0, 180) : null,
+      nomCommerce: et.identite.nom, lignes,
+    });
+    res.json({ ok: true, id: r.id });
+  } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
 // ── Novalis Poste de commande — la file d'approbation ───────────────

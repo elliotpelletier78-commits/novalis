@@ -88,6 +88,9 @@ function sujetPour(type, cfg = {}) {
   if (type === 'avis') {
     return cfg.nomCommerce ? `Merci de votre confiance — ${cfg.nomCommerce}` : 'Merci de votre confiance';
   }
+  if (type === 'devis') {
+    return cfg.nomCommerce ? `Votre soumission — ${cfg.nomCommerce}` : 'Votre soumission';
+  }
   return sujetReponse(cfg);
 }
 
