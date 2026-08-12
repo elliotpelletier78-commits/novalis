@@ -2092,8 +2092,12 @@ const mailer = createMailer(process.env);
 
 function sourcesConnues() {
   const set = new Set();
-  try { for (const r of db.prepare('SELECT DISTINCT source FROM leads').all()) set.add(r.source); } catch { /* jeune */ }
-  try { for (const r of db.prepare('SELECT DISTINCT source FROM taps').all()) set.add(r.source); } catch { /* jeune */ }
+  // Une entreprise BRANCHÉE (même sans aucun lead encore) doit apparaître dans
+  // les sélecteurs — sinon on ne peut pas la piloter avant son premier contact.
+  const tables = ['leads', 'taps', 'entreprises', 'reception_config', 'services', 'pulse_events'];
+  for (const t of tables) {
+    try { for (const r of db.prepare(`SELECT DISTINCT source FROM ${t}`).all()) set.add(r.source); } catch { /* table jeune */ }
+  }
   return [...set].filter(Boolean).sort();
 }
 
