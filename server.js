@@ -99,6 +99,45 @@ function requireAdmin(req, res, next) {
   return res.status(401).json({ success: false, error: 'Non autorisé' });
 }
 
+// Accès à /generate : la clé d'aperçu (utilisée par le CRM) OU l'admin. Ne
+// tombe JAMAIS en accès libre — l'ancienne version était publique quand
+// PREVIEW_API_KEY n'était pas défini, ce qui laissait n'importe qui écrire du
+// HTML arbitraire servi depuis l'origine de production (hameçonnage, XSS).
+function requireGenerate(req, res, next) {
+  const fourni = (req.headers.authorization || '').replace('Bearer ', '');
+  const cle = process.env.PREVIEW_API_KEY;
+  if (cle && memeSecret(fourni, cle)) return next();
+  return requireAdmin(req, res, next);
+}
+
+// Extensions d'image autorisées à l'écriture dans le volume. Sans ça, un
+// « nom de fichier » comme evil.html s'écrivait dans /demo/images/ et se
+// servait en text/html depuis l'origine de production.
+const EXT_IMAGE_OK = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif', '.svg']);
+function nomImageSur(filename) {
+  const safe = path.basename(String(filename)).replace(/[^a-zA-Z0-9._-]/g, '_');
+  const ext = path.extname(safe).toLowerCase();
+  return EXT_IMAGE_OK.has(ext) ? safe : null;
+}
+
+// Garde-fou SSRF : refuse les URL qui pointent vers le réseau interne. Même
+// derrière l'admin, un opérateur ne doit pas pouvoir faire sonder le réseau
+// privé de Railway par le serveur. On bloque les schémas non-http(s), les
+// hôtes littéraux privés/loopback, et les noms d'hôte évidents de métadonnées.
+function urlPubliqueSure(brut) {
+  let u;
+  try { u = new URL(String(brut)); } catch { return false; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+  const h = u.hostname.toLowerCase();
+  if (h === 'localhost' || h.endsWith('.localhost') || h === 'metadata.google.internal') return false;
+  if (/^127\./.test(h) || h === '0.0.0.0' || h === '::1' || h === '[::1]') return false;
+  if (/^10\./.test(h) || /^192\.168\./.test(h) || /^169\.254\./.test(h)) return false;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return false;
+  if (/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(h)) return false; // CGNAT 100.64/10
+  if (/^(fc|fd)[0-9a-f]{2}:/.test(h) || /^fe80:/.test(h)) return false; // ULA / lien-local IPv6
+  return true;
+}
+
 // CORS — permet au CRM Python (novalisia.ca) d'appeler ce service
 app.use((req, res, next) => {
   const allowed = [
@@ -214,10 +253,11 @@ app.get('/health', (req, res) => res.json({ ok: true, ts: Date.now() }));
 
 // ── Upload d'images (base64 JSON) ────────────────────────────
 // POST /upload-image  { filename: "exterior.jpg", data: "base64..." }
-app.post('/upload-image', (req, res) => {
+app.post('/upload-image', requireAdmin, (req, res) => {
   const { filename, data } = req.body || {};
   if (!filename || !data) return res.status(400).json({ error: 'filename + data requis' });
-  const safe = path.basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
+  const safe = nomImageSur(filename);
+  if (!safe) return res.status(415).json({ error: 'extension d\'image non autorisée' });
   const imagesDir = path.join(outputDir, 'images');
   if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
   const buf = Buffer.from(data.replace(/^data:[^;]+;base64,/, ''), 'base64');
@@ -347,10 +387,12 @@ app.get('/upload', (req, res) => {
 
 // ── Import d'une image depuis une URL (téléchargement côté serveur) ──
 // POST /fetch-image { filename, url }  → le serveur Railway télécharge l'image
-app.post('/fetch-image', async (req, res) => {
+app.post('/fetch-image', requireAdmin, async (req, res) => {
   const { filename, url } = req.body || {};
   if (!filename || !url) return res.status(400).json({ error: 'filename + url requis' });
-  const safe = path.basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
+  const safe = nomImageSur(filename);
+  if (!safe) return res.status(415).json({ error: 'extension d\'image non autorisée' });
+  if (!urlPubliqueSure(url)) return res.status(400).json({ error: 'URL non autorisée (réseau interne ou schéma invalide)' });
   try {
     const r = await fetch(url, {
       headers: {
@@ -517,15 +559,7 @@ app.get('/', (req, res) => {
 });
 // ── Générer un site ───────────────────────────────────────────
 // Protégé par clé API (variable d'env PREVIEW_API_KEY)
-app.post('/generate', async (req, res) => {
-  const apiKey = process.env.PREVIEW_API_KEY;
-  if (apiKey) {
-    const auth = req.headers.authorization || '';
-    if (auth.replace('Bearer ', '') !== apiKey) {
-      return res.status(401).json({ success: false, error: 'Non autorisé' });
-    }
-  }
-
+app.post('/generate', requireGenerate, async (req, res) => {
   try {
     const { generate, extractSitePhotos } = require('./generate');
     const data = { ...req.body };
