@@ -72,7 +72,7 @@ textarea:focus{outline:2px solid var(--jade);outline-offset:1px}
 .foot{margin-top:26px;color:var(--faint);font-size:12.5px;text-align:center}
 `;
 
-const TYPE_LABEL = { reponse: 'Réponse', avis: 'Avis', facture: 'Devis', publication: 'Publication' };
+const TYPE_LABEL = { reponse: 'Réponse', avis: 'Avis', devis: 'Devis', relance: 'Relance', publication: 'Publication' };
 
 function carte(p) {
   const urgent = p.priorite >= 10;

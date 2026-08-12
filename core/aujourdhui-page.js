@@ -84,7 +84,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--sans);line-heigh
 @media(max-width:820px){.tiles{grid-template-columns:1fr 1fr}.row2{grid-template-columns:1fr}}
 `;
 
-const TYPE_LABEL = { reponse: 'Réponse', avis: 'Avis', facture: 'Devis', publication: 'Publication' };
+const TYPE_LABEL = { reponse: 'Réponse', avis: 'Avis', devis: 'Devis', relance: 'Relance', publication: 'Publication' };
 
 function lienSrc(base, source) {
   return `${base}?source=${encodeURIComponent(source)}`;

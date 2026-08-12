@@ -2209,9 +2209,16 @@ app.get('/core/aujourdhui', adminOnly, coreReady, (req, res) => {
   const sources = sourcesConnues();
   const source = String(req.query.source || sources[0] || 'novalis').slice(0, 40);
   if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
+  const et = branchement.etat(db, source);
+  // Relance paresseuse : à l'ouverture du tableau de bord, préparer une relance
+  // pour chaque client devenu silencieux (si l'entreprise a consenti « rédiger »).
+  // Idempotent, sans tâche planifiée ; ne doit jamais casser l'affichage.
+  if (et.consent.rediger) {
+    try { propositions.preparerRelances(db, source, { jours: 3, cfg: { nomCommerce: et.identite.nom, telephone: et.identite.telephone } }); }
+    catch (e) { console.error('[relance] balayage échoué:', e.message); }
+  }
   const recu = reception.apercu(db, source, { jours: 30 });
   const pouls = pulse.apercu(db, source, { jours: 30 });
-  const et = branchement.etat(db, source);
   const heure = parseInt(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Montreal', hour: 'numeric', hour12: false }).format(new Date()), 10) % 24;
   const salutation = heure < 12 ? 'Bonjour' : heure < 18 ? 'Bon après-midi' : 'Bonsoir';
   const dateLabel = new Intl.DateTimeFormat('fr-CA', { timeZone: 'America/Montreal', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());

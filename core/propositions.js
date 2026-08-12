@@ -91,7 +91,68 @@ function sujetPour(type, cfg = {}) {
   if (type === 'devis') {
     return cfg.nomCommerce ? `Votre soumission — ${cfg.nomCommerce}` : 'Votre soumission';
   }
+  if (type === 'relance') {
+    return cfg.nomCommerce ? `On revient vers vous — ${cfg.nomCommerce}` : 'On revient vers vous';
+  }
   return sujetReponse(cfg);
+}
+
+/**
+ * Rédige une relance douce pour un client resté silencieux. Jamais insistant,
+ * jamais culpabilisant : on s'assure simplement de ne pas l'avoir manqué.
+ * @param {{nom?:string, message?:string}} lead
+ * @param {{nomCommerce?:string, telephone?:string}} cfg
+ */
+function brouillonRelance(lead, cfg = {}) {
+  const commerce = cfg.nomCommerce || 'notre équipe';
+  const pn = prenom(lead.nom);
+  const salut = pn ? `Bonjour ${pn},` : 'Bonjour,';
+  const suj = accroche(lead.message);
+  const lignes = [
+    salut,
+    '',
+    `On revient vers vous au sujet de votre demande${suj ? ` « ${suj} »` : ''}. On voulait simplement s'assurer de ne pas l'avoir manquée.`,
+    `Si c'est encore d'actualité, ce serait un plaisir de vous aider — répondez à ce courriel et on s'en occupe.`,
+  ];
+  if (cfg.telephone) lignes.push('', `Ou joignez-nous directement au ${cfg.telephone}.`);
+  lignes.push('', 'Au plaisir,', commerce);
+  return lignes.join('\n');
+}
+
+/** Crée (idempotent) une relance pour un lead. Une seule relance par lead. */
+function creerRelancePourLead(db, lead, cfg = {}) {
+  if (!lead || !lead.id || !lead.source) return null;
+  const brouillon = brouillonRelance(lead, cfg);
+  const titre = `Relancer ${lead.nom || 'un client'}`;
+  const apercu = accroche(lead.message) || 'Client resté silencieux';
+  const info = db.prepare(
+    `INSERT OR IGNORE INTO propositions
+       (source, type, ref_type, ref_id, titre, apercu, brouillon, destinataire, priorite)
+     VALUES (?, 'relance', 'lead', ?, ?, ?, ?, ?, 4)`
+  ).run(lead.source, lead.id, titre, apercu, brouillon, lead.courriel || null);
+  return info.changes ? { id: info.lastInsertRowid } : null;
+}
+
+/**
+ * Balaye les leads devenus silencieux et prépare une relance pour chacun.
+ * « Silencieux » = encore ouvert (nouveau/contacté), reçu il y a plus de `jours`,
+ * jamais gagné/perdu. Idempotent : un lead déjà relancé est ignoré. À appeler
+ * paresseusement (à l'ouverture du poste de commande) — aucune tâche planifiée.
+ * @returns {number} nombre de relances créées ce passage
+ */
+function preparerRelances(db, source, opts = {}) {
+  const jours = Math.max(1, parseInt(opts.jours, 10) || 3);
+  const cfg = opts.cfg || {};
+  let leads;
+  try {
+    leads = db.prepare(
+      `SELECT id, source, nom, courriel, message FROM leads
+       WHERE source = ? AND statut IN ('nouveau','contacte')
+         AND created_at < datetime('now', ?)`).all(source, `-${jours} days`);
+  } catch { return 0; }
+  let n = 0;
+  for (const l of leads) { if (creerRelancePourLead(db, l, cfg)) n++; }
+  return n;
 }
 
 /**
@@ -214,8 +275,8 @@ async function approuver(db, id, ctx = {}) {
 }
 
 module.exports = {
-  brouillonReponse, brouillonAvis, sujetReponse, sujetPour,
-  creerReponsePourLead, creerAvisPourLead,
+  brouillonReponse, brouillonAvis, brouillonRelance, sujetReponse, sujetPour,
+  creerReponsePourLead, creerAvisPourLead, creerRelancePourLead, preparerRelances,
   lister, compteurs, get, modifier, rejeter, approuver,
   _prenom: prenom, _accroche: accroche,
 };

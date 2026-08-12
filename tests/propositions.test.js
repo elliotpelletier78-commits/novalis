@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import Database from 'better-sqlite3';
 import { runMigrations } from '../core/db.js';
 import {
-  brouillonReponse, brouillonAvis, creerReponsePourLead, creerAvisPourLead,
-  sujetPour, lister, compteurs, get,
+  brouillonReponse, brouillonAvis, brouillonRelance, creerReponsePourLead, creerAvisPourLead,
+  preparerRelances, sujetPour, lister, compteurs, get,
   modifier, rejeter, approuver, _prenom, _accroche,
 } from '../core/propositions.js';
 
@@ -112,6 +112,54 @@ describe('pilote Réputation (avis)', () => {
   it('sujet distinct selon le type', () => {
     expect(sujetPour('avis', { nomCommerce: 'G' })).toMatch(/confiance/i);
     expect(sujetPour('reponse', { nomCommerce: 'G' })).toMatch(/reçu votre message/i);
+  });
+});
+
+describe('pilote Relance (clients silencieux)', () => {
+  // Insère un lead avec un created_at contrôlé (jours dans le passé).
+  function leadAge(jours, over = {}) {
+    const info = db.prepare(
+      `INSERT INTO leads (source, nom, courriel, message, statut, created_at)
+       VALUES (?,?,?,?,?, datetime('now', ?))`
+    ).run(over.source || 'garage-x', over.nom || 'Paul Roy', over.courriel || 'paul@ex.ca',
+      over.message || 'Demande de soumission pour une toiture', over.statut || 'nouveau', `-${jours} days`);
+    return info.lastInsertRowid;
+  }
+
+  it('rédige une relance douce, sans insistance', () => {
+    const t = brouillonRelance({ nom: 'Paul Roy', message: 'toiture' }, { nomCommerce: 'Toitures X' });
+    expect(t).toContain('Bonjour Paul,');
+    expect(t).toMatch(/pas l'avoir manqu/i);
+    expect(t).not.toMatch(/urgent|dernière chance|vite/i);
+  });
+
+  it('relance les leads silencieux plus vieux que le seuil', () => {
+    leadAge(5); // vieux → à relancer
+    const n = preparerRelances(db, 'garage-x', { jours: 3 });
+    expect(n).toBe(1);
+    expect(get(db, lister(db, 'garage-x')[0].id).type).toBe('relance');
+  });
+
+  it('ne relance pas un lead trop récent', () => {
+    leadAge(1);
+    expect(preparerRelances(db, 'garage-x', { jours: 3 })).toBe(0);
+  });
+
+  it('ne relance pas un lead gagné ou perdu', () => {
+    leadAge(10, { statut: 'gagne' });
+    leadAge(10, { statut: 'perdu' });
+    expect(preparerRelances(db, 'garage-x', { jours: 3 })).toBe(0);
+  });
+
+  it('idempotent : un lead n\'est relancé qu\'une fois', () => {
+    leadAge(5);
+    preparerRelances(db, 'garage-x', { jours: 3 });
+    expect(preparerRelances(db, 'garage-x', { jours: 3 })).toBe(0);
+    expect(lister(db, 'garage-x').length).toBe(1);
+  });
+
+  it('sujet de relance distinct', () => {
+    expect(sujetPour('relance', { nomCommerce: 'G' })).toMatch(/revient vers vous/i);
   });
 });
 
