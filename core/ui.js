@@ -59,6 +59,7 @@ function SHELL_SCRIPT(source, pass) {
   function close(){box.classList.remove('open');}
   fab.addEventListener('click',function(){box.classList.contains('open')?close():open();});
   x&&x.addEventListener('click',close);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&box.classList.contains('open')){close();fab.focus();}});
   function bulle(txt,cls){var d=document.createElement('div');d.className='nova-b '+cls;d.textContent=txt;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;return d;}
   async function envoyer(){
     var m=(inp.value||'').trim(); if(!m) return; inp.value='';
@@ -214,6 +215,11 @@ a.fcard:hover{box-shadow:var(--sh)}
 @media(max-width:960px){.cols{grid-template-columns:1fr}}
 @media(max-width:820px){.g4{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.g4,.g3,.g2{grid-template-columns:1fr}}
+/* Accessibilité */
+.skip{position:absolute;left:-9999px;top:10px;z-index:100;background:var(--card);color:var(--ink);border:1px solid var(--brand);border-radius:8px;padding:9px 14px;font-weight:600;text-decoration:none}
+.skip:focus{left:12px}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.001ms!important;animation-duration:.001ms!important;scroll-behavior:auto!important}}
 .btn{display:inline-flex;align-items:center;gap:7px;font-family:var(--sans);font-size:13.5px;font-weight:620;padding:9px 15px;border-radius:var(--r-sm);border:1px solid transparent;cursor:pointer;text-decoration:none;transition:filter .12s,border-color .12s,background .12s}
 .btn svg{width:16px;height:16px}
 .btn-primary{background:var(--brand);color:#fff}.btn-primary:hover{filter:brightness(1.07)}
@@ -255,7 +261,7 @@ function page(o) {
     if (o.pass) parts.push('pass=' + encodeURIComponent(o.pass));
     return href + (parts.length ? '?' + parts.join('&') : '');
   };
-  const nav = NAV.map(n => `<a class="${n.key === o.active ? 'on' : ''}" href="${q(n.href)}">${icon(n.icon)}<span>${esc(n.label)}</span></a>`).join('');
+  const nav = NAV.map(n => `<a class="${n.key === o.active ? 'on' : ''}"${n.key === o.active ? ' aria-current="page"' : ''} href="${q(n.href)}">${icon(n.icon)}<span>${esc(n.label)}</span></a>`).join('');
   const switcher = (o.sources && o.sources.length > 1)
     ? `<div class="lbl">Entreprise</div><select onchange="var u=new URL(location.href);u.searchParams.set('source',this.value);location.href=u.toString()">${o.sources.map(s =>
         `<option value="${esc(s)}"${s === o.source ? ' selected' : ''}>${esc(s)}</option>`).join('')}</select>` : '';
@@ -263,10 +269,10 @@ function page(o) {
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">${o.noindex === false ? '' : '<meta name="robots" content="noindex">'}
 <title>${esc(o.title)} — Novalis</title><style>${UI_CSS}${o.extraCss || ''}</style></head>
-<body><div class="app">
+<body><a class="skip" href="#contenu">Aller au contenu</a><div class="app">
   <aside class="side">
     <div class="logo"><span class="mk">${MARK}</span><span class="wm">nova<span>lis</span></span></div>
-    <nav class="nav">${nav}</nav>
+    <nav class="nav" aria-label="Navigation principale">${nav}</nav>
     <div class="sep"></div>
     <div class="side-foot">${switcher}<div class="who">Espace d’exploitation</div></div>
   </aside>
@@ -279,11 +285,11 @@ function page(o) {
         <a class="iconbtn" href="${q('/core/branchement')}" title="Réglages de l’entreprise" aria-label="Réglages">${icon('gear')}</a>
       </div>
     </div>
-    <div class="content">${o.contentHtml}</div>
+    <div class="content" id="contenu">${o.contentHtml}</div>
   </main>
 </div>
 <button class="nova-fab" id="nova-fab" title="Demander à Nova" aria-label="Ouvrir Nova">${SPARK}</button>
-<div class="nova-chat" id="nova-chat" role="dialog" aria-label="Nova">
+<div class="nova-chat" id="nova-chat" role="dialog" aria-modal="true" aria-label="Nova, votre assistant">
   <div class="nova-ch-head"><span class="av">${SPARK}</span><span class="nm">Nova<span class="tag">assistant</span></span><button class="x" id="nova-x" aria-label="Fermer">×</button></div>
   <div class="nova-msgs" id="nova-msgs"><div class="nova-b nova">Bonjour ! Je suis Nova. Demandez-moi ce qui se passe, ou dites-moi quoi faire — par exemple « approuve la réponse à… » ou « active la réponse instantanée ».</div></div>
   <div class="nova-in"><input id="nova-q" placeholder="Écrivez à Nova…" aria-label="Message à Nova"><button id="nova-send" aria-label="Envoyer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg></button></div>
