@@ -1067,6 +1067,24 @@ async function generate(data) {
   };
   const secteur = secteurMap[secteurRaw?.toLowerCase()] || 'defaut';
 
+  // ── Photos RÉELLES du commerce ───────────────────────────────────
+  // Uploadées par nous/le client (data.photos) ou extraites de son site
+  // existant (data.sitePhotos). Elles priment TOUJOURS ; le stock ne sert qu'à
+  // combler les trous. Un vrai garage montre SON garage, pas une image générique
+  // de banque — c'est le premier facteur qui fait « c'est vraiment eux ».
+  const photosReelles = [
+    ...(Array.isArray(data.photos) ? data.photos : []),
+    ...(Array.isArray(data.sitePhotos) ? data.sitePhotos : []),
+  ].filter(u => typeof u === 'string' && /^(https?:\/\/|\/)/.test(u.trim())).map(u => u.trim());
+
+  /** Photos finales pour n emplacements : les vraies d'abord, complétées par le stock. */
+  function melangePhotos(stock, n) {
+    const cible = n || (stock ? stock.length : photosReelles.length) || 6;
+    const out = photosReelles.slice(0, cible);
+    for (const s of (stock || [])) { if (out.length >= cible) break; if (!out.includes(s)) out.push(s); }
+    return out;
+  }
+
   // ── Template dédié restaurant ─────────────────────────────
   if (secteur === 'restaurant') {
     const nomCourtR = nomCourt || nom.split(' ').slice(0, 2).join(' ');
@@ -1153,7 +1171,7 @@ async function generate(data) {
       '{{CTA_NAV_LABEL}}':     ctaNavLabelC,
       '{{ABOUT_EYEBROW}}':      (function(){var an=parseInt(anneeFondation,10);var base=(ville||'Québec')+', Québec';return (Number.isInteger(an)&&an>1900&&an<=new Date().getFullYear())?base+' · En affaires depuis '+an:base;})(),
       '{{ANNEE}}':             String(new Date().getFullYear()),
-      '{{SCENES_HTML}}':       buildJourneySlides(secteur, { nom, nomCourt: nomCourtC, ville, adresse, telephone, sitePhotos: data.sitePhotos }),
+      '{{SCENES_HTML}}':       buildJourneySlides(secteur, { nom, nomCourt: nomCourtC, ville, adresse, telephone, sitePhotos: photosReelles.length ? photosReelles : (data.sitePhotos || []) }),
       '{{FEATURES_HEADING}}':  CINEMATIC_HEADINGS[secteur] || CINEMATIC_HEADINGS.garage,
       '{{FEATURES_HTML}}':     buildCinematicFeatures(secteur),
       '{{DESCRIPTION}}':       cDesc,
@@ -1189,7 +1207,7 @@ async function generate(data) {
 
   const theme = themeMap[secteur] || 'dark';
 
-  const photos = PHOTOS[secteur] || PHOTOS.defaut;
+  const photos = melangePhotos(PHOTOS[secteur] || PHOTOS.defaut);
   const ctaHref = telephone
     ? `tel:+1${telephone.replace(/\D/g, '')}`
     : `mailto:elliot@novalisia.ca?subject=Site web - ${encodeURIComponent(nom)}`;

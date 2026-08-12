@@ -12,7 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 const { fetchSiteHtml, extractName } = require('../../discover');
-const { generate, extractBrandColor, slugify } = require('../../generate');
+const { generate, extractBrandColor, extractSitePhotos, slugify } = require('../../generate');
 const { analyserHtml } = require('./audit-prospect');
 
 /**
@@ -85,6 +85,9 @@ module.exports = {
           telephone: p.telephone || extraireTelephone(html),
           brandColor: extractBrandColor(html) || null,
           siteExistant: finalUrl,
+          // Vraies photos du commerce, extraites de son site — pour que la démo
+          // montre SON atelier, pas une image de banque.
+          sitePhotos: extractSitePhotos(html) || [],
           ...(() => {
             const a = extraireAvis(html);
             return { avis: a.avis, avisGoogle: a.note, avisCount: a.count };
@@ -110,6 +113,7 @@ module.exports = {
           adresse: infos.adresse,
           telephone: infos.telephone,
           brandColor: infos.brandColor,
+          sitePhotos: infos.sitePhotos,  // vraies photos extraites du site du prospect
           avis: infos.avis,              // vrais avis du prospect (jamais inventés)
           avisGoogle: infos.avisGoogle,  // vraie note, si publiée
           avisCount: infos.avisCount,
