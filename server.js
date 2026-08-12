@@ -2067,6 +2067,8 @@ app.get('/core/sites', adminOnly, coreReady, (req, res) => {
 const reception = require('./core/reception');
 const { renderReception, renderRapport } = require('./core/reception-page');
 const pulse = require('./core/pulse');
+const branchement = require('./core/branchement');
+const { renderBranchement } = require('./core/branchement-page');
 
 function sourcesConnues() {
   const set = new Set();
@@ -2106,6 +2108,64 @@ app.post('/core/reception/config', adminOnly, coreReady, express.json({ limit: '
       .run({ source, secteur, nom, valeur: valeurCents });
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Novalis Branchement — le commerçant remet ses clés ──────────────
+// La porte d'entrée de la plateforme opérée : identité, connexions (dans le
+// coffre chiffré), consentements. Tout est admin-only ; les secrets ne sont
+// JAMAIS relisibles via HTTP.
+app.get('/core/branchement', adminOnly, coreReady, (req, res) => {
+  const source = String(req.query.source || 'novalis').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.send(renderBranchement(branchement.etat(db, source)));
+});
+
+app.post('/core/branchement', adminOnly, coreReady, express.json({ limit: '8kb' }), (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).json({ error: 'source invalide' });
+  try {
+    branchement.definirEntreprise(db, source, {
+      nom: b.nom, secteur: b.secteur, ville: b.ville,
+      telephone: b.telephone, courriel: b.courriel, siteUrl: b.site_url,
+    });
+    res.json({ ok: true });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.post('/core/branchement/consentement', adminOnly, coreReady, express.json({ limit: '4kb' }), (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).json({ error: 'source invalide' });
+  const c = b.consentements || {};
+  try {
+    branchement.definirConsentement(db, source, { rediger: !!c.rediger, envoyer: !!c.envoyer, operer: !!c.operer });
+    res.json({ ok: true });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// Brancher/débrancher une connexion. Si un secret est fourni, il part
+// DIRECTEMENT au coffre chiffré (jamais stocké en clair, jamais renvoyé).
+app.post('/core/branchement/connexion', adminOnly, coreReady, express.json({ limit: '8kb' }), (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).json({ error: 'source invalide' });
+  const type = String(b.type || '');
+  const statut = ['a_brancher', 'branche', 'erreur'].includes(b.statut) ? b.statut : 'a_brancher';
+  try {
+    const clientId = branchement.assurerClient(db, source, null);
+    // Le secret (optionnel) va au coffre sous un nom stable ; on ne conserve
+    // jamais sa valeur ailleurs. La table connexions ne garde que l'étiquette.
+    if (statut === 'branche' && typeof b.secret === 'string' && b.secret.trim()) {
+      core.vault.set(clientId, `connexion:${type}`, b.secret.trim());
+    }
+    if (statut !== 'branche') {
+      try { core.vault.remove(clientId, `connexion:${type}`); } catch { /* rien à retirer */ }
+    }
+    branchement.definirConnexion(db, source, type, { statut, label: b.label, detail: b.detail });
+    res.json({ ok: true });
+  } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
 // Mise à jour du cycle de vie d'un contact. Passer à « contacté/gagné/perdu »
