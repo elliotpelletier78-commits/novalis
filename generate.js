@@ -902,6 +902,54 @@ function buildContactRows({ telephone, adresse, nom }) {
   return rows.join('\n');
 }
 
+// ── Données structurées schema.org (SEO local) ──────────────────────
+// Novalis VEND du référencement local ; les sites générés n'émettaient aucune
+// donnée structurée, donc Google ne pouvait pas afficher de fiche enrichie —
+// l'argument de vente n°1 livré à zéro. Le @type est choisi selon le secteur
+// (AutoRepair, Restaurant, HairSalon…) pour que Google comprenne le commerce.
+const SCHEMA_TYPE = {
+  garage: 'AutoRepair', plombier: 'Plumber', electricien: 'Electrician',
+  restaurant: 'Restaurant', salon: 'HairSalon', health: 'MedicalClinic',
+  construction: 'GeneralContractor', fitness: 'HealthClub', defaut: 'LocalBusiness',
+};
+
+function buildLocalBusinessJsonLd(data, secteur) {
+  const { nom, ville, adresse, telephone, avisGoogle, avisCount, description } = data;
+  const obj = {
+    '@context': 'https://schema.org',
+    '@type': SCHEMA_TYPE[secteur] || 'LocalBusiness',
+    name: nom,
+  };
+  if (description) obj.description = String(description).replace(/\s+/g, ' ').trim().slice(0, 300);
+  if (telephone) obj.telephone = '+1' + String(telephone).replace(/\D/g, '');
+  if (adresse || ville) {
+    obj.address = { '@type': 'PostalAddress', addressRegion: 'QC', addressCountry: 'CA' };
+    if (adresse) obj.address.streetAddress = String(adresse);
+    if (ville) obj.address.addressLocality = String(ville);
+  }
+  if (ville) obj.areaServed = String(ville);
+  // Note agrégée émise UNIQUEMENT si elle est RÉELLE (extraite du vrai profil
+  // Google du commerce). Jamais inventée : une fausse note en donnée structurée
+  // viole les règles de Google et expose juridiquement l'entreprise nommée.
+  const note = parseFloat(avisGoogle);
+  const n = parseInt(avisCount, 10);
+  if (Number.isFinite(note) && note > 0 && note <= 5 && Number.isInteger(n) && n > 0) {
+    obj.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: note.toFixed(1), reviewCount: n, bestRating: '5',
+    };
+  }
+  // JSON.stringify gère l'échappement ; on neutralise seulement </script>.
+  return '<script type="application/ld+json">' +
+    JSON.stringify(obj).replace(/<\/script/gi, '<\\/script') + '</script>';
+}
+
+function injecterJsonLd(html, data, secteur) {
+  if (/application\/ld\+json/i.test(html)) return html; // déjà présent
+  const ld = buildLocalBusinessJsonLd(data, secteur);
+  return html.includes('</head>') ? html.replace('</head>', ld + '\n</head>') : ld + html;
+}
+
 async function generate(data) {
   const {
     nom,
@@ -969,6 +1017,7 @@ async function generate(data) {
     }
 
     rHtml = applyBrandColor(rHtml, brandColor);
+    rHtml = injecterJsonLd(rHtml, data, secteur);
 
     const remaining = rHtml.match(/\{\{[A-Z_]+\}\}/g);
     if (remaining) console.warn('⚠️  Variables non remplacées (restaurant):', [...new Set(remaining)].join(', '));
@@ -1041,6 +1090,7 @@ async function generate(data) {
     const outputDir = path.join(__dirname, 'output');
     if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
     const outputPath = path.join(outputDir, `${slug}.html`);
+    cHtml = injecterJsonLd(cHtml, data, secteur);
     fs.writeFileSync(outputPath, cHtml, 'utf8');
     const colorUsed = brandColor ? ensureVibrancy(brandColor) : '#2563EB (défaut)';
     console.log(`✅ Site généré : output/${slug}.html  •  secteur: ${secteur}  •  thème: ${themeMap[secteur] || 'dark'}  •  couleur: ${colorUsed}`);
@@ -1162,6 +1212,7 @@ async function generate(data) {
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
   const outputPath = path.join(outputDir, `${slug}.html`);
+  html = injecterJsonLd(html, data, secteur);
   fs.writeFileSync(outputPath, html, 'utf8');
   const colorUsed = brandColor ? ensureVibrancy(brandColor) : '#2563EB (défaut)';
   console.log(`✅ Site généré : output/${slug}.html  •  couleur: ${colorUsed}`);
