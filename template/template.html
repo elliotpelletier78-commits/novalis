@@ -301,8 +301,13 @@ footer{background:var(--bg-s);border-top:1px solid var(--bd);padding:60px 24px 3
 .footer-col a{font-size:14px;color:var(--tx-s);transition:color .2s}
 .footer-col a:hover{color:var(--tx)}
 .footer-bottom{border-top:1px solid var(--bd);padding-top:24px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--tx-m)}
-.ani{opacity:0;transform:translateY(24px);transition:opacity .65s cubic-bezier(0.16,1,0.3,1),transform .65s cubic-bezier(0.16,1,0.3,1)}
-.ani.vis{opacity:1;transform:none}
+/* Le contenu est VISIBLE par défaut. L'animation d'apparition n'est activée que
+   si le JS s'exécute (classe .js posée par le script) — ainsi un échec de script,
+   un robot, ou un lecteur d'écran voient TOUT le contenu, jamais une page vide. */
+.ani{transition:opacity .65s cubic-bezier(0.16,1,0.3,1),transform .65s cubic-bezier(0.16,1,0.3,1)}
+html.js .ani{opacity:0;transform:translateY(24px)}
+html.js .ani.vis{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){html.js .ani{opacity:1!important;transform:none!important}}
 @media(max-width:900px){
   nav{padding:0 20px}
   .nav-links,.nav-cta{display:none}
@@ -323,6 +328,7 @@ footer{background:var(--bg-s);border-top:1px solid var(--bd);padding:60px 24px 3
   .pricing-grid{grid-template-columns:1fr}
 }
 </style>
+<script>document.documentElement.classList.add('js')</script>
 </head>
 <body>
 <div class="ann-bar">Aperçu personnalisé pour {{NOM}} — valable 7 jours &nbsp;·&nbsp; 1 000 $ tout inclus &nbsp;<a href="mailto:elliot@novalisia.ca?subject=Site web - {{NOM}}">Obtenir ce site — 1 000 $ →</a></div>
@@ -398,6 +404,7 @@ footer{background:var(--bg-s);border-top:1px solid var(--bd);padding:60px 24px 3
 window.addEventListener('scroll',()=>{document.getElementById('main-nav').classList.toggle('scrolled',scrollY>40)});
 const obs=new IntersectionObserver(entries=>{entries.forEach((e,i)=>{if(e.isIntersecting)setTimeout(()=>e.target.classList.add('vis'),(i%5)*70)})},{threshold:0.08,rootMargin:'0px 0px -40px 0px'});
 document.querySelectorAll('.ani').forEach((el,i)=>{el.dataset.delay=(i%5)*70;obs.observe(el)});
+setTimeout(function(){document.querySelectorAll('.ani:not(.vis)').forEach(function(e){e.classList.add('vis')})},1600);
 document.querySelectorAll('.faq-item').forEach(item=>{item.querySelector('.faq-q').addEventListener('click',()=>{const o=item.classList.contains('open');document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open'));if(!o)item.classList.add('open')})});
 document.querySelectorAll('.tab-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));btn.classList.add('active');document.getElementById(btn.dataset.tab).classList.add('active')})});
 const VC={{VALEUR_CLIENT}};

@@ -178,7 +178,7 @@ const SERVICES = {
     ['Plomberie résidentielle', 'Installation, réparation et remplacement de robinets, tuyaux, toilettes et éviers.'],
     ['Chauffe-eau & thermopompe', 'Installation et remplacement de chauffe-eau traditionnels et sans réservoir.'],
     ['Drain français', 'Inspection, nettoyage et remplacement de drains — protégez votre fondation.'],
-    ['Urgences 24h/7j', 'Intervention rapide en cas de dégât d\'eau, bris de tuyau ou fuite urgente.'],
+    ['Interventions d\'urgence', 'Dégât d\'eau, bris de tuyau, fuite : on intervient rapidement.'],
     ['Rénovation salle de bain', 'Planification complète, plomberie et installation de tous les équipements.'],
     ['Soumission gratuite', 'Estimé détaillé, écrit et signé. Aucun frais si vous décidez de ne pas aller de l\'avant.'],
   ],
@@ -187,7 +187,7 @@ const SERVICES = {
     ['Tableau électrique', 'Mise aux normes, remplacement de panneaux et augmentation de capacité.'],
     ['Éclairage intérieur & extérieur', 'Installation de luminaires, spots encastrés et éclairage de sécurité.'],
     ['Chauffage électrique', 'Thermostats intelligents, plinthes et systèmes de chauffage radiant.'],
-    ['Urgences 24h/7j', 'Panne de courant, court-circuit ou tout problème électrique urgent — on répond.'],
+    ['Interventions d\'urgence', 'Panne, court-circuit ou problème électrique urgent : on répond.'],
     ['Certification & inspection', 'Rapport d\'inspection complet pour vente, achat ou rénovation.'],
   ],
   restaurant: [
@@ -250,7 +250,7 @@ const PRIX = {
   ],
   plombier: [
     ['Main-d\'œuvre', 'Technicien qualifié, déplacement &lt; 30 km inclus', '95 – 125 $/h'],
-    ['Urgence 24/7', 'Intervention prioritaire, disponible en tout temps', '150 – 195 $/h'],
+    ['Intervention d\'urgence', 'Prioritaire, on se déplace au plus vite', '150 – 195 $/h'],
     ['Petits travaux', 'Réparations, ajustements et dépannages mineurs', 'Dès 150 $'],
     ['Soumission', 'Estimé détaillé, écrit et signé, sans engagement', 'GRATUIT'],
     ['Contrats résidentiels', 'Rénovations complètes — planification incluse', 'Sur devis'],
@@ -258,7 +258,7 @@ const PRIX = {
   electricien: [
     ['Inspection électrique', 'Rapport complet, recommandations incluses', '95 $'],
     ['Main-d\'œuvre', 'Électricien licencié, déplacement inclus', '90 – 120 $/h'],
-    ['Urgence 24/7', 'Intervention prioritaire en tout temps', '145 – 180 $/h'],
+    ['Intervention d\'urgence', 'Prioritaire, on se déplace au plus vite', '145 – 180 $/h'],
     ['Remplacement panneau', 'Mise aux normes complète, permis inclus', 'Dès 1 200 $'],
     ['Soumission', 'Estimé détaillé, sans engagement', 'GRATUIT'],
   ],
@@ -429,8 +429,8 @@ function buildDiffCards(secteur) {
       ['Transparence totale', 'Photos de l\'état avant/après, explication claire de chaque intervention. On ne vous cache rien.'],
     ],
     plombier: [
-      ['Certifié RBQ', 'La licence est active et vérifiable en ligne. C\'est la première chose à demander à tout entrepreneur.'],
-      ['Urgences 24/7', 'Les dégâts d\'eau n\'attendent pas. Nos techniciens non plus — intervention en moins d\'une heure.'],
+      ['Devis clair, sans surprise', 'Le prix est annoncé et expliqué avant qu\'on touche à quoi que ce soit.'],
+      ['Intervention rapide', 'Les dégâts d\'eau n\'attendent pas : on se déplace au plus vite.'],
       ['Soumission gratuite', 'On se déplace, on regarde, on vous donne un prix. Aucun frais si vous ne donnez pas suite.'],
       ['Assuré responsabilité civile', 'En cas de pépin, vous êtes couverts. Exigez-le de tout entrepreneur.'],
     ],
@@ -1243,7 +1243,7 @@ async function generate(data) {
 
   const heroH1 = {
     garage: [`Mécanicien de confiance à ${ville} —`, anneeFondation ? `Expertise & transparence depuis ${anneeFondation}` : 'Expertise & transparence garanties'],
-    plombier: [`Plombier certifié RBQ à ${ville} —`, 'Urgences 24h/7j · Soumission gratuite'],
+    plombier: [`Plombier à ${ville} —`, 'Réparations, installations et urgences · devis clair avant les travaux'],
     electricien: [`Électricien licencié à ${ville} —`, 'Rapide, fiable et garanti'],
     restaurant: [`Cuisine fraîche & authentique à ${ville}`, 'Saveurs locales, service chaleureux'],
     defaut: [`${nomCourt} à ${ville} —`, 'Service professionnel & satisfaction garantie'],
