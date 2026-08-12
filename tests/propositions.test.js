@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import Database from 'better-sqlite3';
 import { runMigrations } from '../core/db.js';
 import {
-  brouillonReponse, creerReponsePourLead, lister, compteurs, get,
+  brouillonReponse, brouillonAvis, creerReponsePourLead, creerAvisPourLead,
+  sujetPour, lister, compteurs, get,
   modifier, rejeter, approuver, _prenom, _accroche,
 } from '../core/propositions.js';
 
@@ -72,6 +73,45 @@ describe('création idempotente', () => {
   it('hors heures = priorité plus haute', () => {
     creerReponsePourLead(db, lead(), { horsHeures: true });
     expect(get(db, 1).priorite).toBe(10);
+  });
+});
+
+describe('pilote Réputation (avis)', () => {
+  it('rédige une demande d\'avis chaleureuse, sans incitatif', () => {
+    const t = brouillonAvis({ nom: 'Marie Tremblay' }, { nomCommerce: 'Garage X' });
+    expect(t).toContain('Bonjour Marie,');
+    expect(t).toMatch(/avis Google|votre expérience/i);
+    expect(t).not.toMatch(/rabais|gratuit|cadeau|\$|concours/i);
+  });
+
+  it('inclut le lien d\'avis quand il est connu', () => {
+    const t = brouillonAvis({ nom: 'Marie' }, { nomCommerce: 'G', lienAvis: 'https://g.page/r/xyz' });
+    expect(t).toContain('https://g.page/r/xyz');
+  });
+
+  it('crée une proposition d\'avis pour un lead gagné', () => {
+    const r = creerAvisPourLead(db, lead(), { nomCommerce: 'Garage X' });
+    expect(r).not.toBeNull();
+    const p = get(db, r.id);
+    expect(p.type).toBe('avis');
+  });
+
+  it('réponse et avis coexistent pour le même lead (types distincts)', () => {
+    const l = lead();
+    creerReponsePourLead(db, l, {});
+    creerAvisPourLead(db, l, {});
+    expect(lister(db, 'garage-x').length).toBe(2);
+  });
+
+  it('ne crée pas deux demandes d\'avis pour le même lead', () => {
+    const l = lead();
+    creerAvisPourLead(db, l, {});
+    expect(creerAvisPourLead(db, l, {})).toBeNull();
+  });
+
+  it('sujet distinct selon le type', () => {
+    expect(sujetPour('avis', { nomCommerce: 'G' })).toMatch(/confiance/i);
+    expect(sujetPour('reponse', { nomCommerce: 'G' })).toMatch(/reçu votre message/i);
   });
 });
 

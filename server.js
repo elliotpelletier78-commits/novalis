@@ -2084,6 +2084,7 @@ const branchement = require('./core/branchement');
 const { renderBranchement } = require('./core/branchement-page');
 const propositions = require('./core/propositions');
 const { renderPropositions } = require('./core/propositions-page');
+const { renderAujourdhui } = require('./core/aujourdhui-page');
 const { createMailer } = require('./core/alerts');
 const mailer = createMailer(process.env);
 
@@ -2185,6 +2186,47 @@ app.post('/core/branchement/connexion', adminOnly, coreReady, express.json({ lim
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
+// ── Novalis Aujourd'hui — le poste de commande unifié ───────────────
+// Le seul écran du matin : à approuver, contacts, ce qui décroche, branchement.
+function ilYaCourt(iso) {
+  const t = Date.parse(String(iso).replace(' ', 'T') + 'Z');
+  if (Number.isNaN(t)) return '';
+  const min = Math.floor((Date.now() - t) / 60000);
+  if (min < 1) return 'à l\'instant';
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} h`;
+  return `${Math.floor(h / 24)} j`;
+}
+app.get('/core/aujourdhui', adminOnly, coreReady, (req, res) => {
+  const sources = sourcesConnues();
+  const source = String(req.query.source || sources[0] || 'novalis').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
+  const recu = reception.apercu(db, source, { jours: 30 });
+  const pouls = pulse.apercu(db, source, { jours: 30 });
+  const et = branchement.etat(db, source);
+  const heure = parseInt(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Montreal', hour: 'numeric', hour12: false }).format(new Date()), 10) % 24;
+  const salutation = heure < 12 ? 'Bonjour' : heure < 18 ? 'Bon après-midi' : 'Bonsoir';
+  const dateLabel = new Intl.DateTimeFormat('fr-CA', { timeZone: 'America/Montreal', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
+  const attente = recu.leads_recents.filter(l => l.statut === 'nouveau').slice(0, 5).map(l => ({
+    nom: l.nom, apercu: String(l.message || '').slice(0, 70), ilya: ilYaCourt(l.created_at),
+  }));
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.send(renderAujourdhui({
+    source, nom: et.identite.nom, salutation, dateLabel: dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1), sources,
+    signaux: {
+      a_approuver: propositions.compteurs(db, source).en_attente,
+      contacts: recu.compteurs.contacts,
+      en_attente: recu.compteurs.en_attente,
+    },
+    propositions: propositions.lister(db, source, { statut: 'en_attente' }).slice(0, 4)
+      .map(p => ({ type: p.type, titre: p.titre, apercu: p.apercu })),
+    fuite: pouls,
+    leads_attente: attente,
+    pret_pct: et.pret_pct,
+  }));
+});
+
 // ── Novalis Poste de commande — la file d'approbation ───────────────
 // « Novalis a déjà fait le travail, vous dites oui. » Admin-only.
 app.get('/core/propositions', adminOnly, coreReady, (req, res) => {
@@ -2221,7 +2263,7 @@ app.post('/core/propositions/:id', adminOnly, coreReady, express.json({ limit: '
         peutEnvoyer: et.consent.envoyer,
         mailer,
         replyTo: et.identite.courriel || undefined,
-        sujet: propositions.sujetReponse({ nomCommerce: et.identite.nom }),
+        sujet: propositions.sujetPour(p.type, { nomCommerce: et.identite.nom }),
       });
       return res.json(r);
     }
@@ -2238,13 +2280,26 @@ app.post('/core/reception/lead/:id', adminOnly, coreReady, express.json({ limit:
   const statut = ['nouveau', 'contacte', 'gagne', 'perdu'].includes(b.statut) ? b.statut : null;
   if (!statut) return res.status(400).json({ error: 'statut invalide' });
   try {
-    const lead = db.prepare('SELECT id, repondu_le FROM leads WHERE id = ?').get(id);
+    const lead = db.prepare('SELECT id, source, nom, courriel, repondu_le FROM leads WHERE id = ?').get(id);
     if (!lead) return res.status(404).json({ error: 'introuvable' });
     const marqueReponse = (statut !== 'nouveau' && !lead.repondu_le);
     db.prepare(`UPDATE leads SET statut = ?, repondu_le = COALESCE(repondu_le, ?),
         valeur_cents = COALESCE(?, valeur_cents) WHERE id = ?`)
       .run(statut, marqueReponse ? new Date().toISOString().replace('T', ' ').slice(0, 19) : null,
         Number.isInteger(b.valeur_cents) ? b.valeur_cents : null, id);
+    // Réputation : un job gagné = le meilleur moment pour demander un avis.
+    // Novalis prépare la demande (si l'entreprise a consenti « rédiger ») et la
+    // dépose dans la file d'approbation. Idempotent, ne casse jamais la réponse.
+    if (statut === 'gagne') {
+      try {
+        const et = branchement.etat(db, lead.source);
+        if (et.consent.rediger) {
+          const g = et.connexions.find(x => x.type === 'google' && x.statut === 'branche');
+          const lienAvis = g && /^https?:\/\//.test(String(g.compte_label || '')) ? g.compte_label : null;
+          propositions.creerAvisPourLead(db, lead, { nomCommerce: et.identite.nom, lienAvis });
+        }
+      } catch (e) { console.error('[proposition:avis] non créée:', e.message); }
+    }
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

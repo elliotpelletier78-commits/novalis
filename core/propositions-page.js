@@ -72,11 +72,14 @@ textarea:focus{outline:2px solid var(--jade);outline-offset:1px}
 .foot{margin-top:26px;color:var(--faint);font-size:12.5px;text-align:center}
 `;
 
+const TYPE_LABEL = { reponse: 'Réponse', avis: 'Avis', facture: 'Devis', publication: 'Publication' };
+
 function carte(p) {
   const urgent = p.priorite >= 10;
+  const label = TYPE_LABEL[p.type] || 'Proposition';
   return `<div class="prop" data-id="${p.id}">
     <div class="phead">
-      <span class="ptag ${urgent ? 'urgent' : ''}">${urgent ? 'Prioritaire' : 'Réponse'}</span>
+      <span class="ptag ${urgent ? 'urgent' : ''}">${urgent ? label + ' · prioritaire' : label}</span>
       <div class="pttl"><div class="t">${esc(p.titre)}</div>
         <div class="ctx">${p.apercu ? '« ' + esc(p.apercu) + ' »' : ''}</div></div>
     </div>

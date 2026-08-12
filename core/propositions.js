@@ -58,6 +58,56 @@ function sujetReponse(cfg = {}) {
 }
 
 /**
+ * Rédige la demande d'avis à un client satisfait (job gagné). Chaleureux,
+ * jamais insistant, avec le lien d'avis s'il est connu — sinon une invitation
+ * simple. Ne promet ni cadeau ni incitatif (les avis achetés sont interdits et
+ * malhonnêtes).
+ * @param {{nom?:string}} lead
+ * @param {{nomCommerce?:string, lienAvis?:string}} cfg
+ */
+function brouillonAvis(lead, cfg = {}) {
+  const commerce = cfg.nomCommerce || 'notre équipe';
+  const pn = prenom(lead.nom);
+  const salut = pn ? `Bonjour ${pn},` : 'Bonjour,';
+  const lignes = [
+    salut,
+    '',
+    `Merci encore de votre confiance envers ${commerce}. Ce fut un plaisir de vous servir.`,
+    cfg.lienAvis
+      ? `Si vous avez deux minutes, un mot sur votre expérience aiderait beaucoup d'autres personnes du quartier à nous découvrir : ${cfg.lienAvis}`
+      : `Si vous avez deux minutes, un mot sur votre expérience — un avis Google — aiderait beaucoup d'autres personnes du quartier à nous découvrir.`,
+    '',
+    'Merci sincèrement,',
+    commerce,
+  ];
+  return lignes.join('\n');
+}
+
+/** Sujet du courriel selon le type de proposition. */
+function sujetPour(type, cfg = {}) {
+  if (type === 'avis') {
+    return cfg.nomCommerce ? `Merci de votre confiance — ${cfg.nomCommerce}` : 'Merci de votre confiance';
+  }
+  return sujetReponse(cfg);
+}
+
+/**
+ * Crée (idempotent) une demande d'avis pour un lead gagné. À appeler quand le
+ * lead passe à « gagné », SI l'entreprise a consenti à ce que Novalis rédige.
+ */
+function creerAvisPourLead(db, lead, cfg = {}) {
+  if (!lead || !lead.id || !lead.source) return null;
+  const brouillon = brouillonAvis(lead, cfg);
+  const titre = `Demander un avis à ${lead.nom || 'un client'}`;
+  const info = db.prepare(
+    `INSERT OR IGNORE INTO propositions
+       (source, type, ref_type, ref_id, titre, apercu, brouillon, destinataire, priorite)
+     VALUES (?, 'avis', 'lead', ?, ?, ?, ?, ?, 3)`
+  ).run(lead.source, lead.id, titre, 'Client satisfait — job gagné', brouillon, lead.courriel || null);
+  return info.changes ? { id: info.lastInsertRowid } : null;
+}
+
+/**
  * Crée (idempotent) une proposition de réponse pour un lead. À appeler juste
  * après l'insertion du lead, SI l'entreprise a consenti à ce que Novalis rédige.
  * @returns {{id:number}|null} null si déjà créée ou entrée invalide
@@ -161,7 +211,8 @@ async function approuver(db, id, ctx = {}) {
 }
 
 module.exports = {
-  brouillonReponse, sujetReponse, creerReponsePourLead,
+  brouillonReponse, brouillonAvis, sujetReponse, sujetPour,
+  creerReponsePourLead, creerAvisPourLead,
   lister, compteurs, get, modifier, rejeter, approuver,
   _prenom: prenom, _accroche: accroche,
 };
