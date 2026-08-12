@@ -2022,6 +2022,19 @@ app.post('/api/:site/contact', leadRateLimit, express.json({ limit: '32kb' }), (
       core.alerter.alert(`Nouveau message — ${site}`,
         `${nom}${entreprise ? ' (' + entreprise + ')' : ''} · ${courriel}\n${message.slice(0, 400)}`);
     }
+    // Poste de commande : si l'entreprise a autorisé Novalis à rédiger, on
+    // PRÉPARE la réponse (brouillon) et on la dépose dans la file d'approbation.
+    // Rien n'est envoyé ici — le commerçant dira oui. Ne doit jamais casser
+    // l'enregistrement du lead.
+    try {
+      const et = branchement.etat(db, site);
+      if (et.consent.rediger) {
+        propositions.creerReponsePourLead(db,
+          { id: info.lastInsertRowid, source: site, nom, courriel, message },
+          { nomCommerce: et.identite.nom || reception.configDe(db, site).nomCommerce,
+            telephone: et.identite.telephone, horsHeures: !!horsHeures });
+      }
+    } catch (e) { console.error('[proposition] non créée:', e.message); }
     res.status(201).json({ ok: true });
   } catch (e) {
     console.error('[lead] erreur:', e.message);
@@ -2069,6 +2082,10 @@ const { renderReception, renderRapport } = require('./core/reception-page');
 const pulse = require('./core/pulse');
 const branchement = require('./core/branchement');
 const { renderBranchement } = require('./core/branchement-page');
+const propositions = require('./core/propositions');
+const { renderPropositions } = require('./core/propositions-page');
+const { createMailer } = require('./core/alerts');
+const mailer = createMailer(process.env);
 
 function sourcesConnues() {
   const set = new Set();
@@ -2166,6 +2183,50 @@ app.post('/core/branchement/connexion', adminOnly, coreReady, express.json({ lim
     branchement.definirConnexion(db, source, type, { statut, label: b.label, detail: b.detail });
     res.json({ ok: true });
   } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// ── Novalis Poste de commande — la file d'approbation ───────────────
+// « Novalis a déjà fait le travail, vous dites oui. » Admin-only.
+app.get('/core/propositions', adminOnly, coreReady, (req, res) => {
+  const source = String(req.query.source || 'novalis').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
+  const statut = ['en_attente', 'approuve', 'envoye', 'rejete'].includes(req.query.statut) ? req.query.statut : 'en_attente';
+  const et = branchement.etat(db, source);
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.send(renderPropositions({
+    source, nom: et.identite.nom,
+    items: propositions.lister(db, source, { statut }),
+    compteurs: propositions.compteurs(db, source),
+    statut,
+  }));
+});
+
+// Approuver / modifier / rejeter une proposition. L'approbation exécute l'envoi
+// SEULEMENT si l'entreprise a consenti à l'envoi et que le courriel est branché ;
+// sinon la proposition est « approuvée — à envoyer à la main » (jamais faux envoi).
+app.post('/core/propositions/:id', adminOnly, coreReady, express.json({ limit: '16kb' }), async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'id invalide' });
+  const action = String((req.body || {}).action || '');
+  try {
+    if (action === 'rejeter') return res.json(propositions.rejeter(db, id));
+    if (action === 'modifier') return res.json(propositions.modifier(db, id, (req.body || {}).brouillon));
+    if (action === 'approuver') {
+      const p = propositions.get(db, id);
+      if (!p) return res.status(404).json({ ok: false, raison: 'introuvable' });
+      // La modification éventuelle du brouillon est enregistrée avant l'envoi.
+      if (typeof (req.body || {}).brouillon === 'string') propositions.modifier(db, id, req.body.brouillon);
+      const et = branchement.etat(db, p.source);
+      const r = await propositions.approuver(db, id, {
+        peutEnvoyer: et.consent.envoyer,
+        mailer,
+        replyTo: et.identite.courriel || undefined,
+        sujet: propositions.sujetReponse({ nomCommerce: et.identite.nom }),
+      });
+      return res.json(r);
+    }
+    return res.status(400).json({ ok: false, raison: 'action inconnue' });
+  } catch (e) { res.status(500).json({ ok: false, raison: e.message }); }
 });
 
 // Mise à jour du cycle de vie d'un contact. Passer à « contacté/gagné/perdu »

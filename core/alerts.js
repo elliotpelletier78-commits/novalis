@@ -76,4 +76,43 @@ function createAlerter(env = process.env) {
   };
 }
 
-module.exports = { createAlerter };
+/**
+ * Petit expéditeur de courriels réutilisable (Resend HTTP API), pour envoyer
+ * à un destinataire ARBITRAIRE — ex. la réponse approuvée à un client. Distinct
+ * de l'alerter (qui n'écrit qu'à l'opérateur). Fail-safe : sans clé configurée,
+ * `configured` est faux et `envoyer` retourne { sent:false } sans lever — le
+ * code appelant traite ça comme « à envoyer à la main », jamais comme un envoi.
+ * @param {NodeJS.ProcessEnv} env
+ */
+function createMailer(env = process.env) {
+  const resendKey = env.RESEND_API_KEY;
+  const defautFrom = env.MAIL_FROM || 'Novalis <reponse@novalisia.ca>';
+  async function envoyer({ to, subject, text, from, replyTo } = {}) {
+    if (!resendKey) return { sent: false, reason: 'courriel non configuré (RESEND_API_KEY absente)' };
+    if (!to || !subject || !text) return { sent: false, reason: 'to, subject et text requis' };
+    try {
+      const body = {
+        from: from || defautFrom,
+        to: String(to).split(',').map(s => s.trim()).filter(Boolean),
+        subject: String(subject).slice(0, 200),
+        text: String(text),
+      };
+      if (replyTo) body.reply_to = replyTo;
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${resendKey}`, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        return { sent: false, status: res.status, reason: t.slice(0, 200) };
+      }
+      return { sent: true, status: res.status };
+    } catch (e) {
+      return { sent: false, reason: e.message };
+    }
+  }
+  return { envoyer, configured: Boolean(resendKey) };
+}
+
+module.exports = { createAlerter, createMailer };
