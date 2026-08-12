@@ -5,11 +5,26 @@ const crypto  = require('crypto');
 const Database = require('better-sqlite3');
 
 const app = express();
+// Railway place un proxy devant l'app : sans ceci, req.ip vaut l'IP du proxy et
+// les limiteurs de débit se fient au premier élément (client-contrôlé) de
+// X-Forwarded-For — un attaquant le change à chaque requête et n'est jamais
+// étranglé. « 1 » = un seul proxy de confiance devant nous ; req.ip prend alors
+// le dernier saut avant ce proxy, non falsifiable par le client.
+app.set('trust proxy', 1);
 app.use(express.json({ limit: '20mb' }));
 
 // ── SQLite — prospects & tracking ────────────────────────────
-const dbPath = path.join(__dirname, 'output', 'novalis.db');
-if (!fs.existsSync(path.join(__dirname, 'output'))) fs.mkdirSync(path.join(__dirname, 'output'), { recursive: true });
+// DATABASE_PATH permet de pointer la base sur le volume persistant Railway
+// explicitement. Défaut historique : output/. Si la base n'existait pas au
+// démarrage EN PRODUCTION, on crie : soit c'est le tout premier lancement, soit
+// — bien plus grave — le volume n'est pas monté et on repart sur un disque
+// éphémère qui sera perdu au prochain déploiement, sans le moindre signal.
+const dbPath = process.env.DATABASE_PATH || path.join(__dirname, 'output', 'novalis.db');
+const dbExistait = fs.existsSync(dbPath);
+fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+if (!dbExistait && process.env.NODE_ENV === 'production') {
+  console.warn(`[db] ⚠️ base absente à ${dbPath} au démarrage — premier lancement, OU volume non monté (données perdues au prochain deploy). Vérifier le montage du volume Railway.`);
+}
 const db = new Database(dbPath);
 // Réglages SQLite appliqués UNE fois à l'ouverture. Le README et core/queue.js
 // supposent le mode WAL, mais rien ne l'activait : la base tournait en mode
@@ -71,7 +86,9 @@ const ADMIN_FENETRE_MS = 15 * 60 * 1000;
 const essaisAdmin = new Map(); // ip → { n, jusqua }
 
 function ipDe(req) {
-  return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || 'inconnue';
+  // req.ip est fiable grâce à app.set('trust proxy', 1) — non falsifiable par
+  // le client, contrairement à la lecture directe de X-Forwarded-For.
+  return req.ip || 'inconnue';
 }
 function adminBloque(req) {
   const e = essaisAdmin.get(ipDe(req));
@@ -1964,7 +1981,7 @@ app.get('/core/costs', adminOnly, coreReady, (req, res) => {
 // côté client, et aucune donnée renvoyée dans la réponse.
 const leadHits = new Map();
 function leadRateLimit(req, res, next) {
-  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  const ip = req.ip || req.socket.remoteAddress || 'inconnue'; // fiable via trust proxy
   const now = Date.now();
   const win = 10 * 60 * 1000, max = 5;
   const hits = (leadHits.get(ip) || []).filter(t => now - t < win);
