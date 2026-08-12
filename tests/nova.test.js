@@ -1,0 +1,68 @@
+import { describe, it, expect } from 'vitest';
+import { analyser, resume } from '../core/nova.js';
+
+describe('Nova — analyse', () => {
+  it('un client en attente = observation urgente', () => {
+    const r = analyser({ leadsAttente: 2, pretPct: 100, servicesCount: 1 });
+    expect(r[0].gravite).toBe('urgent');
+    expect(r[0].titre).toMatch(/2 clients attendent/);
+    expect(r[0].action.lien).toBe('reception');
+  });
+
+  it('les urgents passent avant les occasions et les infos', () => {
+    const r = analyser({ leadsAttente: 1, propositions: 3, pretPct: 40, servicesCount: 1 });
+    const ordre = r.map(i => i.gravite);
+    expect(ordre.indexOf('urgent')).toBeLessThan(ordre.indexOf('occasion'));
+    expect(ordre.indexOf('occasion')).toBeLessThan(ordre.indexOf('info'));
+  });
+
+  it('réponse trop lente = urgent (avec assez de réponses mesurées)', () => {
+    const r = analyser({ pctSous1h: 30, repondus: 5, pretPct: 100, servicesCount: 1 });
+    expect(r.some(i => i.gravite === 'urgent' && /trop lentement/.test(i.titre))).toBe(true);
+  });
+
+  it('ne juge pas la lenteur sur trop peu de réponses', () => {
+    const r = analyser({ pctSous1h: 0, repondus: 1, pretPct: 100, servicesCount: 1 });
+    expect(r.some(i => /trop lentement/.test(i.titre))).toBe(false);
+  });
+
+  it('propose la réponse instantanée seulement si non active et hors-heures reçus', () => {
+    expect(analyser({ accuseActif: false, horsHeures: 3, pretPct: 100, servicesCount: 1 })
+      .some(i => /instantanée/.test(i.titre))).toBe(true);
+    expect(analyser({ accuseActif: true, horsHeures: 3, pretPct: 100, servicesCount: 1 })
+      .some(i => /instantanée/.test(i.titre))).toBe(false);
+  });
+
+  it('suggère de demander des avis aux clients gagnés', () => {
+    const r = analyser({ gagnesSansAvis: 2, pretPct: 100, servicesCount: 1 });
+    expect(r.some(i => /avis/.test(i.titre))).toBe(true);
+  });
+
+  it('branchement incomplet et services vides = infos', () => {
+    const r = analyser({ pretPct: 60, servicesCount: 0 });
+    expect(r.some(i => /branchement/.test(i.titre))).toBe(true);
+    expect(r.some(i => /services/.test(i.titre))).toBe(true);
+  });
+
+  it('reprend la fuite Pulse fiable', () => {
+    const r = analyser({ pretPct: 100, servicesCount: 1, fuite: { fiable: true, fuite: { titre: 'Première impression', levier: 'Une photo forte' } } });
+    expect(r.some(i => i.titre === 'Première impression')).toBe(true);
+  });
+
+  it('entreprise saine = aucune observation', () => {
+    const r = analyser({ leadsAttente: 0, propositions: 0, pretPct: 100, servicesCount: 1, accuseActif: true, gagnesSansAvis: 0, fuite: null });
+    expect(r.length).toBe(0);
+  });
+});
+
+describe('Nova — résumé', () => {
+  it('phrase de calme quand rien à signaler', () => {
+    expect(resume([])).toMatch(/sous contrôle/i);
+  });
+  it('compte les urgents et les occasions', () => {
+    const r = analyser({ leadsAttente: 1, propositions: 2, pretPct: 100, servicesCount: 1 });
+    const s = resume(r);
+    expect(s).toMatch(/urgente/);
+    expect(s).toMatch(/occasion/);
+  });
+});

@@ -2109,7 +2109,7 @@ const { renderPropositions } = require('./core/propositions-page');
 const { renderAujourdhui } = require('./core/aujourdhui-page');
 const devis = require('./core/devis');
 const { renderDevis } = require('./core/devis-page');
-const { prioriteDuJour } = require('./core/priorite');
+const nova = require('./core/nova');
 const { createMailer } = require('./core/alerts');
 const mailer = createMailer(process.env);
 
@@ -2251,12 +2251,31 @@ app.get('/core/aujourdhui', adminOnly, coreReady, (req, res) => {
   }));
   const propsAttente = propositions.lister(db, source, { statut: 'en_attente' }).slice(0, 4)
     .map(p => ({ type: p.type, titre: p.titre, apercu: p.apercu }));
+  // Nova — analyse déterministe de l'entreprise (problèmes + occasions).
+  let gagnes = 0, avisT = 0, servicesCount = 0;
+  try { gagnes = db.prepare('SELECT COUNT(*) n FROM leads WHERE source = ? AND statut = \'gagne\'').get(source).n; } catch { /* jeune */ }
+  try { avisT = db.prepare('SELECT COUNT(*) n FROM propositions WHERE source = ? AND type = \'avis\'').get(source).n; } catch { /* jeune */ }
+  try { servicesCount = devis.listerServices(db, source).length; } catch { /* jeune */ }
+  const cptsProp = propositions.compteurs(db, source);
+  const insights = nova.analyser({
+    leadsAttente: recu.compteurs.en_attente,
+    propositions: cptsProp.en_attente,
+    fuite: pouls,
+    pretPct: et.pret_pct,
+    pctSous1h: recu.reponse.pct_sous_1h,
+    repondus: recu.reponse.repondus,
+    accuseActif: et.consent.accuse,
+    horsHeures: recu.compteurs.hors_heures,
+    gagnesSansAvis: Math.max(0, gagnes - avisT),
+    servicesCount,
+    contacts: recu.compteurs.contacts,
+  });
   res.setHeader('X-Frame-Options', 'DENY');
   res.send(renderAujourdhui({
     source, nom: et.identite.nom, salutation, dateLabel: dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1), sources,
     pass: req.query.pass ? String(req.query.pass) : undefined,
     signaux: {
-      a_approuver: propositions.compteurs(db, source).en_attente,
+      a_approuver: cptsProp.en_attente,
       contacts: recu.compteurs.contacts,
       en_attente: recu.compteurs.en_attente,
     },
@@ -2264,7 +2283,7 @@ app.get('/core/aujourdhui', adminOnly, coreReady, (req, res) => {
     fuite: pouls,
     leads_attente: attente,
     pret_pct: et.pret_pct,
-    priorite: prioriteDuJour({ leads_attente: attente, propositions: propsAttente, fuite: pouls, pret_pct: et.pret_pct }),
+    nova: { resume: nova.resume(insights), insights: insights.slice(0, 5) },
   }));
 });
 

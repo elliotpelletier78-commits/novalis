@@ -10,15 +10,23 @@ const TYPE_LABEL = { reponse: 'Réponse', avis: 'Avis', devis: 'Devis', relance:
 const ICN = { reponse: 'inbox', avis: 'phone', devis: 'file', relance: 'phone', publication: 'file' };
 
 const EXTRA = `
-.prio{display:flex;gap:15px;align-items:center;border-radius:var(--r-lg);padding:16px 20px;margin-bottom:16px;border:1px solid var(--line);background:var(--card);box-shadow:var(--sh-sm);text-decoration:none;color:inherit;position:relative;overflow:hidden}
-.prio::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--brand)}
-.prio.urgent::before{background:var(--risk)} .prio.info::before{background:var(--warn)} .prio.calme::before{background:var(--ok)}
-.prio .ic{width:40px;height:40px;border-radius:11px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--brand-soft);color:var(--brand-600)}
-.prio.urgent .ic{background:var(--risk-soft);color:var(--risk)} .prio.info .ic{background:var(--warn-soft);color:var(--warn)} .prio.calme .ic{background:var(--ok-soft);color:var(--ok)}
-.prio .ic svg{width:21px;height:21px}
-.prio .pk{font-size:11px;font-weight:720;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.prio .pt{font-size:17px;font-weight:720;letter-spacing:-.01em;margin:2px 0}
-.prio .ps{font-size:13.5px;color:var(--ink-2)}
+.nova{border-radius:var(--r-lg);border:1px solid var(--line);background:var(--card);box-shadow:var(--sh-sm);margin-bottom:18px;overflow:hidden}
+.nova-head{display:flex;align-items:center;gap:13px;padding:16px 20px;background:linear-gradient(180deg,var(--brand-soft),transparent)}
+.nova-av{width:40px;height:40px;border-radius:11px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--brand);color:#fff}
+.nova-av svg{width:22px;height:22px}
+.nova-name{font-size:15px;font-weight:750;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.nova-name .tag{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--brand-600);background:var(--brand-soft);padding:2px 7px;border-radius:var(--r-pill)}
+.nova-say{font-size:13.5px;color:var(--ink-2);margin-top:1px}
+.nova-list{padding:4px 8px 8px}
+.nova-i{display:flex;gap:12px;align-items:flex-start;padding:13px 12px;border-radius:var(--r);text-decoration:none;color:inherit;transition:background .12s}
+.nova-i:hover{background:var(--panel)}
+.nova-i .dot{width:9px;height:9px;border-radius:50%;flex:none;margin-top:5px;background:var(--muted)}
+.nova-i.urgent .dot{background:var(--risk)} .nova-i.occasion .dot{background:var(--brand)} .nova-i.info .dot{background:var(--warn)}
+.nova-i .b{flex:1;min-width:0}
+.nova-i .t{font-weight:650;font-size:14.5px}
+.nova-i .d{font-size:13px;color:var(--muted);margin-top:2px}
+.nova-i .go{flex:none;font-size:13px;font-weight:640;color:var(--brand-600);white-space:nowrap;align-self:center}
+.nova-calm{padding:16px 20px;font-size:14px;color:var(--ok);font-weight:600}
 .list .row{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line-2)}
 .list .row:last-child{border-bottom:none}
 .list .row .b{flex:1;min-width:0}
@@ -41,15 +49,20 @@ function renderAujourdhui(d) {
   const s = d.signaux;
   const href = (base) => `${base}?source=${encodeURIComponent(d.source)}${d.pass ? '&pass=' + encodeURIComponent(d.pass) : ''}`;
 
-  const prioHtml = (() => {
-    const p = d.priorite; if (!p) return '';
-    const ic = { urgent: 'phone', action: 'inbox', info: 'pulse', calme: 'today' }[p.ton] || 'today';
-    const dest = { reception: '/core/reception', propositions: '/core/propositions', branchement: '/core/branchement', aujourdhui: '/core/aujourdhui' }[p.lien] || '/core/aujourdhui';
-    return `<a class="prio ${p.ton}" href="${href(dest)}">
-      <span class="ic">${icon(ic)}</span>
-      <span><span class="pk">Priorité du jour</span>
-        <div class="pt">${esc(p.titre)}</div><div class="ps">${esc(p.sousTitre)}</div></span></a>`;
-  })();
+  const SPARK = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8Z"/></svg>';
+  const lienMap = { reception: '/core/reception', propositions: '/core/propositions', branchement: '/core/branchement', devis: '/core/devis', aujourdhui: '/core/aujourdhui' };
+  const nova = d.nova || { resume: '', insights: [] };
+  const novaHtml = `<div class="nova">
+    <div class="nova-head"><span class="nova-av">${SPARK}</span>
+      <div><div class="nova-name">Nova <span class="tag">assistant</span></div>
+        <div class="nova-say">${esc(nova.resume)}</div></div></div>
+    ${nova.insights.length ? `<div class="nova-list">${nova.insights.map(i => `
+      <a class="nova-i ${i.gravite}" href="${href(lienMap[i.action.lien] || '/core/aujourdhui')}">
+        <span class="dot"></span>
+        <div class="b"><div class="t">${esc(i.titre)}</div><div class="d">${esc(i.detail)}</div></div>
+        <span class="go">${esc(i.action.label)} →</span></a>`).join('')}</div>`
+      : '<div class="nova-calm">✓ Rien à signaler. Novalis veille.</div>'}
+  </div>`;
 
   const qa = `<div class="qact">
     <a href="${href('/core/propositions')}">${icon('inbox')} Approuver</a>
@@ -86,7 +99,7 @@ function renderAujourdhui(d) {
         ? `Encore trop peu de visiteurs (${d.fuite.visiteurs}) pour un diagnostic fiable.`
         : 'La mesure démarre dès les premières visites. Aucun témoin, conforme à la Loi 25.'}</div>`;
 
-  const content = `${prioHtml}${qa}
+  const content = `${novaHtml}${qa}
     <div class="section-label">Votre commerce en un coup d’œil</div>
     ${funnel}
     <div class="section-label">À faire</div>

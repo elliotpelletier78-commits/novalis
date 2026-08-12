@@ -42,13 +42,13 @@ const UI_CSS = `
 :root{
   --app:#FAFBFB; --card:#FFFFFF; --panel:#F4F6F5; --line:#E2E6E4; --line-2:#EDF0EE;
   --ink:#1A2B22; --ink-2:#42504A; --muted:#697771; --faint:#98A29C;
-  /* Vert QuickBooks : vif en accent, une teinte plus foncée pour le texte sur clair. */
-  --brand:#2CA01C; --brand-ink:#FFFFFF; --brand-soft:#E8F5E6; --brand-600:#108000;
+  /* Indigo — l'accent « IA moderne ». Le vert reste réservé aux états succès. */
+  --brand:#4F46E5; --brand-ink:#FFFFFF; --brand-soft:#ECEBFB; --brand-600:#4338CA;
   --ok:#108000; --ok-soft:#E8F5E6; --warn:#9A5A17; --warn-soft:#FBF0E2;
-  --risk:#C0392B; --risk-soft:#FBEDEB; --steel:#2C6E9B;
-  /* Rail de navigation CLAIR et étroit (QuickBooks moderne). */
-  --side:#FFFFFF; --side-ink:#44514A; --side-ink-2:#8A948D; --side-brand:#123322;
-  --side-line:#E6EAE7; --side-hover:#F2F6F3; --side-active:#E8F5E6; --side-active-ink:#0A7A38;
+  --risk:#C0392B; --risk-soft:#FBEDEB; --steel:#6366F1;
+  /* Rail de navigation CLAIR et étroit. */
+  --side:#FFFFFF; --side-ink:#464F5E; --side-ink-2:#8A93A0; --side-brand:#1A2233;
+  --side-line:#E7E9EF; --side-hover:#F3F4F9; --side-active:#ECEBFB; --side-active-ink:#4338CA;
   --r:12px; --r-sm:9px; --r-lg:14px; --r-pill:999px;
   --sh-sm:0 1px 2px rgba(20,40,30,.05); --sh:0 1px 3px rgba(20,40,30,.06),0 6px 18px rgba(20,40,30,.05);
   --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
@@ -62,11 +62,11 @@ const UI_CSS = `
 @media(prefers-color-scheme:dark){:root{
   --app:#0F1210; --card:#171B18; --panel:#1B211D; --line:#28302B; --line-2:#222824;
   --ink:#EAEEEB; --ink-2:#C3CBC6; --muted:#8E988F; --faint:#6B746D;
-  --brand:#3FBF2A; --brand-ink:#06140A; --brand-soft:#16261A; --brand-600:#5AD142;
+  --brand:#8B84F5; --brand-ink:#0A0820; --brand-soft:#211E3E; --brand-600:#A29BF8;
   --ok:#4DB37F; --ok-soft:#152720; --warn:#D6A15C; --warn-soft:#2A2213;
-  --risk:#E08A72; --risk-soft:#2C1B16; --steel:#8FB3D4;
-  --side:#141917; --side-ink:#C3CBC6; --side-ink-2:#7C877F; --side-brand:#EAF6EE;
-  --side-line:#232A26; --side-hover:#1E251F; --side-active:#16261A; --side-active-ink:#5AD142;
+  --risk:#E08A72; --risk-soft:#2C1B16; --steel:#8B87E8;
+  --side:#141726; --side-ink:#BFC5D2; --side-ink-2:#7E8698; --side-brand:#EDEEFB;
+  --side-line:#242840; --side-hover:#1E2236; --side-active:#211E3E; --side-active-ink:#A29BF8;
   --sh-sm:0 1px 2px rgba(0,0,0,.4); --sh:0 1px 3px rgba(0,0,0,.4),0 8px 26px rgba(0,0,0,.45);
 }}
 *{box-sizing:border-box;margin:0;padding:0}
