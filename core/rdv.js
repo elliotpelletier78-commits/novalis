@@ -6,6 +6,20 @@
 
 function pad(n) { return String(n).padStart(2, '0'); }
 
+// Heure murale de Montréal ('YYYY-MM-DD HH:MM:SS') pour un instant donné. Les
+// `debut` sont saisis en heure locale du commerce (Montréal) ; toutes les
+// comparaisons se font donc dans ce fuseau, jamais en UTC — sinon, sur un
+// serveur UTC (Railway), un rendez-vous du jour serait considéré comme passé.
+function montrealWall(ms) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Montreal', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  }).formatToParts(new Date(ms));
+  const g = (t) => (parts.find((x) => x.type === t) || {}).value || '00';
+  let h = g('hour'); if (h === '24') h = '00';
+  return `${g('year')}-${g('month')}-${g('day')} ${h}:${g('minute')}:${g('second')}`;
+}
+
 /** Formate 'YYYY-MM-DD HH:MM' en libellé lisible (fr-CA). */
 function formatQuand(debut) {
   const t = Date.parse(String(debut).replace(' ', 'T'));
@@ -33,14 +47,27 @@ function lister(db, source, opts = {}) {
   const limite = Math.min(parseInt(opts.limite, 10) || 50, 200);
   try {
     if (opts.tous) return db.prepare('SELECT * FROM rendezvous WHERE source = ? ORDER BY debut DESC LIMIT ?').all(source, limite);
+    const seuil = montrealWall(Date.now() - 2 * 3600000); // 2 h de battement (heure Montréal)
     return db.prepare(`SELECT * FROM rendezvous WHERE source = ? AND statut = 'prevu'
-      AND debut >= datetime('now','-2 hours') ORDER BY debut ASC LIMIT ?`).all(source, limite);
+      AND debut >= ? ORDER BY debut ASC LIMIT ?`).all(source, seuil, limite);
   } catch { return []; }
 }
 
+/**
+ * Marque un rendez-vous. Si on l'annule (ou le marque fait), on ANNULE aussi le
+ * rappel préparé s'il attend encore — sinon on enverrait un rappel pour un
+ * rendez-vous qui n'existe plus.
+ */
 function marquer(db, id, statut) {
   if (!['prevu', 'fait', 'annule'].includes(statut)) return false;
-  return db.prepare('UPDATE rendezvous SET statut = ? WHERE id = ?').run(statut, id).changes === 1;
+  let row = null;
+  try { row = db.prepare('SELECT rappel_prop_id FROM rendezvous WHERE id = ?').get(id); } catch { /* ignore */ }
+  const changes = db.prepare('UPDATE rendezvous SET statut = ? WHERE id = ?').run(statut, id).changes;
+  if (changes && statut !== 'prevu' && row && row.rappel_prop_id) {
+    try { db.prepare(`UPDATE propositions SET statut = 'rejete', traite_le = datetime('now'), maj_le = datetime('now')
+      WHERE id = ? AND statut = 'en_attente'`).run(row.rappel_prop_id); } catch { /* pas bloquant */ }
+  }
+  return changes === 1;
 }
 
 /** Brouillon de rappel — rappelle le rendez-vous, sans rien promettre d'autre. */
@@ -66,9 +93,12 @@ function brouillonRappel(rdv, cfg = {}) {
  * @returns {number} rappels créés
  */
 function preparerRappels(db, source, opts = {}) {
-  const now = opts.now || Date.now();
+  const baseMs = opts.nowMs || opts.now || Date.now();
   const fenetreMs = (opts.fenetreH || 48) * 3600000;
   const cfg = opts.cfg || {};
+  // Fenêtre exprimée en heure murale de Montréal (comme les `debut` stockés).
+  const nowW = montrealWall(baseMs);
+  const finW = montrealWall(baseMs + fenetreMs);
   let rdvs;
   try {
     rdvs = db.prepare(`SELECT * FROM rendezvous WHERE source = ? AND statut = 'prevu' AND rappel_prop_id IS NULL`).all(source);
@@ -79,8 +109,8 @@ function preparerRappels(db, source, opts = {}) {
     VALUES (?, 'rappel', 'rdv', ?, ?, ?, ?, ?, 6)`);
   const setRappel = db.prepare('UPDATE rendezvous SET rappel_prop_id = ? WHERE id = ?');
   for (const r of rdvs) {
-    const t = Date.parse(String(r.debut).replace(' ', 'T'));
-    if (!Number.isFinite(t) || t < now || t > now + fenetreMs) continue;
+    const d = String(r.debut);           // 'YYYY-MM-DD HH:MM:SS' (Montréal)
+    if (!(d >= nowW && d <= finW)) continue; // comparaison lexicale, même fuseau
     const brouillon = brouillonRappel(r, cfg);
     const info = insProp.run(source, r.id, `Rappel de RDV — ${r.client_nom || 'client'}`,
       formatQuand(r.debut) + (r.service ? ` · ${r.service}` : ''), brouillon, r.client_courriel || null);
@@ -89,4 +119,4 @@ function preparerRappels(db, source, opts = {}) {
   return n;
 }
 
-module.exports = { ajouter, lister, marquer, brouillonRappel, preparerRappels, formatQuand };
+module.exports = { ajouter, lister, marquer, brouillonRappel, preparerRappels, formatQuand, montrealWall };

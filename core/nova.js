@@ -128,24 +128,33 @@ function resume(insights) {
  *                 | {action:'activer', quoi:'accuse'|'envoyer'}}
  */
 function interpreterCommande(message) {
-  const m = String(message || '').toLowerCase();
+  // Retirer une adresse polie initiale (« Nova, … »).
+  const brut = String(message || '').trim().replace(/^\s*nova\s*[,:]?\s*/i, '');
+  const m = brut.toLowerCase();
+  if (!m) return null;
 
-  // Activer un réglage.
-  if (/\b(active[rz]?|activ|allume|met[s]? en marche)\b/.test(m)) {
+  // Une QUESTION ou une NÉGATION n'est jamais une commande — sinon « peux-tu
+  // supprimer… ? » ou « je ne veux pas rejeter… » déclencheraient une action
+  // irréversible. On exige aussi que le verbe d'action soit EN TÊTE de phrase
+  // (une commande est impérative), pas noyé dans une question.
+  if (/[?]/.test(brut)) return null;
+  if (/^(peux|pourrais|pourrait|est-ce|pourquoi|comment|combien|qui|quand|quel|faut-il|dois|penses|crois|veux|serait|as-tu|aimerais)/i.test(brut)) return null;
+  if (/\bne\s+\S/.test(m) && /\bpas\b/.test(m)) return null;
+
+  const premier = (m.match(/^([a-zà-ÿ']+)/) || [])[1] || '';
+  if (/^(active|activ|activez|allume|allumez)$/.test(premier)) {
     if (/(instantan|accus|24\s*\/?\s*7|24h)/.test(m)) return { action: 'activer', quoi: 'accuse' };
     if (/(envoi|envoy|approbation)/.test(m)) return { action: 'activer', quoi: 'envoyer' };
+    return null;
   }
-
-  const approuver = /\b(approuve[rz]?|approuv|accepte[rz]?|valide[rz]?|envoie|envoyez|envoyer)\b/.test(m);
-  const rejeter = /\b(rejett?e[rz]?|rejeter|refuse[rz]?|supprime[rz]?|jette[rz]?|efface[rz]?)\b/.test(m);
+  const approuver = /^(approuve|approuver|approuvez|accepte|accepter|valide|valider|envoie|envoyer|envoyez)$/.test(premier);
+  const rejeter = /^(rejette|rejeter|rejetez|refuse|refuser|refusez|ecarte|écarte)$/.test(premier);
   if (!approuver && !rejeter) return null;
 
   const tout = /\b(tout|toutes|tous)\b/.test(m);
-  // Cible nommée : ce qui suit « à / pour / de / au » (nom du client).
+  // Le nom propre suit « à / au / pour / de » et commence par une majuscule.
   let cible = null;
-  // Le nom propre suit « à / au / pour / de » et commence par une majuscule
-  // (évite d'attraper « de la réponse »).
-  const mm = String(message || '').match(/(?:^|\s)(?:à|au|pour|de|a)\s+(\p{Lu}[\p{L}\-' ]{0,50})/u);
+  const mm = brut.match(/(?:^|\s)(?:à|au|pour|de|a)\s+(\p{Lu}[\p{L}\-' ]{0,50})/u);
   if (mm) cible = mm[1].trim().replace(/\s+(le|la|les|un|une|ce|cette|ma|mon)\b.*$/i, '').trim() || null;
   return { action: approuver ? 'approuver' : 'rejeter', cible, tout };
 }

@@ -2237,7 +2237,10 @@ function contexteNova(source, et, recu, pouls, cptsProp) {
   try { gagnes = db.prepare('SELECT COUNT(*) n FROM leads WHERE source = ? AND statut = \'gagne\'').get(source).n; } catch { /* jeune */ }
   try { avisT = db.prepare('SELECT COUNT(*) n FROM propositions WHERE source = ? AND type = \'avis\'').get(source).n; } catch { /* jeune */ }
   try { servicesCount = devis.listerServices(db, source).length; } catch { /* jeune */ }
-  try { rdvBientot = db.prepare('SELECT COUNT(*) n FROM rendezvous WHERE source = ? AND statut = \'prevu\' AND debut BETWEEN datetime(\'now\') AND datetime(\'now\',\'+2 days\')').get(source).n; } catch { /* jeune */ }
+  try {
+    const nw = rdv.montrealWall(Date.now()), n2 = rdv.montrealWall(Date.now() + 2 * 86400000);
+    rdvBientot = db.prepare('SELECT COUNT(*) n FROM rendezvous WHERE source = ? AND statut = \'prevu\' AND debut BETWEEN ? AND ?').get(source, nw, n2).n;
+  } catch { /* jeune */ }
   return {
     leadsAttente: recu.compteurs.en_attente,
     propositions: cptsProp.en_attente,

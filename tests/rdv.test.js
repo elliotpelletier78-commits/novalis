@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import Database from 'better-sqlite3';
 import { runMigrations } from '../core/db.js';
-import { ajouter, lister, marquer, brouillonRappel, preparerRappels } from '../core/rdv.js';
+import { ajouter, lister, marquer, brouillonRappel, preparerRappels, montrealWall } from '../core/rdv.js';
 import { lister as listerProps, get } from '../core/propositions.js';
 
 let db;
@@ -10,13 +10,10 @@ beforeEach(() => {
   runMigrations(db);
 });
 
-function iso(msFromNow) {
-  // 'YYYY-MM-DD HH:MM' relatif à un instant fixe (pas de Date.now dans le SQL).
-  const d = new Date(1765000000000 + msFromNow); // instant fixe reproductible
-  const p = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-}
+// Instant fixe reproductible ; `debut` construit en HEURE MURALE DE MONTRÉAL,
+// comme le stocke l'application (les comparaisons se font dans ce fuseau).
 const NOW = 1765000000000;
+function iso(msFromNow) { return montrealWall(NOW + msFromNow).slice(0, 16); }
 
 describe('carnet de rendez-vous', () => {
   it('ajoute et liste un RDV à venir', () => {
@@ -35,6 +32,15 @@ describe('carnet de rendez-vous', () => {
     const { id } = ajouter(db, 'salon-x', { debut: '2099-01-01 10:00' });
     expect(marquer(db, id, 'fait')).toBe(true);
     expect(marquer(db, id, 'nimportequoi')).toBe(false);
+  });
+
+  it('annuler un RDV rejette le rappel déjà préparé (pas de rappel fantôme)', () => {
+    const { id } = ajouter(db, 'salon-x', { client_nom: 'Marie', client_courriel: 'm@x.ca', debut: montrealWall(NOW + 12 * 3600000).slice(0, 16) });
+    expect(preparerRappels(db, 'salon-x', { nowMs: NOW, fenetreH: 48 })).toBe(1);
+    const propId = db.prepare('SELECT rappel_prop_id FROM rendezvous WHERE id = ?').get(id).rappel_prop_id;
+    expect(get(db, propId).statut).toBe('en_attente');
+    marquer(db, id, 'annule');
+    expect(get(db, propId).statut).toBe('rejete');
   });
 });
 

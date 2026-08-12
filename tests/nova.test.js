@@ -82,6 +82,16 @@ describe('Nova — interpréteur de commandes', () => {
     expect(interpreterCommande('pourquoi je perds des clients ?')).toBeNull();
     expect(interpreterCommande('combien de contacts ce mois-ci ?')).toBeNull();
   });
+  it('une QUESTION contenant un verbe d\'action n\'exécute rien', () => {
+    expect(interpreterCommande('peux-tu supprimer le rendez-vous de Marie ?')).toBeNull();
+    expect(interpreterCommande('est-ce que je devrais approuver la réponse ?')).toBeNull();
+  });
+  it('une NÉGATION n\'exécute rien', () => {
+    expect(interpreterCommande('je ne veux pas rejeter cette idée')).toBeNull();
+  });
+  it('accepte une adresse polie « Nova, … »', () => {
+    expect(interpreterCommande('Nova, approuve tout')).toEqual({ action: 'approuver', cible: null, tout: true });
+  });
 });
 
 describe('Nova — résumé', () => {
