@@ -11,6 +11,17 @@ app.use(express.json({ limit: '20mb' }));
 const dbPath = path.join(__dirname, 'output', 'novalis.db');
 if (!fs.existsSync(path.join(__dirname, 'output'))) fs.mkdirSync(path.join(__dirname, 'output'), { recursive: true });
 const db = new Database(dbPath);
+// Réglages SQLite appliqués UNE fois à l'ouverture. Le README et core/queue.js
+// supposent le mode WAL, mais rien ne l'activait : la base tournait en mode
+// « delete », où chaque écriture verrouille toute la base en exclusif (un simple
+// dump de sauvegarde se heurtait à SQLITE_BUSY). WAL est aussi le prérequis de
+// toute réplication (Litestream). busy_timeout évite qu'un accès concurrent
+// échoue brutalement au lieu d'attendre. foreign_keys applique les contraintes
+// déclarées dans les migrations.
+db.pragma('journal_mode = WAL');
+db.pragma('busy_timeout = 5000');
+db.pragma('synchronous = NORMAL'); // sûr avec WAL, nettement plus rapide
+db.pragma('foreign_keys = ON');
 db.exec(`
   CREATE TABLE IF NOT EXISTS prospects (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,29 +134,27 @@ if (fs.existsSync(demosDir)) {
   }
 }
 
-// Seeder les métadonnées des démos bundlées dans la DB (seulement si NULL)
-const BUNDLED_META = [
-  { slug:'pmc-mecanique',            name:'PMC Mécanique',               industry:'garage',       phone:'819 791-0717', address:'2850 Rue King Est, Sherbrooke, QC', city:'Sherbrooke' },
-  { slug:'chez-boulay-bistro-boreal',name:'Chez Boulay — Bistro Boréal', industry:'restaurant',   phone:'418 380-8166', address:'1110 Rue Saint-Jean, Québec, QC',   city:'Québec' },
-  { slug:'oasis-coiffure',           name:'Oasis Coiffure',              industry:'salon',        phone:'450 628-8686', address:'655 Boul. Curé-Labelle, Laval, QC',  city:'Laval' },
-  { slug:'clinique-cmi',             name:'Clinique CMI',                industry:'clinique',     phone:'450 442-1018', address:'1215 Chemin du Tremblay, Longueuil, QC', city:'Longueuil' },
-  { slug:'construction-cma',         name:'Construction CMA',            industry:'construction', phone:'819 840-3349', address:'4540 Rue Charles-Malhiot, Trois-Rivières, QC', city:'Trois-Rivières' },
-  { slug:'pub-le-vieux',             name:'Pub Le Vieux',                industry:'restaurant',   phone:'450 655-9117', address:'650 Boul. du Fort-Saint-Louis, Boucherville, QC', city:'Boucherville' },
+// ── Purge des faux sites d'entreprises réelles ────────────────
+// Ces commerces existent vraiment (nom, adresse, téléphone réels) et n'ont
+// jamais consenti à ce qu'on publie une copie de leur marque. Les fichiers
+// ont été retirés du dépôt ; ce nettoyage efface aussi ceux qui restent dans
+// le volume persistant d'un déploiement antérieur — sinon ils survivraient à
+// la mise à jour du code. Un fichier généré pour un vrai prospect qui n'est
+// pas encore devenu client n'a rien à faire en ligne publiquement.
+const SLUGS_A_PURGER = [
+  'chez-boulay-bistro-boreal', 'clinique-cmi', 'construction-cma', 'oasis-coiffure',
+  'pmc-mecanique', 'pub-le-vieux', 'taverne-1855', 'garage-magella-beaulieu', 'bistro-koz',
 ];
-const _seedMeta = db.prepare(`
-  INSERT INTO prospects (slug,name,industry,phone,address,city)
-  VALUES (?,?,?,?,?,?)
-  ON CONFLICT(slug) DO UPDATE SET
-    name     = COALESCE(name,     excluded.name),
-    industry = COALESCE(industry, excluded.industry),
-    phone    = COALESCE(phone,    excluded.phone),
-    address  = COALESCE(address,  excluded.address),
-    city     = COALESCE(city,     excluded.city)
-`);
-for (const m of BUNDLED_META) {
-  if (fs.existsSync(path.join(outputDir, `${m.slug}.html`)))
-    _seedMeta.run(m.slug, m.name, m.industry, m.phone, m.address, m.city);
+for (const slug of SLUGS_A_PURGER) {
+  const f = path.join(outputDir, `${slug}.html`);
+  try {
+    if (fs.existsSync(f)) { fs.unlinkSync(f); console.log(`[purge] ${slug}.html retiré du volume`); }
+  } catch (e) { console.warn(`[purge] ${slug}: ${e.message}`); }
+  try { db.prepare('DELETE FROM prospects WHERE slug = ?').run(slug); } catch (e) { /* table jeune */ }
 }
+// L'ancien BUNDLED_META inscrivait en dur, dans un dépôt PUBLIC, le nom,
+// l'adresse et le téléphone de six vraies entreprises. Supprimé : ces données
+// personnelles n'ont pas à vivre dans le code source.
 
 // Fichiers statiques — volume output/ (inclut maintenant les démos seedées)
 const staticOpts = { setHeaders: (res) => res.setHeader('X-Frame-Options', 'SAMEORIGIN') };
@@ -188,7 +197,16 @@ app.use('/demo', (req, res, next) => {
   next();
 });
 app.use('/demo', express.static(outputDir, demoNoIndex));
-// Vitrine — fichiers bespoke servis depuis le code déployé (hors volume)
+// Vitrine — fichiers bespoke servis depuis le code déployé (hors volume).
+// /showcase/progain est la démo du PRODUIT de Novalis : indexable. Les autres
+// (bistro-koz, le-tour-du-chef) sont des maquettes de prospects tiers réels :
+// noindex, comme les démos, tant qu'ils ne sont pas des clients consentants.
+app.use('/showcase', (req, res, next) => {
+  if (!/^\/progain(\/|$)/.test(req.path)) {
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+  }
+  next();
+});
 app.use('/showcase', express.static(path.join(__dirname, 'showcase'), staticOpts));
 
 // ── Health check ─────────────────────────────────────────────

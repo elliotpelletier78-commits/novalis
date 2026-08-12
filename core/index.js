@@ -12,6 +12,7 @@ const { createVault } = require('./secrets');
 const { createLlmGateway } = require('./llm');
 const { startWorker } = require('./worker');
 const { createAlerter } = require('./alerts');
+const { planifier: planifierSauvegarde } = require('./sauvegarde');
 
 const PIPELINES = [
   require('./pipelines/audit-prospect'),
@@ -47,7 +48,17 @@ function initCore(db, env = process.env) {
     },
   });
 
-  return { queue, vault, llm, worker, alerter, pipelines: PIPELINES.map(p => p.type) };
+  // Sauvegarde quotidienne de la base, sauf désactivation explicite. Copies
+  // datées dans output/backups/, rotation sur 7. Ne bloque pas le démarrage ;
+  // une sauvegarde ratée est journalisée, jamais fatale. (Prochaine étape hors
+  // code : pousser la plus récente vers un stockage hors-Railway.)
+  let arreterSauvegarde = () => {};
+  if (env.SAUVEGARDE_AUTO !== '0') {
+    arreterSauvegarde = planifierSauvegarde(db);
+    console.log('[core] sauvegarde quotidienne de la base planifiée (SAUVEGARDE_AUTO=0 pour désactiver)');
+  }
+
+  return { queue, vault, llm, worker, alerter, arreterSauvegarde, pipelines: PIPELINES.map(p => p.type) };
 }
 
 module.exports = { initCore };

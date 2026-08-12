@@ -16,7 +16,11 @@ module.exports = [
         require: 'readonly', module: 'writable', process: 'readonly',
         console: 'readonly', Buffer: 'readonly', URL: 'readonly',
         setInterval: 'readonly', clearInterval: 'readonly',
-        setTimeout: 'readonly', fetch: 'readonly', __dirname: 'readonly',
+        setTimeout: 'readonly', clearTimeout: 'readonly', fetch: 'readonly',
+        __dirname: 'readonly',
+        // Globales Node 20 utilisées par la passerelle LLM en streaming.
+        TextDecoder: 'readonly', TextEncoder: 'readonly',
+        AbortController: 'readonly', globalThis: 'readonly',
       },
     },
     rules: {
