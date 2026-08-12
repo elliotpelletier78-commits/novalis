@@ -2056,6 +2056,20 @@ app.get('/core/sites', adminOnly, coreReady, (req, res) => {
   res.json({ sites: rows });
 });
 
+// Registre de R&D (RS&DE / IRAP) — assemblé à partir des tables de production.
+// JSON pour l'affichage, .md pour joindre à un dossier de subvention.
+const { genererRegistre, genererMarkdown } = require('./core/rd-registre');
+app.get('/core/rd-registre', adminOnly, coreReady, (req, res) => {
+  try { res.json(genererRegistre(db)); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.get('/core/rd-registre.md', adminOnly, coreReady, (req, res) => {
+  try {
+    res.setHeader('Content-Disposition', 'attachment; filename="registre-rd-novalis.md"');
+    res.type('text/markdown').send(genererMarkdown(db));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Page d'exploitation (runs, steps, coûts, relance) — auth par ?pass=
 // au premier accès, ensuite localStorage + header.
 const { renderAdminHtml } = require('./core/admin-page');
