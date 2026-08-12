@@ -91,6 +91,9 @@ function sujetPour(type, cfg = {}) {
   if (type === 'devis') {
     return cfg.nomCommerce ? `Votre soumission — ${cfg.nomCommerce}` : 'Votre soumission';
   }
+  if (type === 'rappel') {
+    return cfg.nomCommerce ? `Rappel de votre rendez-vous — ${cfg.nomCommerce}` : 'Rappel de votre rendez-vous';
+  }
   if (type === 'relance') {
     return cfg.nomCommerce ? `On revient vers vous — ${cfg.nomCommerce}` : 'On revient vers vous';
   }

@@ -2109,6 +2109,8 @@ const { renderPropositions } = require('./core/propositions-page');
 const { renderAujourdhui } = require('./core/aujourdhui-page');
 const devis = require('./core/devis');
 const { renderDevis } = require('./core/devis-page');
+const rdv = require('./core/rdv');
+const { renderRdv } = require('./core/rdv-page');
 const nova = require('./core/nova');
 const { createMailer } = require('./core/alerts');
 const mailer = createMailer(process.env);
@@ -2229,6 +2231,27 @@ function ilYaCourt(iso) {
   if (h < 24) return `${h} h`;
   return `${Math.floor(h / 24)} j`;
 }
+// Contexte agrégé pour Nova (observations). Réutilisé par Aujourd'hui et le chat.
+function contexteNova(source, et, recu, pouls, cptsProp) {
+  let gagnes = 0, avisT = 0, servicesCount = 0, rdvBientot = 0;
+  try { gagnes = db.prepare('SELECT COUNT(*) n FROM leads WHERE source = ? AND statut = \'gagne\'').get(source).n; } catch { /* jeune */ }
+  try { avisT = db.prepare('SELECT COUNT(*) n FROM propositions WHERE source = ? AND type = \'avis\'').get(source).n; } catch { /* jeune */ }
+  try { servicesCount = devis.listerServices(db, source).length; } catch { /* jeune */ }
+  try { rdvBientot = db.prepare('SELECT COUNT(*) n FROM rendezvous WHERE source = ? AND statut = \'prevu\' AND debut BETWEEN datetime(\'now\') AND datetime(\'now\',\'+2 days\')').get(source).n; } catch { /* jeune */ }
+  return {
+    leadsAttente: recu.compteurs.en_attente,
+    propositions: cptsProp.en_attente,
+    fuite: pouls,
+    pretPct: et.pret_pct,
+    pctSous1h: recu.reponse.pct_sous_1h,
+    repondus: recu.reponse.repondus,
+    accuseActif: et.consent.accuse,
+    horsHeures: recu.compteurs.hors_heures,
+    gagnesSansAvis: Math.max(0, gagnes - avisT),
+    servicesCount, rdvBientot,
+    contacts: recu.compteurs.contacts,
+  };
+}
 app.get('/core/aujourdhui', adminOnly, coreReady, (req, res) => {
   const sources = sourcesConnues();
   const source = String(req.query.source || sources[0] || 'novalis').slice(0, 40);
@@ -2252,24 +2275,8 @@ app.get('/core/aujourdhui', adminOnly, coreReady, (req, res) => {
   const propsAttente = propositions.lister(db, source, { statut: 'en_attente' }).slice(0, 4)
     .map(p => ({ type: p.type, titre: p.titre, apercu: p.apercu }));
   // Nova — analyse déterministe de l'entreprise (problèmes + occasions).
-  let gagnes = 0, avisT = 0, servicesCount = 0;
-  try { gagnes = db.prepare('SELECT COUNT(*) n FROM leads WHERE source = ? AND statut = \'gagne\'').get(source).n; } catch { /* jeune */ }
-  try { avisT = db.prepare('SELECT COUNT(*) n FROM propositions WHERE source = ? AND type = \'avis\'').get(source).n; } catch { /* jeune */ }
-  try { servicesCount = devis.listerServices(db, source).length; } catch { /* jeune */ }
   const cptsProp = propositions.compteurs(db, source);
-  const insights = nova.analyser({
-    leadsAttente: recu.compteurs.en_attente,
-    propositions: cptsProp.en_attente,
-    fuite: pouls,
-    pretPct: et.pret_pct,
-    pctSous1h: recu.reponse.pct_sous_1h,
-    repondus: recu.reponse.repondus,
-    accuseActif: et.consent.accuse,
-    horsHeures: recu.compteurs.hors_heures,
-    gagnesSansAvis: Math.max(0, gagnes - avisT),
-    servicesCount,
-    contacts: recu.compteurs.contacts,
-  });
+  const insights = nova.analyser(contexteNova(source, et, recu, pouls, cptsProp));
   res.setHeader('X-Frame-Options', 'DENY');
   res.send(renderAujourdhui({
     source, nom: et.identite.nom, salutation, dateLabel: dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1), sources,
@@ -2330,16 +2337,7 @@ app.post('/core/nova/chat', adminOnly, coreReady, express.json({ limit: '8kb' })
     const et = branchement.etat(db, source);
     const recu = reception.apercu(db, source, { jours: 30 });
     const pouls = pulse.apercu(db, source, { jours: 30 });
-    let gagnes = 0, avisT = 0, servicesCount = 0;
-    try { gagnes = db.prepare('SELECT COUNT(*) n FROM leads WHERE source = ? AND statut = \'gagne\'').get(source).n; } catch { /* jeune */ }
-    try { avisT = db.prepare('SELECT COUNT(*) n FROM propositions WHERE source = ? AND type = \'avis\'').get(source).n; } catch { /* jeune */ }
-    try { servicesCount = devis.listerServices(db, source).length; } catch { /* jeune */ }
-    const insights = nova.analyser({
-      leadsAttente: recu.compteurs.en_attente, propositions: propositions.compteurs(db, source).en_attente,
-      fuite: pouls, pretPct: et.pret_pct, pctSous1h: recu.reponse.pct_sous_1h, repondus: recu.reponse.repondus,
-      accuseActif: et.consent.accuse, horsHeures: recu.compteurs.hors_heures,
-      gagnesSansAvis: Math.max(0, gagnes - avisT), servicesCount, contacts: recu.compteurs.contacts,
-    });
+    const insights = nova.analyser(contexteNova(source, et, recu, pouls, propositions.compteurs(db, source)));
     const resumeInsights = nova.resume(insights)
       + (insights.length ? '\n\n' + insights.map(i => '• ' + i.titre + ' — ' + i.detail).join('\n') : '');
 
@@ -2370,6 +2368,33 @@ app.post('/core/nova/chat', adminOnly, coreReady, express.json({ limit: '8kb' })
   } catch (e) {
     res.status(500).json({ answer: 'Nova a rencontré un souci. Réessayez.', detail: e.message });
   }
+});
+
+// ── Novalis Rendez-vous — carnet + rappels automatiques ─────────────
+app.get('/core/rdv', adminOnly, coreReady, (req, res) => {
+  const sources = sourcesConnues();
+  const source = String(req.query.source || sources[0] || 'novalis').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
+  const et = branchement.etat(db, source);
+  // Rappels paresseux : préparer les rappels des RDV proches (si consentement).
+  if (et.consent.rediger) {
+    try { rdv.preparerRappels(db, source, { now: Date.now(), fenetreH: 48, cfg: { nomCommerce: et.identite.nom, telephone: et.identite.telephone } }); }
+    catch (e) { console.error('[rdv:rappels]', e.message); }
+  }
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.send(renderRdv({ source, nom: et.identite.nom, sources, rdvs: rdv.lister(db, source), pass: req.query.pass ? String(req.query.pass) : undefined }));
+});
+app.post('/core/rdv', adminOnly, coreReady, express.json({ limit: '8kb' }), (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).json({ error: 'source invalide' });
+  try { res.json({ ok: true, ...rdv.ajouter(db, source, b) }); }
+  catch (e) { res.status(400).json({ error: e.message }); }
+});
+app.post('/core/rdv/:id', adminOnly, coreReady, express.json({ limit: '4kb' }), (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'id invalide' });
+  res.json({ ok: rdv.marquer(db, id, String((req.body || {}).statut || '')) });
 });
 
 // ── Novalis Devis — catalogue de services + composeur de soumissions ─

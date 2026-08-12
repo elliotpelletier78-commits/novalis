@@ -22,6 +22,7 @@ const ICONS = {
   ext: '<path d="M8 5.5h-3A1.5 1.5 0 0 0 3.5 7v12A1.5 1.5 0 0 0 5 20.5h12A1.5 1.5 0 0 0 18.5 19v-3M14 4.5h6v6M20 4.5 10 14.5"/>',
   search: '<path d="M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13ZM20 20l-4.9-4.9"/>',
   help: '<path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM9.5 9.2a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 2-2.4 3.5M12 16.7h.01"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
   gear: '<path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"/><path d="M19.4 15a1.5 1.5 0 0 0 .3 1.7l.05.05a1.8 1.8 0 1 1-2.6 2.6l-.05-.05a1.5 1.5 0 0 0-2.55 1.06V20.5a1.8 1.8 0 1 1-3.6 0v-.07A1.5 1.5 0 0 0 7.3 19.4l-.05.05a1.8 1.8 0 1 1-2.6-2.6l.05-.05A1.5 1.5 0 0 0 4.6 15H4.5a1.8 1.8 0 1 1 0-3.6h.07A1.5 1.5 0 0 0 6.6 8.7l-.05-.05a1.8 1.8 0 1 1 2.6-2.6l.05.05a1.5 1.5 0 0 0 1.7.3H11a1.5 1.5 0 0 0 .9-1.37V4.5a1.8 1.8 0 1 1 3.6 0v.07a1.5 1.5 0 0 0 2.55 1.06l.05-.05a1.8 1.8 0 1 1 2.6 2.6l-.05.05a1.5 1.5 0 0 0-.3 1.7V11a1.5 1.5 0 0 0 1.37.9h.08a1.8 1.8 0 1 1 0 3.6h-.07a1.5 1.5 0 0 0-1.38.9Z"/>',
 };
 function icon(name) {
@@ -80,6 +81,7 @@ const NAV = [
   { key: 'aujourdhui', label: 'Aujourd’hui', href: '/core/aujourdhui', icon: 'today' },
   { key: 'propositions', label: 'Poste de commande', href: '/core/propositions', icon: 'inbox' },
   { key: 'reception', label: 'Réception', href: '/core/reception', icon: 'phone' },
+  { key: 'rdv', label: 'Rendez-vous', href: '/core/rdv', icon: 'clock' },
   { key: 'devis', label: 'Devis', href: '/core/devis', icon: 'file' },
   { key: 'branchement', label: 'Branchement', href: '/core/branchement', icon: 'plug' },
 ];

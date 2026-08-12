@@ -95,6 +95,15 @@ function analyser(ctx = {}) {
     });
   }
 
+  if ((n.rdvBientot || 0) > 0) {
+    ins.push({
+      gravite: 'info',
+      titre: `${n.rdvBientot} ${pl(n.rdvBientot, 'rendez-vous approche', 'rendez-vous approchent')}`,
+      detail: 'Les rappels sont préparés — approuvez-les pour prévenir vos clients et éviter les oublis.',
+      action: { label: 'Voir les rendez-vous', lien: 'rdv' },
+    });
+  }
+
   ins.sort((a, b) => GRAVITE_ORDRE[a.gravite] - GRAVITE_ORDRE[b.gravite]);
   return ins;
 }

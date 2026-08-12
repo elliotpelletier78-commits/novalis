@@ -6,7 +6,7 @@
 
 const { esc, icon, page } = require('./ui');
 
-const TYPE_LABEL = { reponse: 'Réponse', avis: 'Avis', devis: 'Devis', relance: 'Relance', publication: 'Publication' };
+const TYPE_LABEL = { reponse: 'Réponse', avis: 'Avis', devis: 'Devis', relance: 'Relance', rappel: 'Rappel', publication: 'Publication' };
 const ICN = { reponse: 'inbox', avis: 'phone', devis: 'file', relance: 'phone', publication: 'file' };
 
 const EXTRA = `
@@ -50,7 +50,7 @@ function renderAujourdhui(d) {
   const href = (base) => `${base}?source=${encodeURIComponent(d.source)}${d.pass ? '&pass=' + encodeURIComponent(d.pass) : ''}`;
 
   const SPARK = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8Z"/></svg>';
-  const lienMap = { reception: '/core/reception', propositions: '/core/propositions', branchement: '/core/branchement', devis: '/core/devis', aujourdhui: '/core/aujourdhui' };
+  const lienMap = { reception: '/core/reception', propositions: '/core/propositions', branchement: '/core/branchement', devis: '/core/devis', rdv: '/core/rdv', aujourdhui: '/core/aujourdhui' };
   const nova = d.nova || { resume: '', insights: [] };
   const novaHtml = `<div class="nova">
     <div class="nova-head"><span class="nova-av">${SPARK}</span>
