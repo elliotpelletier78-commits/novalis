@@ -50,6 +50,7 @@ const TYPES = new Set(CONNEXIONS.map(c => c.type));
 const CONSENTEMENTS = [
   { cle: 'rediger', titre: 'Rédiger pour moi', role: 'Novalis prépare réponses, devis et publications — en brouillon.' },
   { cle: 'envoyer', titre: 'Envoyer après mon oui', role: 'Rien ne part sans que vous ayez approuvé. Vous gardez la main.' },
+  { cle: 'accuse', titre: 'Accusé de réception instantané 24/7', role: 'Chaque client qui écrit reçoit aussitôt un mot de réception à votre nom — sans rien promettre. La vraie réponse, vous l\'approuvez ensuite.' },
   { cle: 'operer', titre: 'Agir sur mes comptes', role: 'Une fois approuvé, Novalis exécute via les comptes que vous avez branchés.' },
 ];
 
@@ -101,15 +102,17 @@ function definirEntreprise(db, source, champs = {}) {
 /** Enregistre les consentements (0/1). Champs absents = inchangés. */
 function definirConsentement(db, source, consent = {}) {
   assurerClient(db, source, null);
-  db.prepare(`INSERT INTO entreprises (source, consent_rediger, consent_envoyer, consent_operer)
-    VALUES (@source, COALESCE(@rediger,0), COALESCE(@envoyer,0), COALESCE(@operer,0))
+  db.prepare(`INSERT INTO entreprises (source, consent_rediger, consent_envoyer, consent_accuse, consent_operer)
+    VALUES (@source, COALESCE(@rediger,0), COALESCE(@envoyer,0), COALESCE(@accuse,0), COALESCE(@operer,0))
     ON CONFLICT(source) DO UPDATE SET
       consent_rediger = COALESCE(@rediger, consent_rediger),
       consent_envoyer = COALESCE(@envoyer, consent_envoyer),
+      consent_accuse  = COALESCE(@accuse,  consent_accuse),
       consent_operer  = COALESCE(@operer,  consent_operer),
       maj_le = datetime('now')`).run({
     source,
-    rediger: bit(consent.rediger), envoyer: bit(consent.envoyer), operer: bit(consent.operer),
+    rediger: bit(consent.rediger), envoyer: bit(consent.envoyer),
+    accuse: bit(consent.accuse), operer: bit(consent.operer),
   });
 }
 function bit(v) { return v === undefined || v === null ? null : (v ? 1 : 0); }
@@ -154,6 +157,7 @@ function etat(db, source) {
   const consent = {
     rediger: !!(ent && ent.consent_rediger),
     envoyer: !!(ent && ent.consent_envoyer),
+    accuse: !!(ent && ent.consent_accuse),
     operer: !!(ent && ent.consent_operer),
   };
 

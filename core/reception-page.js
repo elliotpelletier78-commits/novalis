@@ -258,6 +258,7 @@ function renderReception(data, opts = {}) {
       <div class="attente ${c.en_attente ? 'some' : 'none'}">${c.en_attente
         ? `⏱ ${c.en_attente} contact${c.en_attente !== 1 ? 's' : ''} en attente de réponse`
         : '✓ Tous les contacts ont eu une réponse'}</div>
+      ${r.accuses ? `<div class="attente none" style="margin-top:10px">⚡ Réponse instantanée&nbsp;: ${r.accuses} client${r.accuses !== 1 ? 's ont' : ' a'} reçu une réponse en secondes${r.accuses_hors_heures ? ` (dont ${r.accuses_hors_heures} hors de vos heures)` : ''}</div>` : ''}
     </div>
     <div class="panel">
       <h3>Tendance — ${data.fenetre_jours} jours</h3>

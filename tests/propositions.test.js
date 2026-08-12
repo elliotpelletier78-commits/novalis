@@ -115,6 +115,22 @@ describe('pilote Réputation (avis)', () => {
   });
 });
 
+describe('Réponse Instantanée (accusé de réception)', () => {
+  it('accuse réception sans rien promettre de précis', async () => {
+    const { accuseReception } = await import('../core/propositions.js');
+    const t = accuseReception({ nom: 'Marie Tremblay' }, { nomCommerce: 'Garage X' });
+    expect(t).toContain('Bonjour Marie,');
+    expect(t).toContain('bien arrivé');
+    // Aucune promesse chiffrée : ni prix, ni délai précis, ni engagement.
+    expect(t).not.toMatch(/\$|\bheure\b|\d+\s*(min|minutes|jours|h)\b|demain|aujourd'hui/i);
+  });
+
+  it('reste correct sans nom', async () => {
+    const { accuseReception } = await import('../core/propositions.js');
+    expect(accuseReception({}, { nomCommerce: 'G' })).toContain('Bonjour,');
+  });
+});
+
 describe('pilote Relance (clients silencieux)', () => {
   // Insère un lead avec un created_at contrôlé (jours dans le passé).
   function leadAge(jours, over = {}) {

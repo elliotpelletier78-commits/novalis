@@ -88,7 +88,7 @@ function apercu(db, source, opts = {}) {
 
   const leads = db.prepare(
     `SELECT id, nom, courriel, entreprise, message, statut, valeur_cents, hors_heures,
-        created_at, repondu_le
+        created_at, repondu_le, accuse_le
      FROM leads WHERE source = ? AND created_at >= ${depuis}
      ORDER BY created_at DESC`).all(source);
 
@@ -113,6 +113,10 @@ function apercu(db, source, opts = {}) {
     }).filter(x => x !== null).sort((x, y) => x - y);
   const repondus = delais.length;
   const enAttente = leads.filter(l => l.statut === 'nouveau').length;
+  // Réponse Instantanée : combien de clients ont eu un accusé immédiat, dont
+  // combien hors des heures (la preuve la plus frappante : « répondu à 21h »).
+  const accuses = leads.filter(l => l.accuse_le).length;
+  const accusesHorsHeures = leads.filter(l => l.accuse_le && l.hors_heures).length;
   const medianeMin = repondus ? delais[Math.floor((repondus - 1) / 2)] : null;
   const sousUneHeure = repondus ? Math.round(100 * delais.filter(d => d <= 60).length / repondus) : null;
 
@@ -139,7 +143,7 @@ function apercu(db, source, opts = {}) {
       valeur_captee_cents: valeurCaptee,
       en_attente: enAttente,
     },
-    reponse: { repondus, mediane_minutes: medianeMin, pct_sous_1h: sousUneHeure },
+    reponse: { repondus, mediane_minutes: medianeMin, pct_sous_1h: sousUneHeure, accuses, accuses_hors_heures: accusesHorsHeures },
     tendance,
     leads_recents: leads.slice(0, 25),
   };

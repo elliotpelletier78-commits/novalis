@@ -172,6 +172,31 @@ function creerAvisPourLead(db, lead, cfg = {}) {
 }
 
 /**
+ * Accusé de réception INSTANTANÉ, sûr à envoyer sans approbation : il confirme
+ * seulement la réception et n'engage RIEN (aucun prix, aucun délai chiffré, aucune
+ * promesse). C'est ce qui évite de perdre un client faute de réponse rapide.
+ * @param {{nom?:string}} lead
+ * @param {{nomCommerce?:string, telephone?:string}} cfg
+ */
+function accuseReception(lead, cfg = {}) {
+  const commerce = cfg.nomCommerce || 'notre équipe';
+  const pn = prenom(lead.nom);
+  const salut = pn ? `Bonjour ${pn},` : 'Bonjour,';
+  const lignes = [
+    salut,
+    '',
+    `Merci d'avoir écrit à ${commerce} — votre message est bien arrivé.`,
+    `Une personne de l'équipe vous revient très bientôt.`,
+  ];
+  if (cfg.telephone) lignes.push('', `Pour une demande urgente, vous pouvez nous joindre au ${cfg.telephone}.`);
+  lignes.push('', commerce);
+  return lignes.join('\n');
+}
+function sujetAccuse(cfg = {}) {
+  return cfg.nomCommerce ? `Bien reçu — ${cfg.nomCommerce}` : 'Votre message est bien reçu';
+}
+
+/**
  * Crée (idempotent) une proposition de réponse pour un lead. À appeler juste
  * après l'insertion du lead, SI l'entreprise a consenti à ce que Novalis rédige.
  * @returns {{id:number}|null} null si déjà créée ou entrée invalide
@@ -275,7 +300,8 @@ async function approuver(db, id, ctx = {}) {
 }
 
 module.exports = {
-  brouillonReponse, brouillonAvis, brouillonRelance, sujetReponse, sujetPour,
+  brouillonReponse, brouillonAvis, brouillonRelance, accuseReception, sujetAccuse,
+  sujetReponse, sujetPour,
   creerReponsePourLead, creerAvisPourLead, creerRelancePourLead, preparerRelances,
   lister, compteurs, get, modifier, rejeter, approuver,
   _prenom: prenom, _accroche: accroche,

@@ -8,7 +8,7 @@ function db() {
     CREATE TABLE leads (id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT, nom TEXT, courriel TEXT,
       entreprise TEXT, message TEXT, sujets TEXT, langue TEXT, ip_hash TEXT,
       statut TEXT DEFAULT 'nouveau', valeur_cents INTEGER, repondu_le TEXT, hors_heures INTEGER DEFAULT 0,
-      notes TEXT, created_at TEXT DEFAULT (datetime('now')));
+      notes TEXT, accuse_le TEXT, created_at TEXT DEFAULT (datetime('now')));
     CREATE TABLE taps (id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT, canal TEXT DEFAULT 'tel',
       hors_heures INTEGER DEFAULT 0, ip_hash TEXT, cree_le TEXT DEFAULT (datetime('now')));
     CREATE TABLE reception_config (source TEXT PRIMARY KEY, secteur TEXT, valeur_lead_cents INTEGER DEFAULT 30000,

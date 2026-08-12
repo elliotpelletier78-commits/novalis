@@ -91,7 +91,7 @@ describe('branchement — consentements & progression', () => {
   it('consentements par défaut à false', () => {
     definirEntreprise(db, 'garage-test', IDENTITE);
     const e = etat(db, 'garage-test');
-    expect(e.consent).toEqual({ rediger: false, envoyer: false, operer: false });
+    expect(e.consent).toEqual({ rediger: false, envoyer: false, accuse: false, operer: false });
   });
 
   it('enregistre les consentements sans les écraser mutuellement', () => {

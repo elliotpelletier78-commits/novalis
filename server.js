@@ -2022,19 +2022,41 @@ app.post('/api/:site/contact', leadRateLimit, express.json({ limit: '32kb' }), (
       core.alerter.alert(`Nouveau message — ${site}`,
         `${nom}${entreprise ? ' (' + entreprise + ')' : ''} · ${courriel}\n${message.slice(0, 400)}`);
     }
-    // Poste de commande : si l'entreprise a autorisé Novalis à rédiger, on
-    // PRÉPARE la réponse (brouillon) et on la dépose dans la file d'approbation.
-    // Rien n'est envoyé ici — le commerçant dira oui. Ne doit jamais casser
+    // Poste de commande + Réponse Instantanée. Ne doit jamais casser
     // l'enregistrement du lead.
     try {
       const et = branchement.etat(db, site);
+      const nomCommerce = et.identite.nom || reception.configDe(db, site).nomCommerce;
+      // 1) Si l'entreprise a autorisé Novalis à rédiger, on PRÉPARE la vraie
+      //    réponse (brouillon) et on la dépose dans la file — rien n'est envoyé,
+      //    le commerçant dira oui.
       if (et.consent.rediger) {
         propositions.creerReponsePourLead(db,
           { id: info.lastInsertRowid, source: site, nom, courriel, message },
-          { nomCommerce: et.identite.nom || reception.configDe(db, site).nomCommerce,
-            telephone: et.identite.telephone, horsHeures: !!horsHeures });
+          { nomCommerce, telephone: et.identite.telephone, horsHeures: !!horsHeures });
       }
-    } catch (e) { console.error('[proposition] non créée:', e.message); }
+      // 2) Réponse Instantanée 24/7 : si l'entreprise l'a activée, un accusé de
+      //    réception part IMMÉDIATEMENT au client. Il n'engage rien (aucun prix,
+      //    aucun délai) — donc sûr sans approbation. C'est ce qui évite de perdre
+      //    un client faute de réponse rapide. Envoi seulement si le courriel
+      //    d'envoi est configuré ; sinon on n'enregistre aucun faux accusé.
+      const cxCourriel = et.connexions.find(x => x.type === 'courriel' && x.statut === 'branche');
+      const replyTo = et.identite.courriel
+        || (cxCourriel && /@/.test(String(cxCourriel.compte_label || '')) ? cxCourriel.compte_label : undefined);
+      if (et.consent.accuse && mailer.configured && courriel) {
+        mailer.envoyer({
+          to: courriel,
+          subject: propositions.sujetAccuse({ nomCommerce }),
+          text: propositions.accuseReception({ nom }, { nomCommerce, telephone: et.identite.telephone }),
+          replyTo,
+        }).then(r => {
+          if (r.sent) {
+            try { db.prepare('UPDATE leads SET accuse_le = ? WHERE id = ?')
+              .run(new Date().toISOString().replace('T', ' ').slice(0, 19), info.lastInsertRowid); } catch { /* non bloquant */ }
+          }
+        }).catch(() => { /* un accusé qui échoue ne bloque jamais */ });
+      }
+    } catch (e) { console.error('[proposition/accusé] échec:', e.message); }
     res.status(201).json({ ok: true });
   } catch (e) {
     console.error('[lead] erreur:', e.message);
@@ -2165,7 +2187,7 @@ app.post('/core/branchement/consentement', adminOnly, coreReady, express.json({ 
   if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).json({ error: 'source invalide' });
   const c = b.consentements || {};
   try {
-    branchement.definirConsentement(db, source, { rediger: !!c.rediger, envoyer: !!c.envoyer, operer: !!c.operer });
+    branchement.definirConsentement(db, source, { rediger: !!c.rediger, envoyer: !!c.envoyer, accuse: !!c.accuse, operer: !!c.operer });
     res.json({ ok: true });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
