@@ -92,7 +92,7 @@ function apercu(db, source, opts = {}) {
      FROM leads WHERE source = ? AND created_at >= ${depuis}
      ORDER BY created_at DESC`).all(source);
 
-  let taps = [];
+  let taps;
   try {
     taps = db.prepare(
       `SELECT canal, hors_heures, created_at, cree_le FROM
@@ -158,7 +158,7 @@ function rapportMensuel(db, source, moisISO) {
   const leads = db.prepare(
     `SELECT hors_heures, valeur_cents, created_at, repondu_le, statut
      FROM leads WHERE source = ? AND created_at >= ? AND created_at < ${finExcl}`).all(source, debut);
-  let taps = [];
+  let taps;
   try {
     taps = db.prepare(
       `SELECT hors_heures FROM taps WHERE source = ? AND cree_le >= ? AND cree_le < ${finExcl}`).all(source, debut);
