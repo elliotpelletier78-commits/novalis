@@ -2287,6 +2287,61 @@ app.get('/core/aujourdhui', adminOnly, coreReady, (req, res) => {
   }));
 });
 
+// ── Nova — « Nova répond » (chat) ──────────────────────────────────
+// Utilise le moteur IA (core.llm) quand une clé est configurée ; sinon,
+// répond honnêtement avec les observations déterministes de Nova.
+app.post('/core/nova/chat', adminOnly, coreReady, express.json({ limit: '8kb' }), async (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  const message = String(b.message || '').trim().slice(0, 1000);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).json({ answer: 'Entreprise invalide.' });
+  if (!message) return res.status(400).json({ answer: 'Posez-moi une question.' });
+  try {
+    const et = branchement.etat(db, source);
+    const recu = reception.apercu(db, source, { jours: 30 });
+    const pouls = pulse.apercu(db, source, { jours: 30 });
+    let gagnes = 0, avisT = 0, servicesCount = 0;
+    try { gagnes = db.prepare('SELECT COUNT(*) n FROM leads WHERE source = ? AND statut = \'gagne\'').get(source).n; } catch { /* jeune */ }
+    try { avisT = db.prepare('SELECT COUNT(*) n FROM propositions WHERE source = ? AND type = \'avis\'').get(source).n; } catch { /* jeune */ }
+    try { servicesCount = devis.listerServices(db, source).length; } catch { /* jeune */ }
+    const insights = nova.analyser({
+      leadsAttente: recu.compteurs.en_attente, propositions: propositions.compteurs(db, source).en_attente,
+      fuite: pouls, pretPct: et.pret_pct, pctSous1h: recu.reponse.pct_sous_1h, repondus: recu.reponse.repondus,
+      accuseActif: et.consent.accuse, horsHeures: recu.compteurs.hors_heures,
+      gagnesSansAvis: Math.max(0, gagnes - avisT), servicesCount, contacts: recu.compteurs.contacts,
+    });
+    const resumeInsights = nova.resume(insights)
+      + (insights.length ? '\n\n' + insights.map(i => '• ' + i.titre + ' — ' + i.detail).join('\n') : '');
+
+    const clientId = et.client_id || branchement.assurerClient(db, source, null);
+    const systeme = `Tu es Nova, l'assistante de l'entreprise « ${et.identite.nom || source} »`
+      + `${et.identite.secteur ? ' (' + et.identite.secteur + ')' : ''} sur la plateforme Novalis. Tu parles au propriétaire, `
+      + `en français simple et concret. Sois brève (2 à 4 phrases). Base-toi UNIQUEMENT sur les données ci-dessous ; `
+      + `n'invente aucun chiffre ni aucune promesse. Si tu ne sais pas, dis-le et propose l'écran où trouver la réponse. `
+      + `Tu peux suggérer une action (approuver une proposition, activer la réponse instantanée, compléter le branchement…).\n\n`
+      + `ÉTAT ACTUEL:\n${resumeInsights}\n\nCHIFFRES (30 j): contacts=${recu.compteurs.contacts}, `
+      + `en attente=${recu.compteurs.en_attente}, conversion=${pouls.conversion_pct}%, prêt à opérer=${et.pret_pct}%.`;
+
+    try {
+      const out = await core.llm.claude(clientId, {
+        system: systeme, messages: [{ role: 'user', content: message }], maxTokens: 500, stepName: 'nova-chat',
+      });
+      return res.json({ answer: (out.text || '').trim() || resumeInsights });
+    } catch (e) {
+      if (/ANTHROPIC_API_KEY absente/.test(e.message)) {
+        return res.json({ answer: resumeInsights, note: 'Le mode conversation complet de Nova nécessite une clé IA (ANTHROPIC_API_KEY). En attendant, voici ce que je repère.' });
+      }
+      if (e.code === 'BUDGET_EPUISE') {
+        return res.json({ answer: resumeInsights, note: 'Budget IA du mois atteint — voici l\'essentiel repéré.' });
+      }
+      console.error('[nova/chat] llm échec:', e.message);
+      return res.json({ answer: resumeInsights, note: 'Nova a eu un souci côté IA — voici l\'essentiel repéré.' });
+    }
+  } catch (e) {
+    res.status(500).json({ answer: 'Nova a rencontré un souci. Réessayez.', detail: e.message });
+  }
+});
+
 // ── Novalis Devis — catalogue de services + composeur de soumissions ─
 app.get('/core/devis', adminOnly, coreReady, (req, res) => {
   const source = String(req.query.source || 'novalis').slice(0, 40);

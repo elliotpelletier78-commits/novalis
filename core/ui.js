@@ -30,6 +30,52 @@ function icon(name) {
   return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
 }
 
+// Logo Novalis : monogramme « N » net dans le carré de marque.
+const MARK = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18V6l12 12V6"/></svg>';
+// Étincelle Nova (assistant).
+const SPARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8Z"/></svg>';
+
+// Script de coquille (toujours injecté) : recherche in-page + chat Nova.
+function SHELL_SCRIPT(source, pass) {
+  const src = JSON.stringify(String(source || ''));
+  const ps = JSON.stringify(String(pass || ''));
+  return `(function(){
+  var SRC=${src},PASS=${ps}||(localStorage.getItem('novalis_admin')||'');
+  // Recherche in-page : filtre les lignes/cartes de type liste par leur texte.
+  var q=document.getElementById('tbq');
+  if(q){var CIBLES='.prop,.nova-i,.cx,.srv,tbody tr,.list .row';
+    q.addEventListener('input',function(){
+      var t=q.value.trim().toLowerCase();
+      document.querySelectorAll(CIBLES).forEach(function(el){
+        el.style.display=(!t||el.textContent.toLowerCase().indexOf(t)!==-1)?'':'none';});
+    });}
+  // Chat Nova.
+  var fab=document.getElementById('nova-fab'),box=document.getElementById('nova-chat'),
+      msgs=document.getElementById('nova-msgs'),inp=document.getElementById('nova-q'),
+      snd=document.getElementById('nova-send'),x=document.getElementById('nova-x');
+  if(!fab) return;
+  function open(){box.classList.add('open');inp&&inp.focus();}
+  function close(){box.classList.remove('open');}
+  fab.addEventListener('click',function(){box.classList.contains('open')?close():open();});
+  x&&x.addEventListener('click',close);
+  function bulle(txt,cls){var d=document.createElement('div');d.className='nova-b '+cls;d.textContent=txt;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;return d;}
+  async function envoyer(){
+    var m=(inp.value||'').trim(); if(!m) return; inp.value='';
+    bulle(m,'me'); var attente=bulle('…','nova'); snd.disabled=true;
+    try{
+      var r=await fetch('/core/nova/chat',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':PASS},
+        body:JSON.stringify({source:SRC,message:m})});
+      var j=await r.json().catch(function(){return{};});
+      attente.textContent=j.answer||('Erreur ('+r.status+')');
+      if(j.note){bulle(j.note,'note');}
+    }catch(e){attente.textContent='Erreur réseau.';}
+    snd.disabled=false; msgs.scrollTop=msgs.scrollHeight;
+  }
+  snd&&snd.addEventListener('click',envoyer);
+  inp&&inp.addEventListener('keydown',function(e){if(e.key==='Enter')envoyer();});
+})();`;
+}
+
 const NAV = [
   { key: 'aujourdhui', label: 'Aujourd’hui', href: '/core/aujourdhui', icon: 'today' },
   { key: 'propositions', label: 'Poste de commande', href: '/core/propositions', icon: 'inbox' },
@@ -99,7 +145,32 @@ a{color:inherit}
 .topbar .tt{display:flex;flex-direction:column;gap:1px;min-width:0}
 .topbar h1{font-size:20px;font-weight:720;letter-spacing:-.015em}
 .topbar .st{font-size:13px;color:var(--muted)}
+.tb-search{position:relative;flex:1;max-width:420px;margin:0 8px}
+.tb-search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--faint);pointer-events:none}
+.tb-search input{width:100%;font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--app);border:1px solid var(--line);border-radius:var(--r-pill);padding:9px 14px 9px 36px}
+.tb-search input:focus{outline:2px solid var(--brand);outline-offset:1px;background:var(--card)}
 .topbar .right{display:flex;align-items:center;gap:8px}
+/* Nova — bulle flottante + panneau de conversation */
+.nova-fab{position:fixed;right:22px;bottom:22px;z-index:40;width:56px;height:56px;border-radius:50%;border:none;background:var(--brand);color:#fff;box-shadow:0 8px 24px rgba(79,70,229,.4);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.nova-fab:hover{filter:brightness(1.07)} .nova-fab svg{width:26px;height:26px}
+.nova-chat{position:fixed;right:22px;bottom:88px;z-index:41;width:min(380px,calc(100vw - 32px));height:min(540px,calc(100vh - 130px));background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:0 18px 50px rgba(20,24,40,.28);display:none;flex-direction:column;overflow:hidden}
+.nova-chat.open{display:flex}
+.nova-ch-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--brand-soft),transparent)}
+.nova-ch-head .av{width:32px;height:32px;border-radius:9px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+.nova-ch-head .av svg{width:18px;height:18px}
+.nova-ch-head .nm{font-weight:750;font-size:14.5px}.nova-ch-head .nm .tag{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--brand-600);margin-left:6px}
+.nova-ch-head .x{margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1;padding:2px 6px}
+.nova-msgs{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.nova-b{max-width:85%;font-size:14px;line-height:1.5;padding:10px 13px;border-radius:14px;white-space:pre-wrap}
+.nova-b.me{align-self:flex-end;background:var(--brand);color:#fff;border-bottom-right-radius:5px}
+.nova-b.nova{align-self:flex-start;background:var(--panel);color:var(--ink);border-bottom-left-radius:5px}
+.nova-b.note{align-self:stretch;background:var(--warn-soft);color:var(--warn);font-size:12.5px;text-align:center;border-radius:10px}
+.nova-in{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--line)}
+.nova-in input{flex:1;font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--app);border:1px solid var(--line);border-radius:var(--r-pill);padding:10px 14px}
+.nova-in input:focus{outline:2px solid var(--brand);outline-offset:1px;background:var(--card)}
+.nova-in button{flex:none;background:var(--brand);color:#fff;border:none;border-radius:50%;width:40px;height:40px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.nova-in button svg{width:18px;height:18px}
+@media(max-width:520px){.nova-chat{right:12px;left:12px;width:auto}}
 .topbar .acts{display:flex;gap:9px;flex-wrap:wrap}
 .iconbtn{width:38px;height:38px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--card);color:var(--ink-2);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;transition:border-color .12s,color .12s}
 .iconbtn:hover{border-color:var(--brand);color:var(--brand)}
@@ -192,7 +263,7 @@ function page(o) {
 <title>${esc(o.title)} — Novalis</title><style>${UI_CSS}${o.extraCss || ''}</style></head>
 <body><div class="app">
   <aside class="side">
-    <div class="logo"><span class="mk">${icon('pulse')}</span><span class="wm">nova<span>lis</span></span></div>
+    <div class="logo"><span class="mk">${MARK}</span><span class="wm">nova<span>lis</span></span></div>
     <nav class="nav">${nav}</nav>
     <div class="sep"></div>
     <div class="side-foot">${switcher}<div class="who">Espace d’exploitation</div></div>
@@ -200,6 +271,7 @@ function page(o) {
   <main class="main">
     <div class="topbar">
       <div class="tt"><h1>${esc(o.title)}</h1>${o.subtitle ? `<div class="st">${esc(o.subtitle)}</div>` : ''}</div>
+      <div class="tb-search">${icon('search')}<input type="search" id="tbq" placeholder="Rechercher dans cette page…" aria-label="Rechercher"></div>
       <div class="right">
         ${o.actionsHtml ? `<div class="acts">${o.actionsHtml}</div>` : ''}
         <a class="iconbtn" href="${q('/core/branchement')}" title="Réglages de l’entreprise" aria-label="Réglages">${icon('gear')}</a>
@@ -207,7 +279,15 @@ function page(o) {
     </div>
     <div class="content">${o.contentHtml}</div>
   </main>
-</div>${o.bodyScript ? `<script>${o.bodyScript}</script>` : ''}
+</div>
+<button class="nova-fab" id="nova-fab" title="Demander à Nova" aria-label="Ouvrir Nova">${SPARK}</button>
+<div class="nova-chat" id="nova-chat" role="dialog" aria-label="Nova">
+  <div class="nova-ch-head"><span class="av">${SPARK}</span><span class="nm">Nova<span class="tag">assistant</span></span><button class="x" id="nova-x" aria-label="Fermer">×</button></div>
+  <div class="nova-msgs" id="nova-msgs"><div class="nova-b nova">Bonjour ! Je suis Nova. Demandez-moi ce qui se passe, ou ce qu'il faut faire en premier.</div></div>
+  <div class="nova-in"><input id="nova-q" placeholder="Écrivez à Nova…" aria-label="Message à Nova"><button id="nova-send" aria-label="Envoyer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg></button></div>
+</div>
+<script>${SHELL_SCRIPT(o.source, o.pass)}</script>
+${o.bodyScript ? `<script>${o.bodyScript}</script>` : ''}
 </body></html>`;
 }
 
