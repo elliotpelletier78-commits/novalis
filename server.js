@@ -2297,6 +2297,36 @@ app.post('/core/nova/chat', adminOnly, coreReady, express.json({ limit: '8kb' })
   if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).json({ answer: 'Entreprise invalide.' });
   if (!message) return res.status(400).json({ answer: 'Posez-moi une question.' });
   try {
+    // Nova agit : commandes déterministes (jamais laissées à l'IA d'inventer).
+    const cmd = nova.interpreterCommande(message);
+    if (cmd) {
+      if (cmd.action === 'activer') {
+        branchement.definirConsentement(db, source, cmd.quoi === 'accuse' ? { accuse: true } : { envoyer: true });
+        return res.json({ answer: cmd.quoi === 'accuse'
+          ? '✓ C\'est fait — la réponse instantanée 24/7 est activée. Chaque client qui écrit recevra aussitôt un accusé à votre nom.'
+          : '✓ C\'est fait — l\'envoi après votre approbation est activé.' });
+      }
+      const enAttente = propositions.lister(db, source, { statut: 'en_attente' });
+      if (!enAttente.length) return res.json({ answer: 'Il n\'y a rien en attente d\'approbation pour l\'instant.' });
+      let cibles = enAttente;
+      if (cmd.cible) {
+        const cq = cmd.cible.toLowerCase();
+        cibles = enAttente.filter(p => (p.titre || '').toLowerCase().includes(cq) || (p.apercu || '').toLowerCase().includes(cq));
+        if (!cibles.length) return res.json({ answer: `Je ne trouve pas de proposition liée à « ${cmd.cible} ». Elles sont toutes dans le poste de commande.` });
+      } else if (!cmd.tout && enAttente.length > 1) {
+        return res.json({ answer: `Vous avez ${enAttente.length} propositions en attente. Dites-moi laquelle (ex. « approuve la réponse à Luc ») ou « approuve tout ».` });
+      }
+      if (!cmd.tout) cibles = cibles.slice(0, 1);
+      let done = 0, envoye = 0;
+      for (const p of cibles) {
+        const rr = await executerActionProposition(p.id, cmd.action, {});
+        if (rr.json && rr.json.ok !== false) { done++; if (rr.json.envoye) envoye++; }
+      }
+      if (cmd.action === 'rejeter') return res.json({ answer: `✓ ${done} ${done > 1 ? 'propositions rejetées' : 'proposition rejetée'}.` });
+      const reste = envoye ? '' : ' Marqué « à envoyer à la main » (l\'envoi automatique n\'est pas activé — dites « active l\'envoi » pour l\'activer).';
+      return res.json({ answer: `✓ J'ai approuvé ${done} ${done > 1 ? 'propositions' : 'proposition'}${envoye ? ` et envoyé ${envoye}` : ''}.${reste}` });
+    }
+
     const et = branchement.etat(db, source);
     const recu = reception.apercu(db, source, { jours: 30 });
     const pouls = pulse.apercu(db, source, { jours: 30 });

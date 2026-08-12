@@ -283,7 +283,7 @@ function page(o) {
 <button class="nova-fab" id="nova-fab" title="Demander à Nova" aria-label="Ouvrir Nova">${SPARK}</button>
 <div class="nova-chat" id="nova-chat" role="dialog" aria-label="Nova">
   <div class="nova-ch-head"><span class="av">${SPARK}</span><span class="nm">Nova<span class="tag">assistant</span></span><button class="x" id="nova-x" aria-label="Fermer">×</button></div>
-  <div class="nova-msgs" id="nova-msgs"><div class="nova-b nova">Bonjour ! Je suis Nova. Demandez-moi ce qui se passe, ou ce qu'il faut faire en premier.</div></div>
+  <div class="nova-msgs" id="nova-msgs"><div class="nova-b nova">Bonjour ! Je suis Nova. Demandez-moi ce qui se passe, ou dites-moi quoi faire — par exemple « approuve la réponse à… » ou « active la réponse instantanée ».</div></div>
   <div class="nova-in"><input id="nova-q" placeholder="Écrivez à Nova…" aria-label="Message à Nova"><button id="nova-send" aria-label="Envoyer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg></button></div>
 </div>
 <script>${SHELL_SCRIPT(o.source, o.pass)}</script>

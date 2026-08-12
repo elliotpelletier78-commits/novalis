@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { analyser, resume } from '../core/nova.js';
+import { analyser, resume, interpreterCommande } from '../core/nova.js';
 
 describe('Nova — analyse', () => {
   it('un client en attente = observation urgente', () => {
@@ -52,6 +52,35 @@ describe('Nova — analyse', () => {
   it('entreprise saine = aucune observation', () => {
     const r = analyser({ leadsAttente: 0, propositions: 0, pretPct: 100, servicesCount: 1, accuseActif: true, gagnesSansAvis: 0, fuite: null });
     expect(r.length).toBe(0);
+  });
+});
+
+describe('Nova — interpréteur de commandes', () => {
+  it('approuver par nom', () => {
+    const c = interpreterCommande('approuve la réponse à Luc Gagnon');
+    expect(c.action).toBe('approuver');
+    expect(c.cible).toMatch(/Luc Gagnon/);
+    expect(c.tout).toBe(false);
+  });
+  it('approuver tout', () => {
+    const c = interpreterCommande('approuve tout');
+    expect(c.action).toBe('approuver');
+    expect(c.tout).toBe(true);
+  });
+  it('rejeter par nom', () => {
+    const c = interpreterCommande('rejette la relance de Paul');
+    expect(c.action).toBe('rejeter');
+    expect(c.cible).toMatch(/Paul/);
+  });
+  it('activer la réponse instantanée', () => {
+    expect(interpreterCommande('active la réponse instantanée 24/7')).toEqual({ action: 'activer', quoi: 'accuse' });
+  });
+  it('activer l\'envoi', () => {
+    expect(interpreterCommande('active l\'envoi après approbation')).toEqual({ action: 'activer', quoi: 'envoyer' });
+  });
+  it('une question normale n\'est pas une commande', () => {
+    expect(interpreterCommande('pourquoi je perds des clients ?')).toBeNull();
+    expect(interpreterCommande('combien de contacts ce mois-ci ?')).toBeNull();
   });
 });
 

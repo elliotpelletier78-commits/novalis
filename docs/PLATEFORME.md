@@ -96,6 +96,27 @@ de faux envoi.
 
 ---
 
+## Mettre en ligne (checklist d'activation)
+
+Le code est prêt ; ces réglages (côté Railway) activent les capacités réelles.
+
+**Envoi réel des courriels** (Réponse Instantanée, réponses/avis/devis approuvés)
+1. Créer un compte Resend, générer une clé → variable `RESEND_API_KEY`.
+2. Vérifier le domaine `novalisia.ca` dans Resend (enregistrements SPF + DKIM chez
+   le registraire) — sans domaine vérifié, Resend refuse d'envoyer.
+3. `MAIL_FROM` = ex. `Novalis <reponse@novalisia.ca>` (facultatif ; défaut fourni).
+Sans clé, tout se prépare et s'approuve mais reste « à envoyer à la main » —
+jamais de faux « envoyé ».
+
+**Nova conversationnelle** (le chat qui répond en langage naturel)
+- `ANTHROPIC_API_KEY` = clé Anthropic. Le même moteur alimente aussi la
+  génération de sites bespoke. Sans clé, Nova répond quand même avec ses
+  observations déterministes (et peut déjà AGIR : approuver, activer un réglage).
+- Le coût est compté par client et plafonné (`clients.budget_llm_cents_mois`).
+
+**Alertes opérateur** (facultatif) : `ALERT_WEBHOOK_URL` (Discord/Slack) et/ou
+`RESEND_API_KEY` + `ALERT_EMAIL_TO`.
+
 ## Confidentialité (Loi 25)
 
 - **Pulse** : mesure première-partie, aucun témoin, aucune donnée personnelle,

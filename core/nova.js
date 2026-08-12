@@ -111,4 +111,34 @@ function resume(insights) {
   return `J'ai repéré ${morceaux.join(' et ')} à regarder.`;
 }
 
-module.exports = { analyser, resume };
+/**
+ * Interprète une commande d'ACTION dans un message (déterministe — jamais laissé
+ * à l'IA d'inventer une action). Reconnaît : approuver / rejeter une proposition
+ * (par nom, ou « tout »), et activer un réglage (réponse instantanée, envoi).
+ * @returns {null | {action:'approuver'|'rejeter', cible:string|null, tout:boolean}
+ *                 | {action:'activer', quoi:'accuse'|'envoyer'}}
+ */
+function interpreterCommande(message) {
+  const m = String(message || '').toLowerCase();
+
+  // Activer un réglage.
+  if (/\b(active[rz]?|activ|allume|met[s]? en marche)\b/.test(m)) {
+    if (/(instantan|accus|24\s*\/?\s*7|24h)/.test(m)) return { action: 'activer', quoi: 'accuse' };
+    if (/(envoi|envoy|approbation)/.test(m)) return { action: 'activer', quoi: 'envoyer' };
+  }
+
+  const approuver = /\b(approuve[rz]?|approuv|accepte[rz]?|valide[rz]?|envoie|envoyez|envoyer)\b/.test(m);
+  const rejeter = /\b(rejett?e[rz]?|rejeter|refuse[rz]?|supprime[rz]?|jette[rz]?|efface[rz]?)\b/.test(m);
+  if (!approuver && !rejeter) return null;
+
+  const tout = /\b(tout|toutes|tous)\b/.test(m);
+  // Cible nommée : ce qui suit « à / pour / de / au » (nom du client).
+  let cible = null;
+  // Le nom propre suit « à / au / pour / de » et commence par une majuscule
+  // (évite d'attraper « de la réponse »).
+  const mm = String(message || '').match(/(?:^|\s)(?:à|au|pour|de|a)\s+(\p{Lu}[\p{L}\-' ]{0,50})/u);
+  if (mm) cible = mm[1].trim().replace(/\s+(le|la|les|un|une|ce|cette|ma|mon)\b.*$/i, '').trim() || null;
+  return { action: approuver ? 'approuver' : 'rejeter', cible, tout };
+}
+
+module.exports = { analyser, resume, interpreterCommande };
