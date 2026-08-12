@@ -1,8 +1,20 @@
+# ══════════════════════════════════════════════════════════════════
+# SEULE configuration de déploiement. Historique : trois fichiers
+# concurrents (railway.toml, railway.json, railway-node.toml) et deux
+# Dockerfiles se battaient pour décider quelle app démarre — plusieurs
+# commits « Fix Railway deployment » en témoignent. Règles :
+#   - Railway lit railway.toml en priorité. C'est ici que tout se décide.
+#   - Le Dockerfile de l'app Python legacy est renommé Dockerfile.python-legacy
+#     pour qu'AUCUNE auto-détection ne puisse jamais le choisir.
+#   - Ne pas recréer railway.json : deux sources de vérité = zéro source de vérité.
+# ══════════════════════════════════════════════════════════════════
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.node"
 
 [deploy]
 startCommand = "node server.js"
+healthcheckPath = "/health"
+healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3

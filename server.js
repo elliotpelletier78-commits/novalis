@@ -1,6 +1,7 @@
 const express = require('express');
 const path    = require('path');
 const fs      = require('fs');
+const crypto  = require('crypto');
 const Database = require('better-sqlite3');
 
 const app = express();
@@ -30,11 +31,60 @@ db.exec(`
 // Migration — colonne data (JSON de génération, permet la régénération)
 try { db.exec('ALTER TABLE prospects ADD COLUMN data TEXT'); } catch(e) { /* existe déjà */ }
 
-// ── Admin auth middleware ─────────────────────────────────────
-const ADMIN_PASS = process.env.ADMIN_PASS || 'novalis2025';
+// ── Admin auth ────────────────────────────────────────────────
+// Aucune valeur par défaut : un mot de passe écrit en dur dans un dépôt
+// public n'est pas un mot de passe. Si ADMIN_PASS est absent, toute la
+// surface admin refuse l'accès (fail-closed) — mais la vitrine continue
+// de servir, parce qu'un site muet ne protège personne.
+const ADMIN_PASS = process.env.ADMIN_PASS || null;
+if (!ADMIN_PASS) {
+  console.error('[auth] ADMIN_PASS absent — surface admin VERROUILLÉE. Définir la variable d\'environnement.');
+}
+
+/**
+ * Comparaison à temps constant. On hache les deux côtés avant de comparer :
+ * timingSafeEqual exige des tampons de même longueur, et hacher évite de
+ * révéler la longueur du secret attendu via une erreur ou un temps de retour.
+ */
+function memeSecret(fourni, attendu) {
+  if (typeof fourni !== 'string' || !fourni || !attendu) return false;
+  const a = crypto.createHash('sha256').update(fourni, 'utf8').digest();
+  const b = crypto.createHash('sha256').update(attendu, 'utf8').digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+// Étranglement des tentatives ratées par IP : sans ça, un mot de passe
+// unique sans session est cassable par force brute en quelques heures.
+const ADMIN_MAX_ESSAIS = 8;
+const ADMIN_FENETRE_MS = 15 * 60 * 1000;
+const essaisAdmin = new Map(); // ip → { n, jusqua }
+
+function ipDe(req) {
+  return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || 'inconnue';
+}
+function adminBloque(req) {
+  const e = essaisAdmin.get(ipDe(req));
+  return !!(e && e.n >= ADMIN_MAX_ESSAIS && Date.now() < e.jusqua);
+}
+function noterEchecAdmin(req) {
+  const ip = ipDe(req);
+  const e = essaisAdmin.get(ip);
+  if (e && Date.now() < e.jusqua) e.n += 1;
+  else essaisAdmin.set(ip, { n: 1, jusqua: Date.now() + ADMIN_FENETRE_MS });
+}
+function noterSuccesAdmin(req) { essaisAdmin.delete(ipDe(req)); }
+// Purge périodique : la Map ne doit pas grossir indéfiniment.
+setInterval(() => {
+  const t = Date.now();
+  for (const [ip, e] of essaisAdmin) if (t >= e.jusqua) essaisAdmin.delete(ip);
+}, 10 * 60 * 1000).unref();
+
 function requireAdmin(req, res, next) {
+  if (!ADMIN_PASS) return res.status(503).json({ success: false, error: 'Administration non configurée' });
+  if (adminBloque(req)) return res.status(429).json({ success: false, error: 'Trop de tentatives — réessayer plus tard' });
   const auth = (req.headers.authorization || '').replace('Bearer ', '');
-  if (auth === ADMIN_PASS) return next();
+  if (memeSecret(auth, ADMIN_PASS)) { noterSuccesAdmin(req); return next(); }
+  noterEchecAdmin(req);
   return res.status(401).json({ success: false, error: 'Non autorisé' });
 }
 
@@ -46,8 +96,14 @@ app.use((req, res, next) => {
     process.env.CRM_ORIGIN,  // override via env si besoin
   ].filter(Boolean);
   const origin = req.headers.origin;
-  if (!origin || allowed.includes(origin) || process.env.NODE_ENV !== 'production') {
-    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  // Liste blanche stricte. L'ancienne version ouvrait à TOUTE origine dès que
+  // NODE_ENV n'était pas exactement 'production' — variable facile à oublier
+  // sur Railway, et « oubliée » voulait dire « API lisible par n'importe quel
+  // site ». Le développement local est autorisé explicitement, pas par défaut.
+  const localDev = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin || '');
+  if (origin && (allowed.includes(origin) || localDev)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
@@ -93,6 +149,36 @@ for (const m of BUNDLED_META) {
 
 // Fichiers statiques — volume output/ (inclut maintenant les démos seedées)
 const staticOpts = { setHeaders: (res) => res.setHeader('X-Frame-Options', 'SAMEORIGIN') };
+
+// Les démos portent le nom, le téléphone et l'adresse d'entreprises RÉELLES
+// qui n'ont rien demandé. Les laisser indexer, c'est publier un faux site à
+// leur nom dans Google — risque réputationnel et juridique, et contenu
+// dupliqué qui peut nuire à leur vrai référencement. Interdiction explicite
+// par en-tête (robots.txt seul ne suffit pas : une URL partagée reste indexable).
+const demoNoIndex = {
+  setHeaders: (res) => {
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+  },
+};
+
+// robots.txt à la racine — l'accueil et la vitrine sont indexables, tout ce
+// qui touche aux prospects et à l'administration ne l'est pas.
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send([
+    'User-agent: *',
+    'Disallow: /demo/',
+    'Disallow: /t/',
+    'Disallow: /admin',
+    'Disallow: /core/',
+    'Disallow: /prospects',
+    'Disallow: /upload',
+    'Allow: /',
+    '',
+    `Sitemap: ${req.protocol}://${req.get('host')}/sitemap.xml`,
+    '',
+  ].join('\n'));
+});
 // La base SQLite et ses fichiers WAL vivent dans output/ : ils ne doivent
 // JAMAIS être servis (fuite de données sinon — prospects, credentials).
 app.use('/demo', (req, res, next) => {
@@ -101,7 +187,7 @@ app.use('/demo', (req, res, next) => {
   }
   next();
 });
-app.use('/demo', express.static(outputDir, staticOpts));
+app.use('/demo', express.static(outputDir, demoNoIndex));
 // Vitrine — fichiers bespoke servis depuis le code déployé (hors volume)
 app.use('/showcase', express.static(path.join(__dirname, 'showcase'), staticOpts));
 
@@ -357,54 +443,60 @@ async function importUrl(id){
 });
 
 // ── Debug — lister les fichiers dans output/ et demos/ ───────
-app.get('/debug', (req, res) => {
+// Énumère le contenu du volume : c'est de la reconnaissance offerte à un
+// inconnu (et la liste des prospects de l'entreprise). Derrière l'admin.
+app.get('/debug', requireAdmin, (req, res) => {
   const out   = fs.existsSync(outputDir) ? fs.readdirSync(outputDir).filter(f => f.endsWith('.html')) : [];
   const demos = fs.existsSync(demosDir)  ? fs.readdirSync(demosDir).filter(f => f.endsWith('.html'))  : [];
   res.json({ output: out, demos, version: 'seed-v2' });
 });
 
-// ── Accueil — liste des démos ─────────────────────────────────
+// ── Accueil — la vraie page de vente ──────────────────────────
+// Avant : cette route listait publiquement TOUTES les démos du volume,
+// c'est-à-dire les noms et les sites de prospects réels, à quiconque
+// visitait novalisia.ca. C'était à la fois une fuite et un très mauvais
+// visage commercial. Elle sert désormais landing.html.
+//
+// Deux jetons sont substitués au rendu plutôt que codés en dur : sans
+// GA_ID pas de script d'analytique, sans WHATSAPP_NUMERO pas de bouton
+// flottant. Un faux numéro sur une page de vente est pire qu'aucun bouton.
+const LANDING_PATH = path.join(__dirname, 'landing.html');
+let _landingCache = null;
+
+function rendreLanding() {
+  if (_landingCache) return _landingCache;
+  let html = fs.readFileSync(LANDING_PATH, 'utf8');
+
+  const gaId = process.env.GA_ID;
+  html = html.replace('<!--#ANALYTIQUE#-->', gaId
+    ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${gaId}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaId}');</script>`
+    : '');
+
+  const wa = (process.env.WHATSAPP_NUMERO || '').replace(/[^0-9]/g, '');
+  if (wa) {
+    html = html.replace('WHATSAPP_NUMERO', wa)
+               .replace('<!--#WHATSAPP_DEBUT#-->', '')
+               .replace('<!--#WHATSAPP_FIN#-->', '');
+  } else {
+    // Retirer le bloc complet entre les deux marqueurs.
+    const d = html.indexOf('<!--#WHATSAPP_DEBUT#-->');
+    const f = html.indexOf('<!--#WHATSAPP_FIN#-->');
+    if (d !== -1 && f > d) html = html.slice(0, d) + html.slice(f + '<!--#WHATSAPP_FIN#-->'.length);
+  }
+
+  _landingCache = html;
+  return html;
+}
+
 app.get('/', (req, res) => {
-  const dir = path.join(__dirname, 'output');
-  const files = fs.existsSync(dir)
-    ? fs.readdirSync(dir).filter(f => f.endsWith('.html')).sort()
-    : [];
-
-  const base = `${req.protocol}://${req.get('host')}`;
-  const items = files.map(f => {
-    const slug = f.replace('.html', '');
-    const name = slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    return `<div class="item">
-      <span>${name}</span>
-      <a href="${base}/demo/${f}" target="_blank">Voir la démo →</a>
-    </div>`;
-  }).join('');
-
-  res.send(`<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Novalis IA — Démos</title>
-<style>
-  body{font-family:system-ui,sans-serif;background:#07090F;color:#F1F5FF;padding:40px;max-width:860px;margin:0 auto}
-  h1{font-size:28px;margin-bottom:6px;font-weight:600}
-  p{color:#64748B;margin-bottom:36px;font-size:14px}
-  .item{background:#111827;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-  .item span{font-size:14px;color:#CBD5E1}
-  .item a{color:#3B82F6;text-decoration:none;font-size:13px;font-weight:500}
-  .item a:hover{text-decoration:underline}
-  .empty{color:#374151;font-style:italic;font-size:14px}
-</style>
-</head>
-<body>
-  <h1>Novalis IA</h1>
-  <p>${files.length} démo${files.length !== 1 ? 's' : ''} générée${files.length !== 1 ? 's' : ''}</p>
-  ${items || '<div class="empty">Aucune démo pour l\'instant.</div>'}
-</body>
-</html>`);
+  try {
+    res.type('html').send(rendreLanding());
+  } catch (e) {
+    console.error('[accueil] landing.html illisible:', e.message);
+    res.status(500).type('html').send('<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Novalis</title></head><body style="font-family:system-ui;padding:40px"><h1>Novalis</h1><p>Site temporairement indisponible.</p></body></html>');
+  }
 });
-
 // ── Générer un site ───────────────────────────────────────────
 // Protégé par clé API (variable d'env PREVIEW_API_KEY)
 app.post('/generate', async (req, res) => {
@@ -678,7 +770,11 @@ async function enrichWithBrand(data) {
 // ── Admin auth check ─────────────────────────────────────────
 app.post('/admin-auth', (req, res) => {
   const { key } = req.body || {};
-  res.json({ ok: key === ADMIN_PASS });
+  if (!ADMIN_PASS) return res.status(503).json({ ok: false, error: 'Administration non configurée' });
+  if (adminBloque(req)) return res.status(429).json({ ok: false, error: 'Trop de tentatives' });
+  const bon = memeSecret(key, ADMIN_PASS);
+  if (bon) noterSuccesAdmin(req); else noterEchecAdmin(req);
+  res.json({ ok: bon });
 });
 
 // ── Admin panel ───────────────────────────────────────────────
@@ -918,11 +1014,12 @@ const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBR
 app.get('/t/:slug', (req, res) => {
   const { slug } = req.params;
   try {
+    // UPDATE seulement, jamais INSERT : la version précédente créait une ligne
+    // prospect pour n'importe quel slug appelé. Un simple boucle sur /t/xxx
+    // faisait grossir la base indéfiniment, sans authentification.
     db.prepare(`
-      INSERT INTO prospects (slug, views, last_viewed) VALUES (?, 1, strftime('%s','now'))
-      ON CONFLICT(slug) DO UPDATE SET
-        views = views + 1,
-        last_viewed = strftime('%s','now')
+      UPDATE prospects SET views = views + 1, last_viewed = strftime('%s','now')
+      WHERE slug = ?
     `).run(slug);
   } catch(e) { /* ignore */ }
   res.setHeader('Content-Type', 'image/gif');
@@ -1290,7 +1387,7 @@ app.get('/koz-import-status', async (req, res) => {
 // ── Admin : coller une URL de photo pour un slot spécifique ──────
 app.post('/koz-photos/set', async (req, res) => {
   const { slot, url, pass } = req.body;
-  if ((pass || req.headers['x-admin-pass']) !== ADMIN_PASS) return res.status(401).json({ error: 'Non autorisé' });
+  if (!memeSecret(pass || req.headers['x-admin-pass'], ADMIN_PASS)) return res.status(401).json({ error: 'Non autorisé' });
   if (!KOZ_SLOTS.includes(slot)) return res.status(400).json({ error: `Slot invalide. Valides: ${KOZ_SLOTS.join(', ')}` });
   if (!url || !url.startsWith('http')) return res.status(400).json({ error: 'URL invalide' });
   try {
@@ -1305,95 +1402,10 @@ app.post('/koz-photos/set', async (req, res) => {
 });
 
 // ── Page admin photos Kóz (UI pour coller des URLs) ──────────────
-app.get('/koz-photos', (req, res) => {
-  const imagesDir = path.join(outputDir, 'images');
-  const slots = KOZ_SLOTS.map(s => {
-    const f = path.join(imagesDir, `koz-${s}.jpg`);
-    const exists = fs.existsSync(f);
-    return { s, exists, size: exists ? Math.round(fs.statSync(f).size/1024)+'ko' : null };
-  });
-  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Photos Kóz — Admin</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:system-ui,sans-serif;background:#0f1a1c;color:#e8dcc8;padding:40px 24px}
-h1{font-size:22px;margin-bottom:8px;color:#d6a24b}
-.sub{font-size:13px;color:#8a9890;margin-bottom:32px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
-.card{background:#152326;border:1px solid #2a3d40;border-radius:10px;padding:20px}
-.card h3{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#c8623a;margin-bottom:12px}
-.preview{width:100%;aspect-ratio:16/9;background:#0c1e22;border-radius:6px;overflow:hidden;margin-bottom:12px;position:relative}
-.preview img{width:100%;height:100%;object-fit:cover}
-.preview .absent{display:flex;align-items:center;justify-content:center;height:100%;font-size:12px;color:#4a6060}
-.status{font-size:12px;color:#5a8060;margin-bottom:12px}
-input{width:100%;padding:10px 12px;background:#0c1e22;border:1px solid #2a4040;border-radius:6px;color:#e8dcc8;font-size:13px;margin-bottom:10px}
-input:focus{outline:none;border-color:#d6a24b}
-button{width:100%;padding:10px;background:#c8623a;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer}
-button:hover{background:#d9805a}
-.msg{margin-top:8px;font-size:12px;min-height:18px}
-.ok{color:#5a8060}.err{color:#c84040}
-.actions{display:flex;gap:10px;margin-bottom:24px}
-.btn-sm{padding:10px 20px;background:#1e3540;border:1px solid #2a5060;color:#a0b8b0;border-radius:6px;font-size:13px;cursor:pointer;text-decoration:none}
-.btn-sm:hover{background:#2a4550;color:#e8dcc8}
-a.view{display:block;margin-top:8px;font-size:12px;color:#d6a24b;text-decoration:none}
-a.view:hover{text-decoration:underline}
-</style>
-</head><body>
-<h1>Photos Bistro Kóz</h1>
-<p class="sub">Colle l'URL de n'importe quelle photo — le serveur la télécharge et la sauvegarde. Mot de passe admin requis.</p>
-<div class="actions">
-  <a href="/showcase/bistro-koz.html" class="btn-sm" target="_blank">Voir le site →</a>
-  <button class="btn-sm" onclick="reimport()">Réimporter (crawl auto)</button>
-  <button class="btn-sm" onclick="reimport(true)">Forcer réimport</button>
-</div>
-<div class="grid">
-${slots.map(({s, exists, size}) => `
-  <div class="card" id="card-${s}">
-    <h3>${s}</h3>
-    <div class="preview">
-      ${exists
-        ? `<img id="img-${s}" src="/demo/images/koz-${s}.jpg?t=${Date.now()}" onerror="this.style.display='none'">`
-        : `<div class="absent">absente</div>`}
-    </div>
-    <div class="status">${exists ? `✓ ${size}` : '✗ Manquante'}</div>
-    <input id="url-${s}" placeholder="https://bistrokoz.ca/wp-content/uploads/...jpg" type="url">
-    <input id="pass-${s}" placeholder="Mot de passe admin" type="password" value="">
-    <button onclick="setPhoto('${s}')">Enregistrer cette photo</button>
-    <div class="msg" id="msg-${s}"></div>
-    ${exists ? `<a class="view" href="/demo/images/koz-${s}.jpg" target="_blank">Voir la photo actuelle →</a>` : ''}
-  </div>`).join('')}
-</div>
-<script>
-async function setPhoto(slot){
-  const url=document.getElementById('url-'+slot).value.trim();
-  const pass=document.getElementById('pass-'+slot).value.trim();
-  const msg=document.getElementById('msg-'+slot);
-  if(!url){msg.className='msg err';msg.textContent='URL requise';return;}
-  msg.className='msg';msg.textContent='Téléchargement...';
-  try{
-    const r=await fetch('/koz-photos/set',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slot,url,pass})});
-    const j=await r.json();
-    if(j.ok){
-      msg.className='msg ok';msg.textContent='✓ Enregistrée ('+j.size+')';
-      const img=document.getElementById('img-'+slot);
-      if(img)img.src='/demo/images/koz-'+slot+'.jpg?t='+Date.now();
-      else location.reload();
-    } else {
-      msg.className='msg err';msg.textContent='Erreur: '+j.error;
-    }
-  }catch(e){msg.className='msg err';msg.textContent='Erreur réseau';}
-}
-async function reimport(force){
-  const r=await fetch('/koz-import-status?run=1'+(force?'&force=1':''));
-  const j=await r.json();
-  alert(JSON.stringify(j.run,null,2));
-  location.reload();
-}
-</script>
-</body></html>`;
-  res.send(html);
-});
+// NOTE : une seconde définition de app.get('/koz-photos') vivait ici — 89
+// lignes de code inatteignable. Express sert la PREMIÈRE route qui
+// correspond, définie plus haut, donc celle-ci n'a jamais répondu.
+// Retirée pour que la surface de la démo Kóz reflète ce qui tourne vraiment.
 
 // ── Import automatique des vraies photos de Le Tour du Chef (côté serveur) ──
 // Même logique que Kóz : crawle letourduchef.com, télécharge les meilleures
@@ -1701,7 +1713,7 @@ app.get('/ltc-video-status', async (req, res) => {
 // ── Admin : coller une URL de vidéo pour un slot spécifique ──────
 app.post('/ltc-videos/set', async (req, res) => {
   const { slot, url, pass } = req.body;
-  if ((pass || req.headers['x-admin-pass']) !== ADMIN_PASS) return res.status(401).json({ error: 'Non autorisé' });
+  if (!memeSecret(pass || req.headers['x-admin-pass'], ADMIN_PASS)) return res.status(401).json({ error: 'Non autorisé' });
   if (!Object.keys(LTC_VIDEO_SLOTS).includes(slot)) return res.status(400).json({ error: `Slot invalide. Valides: ${Object.keys(LTC_VIDEO_SLOTS).join(', ')}` });
   if (!url || !url.startsWith('http')) return res.status(400).json({ error: 'URL invalide' });
   try {
@@ -1718,7 +1730,7 @@ app.post('/ltc-videos/set', async (req, res) => {
 // ── Admin : coller une URL de photo pour un slot spécifique ──────
 app.post('/ltc-photos/set', async (req, res) => {
   const { slot, url, pass } = req.body;
-  if ((pass || req.headers['x-admin-pass']) !== ADMIN_PASS) return res.status(401).json({ error: 'Non autorisé' });
+  if (!memeSecret(pass || req.headers['x-admin-pass'], ADMIN_PASS)) return res.status(401).json({ error: 'Non autorisé' });
   if (!LTC_SLOTS.includes(slot)) return res.status(400).json({ error: `Slot invalide. Valides: ${LTC_SLOTS.join(', ')}` });
   if (!url || !url.startsWith('http')) return res.status(400).json({ error: 'URL invalide' });
   try {
@@ -1839,7 +1851,10 @@ try {
 
 function adminOnly(req, res, next) {
   const given = req.headers['x-admin-pass'] || req.query.pass || (req.body && req.body.pass);
-  if (given !== ADMIN_PASS) return res.status(401).json({ error: 'Non autorisé' });
+  if (!ADMIN_PASS) return res.status(503).json({ error: 'Administration non configurée' });
+  if (adminBloque(req)) return res.status(429).json({ error: 'Trop de tentatives — réessayer plus tard' });
+  if (!memeSecret(given, ADMIN_PASS)) { noterEchecAdmin(req); return res.status(401).json({ error: 'Non autorisé' }); }
+  noterSuccesAdmin(req);
   next();
 }
 function coreReady(req, res, next) {
@@ -1970,19 +1985,72 @@ app.get('/core/admin', adminOnly, coreReady, (req, res) => {
 
 // Santé du noyau : profondeur de file, morts, âge du plus vieux job en
 // attente — de quoi brancher un uptime-monitor externe gratuit.
+// Seuils au-delà desquels la file est considérée en souffrance. Un job qui
+// attend plus de 15 min, ou qui est « running » depuis plus de 30 min, signale
+// un worker mort ou bloqué — pas un système en bonne santé.
+const SANTE_ATTENTE_MAX_S = 15 * 60;
+const SANTE_EXECUTION_MAX_S = 30 * 60;
+
 app.get('/core/health', coreReady, (req, res) => {
+  // COALESCE : sur une table vide, SUM() renvoie NULL et l'ancienne version
+  // répondait {queued:null, running:null, dead:null} — illisible pour un
+  // moniteur externe.
   const s = db.prepare(`SELECT
-      SUM(CASE WHEN status='queued' THEN 1 ELSE 0 END) AS queued,
-      SUM(CASE WHEN status='running' THEN 1 ELSE 0 END) AS running,
-      SUM(CASE WHEN status='dead' THEN 1 ELSE 0 END) AS dead,
-      MIN(CASE WHEN status='queued' THEN created_at END) AS oldest_queued
+      COALESCE(SUM(CASE WHEN status='queued'  THEN 1 ELSE 0 END), 0) AS queued,
+      COALESCE(SUM(CASE WHEN status='running' THEN 1 ELSE 0 END), 0) AS running,
+      COALESCE(SUM(CASE WHEN status='dead'    THEN 1 ELSE 0 END), 0) AS dead,
+      MIN(CASE WHEN status='queued'  THEN run_at    END) AS oldest_queued,
+      MIN(CASE WHEN status='running' THEN locked_at END) AS oldest_running
     FROM jobs`).get();
-  res.json({ ok: (s.dead || 0) === 0, ...s });
+
+  // SQLite stocke « YYYY-MM-DD HH:MM:SS » en UTC. On normalise en ISO 8601
+  // explicite : sans le T ni le Z, un serveur dans un fuseau non-UTC
+  // interpréterait l'horodatage comme une heure locale et fausserait l'âge.
+  const ageS = (t) => {
+    if (!t) return null;
+    const ms = Date.parse(String(t).replace(' ', 'T') + 'Z');
+    return Number.isNaN(ms) ? null : Math.max(0, Math.floor((Date.now() - ms) / 1000));
+  };
+  const attenteS = ageS(s.oldest_queued);
+  const executionS = ageS(s.oldest_running);
+
+  // L'ancienne version répondait ok:true dès qu'aucun job n'était mort. Si le
+  // worker mourait, les jobs s'empilaient en « queued », dead restait à 0, et
+  // le moniteur d'uptime voyait « tout va bien » : la panne exactement que cet
+  // endpoint existe pour détecter passait inaperçue.
+  const problemes = [];
+  if (s.dead > 0) problemes.push(`${s.dead} job(s) mort(s)`);
+  if (attenteS !== null && attenteS > SANTE_ATTENTE_MAX_S) problemes.push(`file en retard (plus vieux en attente: ${attenteS}s)`);
+  if (executionS !== null && executionS > SANTE_EXECUTION_MAX_S) problemes.push(`job bloqué en exécution depuis ${executionS}s`);
+
+  const corps = {
+    ok: problemes.length === 0,
+    problemes,
+    queued: s.queued,
+    running: s.running,
+    dead: s.dead,
+    attente_s: attenteS,
+    execution_s: executionS,
+    oldest_queued: s.oldest_queued,
+  };
+  // 503 quand ça va mal : un moniteur gratuit alerte sur le code HTTP, pas sur
+  // le contenu JSON.
+  res.status(corps.ok ? 200 : 503).json(corps);
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Novalis Preview en ligne → http://0.0.0.0:${PORT}`);
+
+  // Ces imports crawlent bistrokoz.ca et letourduchef.com — deux sites de
+  // tiers — à CHAQUE démarrage, soit une quinzaine de requêtes vers des
+  // serveurs qui ne nous ont rien demandé, à chaque déploiement et chaque
+  // redémarrage. Les démos concernées sont livrées depuis des mois : leurs
+  // photos sont déjà dans le volume. On ne recrawle que sur demande explicite.
+  if (process.env.IMPORTS_DEMOS_AU_DEMARRAGE !== '1') {
+    console.log('[imports] crawl des sites tiers désactivé au démarrage (IMPORTS_DEMOS_AU_DEMARRAGE=1 pour le forcer)');
+    return;
+  }
   // Import auto des photos Kóz et Le Tour du Chef, en arrière-plan (ne bloque pas le démarrage)
   Promise.allSettled([
     importKozPhotos()
