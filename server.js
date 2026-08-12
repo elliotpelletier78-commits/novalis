@@ -2010,8 +2010,12 @@ app.post('/api/:site/contact', leadRateLimit, express.json({ limit: '32kb' }), (
   try {
     const ipHash = require('crypto').createHash('sha256')
       .update(String(req._leadIp) + (process.env.MASTER_KEY || 'sel')).digest('hex').slice(0, 16);
-    const info = db.prepare(`INSERT INTO leads (source, nom, courriel, entreprise, message, sujets, langue, ip_hash)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(site, nom, courriel, entreprise, message, sujets, langue, ipHash);
+    // Réception : marquer si le contact arrive hors des heures d'ouverture —
+    // c'est le chiffre qui frappe le plus le commerçant (« reçu à 21h, perdu »).
+    const horsHeures = reception.estHorsHeures(new Date(),
+      reception.configDe(db, site).heures) ? 1 : 0;
+    const info = db.prepare(`INSERT INTO leads (source, nom, courriel, entreprise, message, sujets, langue, ip_hash, hors_heures)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(site, nom, courriel, entreprise, message, sujets, langue, ipHash, horsHeures);
     console.log(`[lead:${site}] #${info.lastInsertRowid} ${nom} <${courriel}>`);
     // Alerte immédiate : un prospect qui écrit ne doit pas attendre.
     if (core && core.alerter) {
@@ -2054,6 +2058,85 @@ app.get('/core/sites', adminOnly, coreReady, (req, res) => {
   const rows = db.prepare(`SELECT s.id, s.client_id, c.nom AS client_nom, s.slug, s.nom, s.statut, s.created_at, s.updated_at
     FROM sites s JOIN clients c ON c.id = s.client_id ORDER BY s.updated_at DESC LIMIT 100`).all();
   res.json({ sites: rows });
+});
+
+// ── Novalis Réception — cockpit de capture de leads ─────────────────
+// Le produit récurrent : chaque contact (message + clic tél) capturé, chronométré,
+// compté. Le cockpit est interne (admin) ; le rapport mensuel part au commerçant
+// via une URL signée sans compte.
+const reception = require('./core/reception');
+const { renderReception, renderRapport } = require('./core/reception-page');
+
+function sourcesConnues() {
+  const set = new Set();
+  try { for (const r of db.prepare('SELECT DISTINCT source FROM leads').all()) set.add(r.source); } catch { /* jeune */ }
+  try { for (const r of db.prepare('SELECT DISTINCT source FROM taps').all()) set.add(r.source); } catch { /* jeune */ }
+  return [...set].filter(Boolean).sort();
+}
+
+app.get('/core/reception', adminOnly, coreReady, (req, res) => {
+  const sources = sourcesConnues();
+  const source = String(req.query.source || sources[0] || 'novalis').slice(0, 40);
+  const data = reception.apercu(db, source, { jours: 30 });
+  const token = reception.jetonRapport(source, process.env.MASTER_KEY);
+  const base = `${req.protocol}://${req.get('host')}`;
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.send(renderReception(data, { sources, rapportUrl: `${base}/r/${encodeURIComponent(source)}/${token}` }));
+});
+
+// Mise à jour du cycle de vie d'un contact. Passer à « contacté/gagné/perdu »
+// capture le délai de réponse (repondu_le) s'il n'est pas déjà posé.
+app.post('/core/reception/lead/:id', adminOnly, coreReady, express.json({ limit: '8kb' }), (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'id invalide' });
+  const b = req.body || {};
+  const statut = ['nouveau', 'contacte', 'gagne', 'perdu'].includes(b.statut) ? b.statut : null;
+  if (!statut) return res.status(400).json({ error: 'statut invalide' });
+  try {
+    const lead = db.prepare('SELECT id, repondu_le FROM leads WHERE id = ?').get(id);
+    if (!lead) return res.status(404).json({ error: 'introuvable' });
+    const marqueReponse = (statut !== 'nouveau' && !lead.repondu_le);
+    db.prepare(`UPDATE leads SET statut = ?, repondu_le = COALESCE(repondu_le, ?),
+        valeur_cents = COALESCE(?, valeur_cents) WHERE id = ?`)
+      .run(statut, marqueReponse ? new Date().toISOString().replace('T', ' ').slice(0, 19) : null,
+        Number.isInteger(b.valeur_cents) ? b.valeur_cents : null, id);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Beacon de clic — appelé par les liens « appeler » des sites générés. Public,
+// ultra-léger, anti-double-comptage par empreinte IP+source sur 2 minutes.
+const tapVus = new Map();
+app.get('/api/tap', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const source = String(req.query.s || '').slice(0, 40);
+  const canal = ['tel', 'cta', 'courriel'].includes(req.query.c) ? req.query.c : 'tel';
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(204).end();
+  try {
+    const ipHash = require('crypto').createHash('sha256')
+      .update((req.ip || '') + source + (process.env.MASTER_KEY || 'sel')).digest('hex').slice(0, 16);
+    const cle = ipHash + canal;
+    const now = Date.now();
+    if (!(tapVus.get(cle) && now - tapVus.get(cle) < 120000)) { // dédoublonnage 2 min
+      tapVus.set(cle, now);
+      if (tapVus.size > 10000) tapVus.clear();
+      const hh = reception.estHorsHeures(new Date(), reception.configDe(db, source).heures) ? 1 : 0;
+      db.prepare('INSERT INTO taps (source, canal, hors_heures, ip_hash) VALUES (?,?,?,?)').run(source, canal, hh, ipHash);
+    }
+  } catch (e) { /* un beacon ne doit jamais faire d'erreur visible */ void e; }
+  res.status(204).end();
+});
+
+// Rapport mensuel du commerçant — URL signée, aucun compte. ?mois=YYYY-MM optionnel.
+app.get('/r/:source/:token', (req, res) => {
+  const source = String(req.params.source || '').slice(0, 40);
+  if (!reception.jetonValide(source, req.params.token, process.env.MASTER_KEY)) {
+    return res.status(403).type('text/plain').send('Lien invalide.');
+  }
+  if (!core) return res.status(503).type('text/plain').send('Indisponible.');
+  const rap = reception.rapportMensuel(db, source, req.query.mois);
+  res.setHeader('X-Robots-Tag', 'noindex');
+  res.send(renderRapport(rap, { public: true }));
 });
 
 // Registre de R&D (RS&DE / IRAP) — assemblé à partir des tables de production.

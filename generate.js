@@ -950,6 +950,19 @@ function injecterJsonLd(html, data, secteur) {
   return html.includes('</head>') ? html.replace('</head>', ld + '\n</head>') : ld + html;
 }
 
+// Beacon Novalis Réception : chaque clic « appeler » depuis le site est une
+// intention d'achat. Le beacon la signale à /api/tap (même origine) sans ralentir
+// l'appel — c'est la moitié invisible des contacts (ceux qui n'écrivent pas).
+function injecterBeaconTap(html, source) {
+  if (!source || /\/api\/tap/.test(html)) return html;
+  const s = JSON.stringify(String(source).replace(/[^a-z0-9-]/gi, ''));
+  const script = `<script>(function(){var s=${s};function beac(c){try{var u='/api/tap?s='+s+'&c='+c;`
+    + `navigator.sendBeacon?navigator.sendBeacon(u):fetch(u,{keepalive:true});}catch(e){}}`
+    + `document.addEventListener('click',function(e){var t=e.target.closest&&e.target.closest('a[href^="tel:"],a[href^="mailto:"]');`
+    + `if(t)beac(t.getAttribute('href').indexOf('mailto:')===0?'courriel':'tel');},true);})();</script>`;
+  return html.includes('</body>') ? html.replace('</body>', script + '</body>') : html + script;
+}
+
 async function generate(data) {
   const {
     nom,
@@ -1026,6 +1039,7 @@ async function generate(data) {
     const outputDir = path.join(__dirname, 'output');
     if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
     const outputPath = path.join(outputDir, `${slug}.html`);
+    rHtml = injecterBeaconTap(rHtml, slug);
     fs.writeFileSync(outputPath, rHtml, 'utf8');
     const colorUsed = brandColor ? ensureVibrancy(brandColor) : '#2563EB (défaut)';
     console.log(`✅ Site généré : output/${slug}.html  •  secteur: restaurant  •  couleur: ${colorUsed}`);
@@ -1091,6 +1105,7 @@ async function generate(data) {
     if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
     const outputPath = path.join(outputDir, `${slug}.html`);
     cHtml = injecterJsonLd(cHtml, data, secteur);
+    cHtml = injecterBeaconTap(cHtml, slug);
     fs.writeFileSync(outputPath, cHtml, 'utf8');
     const colorUsed = brandColor ? ensureVibrancy(brandColor) : '#2563EB (défaut)';
     console.log(`✅ Site généré : output/${slug}.html  •  secteur: ${secteur}  •  thème: ${themeMap[secteur] || 'dark'}  •  couleur: ${colorUsed}`);
@@ -1213,6 +1228,7 @@ async function generate(data) {
 
   const outputPath = path.join(outputDir, `${slug}.html`);
   html = injecterJsonLd(html, data, secteur);
+  html = injecterBeaconTap(html, slug);
   fs.writeFileSync(outputPath, html, 'utf8');
   const colorUsed = brandColor ? ensureVibrancy(brandColor) : '#2563EB (défaut)';
   console.log(`✅ Site généré : output/${slug}.html  •  couleur: ${colorUsed}`);
