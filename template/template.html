@@ -349,18 +349,14 @@ footer{background:var(--bg-s);border-top:1px solid var(--bd);padding:60px 24px 3
 <section class="hero">
   <div class="hero-bg"></div>
   <div class="hero-dots"></div>
-  <div class="hero-badge"><span class="stars">★★★★★</span><span>{{AVIS_GOOGLE}} · {{VILLE}}, Québec</span></div>
+  <div class="hero-badge">{{HERO_BADGE}}</div>
   <h1>{{HERO_H1_LIGNE1}}<br><em>{{HERO_H1_LIGNE2}}</em></h1>
   <p class="hero-sub">{{HERO_SOUS_TITRE}}</p>
   <div class="hero-ctas">
     <a class="btn-primary" href="{{CTA_HREF}}">{{CTA_LABEL}}</a>
     <a class="btn-secondary" href="#services">Voir nos services</a>
   </div>
-  <div class="hero-stats">
-    <div class="stat-badge"><span class="stat-num" id="cnt-avis">{{AVIS_COUNT}}</span><span class="stat-lbl">Avis ★★★★★</span></div>
-    <div class="stat-badge feat"><span class="stat-num">24/7</span><span class="stat-lbl">Disponible</span></div>
-    <div class="stat-badge"><span class="stat-num" id="cnt-annee">{{ANNEE_FONDATION}}</span><span class="stat-lbl">En affaires</span></div>
-  </div>
+  <div class="hero-stats">{{HERO_STATS}}</div>
   <div class="photo-strip" style="margin-top:64px"><div class="photo-track">{{PHOTOS_CAROUSEL}}</div></div>
 </section>
 <div class="ticker-wrap"><div class="ticker-track">{{TICKER_ITEMS}}{{TICKER_ITEMS}}</div></div>
@@ -409,7 +405,7 @@ const sl=document.getElementById('calc-slider');
 function cu(){const c=parseInt(sl.value);document.getElementById('slider-val').textContent=c;const s=c*VC,m=s*4,a=m*12,r=Math.ceil(1000/s);const f=n=>n.toLocaleString('fr-CA',{style:'currency',currency:'CAD',minimumFractionDigits:0});document.getElementById('r-sem').textContent=f(s);document.getElementById('r-mois').textContent=f(m);document.getElementById('r-an').textContent=f(a);document.getElementById('r-roi').textContent=r+' semaine'+(r>1?'s':'')}
 sl.addEventListener('input',cu);cu();
 function countUp(el,target,dur=1200){if(!el)return;const isY=target>1000;let s=isY?target-8:0;const step=(target-s)/(dur/16);const t=setInterval(()=>{s+=step;if(s>=target){el.textContent=target;clearInterval(t);return}el.textContent=Math.floor(s)},16)}
-const ho=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting){countUp(document.getElementById('cnt-avis'),{{AVIS_COUNT}});countUp(document.getElementById('cnt-annee'),{{ANNEE_FONDATION}});ho.disconnect()}})},{threshold:0.3});
+const ho=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting){ho.disconnect()}})},{threshold:0.3});
 const hs=document.querySelector('.hero-stats');if(hs)ho.observe(hs);
 </script>
 </body>

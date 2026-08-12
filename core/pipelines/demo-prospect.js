@@ -15,6 +15,31 @@ const { fetchSiteHtml, extractName } = require('../../discover');
 const { generate, extractBrandColor, slugify } = require('../../generate');
 const { analyserHtml } = require('./audit-prospect');
 
+/**
+ * Extrait les VRAIS avis et la vraie note du site existant du prospect (données
+ * structurées JSON-LD Review/AggregateRating). On ne récupère QUE ce que le
+ * commerce publie déjà — jamais de fabrication. Ces avis, réutilisés sur la démo,
+ * donnent le moment « regarde, tes vrais avis sont déjà là ».
+ * @returns {{avis:Array<{text:string,author?:string}>, note:number|null, count:number|null}}
+ */
+function extraireAvis(html) {
+  const avis = [];
+  const revRe = /"@type"\s*:\s*"Review"[\s\S]{0,800}?"reviewBody"\s*:\s*"([^"]{20,450})"/gi;
+  let m;
+  while ((m = revRe.exec(html)) !== null && avis.length < 6) {
+    const bloc = html.slice(m.index, m.index + 900);
+    const auteur = (bloc.match(/"author"\s*:\s*\{[^}]*?"name"\s*:\s*"([^"]{2,60})"/i)
+      || bloc.match(/"author"\s*:\s*"([^"]{2,60})"/i) || [])[1] || null;
+    avis.push({ text: m[1].replace(/\\"/g, '"').trim(), author: auteur });
+  }
+  const noteM = html.match(/"aggregateRating"[\s\S]{0,300}?"ratingValue"\s*:\s*"?([0-9]([.,][0-9])?)"?/i);
+  const countM = html.match(/"aggregateRating"[\s\S]{0,300}?"reviewCount"\s*:\s*"?([0-9]{1,6})"?/i)
+    || html.match(/"aggregateRating"[\s\S]{0,300}?"ratingCount"\s*:\s*"?([0-9]{1,6})"?/i);
+  const note = noteM ? parseFloat(String(noteM[1]).replace(',', '.')) : null;
+  const count = countM ? parseInt(countM[1], 10) : null;
+  return { avis, note: Number.isFinite(note) ? note : null, count: Number.isInteger(count) ? count : null };
+}
+
 /** Téléphone nord-américain depuis le HTML (href tel: prioritaire). */
 function extraireTelephone(html) {
   const tel = html.match(/href=["']tel:\+?1?([0-9\-. ()]{10,14})/i);
@@ -60,6 +85,10 @@ module.exports = {
           telephone: p.telephone || extraireTelephone(html),
           brandColor: extractBrandColor(html) || null,
           siteExistant: finalUrl,
+          ...(() => {
+            const a = extraireAvis(html);
+            return { avis: a.avis, avisGoogle: a.note, avisCount: a.count };
+          })(),
         };
       },
     },
@@ -81,6 +110,9 @@ module.exports = {
           adresse: infos.adresse,
           telephone: infos.telephone,
           brandColor: infos.brandColor,
+          avis: infos.avis,              // vrais avis du prospect (jamais inventés)
+          avisGoogle: infos.avisGoogle,  // vraie note, si publiée
+          avisCount: infos.avisCount,
           auditProblemes: audit.problemes,
           auditScore: audit.score,
         });
@@ -109,3 +141,6 @@ module.exports = {
     },
   ],
 };
+
+// Exporté pour les tests (extraction des VRAIS avis, aucune fabrication).
+module.exports.extraireAvis = extraireAvis;

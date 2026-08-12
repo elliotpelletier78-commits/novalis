@@ -478,78 +478,96 @@ function buildEquipeCards(secteur, ville) {
     </div>`).join('');
 }
 
-function buildTemoignages(secteur, ville) {
-  const quotes = {
-    garage: [
-      'Devis clair, travail fait comme promis, voiture prête à l\'heure. C\'est tout ce que je demande.',
-      'J\'avais peur que ça coûte une fortune. Le prix était honnête et expliqué avant qu\'ils touchent à quoi que ce soit.',
-      'Problème diagnostiqué en 20 minutes. Réparé dans l\'après-midi. Garantie incluse. Je reviendrai.',
-      'Le seul garage où on m\'explique vraiment ce qui ne va pas, sans jargon et sans me prendre pour un portefeuille.',
-      'Mon auto fait enfin comme neuf. Et le prix était bien en dessous de ce que j\'anticipais.',
-      'Pneus changés en une heure. Personnel sympathique. Stationnement propre. Recommande sans hésiter.',
-    ],
-    plombier: [
-      'Urgence un dimanche soir — ils ont répondu en 20 minutes et réglé le problème en une heure.',
-      'Deuxième fois que je fais affaire avec eux. Même sérieux, même qualité, même prix.',
-      'Ils sont arrivés à l\'heure. Ont fait le travail proprement. M\'ont expliqué ce qu\'ils avaient changé.',
-      'J\'avais peur que ça coûte une fortune. Le prix était raisonnable et clairement expliqué avant l\'intervention.',
-      'Mon drain français était bouché depuis des années. Réglé en une journée. J\'aurais dû appeler bien avant.',
-      'Ils ont fait exactement ce qu\'ils avaient dit. Ni plus, ni moins — mais vraiment proprement.',
-    ],
-    salon: [
-      'Exactement ce que j\'avais demandé. Le résultat dépasse mes attentes et l\'ambiance est vraiment agréable.',
-      'J\'avais peur de changer de salon. Maintenant je n\'irais nulle part ailleurs.',
-      'Coloration et coupe — tout était parfait. Et le prix était raisonnable pour la qualité.',
-      'L\'équipe prend vraiment le temps d\'écouter. Aucun jugement, seulement de bons conseils.',
-      'Mon balayage a été complimenté partout. Je reviens dans 6 semaines sans hésitation.',
-      'Un salon où on se sent bien dès qu\'on entre. Atmosphère parfaite.',
-    ],
-    health: [
-      'Premier médecin en 4 ans qui prend le temps d\'expliquer avant de prescrire.',
-      'Rendez-vous obtenu en moins de 48h. Suivi rigoureux et professionnel.',
-      'J\'avais des doutes sur mon diagnostic. Ici, on m\'a tout expliqué clairement.',
-      'Un cabinet moderne, une équipe attentionnée. Exactement ce qu\'on cherche pour un suivi long terme.',
-      'Téléconsultation rapide et efficace. Ordonnance reçue en 20 minutes.',
-      'Enfin un médecin de famille qui répond quand on a des questions. C\'est rarissime.',
-    ],
-    construction: [
-      'Chantier dans les temps, budget respecté. C\'est rare et ça mérite d\'être souligné.',
-      'Ils ont travaillé dans notre maison comme si c\'était la leur. Propre et respectueux.',
-      'Devis détaillé, aucune surprise. Le résultat final est exactement ce qu\'on avait imaginé.',
-      'On hésitait entre trois entrepreneurs. On a choisi le plus transparent — et on a eu raison.',
-      'Rénovation complète du sous-sol en 3 semaines. Qualité irréprochable.',
-      'Ils ont signalé une problématique qu\'on n\'avait pas vue. Ça nous a évité une catastrophe.',
-    ],
-    fitness: [
-      'En 3 mois avec un entraîneur, j\'ai atteint des objectifs que je courais après depuis 2 ans.',
-      'Les cours sont motivants, les entraîneurs sont disponibles et les équipements sont en parfait état.',
-      'Jamais eu l\'impression d\'être jugé. Une ambiance inclusive et sincèrement bienveillante.',
-      'Je viens à 6h le matin. Le centre est propre, ouvert et bien équipé.',
-      'Le bilan fitness au départ a tout changé. On savait enfin sur quoi travailler.',
-      'Abonnement honnête, sans contrat piège. On vient parce qu\'on veut venir.',
-    ],
-    defaut: [
-      'Professionnel, ponctuel et transparent. Exactement ce qu\'on cherche.',
-      'J\'ai rappelé deux semaines après avec une question. Réponse en moins d\'une heure. C\'est rare.',
-      'Prix annoncé = prix facturé. Travail fait dans les délais. Que demander de plus?',
-      'Équipe sérieuse qui ne survend pas. On nous propose ce dont on a besoin, pas le maximum possible.',
-      'Problème réglé du premier coup. Explication claire. Aucun retour nécessaire.',
-      'Je les recommande à tous mes collègues. Service à la clientèle comme on n\'en voit plus souvent.',
-    ],
-  };
-  const q = quotes[secteur] || quotes.defaut;
-  return PRENOMS.map((p, i) => `
+// Échappement HTML minimal — le contenu réel du commerce (avis, auteurs) passe
+// par ici avant d'entrer dans le HTML.
+function escHtml(x) {
+  return String(x == null ? '' : x)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+const LABEL_SECTEUR = { garage: 'Garage', plombier: 'Plomberie', electricien: 'Électricité',
+  restaurant: 'Restaurant', salon: 'Salon', health: 'Clinique', construction: 'Construction',
+  fitness: 'Entraînement', defaut: 'Service local' };
+
+// Badge du héros — HONNÊTE. Étoiles + note UNIQUEMENT si la note est réelle
+// (extraite du vrai profil Google). Sinon : secteur + ville, deux faits vrais,
+// jamais d'étoiles ni de compte inventés.
+function buildHeroBadge(secteur, ville, opts = {}) {
+  const note = parseFloat(opts.avisGoogle); const n = parseInt(opts.avisCount, 10);
+  const v = escHtml(ville || 'Québec');
+  if (Number.isFinite(note) && note > 0 && note <= 5) {
+    const full = Math.round(note);
+    const stars = '★'.repeat(full) + '☆'.repeat(Math.max(0, 5 - full));
+    const cnt = Number.isInteger(n) && n > 0 ? ` · ${n} avis Google` : ' · Google';
+    return `<span class="stars">${stars}</span><span>${note.toFixed(1)}${cnt} · ${v}, Québec</span>`;
+  }
+  return `<span>${escHtml(LABEL_SECTEUR[secteur] || LABEL_SECTEUR.defaut)} · ${v}, Québec</span>`;
+}
+
+// Stats du héros — HONNÊTES. Secteur + ville (toujours vrais), plus la note et
+// l'année de fondation SEULEMENT si elles sont réelles. Fini le « 50 avis »,
+// le « 24/7 » et le « en affaires depuis 2011 » inventés pour tout le monde.
+function buildHeroStats(secteur, ville, opts = {}) {
+  const cartes = [];
+  const v = escHtml(ville || 'Québec');
+  cartes.push(`<div class="stat-badge"><span class="stat-num">${escHtml(LABEL_SECTEUR[secteur] || LABEL_SECTEUR.defaut)}</span><span class="stat-lbl">${v}, QC</span></div>`);
+  const note = parseFloat(opts.avisGoogle); const n = parseInt(opts.avisCount, 10);
+  if (Number.isFinite(note) && note > 0 && note <= 5) {
+    cartes.push(`<div class="stat-badge feat"><span class="stat-num">${note.toFixed(1)} ★</span><span class="stat-lbl">${Number.isInteger(n) && n > 0 ? n + ' avis Google' : 'Avis Google'}</span></div>`);
+  }
+  const an = parseInt(opts.anneeFondation, 10);
+  if (Number.isInteger(an) && an > 1900 && an <= new Date().getFullYear()) {
+    cartes.push(`<div class="stat-badge"><span class="stat-num">${an}</span><span class="stat-lbl">En affaires</span></div>`);
+  }
+  return cartes.join('\n    ');
+}
+
+// Témoignages — HONNÊTES. Les VRAIS avis du commerce quand on les a (extraits
+// de sa présence en ligne) ; sinon, on n'INVENTE RIEN : on montre la vraie note
+// Google si elle existe, et un état « vos avis s'afficheront ici ». Jamais de
+// faux noms ni de fausses citations sous le nom d'une vraie entreprise.
+function buildTemoignages(secteur, ville, opts = {}) {
+  const v = escHtml(ville || 'Québec');
+  const avis = (Array.isArray(opts.avis) ? opts.avis : [])
+    .map(a => (typeof a === 'string' ? { text: a } : a))
+    .filter(a => a && (a.text || a.texte) && String(a.text || a.texte).trim().length > 15)
+    .slice(0, 6);
+
+  if (avis.length) {
+    return avis.map(a => {
+      const texte = escHtml(String(a.text || a.texte).replace(/\s+/g, ' ').trim().slice(0, 400));
+      const auteurBrut = (a.author || a.auteur || '').toString().trim();
+      const auteur = auteurBrut ? escHtml(auteurBrut.slice(0, 60)) : 'Avis Google';
+      const init = (auteur.match(/[A-Za-zÀ-ſ]/g) || ['A']).slice(0, 2).join('').toUpperCase();
+      return `
     <div class="temo-card ani">
       <div class="temo-stars">★★★★★</div>
-      <p class="temo-quote">${q[i]}</p>
+      <p class="temo-quote">${texte}</p>
       <div class="temo-author">
-        <div class="temo-avatar">${p.initiales}</div>
+        <div class="temo-avatar">${init}</div>
         <div>
-          <div class="temo-name">${p.nom}</div>
-          <div class="temo-loc">${ville}, QC</div>
+          <div class="temo-name">${auteur}</div>
+          <div class="temo-loc">${v}, QC</div>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
+    }).join('');
+  }
+
+  // Aucun avis réel : état honnête, sans fabrication.
+  const note = parseFloat(opts.avisGoogle); const n = parseInt(opts.avisCount, 10);
+  const badge = (Number.isFinite(note) && note > 0 && note <= 5)
+    ? `<div style="display:inline-flex;align-items:baseline;gap:10px;margin-bottom:14px">
+        <span style="font-size:42px;font-weight:800;line-height:1">${note.toFixed(1)}</span>
+        <span style="color:#f5a623;font-size:22px;letter-spacing:2px">★★★★★</span>
+        <span style="opacity:.7">${Number.isInteger(n) && n > 0 ? n + ' avis Google' : 'sur Google'}</span>
+      </div>`
+    : '';
+  return `<div class="temo-card ani" style="grid-column:1/-1;text-align:center;padding:34px 24px">
+    ${badge}
+    <p class="temo-quote" style="max-width:52ch;margin:0 auto;opacity:.85">Les avis de vos clients s'afficheront ici, directement depuis votre fiche Google.</p>
+  </div>`;
 }
 
 function buildHeures(heures) {
@@ -778,45 +796,32 @@ function buildCinematicHeures(secteur) {
   </div>`).join('');
 }
 
-function buildCinematicTemoignages(secteur, ville) {
-  const quotes = {
-    garage: [
-      'Devis clair, travail fait comme promis, voiture prête à l\'heure. C\'est tout ce que je demande.',
-      'J\'avais peur que ça coûte une fortune. Le prix était honnête et expliqué avant qu\'ils touchent à quoi que ce soit.',
-      'Problème diagnostiqué en 20 minutes. Réparé dans l\'après-midi. Garantie incluse.',
-    ],
-    salon: [
-      'Exactement ce que j\'avais demandé. Le résultat dépasse mes attentes et l\'ambiance est vraiment agréable.',
-      'J\'avais peur de changer de salon. Maintenant je n\'irais nulle part ailleurs.',
-      'Mon balayage a été complimenté partout. Je reviens dans 6 semaines sans hésitation.',
-    ],
-    health: [
-      'Premier médecin en 4 ans qui prend le temps d\'expliquer avant de prescrire.',
-      'Rendez-vous obtenu en moins de 48h. Suivi rigoureux et professionnel.',
-      'Enfin un médecin de famille qui répond quand on a des questions. C\'est rarissime.',
-    ],
-    construction: [
-      'Chantier dans les temps, budget respecté. C\'est rare et ça mérite d\'être souligné.',
-      'Ils ont travaillé dans notre maison comme si c\'était la leur. Propre et respectueux.',
-      'Devis détaillé, aucune surprise. Le résultat final est exactement ce qu\'on avait imaginé.',
-    ],
-    fitness: [
-      'En 3 mois avec un entraîneur, j\'ai atteint des objectifs que je courais après depuis 2 ans.',
-      'Les cours sont motivants et les équipements sont en parfait état.',
-      'Ambiance inclusive et sincèrement bienveillante. Je n\'aurais pas dû attendre autant.',
-    ],
-    defaut: [
-      'Professionnel, ponctuel et transparent. Exactement ce qu\'on cherche.',
-      'Prix annoncé = prix facturé. Travail fait dans les délais.',
-      'Je les recommande à tous mes collègues. Service comme on n\'en voit plus souvent.',
-    ],
-  };
-  const q = quotes[secteur] || quotes.defaut;
-  return PRENOMS.slice(0, 3).map((p, i) => `<div class="temo-item fade fade-d${i + 1}">
+function buildCinematicTemoignages(secteur, ville, opts = {}) {
+  const v = escHtml(ville || 'Québec');
+  const avis = (Array.isArray(opts.avis) ? opts.avis : [])
+    .map(a => (typeof a === 'string' ? { text: a } : a))
+    .filter(a => a && (a.text || a.texte) && String(a.text || a.texte).trim().length > 15)
+    .slice(0, 3);
+  if (avis.length) {
+    return avis.map((a, i) => {
+      const texte = escHtml(String(a.text || a.texte).replace(/\s+/g, ' ').trim().slice(0, 400));
+      const auteur = (a.author || a.auteur) ? escHtml(String(a.author || a.auteur).slice(0, 60)) : 'Avis Google';
+      return `<div class="temo-item fade fade-d${i + 1}">
     <div class="temo-stars">★★★★★</div>
-    <p class="temo-quote">${q[i]}</p>
-    <div class="temo-author">${p.nom} · ${ville}, QC</div>
-  </div>`).join('');
+    <p class="temo-quote">${texte}</p>
+    <div class="temo-author">${auteur} · ${v}, QC</div>
+  </div>`;
+    }).join('');
+  }
+  const note = parseFloat(opts.avisGoogle); const n = parseInt(opts.avisCount, 10);
+  const badge = (Number.isFinite(note) && note > 0 && note <= 5)
+    ? `<div class="temo-stars" style="font-size:34px">${note.toFixed(1)} ★★★★★</div>
+       <div class="temo-author" style="margin-top:6px">${Number.isInteger(n) && n > 0 ? n + ' avis Google' : 'sur Google'}</div>`
+    : '';
+  return `<div class="temo-item fade" style="grid-column:1/-1;text-align:center">
+    ${badge}
+    <p class="temo-quote" style="opacity:.85">Les avis de vos clients s'afficheront ici, directement depuis votre fiche Google.</p>
+  </div>`;
 }
 
 // ── Données restaurant ─────────────────────────────────────
@@ -1042,6 +1047,7 @@ async function generate(data) {
     anneeFondation,
     avisGoogle,
     avisCount,
+    avis,              // avis RÉELS extraits de la présence en ligne du commerce (jamais inventés)
     certifications = [],
     auditProblemes = [],
     auditScore,
@@ -1145,7 +1151,7 @@ async function generate(data) {
       '{{CTA_HREF}}':          ctaHrefC,
       '{{CTA_LABEL}}':         ctaLabelC,
       '{{CTA_NAV_LABEL}}':     ctaNavLabelC,
-      '{{ANNEE_FONDATION}}':   String(anneeFondation || new Date().getFullYear() - 10),
+      '{{ABOUT_EYEBROW}}':      (function(){var an=parseInt(anneeFondation,10);var base=(ville||'Québec')+', Québec';return (Number.isInteger(an)&&an>1900&&an<=new Date().getFullYear())?base+' · En affaires depuis '+an:base;})(),
       '{{ANNEE}}':             String(new Date().getFullYear()),
       '{{SCENES_HTML}}':       buildJourneySlides(secteur, { nom, nomCourt: nomCourtC, ville, adresse, telephone, sitePhotos: data.sitePhotos }),
       '{{FEATURES_HEADING}}':  CINEMATIC_HEADINGS[secteur] || CINEMATIC_HEADINGS.garage,
@@ -1154,7 +1160,7 @@ async function generate(data) {
       '{{SERVICES_HTML}}':     buildCinematicServices(secteur),
       '{{PRIX_LIGNES}}':       buildCinematicPrix(secteur),
       '{{PRIX_INTRO}}':        'Tous nos tarifs sont confirmés avant chaque intervention. Aucun frais caché, aucune mauvaise surprise.',
-      '{{TEMOIGNAGES}}':       buildCinematicTemoignages(secteur, ville),
+      '{{TEMOIGNAGES}}':       buildCinematicTemoignages(secteur, ville, { avis, avisGoogle, avisCount }),
       '{{HEURES}}':            buildCinematicHeures(secteur),
       '{{CONTACT_ROWS}}':      buildContactRows({ telephone, adresse, nom }),
     };
@@ -1273,7 +1279,9 @@ async function generate(data) {
     ].filter(Boolean).join('\n'),
     '{{HEURES}}': buildHeures(HEURES[secteur] || HEURES.defaut),
     '{{GALERIE}}': buildGalerie(photos),
-    '{{TEMOIGNAGES}}': buildTemoignages(secteur, ville),
+    '{{TEMOIGNAGES}}': buildTemoignages(secteur, ville, { avis, avisGoogle, avisCount }),
+    '{{HERO_BADGE}}': buildHeroBadge(secteur, ville, { avisGoogle, avisCount }),
+    '{{HERO_STATS}}': buildHeroStats(secteur, ville, { avisGoogle, avisCount, anneeFondation }),
     '{{VALEUR_CLIENT}}': String(VALEUR_CLIENT[secteur] || VALEUR_CLIENT.defaut),
   };
 
@@ -1306,4 +1314,8 @@ async function generate(data) {
   return { slug, outputPath };
 }
 
-module.exports = { generate, extractBrandColor, applyBrandColor, extractSitePhotos, slugify };
+module.exports = {
+  generate, extractBrandColor, applyBrandColor, extractSitePhotos, slugify,
+  // Exportés pour les tests d'honnêteté (aucun contenu fabriqué).
+  buildTemoignages, buildCinematicTemoignages, buildHeroBadge, buildHeroStats,
+};
