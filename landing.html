@@ -984,7 +984,7 @@
                 Mes données sont-elles sécurisées ?
                 <span class="arrow">+</span>
             </div>
-            <div class="faq-answer">Toutes les données sont chiffrées (AES-256), hébergées au Canada, et ne sont jamais partagées avec des tiers. Chaque client a son propre espace isolé. Nous sommes conformes aux lois québécoises sur la vie privée (Loi 25).</div>
+            <div class="faq-answer">Les identifiants et clés de nos clients sont chiffrés au repos (AES-256-GCM, une clé par client), et ne sont jamais partagés avec des tiers. Chaque client a son propre espace isolé. Notre <a href="/politique-confidentialite" style="color:var(--accent)">politique de confidentialité</a> détaille le traitement des renseignements personnels au sens de la Loi 25.</div>
         </div>
         <div class="faq-item">
             <div class="faq-question" onclick="toggleFaq(this)">
@@ -1102,7 +1102,6 @@
         </div>
         <div class="footer-col">
             <h4>Ressources</h4>
-            <a href="/blog">Blog &amp; Conseils</a>
             <a href="#how">Comment ça fonctionne</a>
             <a href="#cases">Cas d'usage</a>
             <a href="#compare">Comparaison</a>
@@ -1114,14 +1113,13 @@
             <a href="mailto:novalisproia@gmail.com">novalisproia@gmail.com</a>
             <a href="#contact">Consultation gratuite</a>
             <a href="#pricing">Voir les tarifs</a>
-            <a href="/portal">Portail client</a>
             <a href="/politique-confidentialite">Politique de confidentialit&eacute;</a>
             <a href="/conditions-utilisation">Conditions d'utilisation</a>
         </div>
     </div>
     <div class="footer-bottom">
         <span>© 2026 Novalis IA Inc. — Québec, Canada</span>
-        <span>Conforme à la <a href="/politique-confidentialite" style="color:var(--muted2);text-decoration:underline;">Loi 25</a> · Données hébergées au Canada · <a href="/conditions-utilisation" style="color:var(--muted2);text-decoration:underline;">Conditions</a></span>
+        <span><a href="/politique-confidentialite" style="color:var(--muted2);text-decoration:underline;">Vie privée · Loi 25</a> · <a href="/conditions-utilisation" style="color:var(--muted2);text-decoration:underline;">Conditions</a></span>
     </div>
 </footer>
 
@@ -1323,13 +1321,23 @@ async function submitInquiry() {
         return;
     }
 
+    const phone = document.getElementById('inqPhone').value.trim();
+    const business = document.getElementById('inqBusiness').value.trim();
+    const service = document.getElementById('inqService').value;
+
+    // L'endpoint de production (/api/:site/contact) attend {name, email, message,
+    // company, topics}. On replie téléphone et type de service dans le message
+    // pour ne rien perdre, et on garantit les 10 caractères minimum exigés.
+    const lignes = [description];
+    if (phone) lignes.push('Téléphone : ' + phone);
+    if (service) lignes.push('Service : ' + service);
     const data = {
         name: name,
         email: email,
-        phone: document.getElementById('inqPhone').value.trim(),
-        business_name: document.getElementById('inqBusiness').value.trim(),
-        service_type: document.getElementById('inqService').value,
-        description: description
+        company: business,
+        message: lignes.join('\n'),
+        topics: service ? [service] : [],
+        lang: 'fr'
     };
 
     const btn = document.querySelector('#inquiryForm .btn-primary');
@@ -1337,13 +1345,16 @@ async function submitInquiry() {
     btn.textContent = 'Envoi en cours...';
 
     try {
-        const resp = await fetch('/api/v1/inquiry', {
+        // Ancienne cible : /api/v1/inquiry (route Python NON déployée → 404, tous
+        // les leads perdus). Le vrai récepteur, durci et branché sur les alertes,
+        // est /api/novalis/contact dans server.js.
+        const resp = await fetch('/api/novalis/contact', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
         });
         if (resp.ok) {
-            if (typeof gtag !== 'undefined') { gtag('event', 'generate_lead', { event_category: 'inquiry', event_label: data.service_type }); }
+            if (typeof gtag !== 'undefined') { gtag('event', 'generate_lead', { event_category: 'inquiry', event_label: service }); }
             document.getElementById('inquiryForm').style.display = 'none';
             document.getElementById('formSuccess').style.display = 'block';
         } else {

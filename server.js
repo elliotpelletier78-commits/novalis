@@ -549,6 +549,18 @@ function rendreLanding() {
   return html;
 }
 
+// Pages légales — servies en dur. La Loi 25 exige d'une entreprise québécoise
+// qui recueille des renseignements personnels (le formulaire de contact) qu'elle
+// publie une politique de confidentialité accessible ; le pied de page y renvoyait
+// vers une URL qui répondait 404.
+const LEGAL_DIR = path.join(__dirname, 'legal');
+for (const slug of ['politique-confidentialite', 'conditions-utilisation']) {
+  app.get('/' + slug, (req, res) => {
+    try { res.type('html').send(fs.readFileSync(path.join(LEGAL_DIR, slug + '.html'), 'utf8')); }
+    catch { res.status(404).type('text/plain').send('Introuvable'); }
+  });
+}
+
 app.get('/', (req, res) => {
   try {
     res.type('html').send(rendreLanding());
