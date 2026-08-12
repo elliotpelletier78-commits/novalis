@@ -1072,8 +1072,10 @@ function injecterBeaconPulse(html, source) {
     + `var amorce=0;document.addEventListener('focusin',function(e){if(amorce)return;`
     + `if(e.target.closest&&e.target.closest('form')){amorce=1;ev('form_start');}},true);`
     + `document.addEventListener('submit',function(e){if(e.target&&e.target.tagName==='FORM')ev('form_submit');},true);`
-    // Clics tél / CTA (complète le funnel côté « amorce » et « converti »).
-    + `document.addEventListener('click',function(e){var t=e.target.closest&&e.target.closest('a[href^="tel:"],[data-cta],a.cta,.nvr-btn,.btn-primary');`
+    // Clics tél / CTA. On restreint « cta » à de VRAIES intentions de contact
+    // (lien tél, ancre vers contact/réservation, ou [data-cta] explicite) : un
+    // bouton générique de menu ou de galerie ne doit pas gonfler l'entonnoir.
+    + `document.addEventListener('click',function(e){var t=e.target.closest&&e.target.closest('a[href^="tel:"],[data-cta],a[href*="#contact"],a[href*="rendez"],a[href*="reserv"]');`
     + `if(t){ev(t.matches('a[href^="tel:"]')?'tel':'cta');}},true);`
     // Vidage garanti au départ (sendBeacon survit au unload).
     + `document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')envoi();});`

@@ -46,10 +46,17 @@ function assurerClient(db, source, nom) {
   const ex = db.prepare('SELECT client_id FROM entreprises WHERE source = ?').get(source);
   if (ex && ex.client_id) return ex.client_id;
   // 'novalis' = tenant interne (id=1) déjà semé par 001-core.
-  if (source === 'novalis') return 1;
-  const info = db.prepare('INSERT INTO clients (nom, statut) VALUES (?, \'actif\')')
-    .run(nom || source);
-  return info.lastInsertRowid;
+  const clientId = source === 'novalis' ? 1
+    : db.prepare('INSERT INTO clients (nom, statut) VALUES (?, \'actif\')').run(nom || source).lastInsertRowid;
+  // Persister IMMÉDIATEMENT le lien source ↔ client_id, en créant la ligne
+  // entreprises si elle n'existe pas. Sans ça, un secret branché avant la
+  // sauvegarde de l'identité serait stocké sous un client_id que l'entreprise
+  // ne référence jamais (et donc introuvable par le worker).
+  db.prepare(`INSERT INTO entreprises (source, client_id) VALUES (?, ?)
+    ON CONFLICT(source) DO UPDATE SET
+      client_id = COALESCE(entreprises.client_id, excluded.client_id), maj_le = datetime('now')`)
+    .run(source, clientId);
+  return clientId;
 }
 
 /** Upsert de l'identité de l'entreprise. Ne touche pas aux consentements. */

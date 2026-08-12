@@ -2304,10 +2304,17 @@ app.post('/core/propositions/:id', adminOnly, coreReady, express.json({ limit: '
       // La modification éventuelle du brouillon est enregistrée avant l'envoi.
       if (typeof (req.body || {}).brouillon === 'string') propositions.modifier(db, id, req.body.brouillon);
       const et = branchement.etat(db, p.source);
+      // Adresse de réponse du commerce : son courriel d'identité, sinon celui
+      // branché comme connexion. Sans adresse de réponse, on N'ENVOIE PAS en
+      // son nom (les réponses du client tomberaient chez Novalis, pas chez lui) :
+      // la proposition reste « à envoyer à la main ».
+      const cxCourriel = et.connexions.find(x => x.type === 'courriel' && x.statut === 'branche');
+      const replyTo = et.identite.courriel
+        || (cxCourriel && /@/.test(String(cxCourriel.compte_label || '')) ? cxCourriel.compte_label : undefined);
       const r = await propositions.approuver(db, id, {
-        peutEnvoyer: et.consent.envoyer,
+        peutEnvoyer: et.consent.envoyer && !!replyTo,
         mailer,
-        replyTo: et.identite.courriel || undefined,
+        replyTo,
         sujet: propositions.sujetPour(p.type, { nomCommerce: et.identite.nom }),
       });
       return res.json(r);
@@ -2407,7 +2414,13 @@ app.post('/api/pulse', express.json({ limit: '16kb', type: () => true }), (req, 
       }
     });
     tx(events);
-    if (pulseVus.size > 20000) pulseVus.clear();
+    // Purge par ÂGE (pas un vidage brutal) : au-delà du seuil, on ne retire que
+    // les fenêtres de dédup expirées, pour ne pas rouvrir le double-comptage des
+    // sessions actives juste après.
+    if (pulseVus.size > 20000) {
+      const cutoff = now - 60000;
+      for (const [k, t] of pulseVus) if (t < cutoff) pulseVus.delete(k);
+    }
   } catch (e) { /* un beacon ne doit jamais faire d'erreur visible */ void e; }
   res.status(204).end();
 });

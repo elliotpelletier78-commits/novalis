@@ -37,6 +37,28 @@ describe('branchement — identité & client', () => {
     expect(b).toBe(a);
   });
 
+  it('brancher AVANT de sauver l\'identité lie quand même le bon client_id', () => {
+    // Ordre « connexion d'abord » : assurerClient doit persister le lien tout de
+    // suite, sinon le secret serait stocké sous un client_id orphelin.
+    const idCx = assurerClient(db, 'garage-test', null);
+    const idEnt = definirEntreprise(db, 'garage-test', IDENTITE);
+    expect(idEnt).toBe(idCx);
+    expect(etat(db, 'garage-test').client_id).toBe(idCx);
+  });
+
+  it('consentement d\'abord ne crée pas de clients orphelins ni de client_id NULL', () => {
+    const nClients = () => db.prepare('SELECT COUNT(*) n FROM clients').get().n;
+    const avant = nClients();
+    definirConsentement(db, 'garage-test', { rediger: true });
+    const e1 = etat(db, 'garage-test');
+    expect(e1.client_id).not.toBeNull();
+    definirEntreprise(db, 'garage-test', IDENTITE);
+    definirConnexion(db, 'garage-test', 'courriel', { statut: 'branche', label: 'x@y.ca' });
+    // Un seul client créé pour cette entreprise, malgré 3 points d'entrée.
+    expect(nClients()).toBe(avant + 1);
+    expect(etat(db, 'garage-test').client_id).toBe(e1.client_id);
+  });
+
   it('identité incomplète = complete:false', () => {
     definirEntreprise(db, 'garage-test', { nom: 'Garage Test' });
     expect(etat(db, 'garage-test').identite.complete).toBe(false);
