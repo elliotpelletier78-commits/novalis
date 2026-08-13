@@ -2112,6 +2112,7 @@ const devis = require('./core/devis');
 const { renderDevis } = require('./core/devis-page');
 const rdv = require('./core/rdv');
 const { renderRdv } = require('./core/rdv-page');
+const { renderPublications } = require('./core/publications-page');
 const nova = require('./core/nova');
 const { createMailer } = require('./core/alerts');
 const mailer = createMailer(process.env);
@@ -2420,6 +2421,34 @@ app.post('/core/nova/chat', adminOnly, coreReady, express.json({ limit: '8kb' })
   } catch (e) {
     res.status(500).json({ answer: 'Nova a rencontré un souci. Réessayez.', detail: e.message });
   }
+});
+
+// ── Novalis Publications — marketing opéré (composeur) ──────────────
+app.get('/core/publications', adminOnly, coreReady, (req, res) => {
+  const source = String(req.query.source || 'novalis').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
+  const et = branchement.etat(db, source);
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.send(renderPublications({ source, nom: et.identite.nom, pass: req.query.pass ? String(req.query.pass) : undefined }));
+});
+function cfgPub(source) {
+  const et = branchement.etat(db, source);
+  return { nomCommerce: et.identite.nom, telephone: et.identite.telephone, ville: et.identite.ville };
+}
+app.post('/core/publications/apercu', adminOnly, coreReady, express.json({ limit: '8kb' }), (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).json({ apercu: '' });
+  res.json({ apercu: propositions.brouillonPublication(String(b.theme || ''), String(b.essentiel || '').slice(0, 1200), cfgPub(source)) });
+});
+app.post('/core/publications', adminOnly, coreReady, express.json({ limit: '8kb' }), (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).json({ error: 'source invalide' });
+  const essentiel = String(b.essentiel || '').trim().slice(0, 1200);
+  if (!essentiel) return res.status(400).json({ error: 'essentiel requis' });
+  try { res.json({ ok: true, ...propositions.creerPublication(db, source, { theme: String(b.theme || ''), essentiel, cfg: cfgPub(source) }) }); }
+  catch (e) { res.status(400).json({ error: e.message }); }
 });
 
 // ── Novalis Rendez-vous — carnet + rappels automatiques ─────────────

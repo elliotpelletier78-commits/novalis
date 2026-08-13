@@ -285,3 +285,22 @@ describe('pilote Fidélisation (anciens clients gagnés)', () => {
     expect(sujetPour('fidelisation', { nomCommerce: 'G' })).toMatch(/vos nouvelles/i);
   });
 });
+
+describe('pilote Publications', () => {
+  it('met en forme l\'essentiel fourni, sans rien inventer', async () => {
+    const { brouillonPublication } = await import('../core/propositions.js');
+    const t = brouillonPublication('promo', 'Rabais 15% sur les pneus dhiver', { nomCommerce: 'Garage X', telephone: '514 555-0123' });
+    expect(t).toContain('Rabais 15% sur les pneus dhiver'); // la substance du commerçant
+    expect(t).toContain('Garage X');
+    expect(t).toContain('514 555-0123');
+    expect(t).toMatch(/Offre du moment/);
+  });
+  it('crée une proposition de type publication (non idempotente)', async () => {
+    const { creerPublication } = await import('../core/propositions.js');
+    creerPublication(db, 'garage-x', { theme: 'annonce', essentiel: 'Ouvert samedi', cfg: {} });
+    creerPublication(db, 'garage-x', { theme: 'annonce', essentiel: 'Ouvert samedi', cfg: {} });
+    const props = lister(db, 'garage-x');
+    expect(props.length).toBe(2);
+    expect(props[0].type).toBe('publication');
+  });
+});

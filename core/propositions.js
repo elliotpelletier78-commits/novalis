@@ -83,6 +83,51 @@ function brouillonAvis(lead, cfg = {}) {
   return lignes.join('\n');
 }
 
+// Ouvertures de publication par thème. STRUCTURELLES (pas de fait inventé) : la
+// substance vient toujours du commerçant. On ne fabrique jamais une promo ou un
+// avis — on met en forme ce que le commerçant fournit.
+const PUBLICATION_OUVERTURE = {
+  promo: 'Offre du moment',
+  dispo: 'On a de la place',
+  conseil: 'Le conseil de l\'équipe',
+  merci: 'Merci à notre clientèle',
+  annonce: 'À noter',
+};
+
+/**
+ * Met en forme une publication pour les réseaux. L'essentiel (la vraie info)
+ * vient du commerçant ; Nova ajoute une ouverture, un appel à l'action et la
+ * signature. Rien d'inventé.
+ * @param {string} theme  clé de PUBLICATION_OUVERTURE
+ * @param {string} essentiel  le contenu réel fourni par le commerçant
+ * @param {{nomCommerce?:string, telephone?:string, ville?:string}} cfg
+ */
+function brouillonPublication(theme, essentiel, cfg = {}) {
+  const commerce = cfg.nomCommerce || '';
+  const ouv = PUBLICATION_OUVERTURE[theme] || PUBLICATION_OUVERTURE.annonce;
+  const corps = String(essentiel || '').trim();
+  const cta = cfg.telephone ? `Info & réservations : ${cfg.telephone}` : 'Écrivez-nous, ça nous fera plaisir de vous aider.';
+  const lignes = [
+    `${ouv}${commerce ? ` — ${commerce}` : ''}`,
+    '',
+    corps || '(à compléter)',
+    '',
+    cta,
+  ];
+  return lignes.join('\n');
+}
+
+/** Crée une proposition de publication (pas idempotente : on peut en créer plusieurs). */
+function creerPublication(db, source, { theme, essentiel, cfg } = {}) {
+  const brouillon = brouillonPublication(theme, essentiel, cfg || {});
+  const apercu = String(essentiel || '').trim().slice(0, 80) || 'Publication';
+  const info = db.prepare(
+    `INSERT INTO propositions (source, type, ref_type, ref_id, titre, apercu, brouillon, destinataire, priorite)
+     VALUES (?, 'publication', 'publication', NULL, ?, ?, ?, NULL, 3)`
+  ).run(source, 'Publication à approuver', apercu, brouillon);
+  return { id: info.lastInsertRowid };
+}
+
 /** Sujet du courriel selon le type de proposition. */
 function sujetPour(type, cfg = {}) {
   if (type === 'avis') {
@@ -377,6 +422,7 @@ module.exports = {
   sujetReponse, sujetPour,
   creerReponsePourLead, creerAvisPourLead, creerRelancePourLead, preparerRelances,
   creerFidelisationPourLead, preparerFidelisations,
+  brouillonPublication, creerPublication,
   lister, compteurs, get, modifier, rejeter, approuver,
   _prenom: prenom, _accroche: accroche,
 };
