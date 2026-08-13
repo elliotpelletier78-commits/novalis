@@ -188,7 +188,7 @@ a{color:inherit}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-sm);padding:20px 22px}
 .card+.card{margin-top:16px}
 .card-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:3px}
-.card-h h2{font-size:15px;font-weight:660;letter-spacing:-.005em}
+.card-h h2,.card-h h3{font-size:15px;font-weight:660;letter-spacing:-.005em}
 .card-h a{font-size:13px;font-weight:600;color:var(--brand);text-decoration:none}
 .card .hint{font-size:12.5px;color:var(--muted);margin-bottom:14px}
 .grid{display:grid;gap:16px}
@@ -311,7 +311,7 @@ const STATUT_BADGE = {
 };
 function statutBadge(s) {
   const [c, l] = STATUT_BADGE[s] || ['badge-muted', s || '—'];
-  return `<span class="badge ${c}">${l}</span>`;
+  return `<span class="badge ${c}">${esc(l)}</span>`;
 }
 
 module.exports = { esc, icon, page, NAV, UI_CSS, statutBadge };

@@ -31,8 +31,6 @@ const EXTRA = `
 .gauge .lbl{font-size:13px;color:var(--muted)}
 .attente{margin-top:18px;padding:12px 16px;border-radius:var(--r);font-size:14px;font-weight:600}
 .attente.some{background:var(--warn-soft);color:var(--warn)} .attente.none{background:var(--ok-soft);color:var(--ok)}
-.spark{width:100%;height:96px;display:block;margin-top:8px}
-.spark .area{fill:var(--brand-soft)} .spark .line{fill:none;stroke:var(--brand);stroke-width:2} .spark .dot{fill:var(--brand)}
 .leads-wrap{overflow-x:auto}
 .leads-wrap table{width:100%;border-collapse:collapse}
 .leads-wrap th{text-align:left;font-size:11px;font-weight:660;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:0 12px 10px;border-bottom:1px solid var(--line)}

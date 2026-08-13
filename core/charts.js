@@ -4,9 +4,7 @@
 // discrète, une seule échelle, survol natif (<title>), texte en encre (jamais
 // la couleur de série). Les couleurs viennent des jetons du thème.
 
-function esc(s) {
-  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+const { esc } = require('./ui');
 
 /**
  * Histogramme (une série). data = [{label, labelCourt?, value}].
@@ -56,7 +54,7 @@ function donut(segments, opts = {}) {
     + `<text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="9" letter-spacing=".04em" fill="var(--muted)">${esc(opts.centre || 'total')}</text>`;
   if (!total) return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><circle cx="${cx}" cy="${cy}" r="${(r + rin) / 2}" fill="none" stroke="var(--panel)" stroke-width="${r - rin}"/>${center}</svg>`;
   if (segs.length === 1) {
-    return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><circle cx="${cx}" cy="${cy}" r="${(r + rin) / 2}" fill="none" stroke="${segs[0].color}" stroke-width="${r - rin}"><title>${esc(segs[0].label)} : ${segs[0].value}</title></circle>${center}</svg>`;
+    return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="${esc(opts.aria || 'Répartition')}"><circle cx="${cx}" cy="${cy}" r="${(r + rin) / 2}" fill="none" stroke="${segs[0].color}" stroke-width="${r - rin}"><title>${esc(segs[0].label)} : ${segs[0].value}</title></circle>${center}</svg>`;
   }
   let a = -Math.PI / 2;
   const p = (ang, rad) => [cx + rad * Math.cos(ang), cy + rad * Math.sin(ang)];
