@@ -248,9 +248,10 @@ describe('approuver', () => {
 
 describe('pilote Fidélisation (anciens clients gagnés)', () => {
   function leadGagne(moisPasses, over = {}) {
+    // gagne_le = date du gain (ce sur quoi la fidélisation filtre).
     const info = db.prepare(
-      `INSERT INTO leads (source, nom, courriel, message, statut, created_at)
-       VALUES (?,?,?,?, 'gagne', datetime('now', ?))`
+      `INSERT INTO leads (source, nom, courriel, message, statut, created_at, gagne_le)
+       VALUES (?,?,?,?, 'gagne', datetime('now','-20 months'), datetime('now', ?))`
     ).run(over.source || 'garage-x', over.nom || 'Marie Roy', over.courriel || 'm@x.ca', 'ancien job', `-${moisPasses} months`);
     return info.lastInsertRowid;
   }

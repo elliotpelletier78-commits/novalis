@@ -2149,7 +2149,11 @@ app.get('/core/reception/export.csv', adminOnly, coreReady, (req, res) => {
       FROM leads WHERE source = ? ORDER BY created_at DESC LIMIT 5000`).all(source);
   } catch { rows = []; }
   const cell = (v) => {
-    const s = String(v == null ? '' : v).replace(/\r?\n/g, ' ');
+    let s = String(v == null ? '' : v).replace(/\r?\n/g, ' ');
+    // Anti-injection de formule : un champ public commençant par = + - @ (ou
+    // tab/retour) serait exécuté par Excel/Sheets. On le neutralise par une
+    // apostrophe de tête (le tableur l'affiche en texte).
+    if (/^[=+\-@\t\r]/.test(s)) s = '\'' + s;
     return /[",;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   };
   const entete = ['Nom', 'Courriel', 'Entreprise', 'Message', 'Statut', 'Hors heures', 'Reçu', 'Répondu'];
@@ -2188,11 +2192,12 @@ app.post('/core/reception/config', adminOnly, coreReady, express.json({ limit: '
 // coffre chiffré), consentements. Tout est admin-only ; les secrets ne sont
 // JAMAIS relisibles via HTTP.
 app.get('/core/branchement', adminOnly, coreReady, (req, res) => {
-  const source = String(req.query.source || 'novalis').slice(0, 40);
+  const source = String(req.query.source || sourcesConnues()[0] || 'novalis').slice(0, 40);
   if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
   res.setHeader('X-Frame-Options', 'DENY');
   const eBr = branchement.etat(db, source);
   eBr.pass = req.query.pass ? String(req.query.pass) : undefined;
+  eBr.sources = sourcesConnues();
   res.send(renderBranchement(eBr));
 });
 
@@ -2425,11 +2430,11 @@ app.post('/core/nova/chat', adminOnly, coreReady, express.json({ limit: '8kb' })
 
 // ── Novalis Publications — marketing opéré (composeur) ──────────────
 app.get('/core/publications', adminOnly, coreReady, (req, res) => {
-  const source = String(req.query.source || 'novalis').slice(0, 40);
+  const source = String(req.query.source || sourcesConnues()[0] || 'novalis').slice(0, 40);
   if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
   const et = branchement.etat(db, source);
   res.setHeader('X-Frame-Options', 'DENY');
-  res.send(renderPublications({ source, nom: et.identite.nom, pass: req.query.pass ? String(req.query.pass) : undefined }));
+  res.send(renderPublications({ source, nom: et.identite.nom, sources: sourcesConnues(), pass: req.query.pass ? String(req.query.pass) : undefined }));
 });
 function cfgPub(source) {
   const et = branchement.etat(db, source);
@@ -2480,11 +2485,11 @@ app.post('/core/rdv/:id', adminOnly, coreReady, express.json({ limit: '4kb' }), 
 
 // ── Novalis Devis — catalogue de services + composeur de soumissions ─
 app.get('/core/devis', adminOnly, coreReady, (req, res) => {
-  const source = String(req.query.source || 'novalis').slice(0, 40);
+  const source = String(req.query.source || sourcesConnues()[0] || 'novalis').slice(0, 40);
   if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
   const et = branchement.etat(db, source);
   res.setHeader('X-Frame-Options', 'DENY');
-  res.send(renderDevis({ source, nom: et.identite.nom, services: devis.listerServices(db, source), pass: req.query.pass ? String(req.query.pass) : undefined }));
+  res.send(renderDevis({ source, nom: et.identite.nom, services: devis.listerServices(db, source), sources: sourcesConnues(), pass: req.query.pass ? String(req.query.pass) : undefined }));
 });
 app.post('/core/devis/service', adminOnly, coreReady, express.json({ limit: '4kb' }), (req, res) => {
   const b = req.body || {};
@@ -2524,7 +2529,7 @@ app.post('/core/devis', adminOnly, coreReady, express.json({ limit: '16kb' }), (
 // ── Novalis Poste de commande — la file d'approbation ───────────────
 // « Novalis a déjà fait le travail, vous dites oui. » Admin-only.
 app.get('/core/propositions', adminOnly, coreReady, (req, res) => {
-  const source = String(req.query.source || 'novalis').slice(0, 40);
+  const source = String(req.query.source || sourcesConnues()[0] || 'novalis').slice(0, 40);
   if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
   const statut = ['en_attente', 'approuve', 'envoye', 'rejete'].includes(req.query.statut) ? req.query.statut : 'en_attente';
   const et = branchement.etat(db, source);
@@ -2535,7 +2540,7 @@ app.get('/core/propositions', adminOnly, coreReady, (req, res) => {
     source, nom: et.identite.nom,
     items: propositions.lister(db, source, { statut }),
     compteurs: propositions.compteurs(db, source),
-    statut, lienEspace, pass: req.query.pass ? String(req.query.pass) : undefined,
+    statut, lienEspace, sources: sourcesConnues(), pass: req.query.pass ? String(req.query.pass) : undefined,
   }));
 });
 
@@ -2628,10 +2633,13 @@ app.post('/core/reception/lead/:id', adminOnly, coreReady, express.json({ limit:
     const lead = db.prepare('SELECT id, source, nom, courriel, repondu_le FROM leads WHERE id = ?').get(id);
     if (!lead) return res.status(404).json({ error: 'introuvable' });
     const marqueReponse = (statut !== 'nouveau' && !lead.repondu_le);
+    const maintenant = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    // gagne_le horodate le MOMENT du gain (pour la fidélisation), posé une fois.
     db.prepare(`UPDATE leads SET statut = ?, repondu_le = COALESCE(repondu_le, ?),
-        valeur_cents = COALESCE(?, valeur_cents) WHERE id = ?`)
-      .run(statut, marqueReponse ? new Date().toISOString().replace('T', ' ').slice(0, 19) : null,
-        Number.isInteger(b.valeur_cents) ? b.valeur_cents : null, id);
+        valeur_cents = COALESCE(?, valeur_cents), gagne_le = COALESCE(gagne_le, ?) WHERE id = ?`)
+      .run(statut, marqueReponse ? maintenant : null,
+        Number.isInteger(b.valeur_cents) ? b.valeur_cents : null,
+        statut === 'gagne' ? maintenant : null, id);
     // Réputation : un job gagné = le meilleur moment pour demander un avis.
     // Novalis prépare la demande (si l'entreprise a consenti « rédiger ») et la
     // dépose dans la file d'approbation. Idempotent, ne casse jamais la réponse.

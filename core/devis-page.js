@@ -118,7 +118,7 @@ if(creer) creer.addEventListener('click', async function(){
   return page({
     title: 'Devis',
     subtitle: `${esc(nom)} · préparez des soumissions en un clic`,
-    active: 'devis', source: d.source, pass: d.pass,
+    active: 'devis', source: d.source, sources: d.sources, pass: d.pass,
     extraCss: EXTRA, contentHtml: content, bodyScript,
   });
 }

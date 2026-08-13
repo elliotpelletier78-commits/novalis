@@ -5,6 +5,7 @@
 // et trois gestes — Approuver · Modifier · Rejeter.
 
 const { esc, page, UI_CSS } = require('./ui');
+const { TYPE_LABEL } = require('./propositions');
 
 const EXTRA = `
 .tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
@@ -46,7 +47,6 @@ textarea:focus{outline:2px solid var(--brand);outline-offset:1px;background:var(
 .owner .osub{color:var(--muted);font-size:14px;margin:2px 0 22px}
 `;
 
-const TYPE_LABEL = { reponse: 'Réponse', avis: 'Avis', devis: 'Devis', relance: 'Relance', rappel: 'Rappel', fidelisation: 'Fidélisation', publication: 'Publication' };
 
 function carte(p) {
   const urgent = p.priorite >= 10;

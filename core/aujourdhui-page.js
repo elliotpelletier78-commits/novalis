@@ -6,7 +6,7 @@
 
 const { esc, icon, page } = require('./ui');
 
-const TYPE_LABEL = { reponse: 'Réponse', avis: 'Avis', devis: 'Devis', relance: 'Relance', rappel: 'Rappel', fidelisation: 'Fidélisation', publication: 'Publication' };
+const { TYPE_LABEL } = require('./propositions');
 const ICN = { reponse: 'inbox', avis: 'phone', devis: 'file', relance: 'phone', rappel: 'clock', fidelisation: 'phone', publication: 'file' };
 
 const EXTRA = `

@@ -8,6 +8,13 @@
 
 const HEURES_LABEL = 'pendant nos heures d\'ouverture';
 
+// Étiquettes lisibles par type de proposition — SOURCE UNIQUE, importée par les
+// pages (évite la dérive quand on ajoute un type).
+const TYPE_LABEL = {
+  reponse: 'Réponse', avis: 'Avis', devis: 'Devis', relance: 'Relance',
+  rappel: 'Rappel', fidelisation: 'Fidélisation', publication: 'Publication',
+};
+
 /** Prénom depuis un nom complet, pour une salutation naturelle. */
 function prenom(nom) {
   const p = String(nom || '').trim().split(/\s+/)[0];
@@ -240,10 +247,11 @@ function preparerFidelisations(db, source, opts = {}) {
   const cfg = opts.cfg || {};
   let leads;
   try {
+    // Fenêtre sur gagne_le (date du GAIN), pas created_at (date d'acquisition).
     leads = db.prepare(
       `SELECT id, source, nom, courriel FROM leads
-       WHERE source = ? AND statut = 'gagne'
-         AND created_at <= datetime('now', ?) AND created_at >= datetime('now', ?)`
+       WHERE source = ? AND statut = 'gagne' AND gagne_le IS NOT NULL
+         AND gagne_le <= datetime('now', ?) AND gagne_le >= datetime('now', ?)`
     ).all(source, `-${min} months`, `-${max} months`);
   } catch { return 0; }
   let n = 0;
@@ -422,7 +430,7 @@ module.exports = {
   sujetReponse, sujetPour,
   creerReponsePourLead, creerAvisPourLead, creerRelancePourLead, preparerRelances,
   creerFidelisationPourLead, preparerFidelisations,
-  brouillonPublication, creerPublication,
+  brouillonPublication, creerPublication, TYPE_LABEL,
   lister, compteurs, get, modifier, rejeter, approuver,
   _prenom: prenom, _accroche: accroche,
 };
