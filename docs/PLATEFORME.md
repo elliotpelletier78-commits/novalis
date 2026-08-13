@@ -23,58 +23,80 @@ l'est pas. Les intégrations pas encore prêtes sont marquées « bientôt ».
 
 ---
 
+## Nova — l'assistant
+
+**Nova** veille sur chaque entreprise. Elle **repère** (observations classées
+urgent / occasion / info, chacune avec l'action concrète), **répond** (chat : en
+mode conversation avec une clé IA, sinon repli honnête sur ses observations), et
+**agit** (commandes déterministes depuis le chat : « approuve la réponse à Luc »,
+« active la réponse instantanée » — jamais d'action inventée par l'IA ; une
+question ou une négation n'exécute rien).
+
 ## Le parcours, bout à bout
 
 ```
-Branchement ──▶ Aujourd'hui ──▶ Poste de commande ──▶ (envoi après oui)
-   (les clés)     (un écran)        (Approuver)
-       │              │                  ▲
-       │              ├── Réception ──────┘ (chaque contact capté)
-       │              ├── Devis ──────────┘ (soumissions préparées)
-       │              └── Pulse ───────────  (où ça décroche)
+Entreprises ─▶ Branchement ─▶ Aujourd'hui (Nova) ─▶ Poste de commande ─▶ (envoi après oui)
+  (le hub)       (les clés)      (un écran)             (Approuver)
+                                     │                       ▲
+                                     ├── Réception ──────────┘ (chaque contact capté + Pulse)
+                                     ├── Rendez-vous ────────┘ (carnet + rappels)
+                                     ├── Devis ──────────────┘ (soumissions)
+                                     └── Publications ───────┘ (réseaux)
 ```
 
 | Surface | URL | Rôle |
 |---|---|---|
-| **Branchement** | `/core/branchement?source=<site>` | Le commerçant remet ses clés : identité, connexions (coffre chiffré), consentements (Loi 25). Calcule « prêt à opérer % ». |
-| **Aujourd'hui** | `/core/aujourdhui?source=<site>` | Le seul écran du matin. Agrège : à approuver, contacts, en attente, prêt à opérer, la fuite Pulse n°1. |
-| **Poste de commande** | `/core/propositions?source=<site>` | La file d'approbation. Réponses, avis, devis — Approuver / Modifier / Rejeter. |
-| **Réception** | `/core/reception?source=<site>` | Chaque contact (message + clic tél) capté, chronométré, compté. Contient l'entonnoir Pulse. |
+| **Entreprises** | `/core/entreprises` (ou `/core`) | Hub d'agence : tous les commerces, triés par attention ; crée une nouvelle entreprise. |
+| **Aujourd'hui** | `/core/aujourdhui?source=<site>` | L'écran du matin. Panneau Nova + signaux (à approuver, contacts, en attente, prêt %) + fuite Pulse. |
+| **Poste de commande** | `/core/propositions?source=<site>` | La file d'approbation (7 types). Approuver / Modifier / Rejeter. |
+| **Réception** | `/core/reception?source=<site>` | Chaque contact capté, vitesse de réponse, preuve Réponse Instantanée, entonnoir Pulse. Export CSV. |
+| **Rendez-vous** | `/core/rdv?source=<site>` | Carnet + rappels automatiques (heure de Montréal). |
 | **Devis** | `/core/devis?source=<site>` | Catalogue de services + composeur de soumissions. |
+| **Publications** | `/core/publications?source=<site>` | Composeur de publications réseaux (le commerçant fournit l'essentiel). |
+| **Branchement** | `/core/branchement?source=<site>` | Identité, connexions (coffre chiffré), consentements (Loi 25). « Prêt à opérer % ». |
+| **Espace commerçant** | `/e/<source>/<jeton>` | Lien magique signé : le client approuve lui-même, sans mot de passe (isolé par entreprise). |
 | **Rapport mensuel** | `/r/<source>/<jeton>` | Rapport client, URL signée, sans compte. |
 | **Exploitation** | `/core/admin` | File de jobs, steps, coûts IA (interne). |
 | **Santé** | `/core/health` | Profondeur de file (public, pour un moniteur externe). |
 
 Toutes les routes `/core/*` (sauf `/health`) exigent l'authentification admin
-(`x-admin-pass` ou `?pass=`).
+(`x-admin-pass` ou `?pass=`). Interface : coquille SaaS indigo (barre latérale,
+recherche in-page, accessibilité clavier), assistant Nova flottant sur chaque écran.
 
 ---
 
-## Les pilotes de la file d'approbation
+## Les 7 pilotes de la file d'approbation
 
 | Type | Déclencheur | Ce que Novalis prépare |
 |---|---|---|
-| `reponse` | Un client écrit (formulaire du site) | Un accusé de réception rédigé, personnalisé, signé au nom du commerce. |
-| `avis` | Un lead passe à « gagné » | Une demande d'avis chaleureuse (avec le lien Google s'il est branché). |
-| `devis` | Le commerçant compose une soumission | Un devis assemblé à partir de ses services/prix, total calculé. |
+| `reponse` | Un client écrit (formulaire du site) | Une réponse rédigée, personnalisée, signée au nom du commerce. |
+| `avis` | Un lead passe à « gagné » | Une demande d'avis chaleureuse (lien Google si branché), sans incitatif. |
+| `devis` | Le commerçant compose une soumission | Un devis assemblé (services/prix, total, taxes en sus). |
+| `relance` | Un lead ouvert reste silencieux > 3 jours | Une relance douce (à l'ouverture du tableau de bord). |
+| `rappel` | Un rendez-vous approche (< 48 h) | Un rappel au client (réduit les no-shows). |
+| `fidelisation` | Un client gagné il y a 6 à 18 mois | Une invitation à revenir, adaptée au métier. |
+| `publication` | Le commerçant prépare un message | Une publication réseaux mise en forme (substance fournie par lui). |
 
-**À venir** (même file, un `type` de plus) : publications réseaux sociaux,
-rappels de rendez-vous, ménage de courriel.
+En plus : **Réponse Instantanée 24/7** — dès qu'un client écrit, un accusé part
+immédiatement (opt-in), sans rien promettre. Distinct de la réponse rédigée.
 
-L'envoi n'a lieu que si l'entreprise a **consenti à l'envoi** ET que le
-**courriel est branché**. Sinon la proposition est « approuvée — à envoyer à la
-main ». Un échec d'envoi devient un statut « echec » explicite.
+L'envoi n'a lieu que si l'entreprise a **consenti à l'envoi**, que le **courriel
+est branché** ET qu'une **adresse de réponse** existe. Sinon : « approuvé — à
+envoyer à la main ». Un échec d'envoi devient un statut « echec » explicite.
 
 ---
 
 ## Brancher un vrai client (déroulé)
 
-1. **Générer/relier son site** — son `source` (slug) est la clé de tout.
-2. **`/core/branchement?source=<slug>`** — remplir l'identité, brancher le
-   courriel du commerce, cocher les consentements (« rédiger », « envoyer »).
+1. **`/core/entreprises`** — « Nouvelle entreprise » : identifiant (slug) + nom.
+2. **`/core/branchement?source=<slug>`** — identité, brancher le courriel du
+   commerce, cocher les consentements (« rédiger », « envoyer », « accusé 24/7 »).
 3. **`/core/devis?source=<slug>`** — saisir ses services et prix (facultatif).
-4. C'est tout. Dès qu'un client écrit sur son site, une réponse l'attend dans
-   **Aujourd'hui**. Après un job gagné, une demande d'avis apparaît.
+4. **Transmettre le lien magique** affiché dans le poste de commande pour qu'il
+   approuve lui-même.
+5. C'est tout. Dès qu'un client écrit, une réponse l'attend dans **Aujourd'hui**.
+   Job gagné → demande d'avis ; lead silencieux → relance ; RDV proche → rappel ;
+   ancien client → invitation à revenir.
 
 ---
 

@@ -2260,6 +2260,12 @@ function ilYaCourt(iso) {
   if (h < 24) return `${h} h`;
   return `${Math.floor(h / 24)} j`;
 }
+// Point d'entrée : /core mène au hub d'agence (conserve ?pass=).
+app.get('/core', (req, res) => {
+  const p = req.query.pass ? '?pass=' + encodeURIComponent(String(req.query.pass)) : '';
+  res.redirect('/core/entreprises' + p);
+});
+
 // ── Novalis Entreprises — hub d'agence ──────────────────────────────
 app.get('/core/entreprises', adminOnly, coreReady, (req, res) => {
   const entreprises = sourcesConnues().map((source) => {
