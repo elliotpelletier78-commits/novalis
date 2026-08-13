@@ -2,7 +2,7 @@
 // ── Novalis Devis — catalogue de services + composeur (coquille d'app) ─
 // Deux panneaux : « Préparer une soumission » et « Vos services & prix ».
 
-const { esc, page } = require('./ui');
+const { esc, page, statutBadge } = require('./ui');
 
 function dollars(cents) {
   if (cents == null) return 'sur devis';
@@ -32,6 +32,11 @@ const EXTRA = `
 .cli{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px}
 .empty{color:var(--muted);font-size:13.5px;padding:8px 0}
 .total{margin-top:14px;font-size:22px;font-weight:800;letter-spacing:-.02em;text-align:right}
+.rline{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-2)}
+.rline:last-child{border-bottom:none}
+.rline .b{flex:1;min-width:0}
+.rline .t{font-weight:620;font-size:14px}
+.rline .s{font-size:12.5px;color:var(--muted);margin-top:1px}
 @media(max-width:640px){.drow,.cli{grid-template-columns:1fr}}
 `;
 
@@ -77,6 +82,11 @@ function renderDevis(d) {
     </div>
     <span class="msg" id="msg-add"></span>
   </div>
+  ${(d.recents && d.recents.length) ? `<div class="panel">
+    <h3>Devis récents</h3>
+    <div class="hint">Vos dernières soumissions déposées dans le poste de commande.</div>
+    ${d.recents.map(r => `<div class="rline"><div class="b"><div class="t">${esc(r.titre || 'Devis')}</div><div class="s">${esc(r.apercu || '')}</div></div>${statutBadge(r.statut)}</div>`).join('')}
+  </div>` : ''}
   <div class="pagefoot">Une soumission, pas une facture. Taxes en sus. Valide 30 jours.</div>`;
 
   const bodyScript = `var SOURCE=${JSON.stringify(d.source)};

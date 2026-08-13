@@ -304,4 +304,14 @@ ${o.bodyScript ? `<script>${o.bodyScript}</script>` : ''}
 </body></html>`;
 }
 
-module.exports = { esc, icon, page, NAV, UI_CSS };
+// Badge d'état d'une proposition — partagé (devis récents, publications, etc.).
+const STATUT_BADGE = {
+  en_attente: ['badge-brand', 'En attente'], approuve: ['badge-ok', 'Approuvé'],
+  envoye: ['badge-ok', 'Envoyé'], rejete: ['badge-muted', 'Rejeté'], echec: ['badge-risk', 'Échec'],
+};
+function statutBadge(s) {
+  const [c, l] = STATUT_BADGE[s] || ['badge-muted', s || '—'];
+  return `<span class="badge ${c}">${l}</span>`;
+}
+
+module.exports = { esc, icon, page, NAV, UI_CSS, statutBadge };

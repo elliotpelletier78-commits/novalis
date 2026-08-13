@@ -5,6 +5,7 @@
 // en attente) et un panneau latéral récapitulatif.
 
 const { esc, icon, page } = require('./ui');
+const { barChart, CHART_CSS } = require('./charts');
 
 const { TYPE_LABEL } = require('./propositions');
 const ICN = { reponse: 'inbox', avis: 'phone', devis: 'file', relance: 'phone', rappel: 'clock', fidelisation: 'phone', publication: 'file' };
@@ -42,6 +43,7 @@ const EXTRA = `
 .prog{height:8px;border-radius:6px;background:var(--panel);overflow:hidden;margin:12px 0 6px}
 .prog>span{display:block;height:100%;background:var(--brand);border-radius:6px}
 .pbig{font-size:38px;font-weight:800;letter-spacing:-.03em;color:var(--brand-600);line-height:1}
+${CHART_CSS}
 `;
 
 function renderAujourdhui(d) {
@@ -115,6 +117,11 @@ function renderAujourdhui(d) {
         </div>
       </div>
       <div class="aside">
+        ${(d.semaine && d.semaine.length) ? `<div class="card">
+          <div class="card-h"><h2>Cette semaine</h2></div>
+          <div class="hint">Contacts par jour (7 j).</div>
+          ${barChart(d.semaine.map((t) => { const p = String(t.jour).split('-'); return { label: `${p[2]}/${p[1]}`, labelCourt: p[2], value: t.n }; }), { aria: 'Contacts cette semaine', h: 120 })}
+        </div>` : ''}
         <div class="card">
           <div class="card-h"><h2>Ce qui décroche</h2><a href="${href('/core/reception')}">Pulse →</a></div>
           <div class="hint">Où vos visiteurs quittent.</div>${fuiteBloc}

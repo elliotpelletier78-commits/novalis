@@ -2379,6 +2379,7 @@ app.get('/core/aujourdhui', adminOnly, coreReady, (req, res) => {
     fuite: pouls,
     leads_attente: attente,
     pret_pct: et.pret_pct,
+    semaine: recu.tendance.slice(-7),
     nova: { resume: nova.resume(insights), insights: insights.slice(0, 5) },
   }));
 });
@@ -2465,7 +2466,9 @@ app.get('/core/publications', adminOnly, coreReady, (req, res) => {
   if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
   const et = branchement.etat(db, source);
   res.setHeader('X-Frame-Options', 'DENY');
-  res.send(renderPublications({ source, nom: et.identite.nom, sources: sourcesConnues(), pass: req.query.pass ? String(req.query.pass) : undefined }));
+  let pubRecents = [];
+  try { pubRecents = db.prepare('SELECT apercu, brouillon, statut FROM propositions WHERE source = ? AND type = \'publication\' ORDER BY id DESC LIMIT 8').all(source); } catch { /* jeune */ }
+  res.send(renderPublications({ source, nom: et.identite.nom, recents: pubRecents, sources: sourcesConnues(), pass: req.query.pass ? String(req.query.pass) : undefined }));
 });
 function cfgPub(source) {
   const et = branchement.etat(db, source);
@@ -2520,7 +2523,9 @@ app.get('/core/devis', adminOnly, coreReady, (req, res) => {
   if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
   const et = branchement.etat(db, source);
   res.setHeader('X-Frame-Options', 'DENY');
-  res.send(renderDevis({ source, nom: et.identite.nom, services: devis.listerServices(db, source), sources: sourcesConnues(), pass: req.query.pass ? String(req.query.pass) : undefined }));
+  let recents = [];
+  try { recents = db.prepare('SELECT titre, apercu, statut FROM propositions WHERE source = ? AND type = \'devis\' ORDER BY id DESC LIMIT 8').all(source); } catch { /* jeune */ }
+  res.send(renderDevis({ source, nom: et.identite.nom, services: devis.listerServices(db, source), recents, sources: sourcesConnues(), pass: req.query.pass ? String(req.query.pass) : undefined }));
 });
 app.post('/core/devis/service', adminOnly, coreReady, express.json({ limit: '4kb' }), (req, res) => {
   const b = req.body || {};
