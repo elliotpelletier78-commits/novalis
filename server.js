@@ -2138,6 +2138,28 @@ app.get('/core/reception', adminOnly, coreReady, (req, res) => {
   res.send(renderReception(data, { sources, pulse: pouls, pass: req.query.pass ? String(req.query.pass) : undefined, rapportUrl: `${base}/r/${encodeURIComponent(source)}/${token}` }));
 });
 
+// Export CSV des contacts d'un commerce (pour Excel / comptable).
+app.get('/core/reception/export.csv', adminOnly, coreReady, (req, res) => {
+  const source = String(req.query.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
+  let rows = [];
+  try {
+    rows = db.prepare(`SELECT nom, courriel, entreprise, message, statut, hors_heures, created_at, repondu_le
+      FROM leads WHERE source = ? ORDER BY created_at DESC LIMIT 5000`).all(source);
+  } catch { rows = []; }
+  const cell = (v) => {
+    const s = String(v == null ? '' : v).replace(/\r?\n/g, ' ');
+    return /[",;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const entete = ['Nom', 'Courriel', 'Entreprise', 'Message', 'Statut', 'Hors heures', 'Reçu', 'Répondu'];
+  const lignes = rows.map(r => [r.nom, r.courriel, r.entreprise, r.message, r.statut,
+    r.hors_heures ? 'oui' : 'non', r.created_at, r.repondu_le || ''].map(cell).join(';'));
+  const csv = '﻿' + [entete.join(';'), ...lignes].join('\r\n'); // BOM : accents corrects dans Excel
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="contacts-${source}.csv"`);
+  res.send(csv);
+});
+
 // Configuration d'un site (onboarding client) — sans SQL, depuis le cockpit.
 // Détermine le vrai nom affiché, le secteur, et la valeur d'un client capté.
 app.post('/core/reception/config', adminOnly, coreReady, express.json({ limit: '8kb' }), (req, res) => {

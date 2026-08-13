@@ -226,11 +226,13 @@ function renderReception(data, opts = {}) {
   });
 })();`;
 
+  const lienCsv = `/core/reception/export.csv?source=${encodeURIComponent(data.source)}${opts.pass ? '&pass=' + encodeURIComponent(opts.pass) : ''}`;
   return page({
     title: 'Réception',
     subtitle: `${esc(nom)} · ${data.fenetre_jours} derniers jours`,
     active: 'reception', source: data.source, sources: opts.sources, pass: opts.pass,
     extraCss: EXTRA, contentHtml: content, bodyScript,
+    actionsHtml: `<a class="btn btn-ghost" href="${lienCsv}">Exporter CSV</a>`,
   });
 }
 
