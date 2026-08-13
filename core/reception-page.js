@@ -4,6 +4,7 @@
 // page autonome (URL signée, envoyée au commerçant).
 
 const { esc, page, UI_CSS } = require('./ui');
+const { barChart, donut, donutLegende, CHART_CSS } = require('./charts');
 
 function dollars(cents) {
   return (Math.round((cents || 0) / 100)).toLocaleString('fr-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 });
@@ -73,24 +74,16 @@ const EXTRA = `
 .diag .dd{font-size:14px;color:var(--ink-2);margin-bottom:10px}
 .diag .dl{font-size:14px;color:var(--ink)} .diag .dl b{color:var(--brand-600)}
 .pulse-thin{margin-top:14px;padding:14px 16px;border-radius:var(--r);background:var(--panel);font-size:13.5px;color:var(--muted)}
-@media(max-width:760px){.cfg-grid{grid-template-columns:1fr}}
+.donut-row{display:flex;gap:22px;align-items:center;margin-top:6px}
+.cfilter{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0 14px}
+.cfilter button{font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:var(--r-pill);padding:6px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.cfilter button span{font-size:11px;font-weight:700;color:var(--muted);background:var(--panel);border-radius:999px;padding:0 6px;min-width:18px;text-align:center}
+.cfilter button:hover{border-color:var(--brand)}
+.cfilter button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.cfilter button.on span{background:rgba(255,255,255,.25);color:#fff}
+${CHART_CSS}
+@media(max-width:760px){.cfg-grid{grid-template-columns:1fr}.donut-row{flex-direction:column;align-items:flex-start}}
 `;
-
-function sparkline(tendance) {
-  const n = tendance.length;
-  if (!n) return '';
-  const w = 600, h = 96, pad = 4;
-  const max = Math.max(1, ...tendance.map(t => t.n));
-  const x = (i) => pad + (i * (w - 2 * pad)) / (n - 1 || 1);
-  const y = (v) => h - pad - (v * (h - 2 * pad)) / max;
-  const pts = tendance.map((t, i) => `${x(i).toFixed(1)},${y(t.n).toFixed(1)}`);
-  const line = 'M' + pts.join(' L');
-  const area = `M${x(0).toFixed(1)},${h - pad} L` + pts.join(' L') + ` L${x(n - 1).toFixed(1)},${h - pad} Z`;
-  const last = tendance[n - 1];
-  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Contacts par jour sur ${n} jours">
-    <path class="area" d="${area}"/><path class="line" d="${line}"/>
-    <circle class="dot" cx="${x(n - 1).toFixed(1)}" cy="${y(last.n).toFixed(1)}" r="3.5"/></svg>`;
-}
 
 function pulsePanel(p) {
   if (!p) return '';
@@ -130,7 +123,7 @@ function pulsePanel(p) {
 function ligneLead(l) {
   const st = ['nouveau', 'contacte', 'gagne', 'perdu'].includes(l.statut) ? l.statut : 'nouveau';
   const label = { nouveau: 'À répondre', contacte: 'Contacté', gagne: 'Gagné', perdu: 'Perdu' }[st];
-  return `<tr data-id="${l.id}">
+  return `<tr data-id="${l.id}" data-statut="${st}">
     <td><div class="who">${esc(l.nom)}${l.entreprise ? ' · ' + esc(l.entreprise) : ''}<span class="mail">${esc(l.courriel)}</span></div></td>
     <td class="msgc">${esc(String(l.message || '').slice(0, 140))}${l.hors_heures ? ' <span class="pill warn" style="font-size:10px">hors heures</span>' : ''}</td>
     <td style="white-space:nowrap;color:var(--muted)">${esc(ilYA(l.created_at))}</td>
@@ -157,6 +150,12 @@ function renderReception(data, opts = {}) {
     <div class="fcard a"><div class="fl">Hors des heures</div><div class="fv num">${c.hors_heures}</div><div class="fc">reçus quand personne ne répondait</div></div>
     <div class="fcard b"><div class="fl">Valeur captée</div><div class="fv num">${dollars(c.valeur_captee_cents)}</div><div class="fc">demande estimée par le site</div></div>
   </div>
+  <div class="section-label">Activité</div>
+  <div class="panel">
+    <h3>Tendance — ${data.fenetre_jours} jours</h3>
+    <div class="hint">Contacts par jour (messages + clics au téléphone). Survolez une barre pour le détail.</div>
+    ${barChart(data.tendance.map((t) => { const p = String(t.jour).split('-'); return { label: `${p[2]}/${p[1]}`, labelCourt: p[2], value: t.n }; }), { aria: 'Contacts par jour', h: 180 })}
+  </div>
   <div class="grid g2" style="margin-bottom:16px">
     <div class="panel" style="margin:0">
       <h3>Vitesse de réponse</h3>
@@ -171,9 +170,15 @@ function renderReception(data, opts = {}) {
       ${r.accuses ? `<div class="attente none" style="margin-top:10px">⚡ Réponse instantanée&nbsp;: ${r.accuses} client${r.accuses !== 1 ? 's ont' : ' a'} reçu une réponse en secondes${r.accuses_hors_heures ? ` (dont ${r.accuses_hors_heures} hors de vos heures)` : ''}</div>` : ''}
     </div>
     <div class="panel" style="margin:0">
-      <h3>Tendance — ${data.fenetre_jours} jours</h3>
-      <div class="hint">Contacts par jour (messages + clics).</div>
-      ${sparkline(data.tendance)}
+      <h3>Répartition des contacts</h3>
+      <div class="hint">Quand vos clients vous joignent.</div>
+      ${(() => {
+    const seg = [
+      { label: 'Pendant les heures', value: Math.max(0, c.contacts - c.hors_heures), color: 'var(--brand)' },
+      { label: 'Hors des heures', value: c.hors_heures, color: 'var(--warn)' },
+    ];
+    return `<div class="donut-row">${donut(seg, { centre: 'contacts', aria: 'Heures vs hors heures' })}<div style="flex:1">${donutLegende(seg)}<div style="margin-top:12px;font-size:12.5px;color:var(--muted)">${c.leads} message${c.leads !== 1 ? 's' : ''} · ${c.taps} clic${c.taps !== 1 ? 's' : ''} au téléphone</div></div></div>`;
+  })()}
     </div>
   </div>
   ${pulsePanel(opts.pulse)}
@@ -192,9 +197,17 @@ function renderReception(data, opts = {}) {
       <button id="cfg-save" class="cfg-btn">Enregistrer</button><span id="cfg-msg" class="cfg-msg"></span>
     </div>
   </details>
+  <div class="section-label">Contacts</div>
   <div class="panel">
-    <h3>Contacts récents</h3>
+    <div class="card-h"><h3 style="margin:0">Contacts récents</h3></div>
     <div class="hint">Marquez chaque contact — le délai de réponse se calcule tout seul.</div>
+    ${data.leads_recents.length ? `<div class="cfilter" id="cfilter">
+      <button class="on" data-f="tous">Tous <span>${data.leads_recents.length}</span></button>
+      <button data-f="nouveau">À répondre <span>${data.leads_recents.filter((l) => (l.statut || 'nouveau') === 'nouveau').length}</span></button>
+      <button data-f="contacte">Contacté <span>${data.leads_recents.filter((l) => l.statut === 'contacte').length}</span></button>
+      <button data-f="gagne">Gagné <span>${data.leads_recents.filter((l) => l.statut === 'gagne').length}</span></button>
+      <button data-f="perdu">Perdu <span>${data.leads_recents.filter((l) => l.statut === 'perdu').length}</span></button>
+    </div>` : ''}
     <div class="leads-wrap">
     ${data.leads_recents.length ? `<table><thead><tr><th>Client</th><th>Message</th><th>Reçu</th><th>Statut</th><th>Action</th></tr></thead>
       <tbody>${data.leads_recents.map(ligneLead).join('')}</tbody></table>`
@@ -213,6 +226,17 @@ function renderReception(data, opts = {}) {
   });
 });
 (function(){var p=new URLSearchParams(location.search).get('pass'); if(p) localStorage.setItem('novalis_admin',p);})();
+(function(){
+  var cf=document.getElementById('cfilter'); if(!cf) return;
+  cf.querySelectorAll('button').forEach(function(b){
+    b.addEventListener('click',function(){
+      cf.querySelectorAll('button').forEach(function(x){x.classList.remove('on');}); b.classList.add('on');
+      var f=b.getAttribute('data-f');
+      document.querySelectorAll('.leads-wrap tbody tr').forEach(function(tr){
+        tr.style.display=(f==='tous'||tr.getAttribute('data-statut')===f)?'':'none';});
+    });
+  });
+})();
 (function(){
   var btn=document.getElementById('cfg-save'); if(!btn) return;
   btn.addEventListener('click', async function(){
