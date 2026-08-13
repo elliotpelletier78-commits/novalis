@@ -4,7 +4,31 @@
 // automatiquement (déposé dans le poste de commande).
 
 const { esc, page, icon } = require('./ui');
-const { formatQuand } = require('./rdv');
+const { formatQuand, montrealWall } = require('./rdv');
+
+// Regroupe les rendez-vous par jour (Aujourd'hui / Demain / date), puis étiquette
+// chaque groupe. debut est déjà en heure murale de Montréal.
+function regrouper(rdvs) {
+  const today = montrealWall(Date.now()).slice(0, 10);
+  const tomorrow = montrealWall(Date.now() + 86400000).slice(0, 10);
+  const groupes = new Map();
+  for (const r of rdvs) {
+    const jour = String(r.debut).slice(0, 10);
+    if (!groupes.has(jour)) groupes.set(jour, []);
+    groupes.get(jour).push(r);
+  }
+  return [...groupes.entries()].map(([jour, items]) => {
+    let label;
+    if (jour === today) label = 'Aujourd’hui';
+    else if (jour === tomorrow) label = 'Demain';
+    else {
+      const d = new Date(jour + 'T12:00:00');
+      label = d.toLocaleDateString('fr-CA', { weekday: 'long', day: 'numeric', month: 'long' });
+      label = label.charAt(0).toUpperCase() + label.slice(1);
+    }
+    return { jour, label, items };
+  });
+}
 
 const EXTRA = `
 .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px 24px;box-shadow:var(--sh-sm);margin-bottom:16px}
@@ -29,6 +53,10 @@ const EXTRA = `
 .rdv .act button{font-family:var(--sans);font-size:12.5px;font-weight:600;padding:7px 11px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel);color:var(--ink-2);cursor:pointer;margin-left:6px}
 .rdv .act button:hover{border-color:var(--brand);color:var(--brand-600)}
 .empty{padding:34px;text-align:center;color:var(--muted)}
+.daygroup{margin-top:8px}
+.dayhead{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:720;letter-spacing:.04em;text-transform:uppercase;color:var(--brand-600);padding:12px 0 4px;border-top:1px solid var(--line-2)}
+.daygroup:first-child .dayhead{border-top:none;padding-top:2px}
+.dayhead span{font-size:11px;font-weight:700;color:var(--muted);background:var(--panel);border-radius:999px;padding:0 7px}
 `;
 
 const MOIS = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
@@ -57,16 +85,18 @@ function renderRdv(data) {
     </div>
     <button class="rbtn" id="r-add">Ajouter au carnet</button><span class="msg" id="r-msg"></span>
   </div>
+  <div class="section-label">Agenda</div>
   <div class="panel">
-    <h3>Prochains rendez-vous</h3>
-    <div class="hint">Un badge « rappel prêt » apparaît quand Novalis a déposé le rappel à approuver.</div>
-    ${rdvs.length ? rdvs.map(r => `<div class="rdv" data-id="${r.id}">
+    <div class="card-h"><h3 style="margin:0">Prochains rendez-vous</h3><span class="muted" style="font-size:13px">${rdvs.length} à venir</span></div>
+    <div class="hint">Regroupés par jour. Un badge « rappel prêt » apparaît quand Novalis a déposé le rappel.</div>
+    ${rdvs.length ? regrouper(rdvs).map(g => `<div class="daygroup"><div class="dayhead">${esc(g.label)}<span>${g.items.length}</span></div>
+      ${g.items.map(r => `<div class="rdv" data-id="${r.id}">
       <div class="when">${pastille(r.debut)}</div>
       <div class="b"><div class="t">${esc(r.client_nom || 'Client')}${r.service ? ' · ' + esc(r.service) : ''}</div>
         <div class="s">${esc(formatQuand(r.debut))}${r.client_courriel ? ' · ' + esc(r.client_courriel) : ''}</div></div>
       ${r.rappel_prop_id ? '<span class="rapp">rappel prêt</span>' : ''}
       <div class="act"><button data-a="fait">Fait</button><button data-a="annule">Annuler</button></div>
-    </div>`).join('') : '<div class="empty">Aucun rendez-vous à venir. Ajoutez-en un ci-dessus.</div>'}
+    </div>`).join('')}</div>`).join('') : '<div class="empty">Aucun rendez-vous à venir. Ajoutez-en un ci-dessus.</div>'}
   </div>
   <div class="pagefoot">Novalis tient le carnet et prépare les rappels — vous approuvez, le client est prévenu.</div>`;
 

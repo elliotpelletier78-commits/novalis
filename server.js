@@ -2286,12 +2286,21 @@ app.get('/core', (req, res) => {
 app.get('/core/entreprises', adminOnly, coreReady, (req, res) => {
   const entreprises = sourcesConnues().map((source) => {
     const et = branchement.etat(db, source);
-    let enAttente = 0;
+    let enAttente = 0, contacts = 0, rdvSoon = 0;
     try { enAttente = db.prepare('SELECT COUNT(*) n FROM leads WHERE source = ? AND statut = \'nouveau\'').get(source).n; } catch { /* jeune */ }
+    try {
+      contacts = db.prepare(`SELECT
+        (SELECT COUNT(*) FROM leads WHERE source = ? AND created_at >= datetime('now','-30 days'))
+      + (SELECT COUNT(*) FROM taps WHERE source = ? AND cree_le >= datetime('now','-30 days')) AS n`).get(source, source).n;
+    } catch { /* jeune */ }
+    try {
+      const nw = rdv.montrealWall(Date.now()), n2 = rdv.montrealWall(Date.now() + 2 * 86400000);
+      rdvSoon = db.prepare('SELECT COUNT(*) n FROM rendezvous WHERE source = ? AND statut = \'prevu\' AND debut BETWEEN ? AND ?').get(source, nw, n2).n;
+    } catch { /* jeune */ }
     return {
       source, nom: et.identite.nom,
       aApprouver: propositions.compteurs(db, source).en_attente,
-      enAttente, pretPct: et.pret_pct,
+      enAttente, contacts, rdvSoon, pretPct: et.pret_pct,
     };
   }).sort((a, b) => (b.aApprouver + b.enAttente) - (a.aApprouver + a.enAttente) || a.source.localeCompare(b.source));
   res.setHeader('X-Frame-Options', 'DENY');

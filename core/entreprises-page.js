@@ -9,10 +9,13 @@ const EXTRA = `
 .ent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
 .ent{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-sm);padding:18px 20px;text-decoration:none;color:inherit;display:block;transition:border-color .12s,box-shadow .12s}
 .ent:hover{border-color:var(--brand);box-shadow:var(--sh)}
+.ent .hd{display:flex;align-items:center;gap:9px}
+.ent .sdot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--ok)}
+.ent .sdot.warn{background:var(--warn)} .ent .sdot.urgent{background:var(--risk)}
 .ent .nm{font-size:16px;font-weight:720;letter-spacing:-.01em}
-.ent .src{font-size:12px;color:var(--muted);margin-top:1px}
-.ent .stats{display:flex;gap:18px;margin-top:14px}
-.ent .st .v{font-size:24px;font-weight:800;letter-spacing:-.02em;line-height:1}
+.ent .src{font-size:12px;color:var(--muted);margin:1px 0 0 18px}
+.ent .stats{display:flex;gap:16px;margin-top:14px;flex-wrap:wrap}
+.ent .st .v{font-size:23px;font-weight:800;letter-spacing:-.02em;line-height:1}
 .ent .st .v.act{color:var(--brand-600)} .ent .st .v.warn{color:var(--warn)}
 .ent .st .k{font-size:11px;color:var(--muted);margin-top:3px}
 .ent .pret{margin-top:14px;height:6px;border-radius:5px;background:var(--panel);overflow:hidden}
@@ -36,11 +39,15 @@ function renderEntreprises(data) {
   const items = data.entreprises || [];
   const cartes = items.map(e => {
     const href = `/core/aujourdhui?source=${encodeURIComponent(e.source)}${data.pass ? '&pass=' + encodeURIComponent(data.pass) : ''}`;
+    const ton = e.enAttente ? 'urgent' : (e.aApprouver || e.pretPct < 100) ? 'warn' : '';
     return `<a class="ent" href="${href}">
-      <div class="nm">${esc(e.nom || e.source)}</div><div class="src">${esc(e.source)}</div>
+      <div class="hd"><span class="sdot ${ton}"></span><div class="nm">${esc(e.nom || e.source)}</div></div>
+      <div class="src">${esc(e.source)}</div>
       <div class="stats">
         <div class="st"><div class="v act">${e.aApprouver}</div><div class="k">à approuver</div></div>
         <div class="st"><div class="v ${e.enAttente ? 'warn' : ''}">${e.enAttente}</div><div class="k">en attente</div></div>
+        <div class="st"><div class="v">${e.contacts}</div><div class="k">contacts 30j</div></div>
+        <div class="st"><div class="v">${e.rdvSoon}</div><div class="k">RDV bientôt</div></div>
       </div>
       <div class="pret"><span style="width:${e.pretPct}%"></span></div>
       <div class="pret-l">Prêt à opérer&nbsp;: ${e.pretPct}%</div>

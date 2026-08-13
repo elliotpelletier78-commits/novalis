@@ -47,7 +47,7 @@ function SHELL_SCRIPT(source, pass) {
   var SRC=${src},PASS=${ps}||(localStorage.getItem('novalis_admin')||'');
   // Recherche in-page : filtre les lignes/cartes de type liste par leur texte.
   var q=document.getElementById('tbq');
-  if(q){var CIBLES='.prop,.nova-i,.cx,.srv,.rdv,tbody tr,.list .row';
+  if(q){var CIBLES='.prop,.nova-i,.cx,.srv,.rdv,.ent,tbody tr,.list .row';
     q.addEventListener('input',function(){
       var t=q.value.trim().toLowerCase();
       document.querySelectorAll(CIBLES).forEach(function(el){
