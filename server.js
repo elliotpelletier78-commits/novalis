@@ -2107,6 +2107,7 @@ const { renderBranchement } = require('./core/branchement-page');
 const propositions = require('./core/propositions');
 const { renderPropositions } = require('./core/propositions-page');
 const { renderAujourdhui } = require('./core/aujourdhui-page');
+const { renderEntreprises } = require('./core/entreprises-page');
 const devis = require('./core/devis');
 const { renderDevis } = require('./core/devis-page');
 const rdv = require('./core/rdv');
@@ -2231,6 +2232,29 @@ function ilYaCourt(iso) {
   if (h < 24) return `${h} h`;
   return `${Math.floor(h / 24)} j`;
 }
+// ── Novalis Entreprises — hub d'agence ──────────────────────────────
+app.get('/core/entreprises', adminOnly, coreReady, (req, res) => {
+  const entreprises = sourcesConnues().map((source) => {
+    const et = branchement.etat(db, source);
+    let enAttente = 0;
+    try { enAttente = db.prepare('SELECT COUNT(*) n FROM leads WHERE source = ? AND statut = \'nouveau\'').get(source).n; } catch { /* jeune */ }
+    return {
+      source, nom: et.identite.nom,
+      aApprouver: propositions.compteurs(db, source).en_attente,
+      enAttente, pretPct: et.pret_pct,
+    };
+  }).sort((a, b) => (b.aApprouver + b.enAttente) - (a.aApprouver + a.enAttente) || a.source.localeCompare(b.source));
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.send(renderEntreprises({ entreprises, pass: req.query.pass ? String(req.query.pass) : undefined }));
+});
+app.post('/core/entreprises', adminOnly, coreReady, express.json({ limit: '4kb' }), (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).json({ error: 'identifiant invalide (a-z 0-9 -, min. 2)' });
+  try { branchement.definirEntreprise(db, source, { nom: b.nom || null }); res.json({ ok: true, source }); }
+  catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 // Contexte agrégé pour Nova (observations). Réutilisé par Aujourd'hui et le chat.
 function contexteNova(source, et, recu, pouls, cptsProp) {
   let gagnes = 0, avisT = 0, servicesCount = 0, rdvBientot = 0;
