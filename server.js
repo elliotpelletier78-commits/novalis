@@ -1980,6 +1980,22 @@ app.get('/core/costs', adminOnly, coreReady, (req, res) => {
 // durci : limite de débit par IP, plafonds de taille, piège à robots
 // côté client, et aucune donnée renvoyée dans la réponse.
 const leadHits = new Map();
+// Limiteur pour les beacons publics (pulse, tap) : généreux (usage légitime =
+// plusieurs événements par visite) mais borne l'abus. Silencieux (204) : un
+// beacon ne doit jamais afficher d'erreur.
+const beaconHits = new Map();
+function beaconRateLimit(req, res, next) {
+  const ip = req.ip || req.socket.remoteAddress || 'x';
+  const now = Date.now();
+  const win = 60 * 1000, max = 240;
+  const hits = (beaconHits.get(ip) || []).filter(t => now - t < win);
+  if (hits.length >= max) return res.status(204).end();
+  hits.push(now);
+  beaconHits.set(ip, hits);
+  if (beaconHits.size > 10000) beaconHits.clear();
+  next();
+}
+
 function leadRateLimit(req, res, next) {
   const ip = req.ip || req.socket.remoteAddress || 'inconnue'; // fiable via trust proxy
   const now = Date.now();
@@ -2666,7 +2682,7 @@ app.post('/core/reception/lead/:id', adminOnly, coreReady, express.json({ limit:
 // Beacon de clic — appelé par les liens « appeler » des sites générés. Public,
 // ultra-léger, anti-double-comptage par empreinte IP+source sur 2 minutes.
 const tapVus = new Map();
-app.get('/api/tap', (req, res) => {
+app.get('/api/tap', beaconRateLimit, (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const source = String(req.query.s || '').slice(0, 40);
   const canal = ['tel', 'cta', 'courriel'].includes(req.query.c) ? req.query.c : 'tel';
@@ -2693,7 +2709,7 @@ app.get('/api/tap', (req, res) => {
 // Types énumérés côté serveur (aucune donnée libre). Anti-abus : plafond
 // d'événements par requête, dédoublonnage court par (session, type, étiquette).
 const pulseVus = new Map();
-app.post('/api/pulse', express.json({ limit: '16kb', type: () => true }), (req, res) => {
+app.post('/api/pulse', beaconRateLimit, express.json({ limit: '16kb', type: () => true }), (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const source = String(req.query.s || '').slice(0, 40);
   if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(204).end();
