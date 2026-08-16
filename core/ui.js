@@ -81,16 +81,23 @@ function SHELL_SCRIPT(source, pass) {
 })();`;
 }
 
-const NAV = [
-  { key: 'entreprises', label: 'Entreprises', href: '/core/entreprises', icon: 'grid' },
-  { key: 'aujourdhui', label: 'Aujourd’hui', href: '/core/aujourdhui', icon: 'today' },
-  { key: 'propositions', label: 'Poste de commande', href: '/core/propositions', icon: 'inbox' },
-  { key: 'reception', label: 'Réception', href: '/core/reception', icon: 'phone' },
-  { key: 'rdv', label: 'Rendez-vous', href: '/core/rdv', icon: 'clock' },
-  { key: 'devis', label: 'Devis', href: '/core/devis', icon: 'file' },
-  { key: 'publications', label: 'Publications', href: '/core/publications', icon: 'megaphone' },
-  { key: 'branchement', label: 'Branchement', href: '/core/branchement', icon: 'plug' },
+const NAV_GROUPS = [
+  { titre: 'Vue d’ensemble', items: [
+    { key: 'entreprises', label: 'Entreprises', href: '/core/entreprises', icon: 'grid' },
+    { key: 'aujourdhui', label: 'Aujourd’hui', href: '/core/aujourdhui', icon: 'today' },
+  ] },
+  { titre: 'Opérations', items: [
+    { key: 'propositions', label: 'Poste de commande', href: '/core/propositions', icon: 'inbox' },
+    { key: 'reception', label: 'Réception', href: '/core/reception', icon: 'phone' },
+    { key: 'rdv', label: 'Rendez-vous', href: '/core/rdv', icon: 'clock' },
+    { key: 'devis', label: 'Devis', href: '/core/devis', icon: 'file' },
+    { key: 'publications', label: 'Publications', href: '/core/publications', icon: 'megaphone' },
+  ] },
+  { titre: 'Configuration', items: [
+    { key: 'branchement', label: 'Branchement', href: '/core/branchement', icon: 'plug' },
+  ] },
 ];
+const NAV = NAV_GROUPS.flatMap((g) => g.items);
 
 const UI_CSS = `
 :root{
@@ -104,8 +111,11 @@ const UI_CSS = `
   --side:#FFFFFF; --side-ink:#464F5E; --side-ink-2:#8A93A0; --side-brand:#1A2233;
   --side-line:#E7E9EF; --side-hover:#F3F4F9; --side-active:#ECEBFB; --side-active-ink:#4338CA;
   --r:12px; --r-sm:9px; --r-lg:14px; --r-pill:999px;
-  --sh-sm:0 1px 2px rgba(20,40,30,.05); --sh:0 1px 3px rgba(20,40,30,.06),0 6px 18px rgba(20,40,30,.05);
-  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  /* Flat design : les cartes portent une bordure fine, pas d'ombre. L'ombre --sh
+     n'apparaît qu'au survol (micro-élévation) des éléments cliquables. */
+  --sh-sm:none; --sh:0 1px 2px rgba(17,24,39,.06),0 8px 22px rgba(17,24,39,.08);
+  --line:#E5E7EB;
+  --sans:'Inter','Geist',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   /* Alias de compatibilité : les écrans plus anciens (Réception, Devis,
      Branchement, Poste de commande) référençaient d'autres noms de variables.
      On les mappe sur le nouveau système pour une seule identité, sans réécrire
@@ -136,11 +146,14 @@ a{color:inherit}
 .logo .mk svg{width:17px;height:17px;color:#fff}
 .logo .wm{font-size:17.5px;font-weight:750;letter-spacing:-.02em;color:var(--side-brand)}
 .logo .wm span{color:var(--brand)}
-.nav{display:flex;flex-direction:column;gap:1px}
-.nav a{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:var(--r-sm);color:var(--side-ink);text-decoration:none;font-size:13.5px;font-weight:550;transition:background .12s,color .12s}
+.nav{display:flex;flex-direction:column;gap:8px}
+.navgroup{display:flex;flex-direction:column;gap:1px}
+.navtitle{font-size:10px;font-weight:720;letter-spacing:.07em;text-transform:uppercase;color:var(--side-ink-2);padding:2px 11px 5px}
+.nav a{position:relative;display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:var(--r-sm);color:var(--side-ink);text-decoration:none;font-size:13.5px;font-weight:550;transition:background .12s,color .12s}
 .nav a svg{width:18px;height:18px;flex:none;opacity:.75}
 .nav a:hover{background:var(--side-hover);color:var(--side-brand)}
 .nav a.on{background:var(--side-active);color:var(--side-active-ink);font-weight:640}
+.nav a.on::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:0 3px 3px 0;background:var(--brand)}
 .nav a.on svg{opacity:1;color:var(--side-active-ink)}
 .side .sep{height:1px;background:var(--side-line);margin:11px 6px}
 .side-foot{margin-top:auto;padding:6px}
@@ -225,6 +238,21 @@ a.fcard:hover{box-shadow:var(--sh)}
 .skip:focus{left:12px}
 a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.001ms!important;animation-duration:.001ms!important;scroll-behavior:auto!important}}
+/* Slide-over (panneau latéral) réutilisable */
+.sheet-ov{position:fixed;inset:0;background:rgba(17,24,39,.4);opacity:0;visibility:hidden;transition:opacity .18s;z-index:50}
+.sheet-ov.open{opacity:1;visibility:visible}
+.sheet{position:fixed;top:0;right:0;bottom:0;width:min(430px,100vw);background:var(--card);border-left:1px solid var(--line);box-shadow:-14px 0 44px rgba(17,24,39,.18);transform:translateX(100%);transition:transform .22s cubic-bezier(.4,0,.2,1);z-index:51;display:flex;flex-direction:column}
+.sheet.open{transform:none}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 22px;border-bottom:1px solid var(--line)}
+.sheet-h h2{font-size:16px;font-weight:720;letter-spacing:-.01em}
+.sheet-h .x{background:none;border:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;padding:2px 6px;border-radius:6px}
+.sheet-h .x:hover{background:var(--panel);color:var(--ink)}
+.sheet-b{padding:20px 22px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:14px}
+.sheet-f{padding:16px 22px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;align-items:center}
+.sheet label{display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.sheet input{font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--app);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 13px}
+.sheet input:focus{outline:2px solid var(--brand);outline-offset:1px;background:var(--card)}
+@media(prefers-reduced-motion:reduce){.sheet,.sheet-ov{transition:none}}
 .btn{display:inline-flex;align-items:center;gap:7px;font-family:var(--sans);font-size:13.5px;font-weight:620;padding:9px 15px;border-radius:var(--r-sm);border:1px solid transparent;cursor:pointer;text-decoration:none;transition:filter .12s,border-color .12s,background .12s}
 .btn svg{width:16px;height:16px}
 .btn-primary{background:var(--brand);color:#fff}.btn-primary:hover{filter:brightness(1.07)}
@@ -246,7 +274,9 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
   .side{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;gap:8px;padding:10px 12px;overflow-x:auto;z-index:10}
   .logo{padding:2px 6px 2px 2px}.logo .wm{display:none}
   .nav{flex-direction:row;gap:4px}
+  .navgroup{flex-direction:row;gap:4px} .navtitle{display:none}
   .nav a span{display:none} .nav a{padding:9px}
+  .nav a.on::before{display:none}
   .side .sep{display:none}
   .side-foot{margin:0 0 0 auto;padding:0}.side-foot .lbl,.side-foot .who{display:none}
   .content{padding:20px 16px 40px}.topbar{padding:14px 16px}
@@ -266,7 +296,8 @@ function page(o) {
     if (o.pass) parts.push('pass=' + encodeURIComponent(o.pass));
     return href + (parts.length ? '?' + parts.join('&') : '');
   };
-  const nav = NAV.map(n => `<a class="${n.key === o.active ? 'on' : ''}"${n.key === o.active ? ' aria-current="page"' : ''} href="${q(n.href)}">${icon(n.icon)}<span>${esc(n.label)}</span></a>`).join('');
+  const lien = (n) => `<a class="${n.key === o.active ? 'on' : ''}"${n.key === o.active ? ' aria-current="page"' : ''} href="${q(n.href)}">${icon(n.icon)}<span>${esc(n.label)}</span></a>`;
+  const nav = NAV_GROUPS.map((g) => `<div class="navgroup"><div class="navtitle">${esc(g.titre)}</div>${g.items.map(lien).join('')}</div>`).join('');
   const switcher = (o.sources && o.sources.length > 1)
     ? `<div class="lbl">Entreprise</div><select onchange="var u=new URL(location.href);u.searchParams.set('source',this.value);location.href=u.toString()">${o.sources.map(s =>
         `<option value="${esc(s)}"${s === o.source ? ' selected' : ''}>${esc(s)}</option>`).join('')}</select>` : '';
