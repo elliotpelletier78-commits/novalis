@@ -66,33 +66,45 @@ function renderDevis(d) {
   </div>
 
   <div class="panel">
-    <h3>Vos services & prix</h3>
+    <div class="card-h"><h3 style="margin:0">Vos services & prix</h3><button class="btn btn-ghost" id="svc-new">+ Service</button></div>
     <div class="hint">Laissez le prix vide pour « sur devis ». Les taxes ne sont jamais incluses ici.</div>
     <div id="liste">
       ${services.length ? services.map(s => `<div class="srv">
         <span class="nm">${esc(s.nom)}${s.unite ? ` <span style="color:var(--muted);font-weight:400">/ ${esc(s.unite)}</span>` : ''}</span>
         <span class="pr">${dollars(s.prix_cents)}</span>
         <button class="del" data-del="${s.id}">retirer</button>
-      </div>`).join('') : '<div class="empty">Aucun service pour l\'instant.</div>'}
+      </div>`).join('') : '<div class="empty">Aucun service. Cliquez « + Service » pour en ajouter.</div>'}
     </div>
-    <div class="drow">
-      <label>Service<input id="s-nom" placeholder="Ex. Changement de pneus"></label>
-      <label>Prix ($, vide = sur devis)<input id="s-prix" type="number" min="0" step="0.01" placeholder="—"></label>
-      <button class="dbtn ghost" id="s-add">Ajouter</button>
-    </div>
-    <span class="msg" id="msg-add"></span>
   </div>
   ${(d.recents && d.recents.length) ? `<div class="panel">
     <h3>Devis récents</h3>
     <div class="hint">Vos dernières soumissions déposées dans le poste de commande.</div>
     ${d.recents.map(r => `<div class="rline"><div class="b"><div class="t">${esc(r.titre || 'Devis')}</div><div class="s">${esc(r.apercu || '')}</div></div>${statutBadge(r.statut)}</div>`).join('')}
   </div>` : ''}
-  <div class="pagefoot">Une soumission, pas une facture. Taxes en sus. Valide 30 jours.</div>`;
+  <div class="pagefoot">Une soumission, pas une facture. Taxes en sus. Valide 30 jours.</div>
+
+  <div class="sheet-ov" id="sheet-ov"></div>
+  <aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Nouveau service">
+    <div class="sheet-h"><h2>Nouveau service</h2><button class="x" id="sheet-x" aria-label="Fermer">×</button></div>
+    <div class="sheet-b">
+      <label>Service<input id="s-nom" placeholder="Ex. Changement de pneus" autocomplete="off"></label>
+      <label>Prix ($, vide = « sur devis »)<input id="s-prix" type="number" min="0" step="0.01" placeholder="—"></label>
+    </div>
+    <div class="sheet-f"><span class="msg" id="msg-add"></span><button class="btn btn-ghost" id="s-cancel">Annuler</button><button class="btn btn-primary" id="s-add">Ajouter</button></div>
+  </aside>`;
 
   const bodyScript = `var SOURCE=${JSON.stringify(d.source)};
 function pass(){return localStorage.getItem('novalis_admin')||new URLSearchParams(location.search).get('pass')||'';}
 (function(){var p=new URLSearchParams(location.search).get('pass'); if(p) localStorage.setItem('novalis_admin',p);})();
 async function poste(url, body){return fetch(url,{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':pass()},body:JSON.stringify(body)});}
+var ov=document.getElementById('sheet-ov'),sh=document.getElementById('sheet');
+function sopen(){ov.classList.add('open');sh.classList.add('open');var i=document.getElementById('s-nom');if(i)i.focus();}
+function sclose(){ov.classList.remove('open');sh.classList.remove('open');}
+var svn=document.getElementById('svc-new'); if(svn) svn.addEventListener('click',sopen);
+ov.addEventListener('click',sclose);
+document.getElementById('sheet-x').addEventListener('click',sclose);
+document.getElementById('s-cancel').addEventListener('click',sclose);
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&sh.classList.contains('open'))sclose();});
 function fmt(c){return (c/100).toLocaleString('fr-CA',{style:'currency',currency:'CAD',minimumFractionDigits:2});}
 function recalc(){var t=0;document.querySelectorAll('#srv-pick .pick').forEach(function(p){
   if(p.checked && p.getAttribute('data-prix')!==''){var q=parseInt(document.querySelector('[data-qt="'+p.getAttribute('data-id')+'"]').value,10)||1;t+=parseInt(p.getAttribute('data-prix'),10)*q;}});
