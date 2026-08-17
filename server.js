@@ -638,6 +638,22 @@ app.get('/confiance', (req, res) => {
   res.type('html').send(renderConfiance());
 });
 
+// ── Prise de rendez-vous en ligne (page publique client) ────────────
+// Le client demande un RDV lui-même ; la demande arrive dans la Réception du
+// commerçant (via l'accusé instantané existant). Honnête : c'est une demande à
+// confirmer, pas un créneau garanti. Seulement pour les entreprises connues.
+app.get('/rdv/:source', (req, res) => {
+  const source = String(req.params.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source) || !sourcesConnues().includes(source)) {
+    return res.status(404).type('text/plain').send('Introuvable');
+  }
+  const et = branchement.etat(db, source);
+  let services = [];
+  try { services = devis.listerServices(db, source); } catch { /* base jeune */ }
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.type('html').send(renderBooking({ source, nom: et.identite.nom, services }));
+});
+
 // ── PWA : manifeste, service worker, icônes (publics) ───────────────
 const PWA_DIR = path.join(__dirname, 'core', 'pwa');
 app.get('/manifest.webmanifest', (req, res) => {
@@ -2250,6 +2266,7 @@ const { renderAujourdhui } = require('./core/aujourdhui-page');
 const { renderResultats } = require('./core/resultats-page');
 const { renderConfiance } = require('./core/confiance-page');
 const { renderLogin } = require('./core/login-page');
+const { renderBooking } = require('./core/booking-page');
 const { renderEntreprises } = require('./core/entreprises-page');
 const devis = require('./core/devis');
 const { renderDevis } = require('./core/devis-page');
@@ -2668,7 +2685,7 @@ app.get('/core/rdv', adminOnly, coreReady, (req, res) => {
     catch (e) { console.error('[rdv:rappels]', e.message); }
   }
   res.setHeader('X-Frame-Options', 'DENY');
-  res.send(renderRdv({ source, nom: et.identite.nom, sources, rdvs: rdv.lister(db, source), pass: req.query.pass ? String(req.query.pass) : undefined, alertes: propositions.compteurs(db, source).en_attente }));
+  res.send(renderRdv({ source, nom: et.identite.nom, sources, rdvs: rdv.lister(db, source), pass: req.query.pass ? String(req.query.pass) : undefined, alertes: propositions.compteurs(db, source).en_attente, bookingUrl: `${req.protocol}://${req.get('host')}/rdv/${encodeURIComponent(source)}` }));
 });
 app.post('/core/rdv', adminOnly, coreReady, express.json({ limit: '8kb' }), (req, res) => {
   const b = req.body || {};

@@ -49,6 +49,9 @@ const EXTRA = `
 .dayhead{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:720;letter-spacing:.04em;text-transform:uppercase;color:var(--brand-600);padding:12px 0 4px;border-top:1px solid var(--line-2)}
 .daygroup:first-child .dayhead{border-top:none;padding-top:2px}
 .dayhead span{font-size:11px;font-weight:700;color:var(--muted);background:var(--panel);border-radius:999px;padding:0 7px}
+.bookshare{margin-top:16px;font-size:13px;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:13px 15px}
+.bookshare code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:var(--panel);padding:3px 7px;border-radius:6px;word-break:break-all}
+.bookshare a{color:var(--brand-600);font-weight:600;text-decoration:none}
 .sheet .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:520px){.sheet .two{grid-template-columns:1fr}}
 `;
@@ -78,6 +81,7 @@ function renderRdv(data) {
       <div class="act"><button data-a="fait">Fait</button><button data-a="annule">Annuler</button></div>
     </div>`).join('')}</div>`).join('') : '<div class="empty">Aucun rendez-vous à venir. Cliquez « + Nouveau rendez-vous » en haut à droite.</div>'}
   </div>
+  ${data.bookingUrl ? `<div class="bookshare">Lien de réservation à partager (vos clients demandent un RDV en ligne) : <code>${esc(data.bookingUrl)}</code> · <a href="${esc(data.bookingUrl)}" target="_blank" rel="noopener">ouvrir</a></div>` : ''}
   <div class="pagefoot">Novalis tient le carnet et prépare les rappels — vous approuvez, le client est prévenu.</div>
 
   <div class="sheet-ov" id="sheet-ov"></div>
