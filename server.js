@@ -85,22 +85,30 @@ function memeSecret(fourni, attendu) {
 // preuve « authentifié » horodatée et infalsifiable.
 const SESS_KEY = process.env.MASTER_KEY || ADMIN_PASS || 'novalis-session-fallback';
 const SESS_TTL = 30 * 24 * 3600 * 1000; // 30 jours
-function signSession() {
-  const payload = 'a.' + (Date.now() + SESS_TTL);
+// Accès équipe « lecture seule » (optionnel) : un employé se connecte avec ce
+// mot de passe et peut TOUT VOIR, mais aucune action (approuver/envoyer/modifier).
+const EMPLOYE_PASS = process.env.EMPLOYE_PASS || null;
+const ROLES = ['admin', 'employe'];
+function signSession(role) {
+  const r = ROLES.includes(role) ? role : 'admin';
+  const payload = r + '.' + (Date.now() + SESS_TTL);
   const sig = crypto.createHmac('sha256', SESS_KEY).update(payload).digest('base64url');
   return payload + '.' + sig;
 }
+/** @returns {'admin'|'employe'|null} le rôle si la session est valide, sinon null. */
 function verifySession(token) {
-  if (typeof token !== 'string' || token.length > 512) return false;
+  if (typeof token !== 'string' || token.length > 512) return null;
   const i = token.lastIndexOf('.');
-  if (i <= 0) return false;
+  if (i <= 0) return null;
   const payload = token.slice(0, i), sig = token.slice(i + 1);
   const attendu = crypto.createHmac('sha256', SESS_KEY).update(payload).digest('base64url');
-  let ok = false;
-  try { ok = crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(attendu)); } catch { return false; }
-  if (!ok) return false;
-  const exp = parseInt(payload.split('.')[1], 10);
-  return Number.isFinite(exp) && exp > Date.now();
+  let ok;
+  try { ok = crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(attendu)); } catch { return null; }
+  if (!ok) return null;
+  const parts = payload.split('.');
+  const role = parts[0], exp = parseInt(parts[1], 10);
+  if (!ROLES.includes(role) || !Number.isFinite(exp) || exp <= Date.now()) return null;
+  return role;
 }
 function lireCookie(req, nom) {
   const h = req.headers.cookie;
@@ -112,22 +120,29 @@ function lireCookie(req, nom) {
   }
   return null;
 }
-function poserSession(req, res) {
+function poserSession(req, res, role) {
   const secure = req.secure || req.headers['x-forwarded-proto'] === 'https';
-  let c = 'nv_session=' + signSession() + '; HttpOnly; Path=/; SameSite=Lax; Max-Age=' + (SESS_TTL / 1000);
+  let c = 'nv_session=' + signSession(role) + '; HttpOnly; Path=/; SameSite=Lax; Max-Age=' + (SESS_TTL / 1000);
   if (secure) c += '; Secure';
   res.setHeader('Set-Cookie', c);
 }
 function effacerSession(res) {
   res.setHeader('Set-Cookie', 'nv_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0');
 }
-// Authentifié = session valide OU (compat) en-tête/paramètre pass correct.
+// Rôle courant : 'admin' | 'employe' | null. Session signée d'abord, sinon
+// (compat) l'en-tête/paramètre pass — qui vaut toujours « admin » (ou employé).
+function roleDe(req) {
+  const c = lireCookie(req, 'nv_session');
+  const r = c ? verifySession(c) : null;
+  if (r) return r;
+  const given = req.headers['x-admin-pass'] || req.query.pass || (req.body && req.body.pass);
+  if (memeSecret(given, ADMIN_PASS)) return 'admin';
+  if (EMPLOYE_PASS && memeSecret(given, EMPLOYE_PASS)) return 'employe';
+  return null;
+}
 function estAuthentifie(req) {
   if (!ADMIN_PASS) return false;
-  const c = lireCookie(req, 'nv_session');
-  if (c && verifySession(c)) return true;
-  const given = req.headers['x-admin-pass'] || req.query.pass || (req.body && req.body.pass);
-  return memeSecret(given, ADMIN_PASS);
+  return roleDe(req) !== null;
 }
 function cheminLocal(n) {
   n = String(n || '');
@@ -792,12 +807,14 @@ app.post('/login', express.urlencoded({ extended: false, limit: '4kb' }), (req, 
   const next = cheminLocal(req.body && req.body.next);
   if (adminBloque(req)) return res.redirect(302, '/login?e=2' + (next ? '&next=' + encodeURIComponent(next) : ''));
   const mdp = String((req.body && req.body.password) || '');
-  if (!memeSecret(mdp, ADMIN_PASS)) {
+  const role = memeSecret(mdp, ADMIN_PASS) ? 'admin'
+    : (EMPLOYE_PASS && memeSecret(mdp, EMPLOYE_PASS)) ? 'employe' : null;
+  if (!role) {
     noterEchecAdmin(req);
     return res.redirect(302, '/login?e=1' + (next ? '&next=' + encodeURIComponent(next) : ''));
   }
   noterSuccesAdmin(req);
-  poserSession(req, res);
+  poserSession(req, res, role);
   res.redirect(302, next || '/core/aujourdhui');
 });
 app.get('/logout', (req, res) => {
@@ -2176,6 +2193,16 @@ function coreReady(req, res, next) {
   if (!core) return res.status(503).json({ error: 'noyau non initialisé (voir logs serveur)' });
   next();
 }
+// Rôle « employé » = lecture seule : toute action (non-GET) sur /core est bloquée.
+// Placé avant les routes /core ; les GET (consultation) restent permis.
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD' && req.path.startsWith('/core/') && roleDe(req) === 'employe') {
+    return res.status(403).json({ error: 'Accès en lecture seule — cette action est réservée à un administrateur.' });
+  }
+  next();
+});
+// Qui suis-je (pour l'interface : bannière lecture seule).
+app.get('/core/moi', adminOnly, (req, res) => res.json({ role: roleDe(req) || 'admin' }));
 
 // Lancer un pipeline. Ex: {"type":"audit-prospect","clientId":1,"payload":{"url":"https://..."}}
 app.post('/core/enqueue', adminOnly, coreReady, (req, res) => {

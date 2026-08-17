@@ -44,6 +44,14 @@ function SHELL_SCRIPT(source, pass) {
   return `(function(){
   var SRC=${src},PASS=${ps}||(localStorage.getItem('novalis_admin')||'');
   if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){});}
+  // Bannière « lecture seule » pour un accès employé.
+  fetch('/core/moi',{headers:{'x-admin-pass':PASS}}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.role==='employe'){var c=document.getElementById('contenu'); if(!c) return;
+      var b=document.createElement('div'); b.setAttribute('role','status');
+      b.textContent='Mode lecture seule — vous pouvez tout consulter ; les actions sont réservées à un administrateur.';
+      b.style.cssText='background:var(--warn-soft);color:var(--warn);border:1px solid var(--line);border-radius:8px;padding:11px 15px;font-size:13.5px;font-weight:600;margin-bottom:16px';
+      c.insertBefore(b,c.firstChild);}
+  }).catch(function(){});
   // Recherche in-page : filtre les lignes/cartes de type liste par leur texte.
   var q=document.getElementById('tbq');
   if(q){var CIBLES='.prop,.nova-i,.cx,.srv,.rdv,.ent,tbody tr,.list .row';
