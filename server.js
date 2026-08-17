@@ -2123,6 +2123,7 @@ const { renderBranchement } = require('./core/branchement-page');
 const propositions = require('./core/propositions');
 const { renderPropositions } = require('./core/propositions-page');
 const { renderAujourdhui } = require('./core/aujourdhui-page');
+const { renderResultats } = require('./core/resultats-page');
 const { renderEntreprises } = require('./core/entreprises-page');
 const devis = require('./core/devis');
 const { renderDevis } = require('./core/devis-page');
@@ -2153,6 +2154,44 @@ app.get('/core/reception', adminOnly, coreReady, (req, res) => {
   const base = `${req.protocol}://${req.get('host')}`;
   res.setHeader('X-Frame-Options', 'DENY');
   res.send(renderReception(data, { sources, pulse: pouls, pass: req.query.pass ? String(req.query.pass) : undefined, alertes: propositions.compteurs(db, source).en_attente, rapportUrl: `${base}/r/${encodeURIComponent(source)}/${token}` }));
+});
+
+// ── Novalis Résultats — le relevé de valeur (chiffres réels) ────────
+app.get('/core/resultats', adminOnly, coreReady, (req, res) => {
+  const sources = sourcesConnues();
+  const source = String(req.query.source || sources[0] || 'novalis').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
+  const et = branchement.etat(db, source);
+  const data = reception.apercu(db, source, { jours: 30 });
+  const c = data.compteurs, rep = data.reponse;
+  const prep = {};
+  try {
+    for (const row of db.prepare('SELECT type, statut, COUNT(*) n FROM propositions WHERE source = ? GROUP BY type, statut').all(source)) {
+      const p = prep[row.type] || (prep[row.type] = { prepares: 0, traites: 0 });
+      p.prepares += row.n;
+      if (row.statut === 'approuve' || row.statut === 'envoye') p.traites += row.n;
+    }
+  } catch { /* base jeune */ }
+  const clients = { gagne: 0, perdu: 0, contacte: 0, nouveau: 0 };
+  try {
+    for (const row of db.prepare('SELECT statut, COUNT(*) n FROM leads WHERE source = ? GROUP BY statut').all(source)) {
+      if (row.statut && row.statut in clients) clients[row.statut] += row.n;
+      else clients.nouveau += row.n;
+    }
+  } catch { /* base jeune */ }
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.send(renderResultats({
+    source, nom: et.identite.nom, sources,
+    pass: req.query.pass ? String(req.query.pass) : undefined,
+    alertes: propositions.compteurs(db, source).en_attente, jours: data.fenetre_jours,
+    recu: {
+      contacts: c.contacts, leads: c.leads, taps: c.taps, hors_heures: c.hors_heures,
+      valeur_captee_cents: c.valeur_captee_cents, en_attente: c.en_attente,
+      pct_sous_1h: rep.pct_sous_1h, mediane_minutes: rep.mediane_minutes, repondus: rep.repondus,
+      accuses: rep.accuses, accuses_hors_heures: rep.accuses_hors_heures,
+    },
+    prep, clients,
+  }));
 });
 
 // Export CSV des contacts d'un commerce (pour Excel / comptable).

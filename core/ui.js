@@ -66,6 +66,7 @@ const NAV_GROUPS = [
   { titre: 'Vue d’ensemble', items: [
     { key: 'entreprises', label: 'Entreprises', href: '/core/entreprises', icon: 'grid' },
     { key: 'aujourdhui', label: 'Aujourd’hui', href: '/core/aujourdhui', icon: 'today' },
+    { key: 'resultats', label: 'Résultats', href: '/core/resultats', icon: 'pulse' },
   ] },
   { titre: 'Opérations', items: [
     { key: 'propositions', label: 'Poste de commande', href: '/core/propositions', icon: 'inbox' },
@@ -224,6 +225,16 @@ a.fcard:hover{box-shadow:var(--sh)}
 .led .v a{color:inherit;text-decoration:none} .led .v a:hover{color:var(--brand-600)}
 .led .sub{font-size:12px;color:var(--muted);margin-top:5px}
 @media(max-width:560px){.led .it{border-right:none;margin-right:16px}}
+/* En-tête de section « relevé » + note factuelle (primitives document) */
+.deyebrow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:30px 0 0;border-bottom:2px solid var(--ink);padding-bottom:8px}
+.deyebrow a{font-size:12.5px;letter-spacing:0;text-transform:none;color:var(--brand-600);font-weight:600;text-decoration:none}
+.dnote{margin-top:24px;font-size:12.5px;color:var(--faint);font-style:italic}
+.rrow{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:baseline;padding:12px 0;border-bottom:1px solid var(--line)}
+.rrow .t{font-size:14.5px;color:var(--ink-2)}
+.rrow .t .s{display:block;font-size:12.5px;color:var(--muted);margin-top:1px}
+.rrow .v{font-variant-numeric:tabular-nums;font-size:16px;font-weight:600;color:var(--ink);text-align:right;white-space:nowrap}
+.rrow .v.z{color:var(--faint);font-weight:400}
+.rrow .v .u{font-size:12px;color:var(--muted);font-weight:400;margin-left:4px}
 /* Actions rapides (pilules) */
 .qact{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:4px}
 .qact a{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:var(--r-pill);padding:9px 15px;text-decoration:none;transition:border-color .12s,color .12s}

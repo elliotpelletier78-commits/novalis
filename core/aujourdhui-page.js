@@ -12,8 +12,6 @@ const EXTRA = `
 .dadv{display:flex;align-items:baseline;gap:10px;padding:13px 0;border-bottom:1px solid var(--line);font-size:13.5px;color:var(--ink-2)}
 .dadv b{color:var(--ink);font-weight:640}
 .dadv .lnk{margin-left:auto;color:var(--brand-600);font-weight:600;text-decoration:none;white-space:nowrap}
-.deyebrow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:30px 0 0;border-bottom:2px solid var(--ink);padding-bottom:8px}
-.deyebrow a{font-size:12.5px;letter-spacing:0;text-transform:none;color:var(--brand-600);font-weight:600;text-decoration:none}
 .drow{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:baseline;padding:13px 0;border-bottom:1px solid var(--line);text-decoration:none;color:inherit}
 .drow:hover{background:var(--card)}
 .drow .t{font-family:var(--disp);font-size:16.5px;font-weight:600;letter-spacing:-.005em}
@@ -23,7 +21,6 @@ const EXTRA = `
 .drow .st.risk{color:var(--risk)}
 .drow .wh{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums;margin-top:3px}
 .dempty{padding:14px 0;border-bottom:1px solid var(--line);color:var(--muted);font-size:14px}
-.dnote{margin-top:24px;font-size:12.5px;color:var(--faint);font-style:italic}
 `;
 
 function renderAujourdhui(d) {
