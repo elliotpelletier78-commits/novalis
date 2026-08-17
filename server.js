@@ -79,6 +79,61 @@ function memeSecret(fourni, attendu) {
   return crypto.timingSafeEqual(a, b);
 }
 
+// ── Session par cookie signé (HMAC) — remplace le mot de passe dans l'URL ──
+// La clé de signature vient du MASTER_KEY (secret d'exploitation) ; à défaut,
+// du mot de passe admin. Le jeton ne porte aucune donnée sensible, juste une
+// preuve « authentifié » horodatée et infalsifiable.
+const SESS_KEY = process.env.MASTER_KEY || ADMIN_PASS || 'novalis-session-fallback';
+const SESS_TTL = 30 * 24 * 3600 * 1000; // 30 jours
+function signSession() {
+  const payload = 'a.' + (Date.now() + SESS_TTL);
+  const sig = crypto.createHmac('sha256', SESS_KEY).update(payload).digest('base64url');
+  return payload + '.' + sig;
+}
+function verifySession(token) {
+  if (typeof token !== 'string' || token.length > 512) return false;
+  const i = token.lastIndexOf('.');
+  if (i <= 0) return false;
+  const payload = token.slice(0, i), sig = token.slice(i + 1);
+  const attendu = crypto.createHmac('sha256', SESS_KEY).update(payload).digest('base64url');
+  let ok = false;
+  try { ok = crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(attendu)); } catch { return false; }
+  if (!ok) return false;
+  const exp = parseInt(payload.split('.')[1], 10);
+  return Number.isFinite(exp) && exp > Date.now();
+}
+function lireCookie(req, nom) {
+  const h = req.headers.cookie;
+  if (!h) return null;
+  for (const part of h.split(';')) {
+    const idx = part.indexOf('=');
+    if (idx < 0) continue;
+    if (part.slice(0, idx).trim() === nom) return part.slice(idx + 1).trim();
+  }
+  return null;
+}
+function poserSession(req, res) {
+  const secure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+  let c = 'nv_session=' + signSession() + '; HttpOnly; Path=/; SameSite=Lax; Max-Age=' + (SESS_TTL / 1000);
+  if (secure) c += '; Secure';
+  res.setHeader('Set-Cookie', c);
+}
+function effacerSession(res) {
+  res.setHeader('Set-Cookie', 'nv_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0');
+}
+// Authentifié = session valide OU (compat) en-tête/paramètre pass correct.
+function estAuthentifie(req) {
+  if (!ADMIN_PASS) return false;
+  const c = lireCookie(req, 'nv_session');
+  if (c && verifySession(c)) return true;
+  const given = req.headers['x-admin-pass'] || req.query.pass || (req.body && req.body.pass);
+  return memeSecret(given, ADMIN_PASS);
+}
+function cheminLocal(n) {
+  n = String(n || '');
+  return (n.startsWith('/') && !n.startsWith('//')) ? n.slice(0, 300) : '';
+}
+
 // Étranglement des tentatives ratées par IP : sans ça, un mot de passe
 // unique sans session est cassable par force brute en quelques heures.
 const ADMIN_MAX_ESSAIS = 8;
@@ -581,6 +636,29 @@ for (const slug of ['politique-confidentialite', 'conditions-utilisation']) {
 // Page publique de confiance / sécurité (atout de crédibilité, honnête).
 app.get('/confiance', (req, res) => {
   res.type('html').send(renderConfiance());
+});
+
+// ── Connexion / déconnexion (session par cookie signé) ──────────────
+app.get('/login', (req, res) => {
+  if (estAuthentifie(req)) return res.redirect(302, cheminLocal(req.query.next) || '/core/aujourdhui');
+  res.type('html').send(renderLogin({ next: cheminLocal(req.query.next), erreur: req.query.e ? String(req.query.e) : '' }));
+});
+app.post('/login', express.urlencoded({ extended: false, limit: '4kb' }), (req, res) => {
+  if (!ADMIN_PASS) return res.status(503).type('text/plain').send('Administration non configurée');
+  const next = cheminLocal(req.body && req.body.next);
+  if (adminBloque(req)) return res.redirect(302, '/login?e=2' + (next ? '&next=' + encodeURIComponent(next) : ''));
+  const mdp = String((req.body && req.body.password) || '');
+  if (!memeSecret(mdp, ADMIN_PASS)) {
+    noterEchecAdmin(req);
+    return res.redirect(302, '/login?e=1' + (next ? '&next=' + encodeURIComponent(next) : ''));
+  }
+  noterSuccesAdmin(req);
+  poserSession(req, res);
+  res.redirect(302, next || '/core/aujourdhui');
+});
+app.get('/logout', (req, res) => {
+  effacerSession(res);
+  res.redirect(302, '/login');
 });
 
 app.get('/', (req, res) => {
@@ -1936,12 +2014,19 @@ try {
 }
 
 function adminOnly(req, res, next) {
-  const given = req.headers['x-admin-pass'] || req.query.pass || (req.body && req.body.pass);
   if (!ADMIN_PASS) return res.status(503).json({ error: 'Administration non configurée' });
-  if (adminBloque(req)) return res.status(429).json({ error: 'Trop de tentatives — réessayer plus tard' });
-  if (!memeSecret(given, ADMIN_PASS)) { noterEchecAdmin(req); return res.status(401).json({ error: 'Non autorisé' }); }
-  noterSuccesAdmin(req);
-  next();
+  const veutHtml = req.method === 'GET' && String(req.headers.accept || '').includes('text/html');
+  if (adminBloque(req)) {
+    if (veutHtml) return res.redirect(302, '/login?e=2');
+    return res.status(429).json({ error: 'Trop de tentatives — réessayer plus tard' });
+  }
+  if (estAuthentifie(req)) { noterSuccesAdmin(req); return next(); }
+  // Des identifiants explicites mais faux → compter l'échec (anti-force brute).
+  const creds = req.headers['x-admin-pass'] || req.query.pass || (req.body && req.body.pass);
+  if (creds) noterEchecAdmin(req);
+  // Navigation → page de connexion ; appel API → 401.
+  if (veutHtml) return res.redirect(302, '/login?next=' + encodeURIComponent(req.originalUrl));
+  return res.status(401).json({ error: 'Non autorisé' });
 }
 function coreReady(req, res, next) {
   if (!core) return res.status(503).json({ error: 'noyau non initialisé (voir logs serveur)' });
@@ -2130,6 +2215,7 @@ const { renderPropositions } = require('./core/propositions-page');
 const { renderAujourdhui } = require('./core/aujourdhui-page');
 const { renderResultats } = require('./core/resultats-page');
 const { renderConfiance } = require('./core/confiance-page');
+const { renderLogin } = require('./core/login-page');
 const { renderEntreprises } = require('./core/entreprises-page');
 const devis = require('./core/devis');
 const { renderDevis } = require('./core/devis-page');

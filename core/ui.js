@@ -57,7 +57,7 @@ function SHELL_SCRIPT(source, pass) {
     ab.addEventListener('click',function(e){e.stopPropagation();var o=acct.classList.toggle('open');ab.setAttribute('aria-expanded',o?'true':'false');});
     document.addEventListener('click',function(){acct.classList.remove('open');ab.setAttribute('aria-expanded','false');});
     var lo=document.getElementById('acct-logout');
-    if(lo) lo.addEventListener('click',function(){localStorage.removeItem('novalis_admin');location.href='/';});
+    if(lo) lo.addEventListener('click',function(){localStorage.removeItem('novalis_admin');location.href='/logout';});
   }
 })();`;
 }
