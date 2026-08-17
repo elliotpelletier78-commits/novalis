@@ -78,6 +78,17 @@ function SHELL_SCRIPT(source, pass) {
   }
   snd&&snd.addEventListener('click',envoyer);
   inp&&inp.addEventListener('keydown',function(e){if(e.key==='Enter')envoyer();});
+  // Bouton d'aide (barre) → ouvre Nova.
+  var help=document.getElementById('nova-help');
+  if(help) help.addEventListener('click',function(){box.classList.contains('open')?close():open();});
+  // Menu de compte (ouvrir/fermer, se déconnecter).
+  var acct=document.getElementById('acct'),ab=document.getElementById('acct-btn');
+  if(ab){
+    ab.addEventListener('click',function(e){e.stopPropagation();var o=acct.classList.toggle('open');ab.setAttribute('aria-expanded',o?'true':'false');});
+    document.addEventListener('click',function(){acct.classList.remove('open');ab.setAttribute('aria-expanded','false');});
+    var lo=document.getElementById('acct-logout');
+    if(lo) lo.addEventListener('click',function(){localStorage.removeItem('novalis_admin');location.href='/';});
+  }
 })();`;
 }
 
@@ -197,7 +208,38 @@ a{color:inherit}
 .iconbtn{width:38px;height:38px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--card);color:var(--ink-2);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;transition:border-color .12s,color .12s}
 .iconbtn:hover{border-color:var(--brand);color:var(--brand)}
 .iconbtn svg{width:19px;height:19px}
-.content{padding:24px 28px 40px;max-width:1120px;width:100%}
+/* Sélecteur d'entreprise (sous le logo) */
+.wswitch{position:relative;margin:0 6px 12px}
+.wswitch select{width:100%;font-family:var(--sans);font-size:13px;font-weight:560;color:var(--side-brand);background:var(--side-hover);border:1px solid var(--side-line);border-radius:9px;padding:9px 30px 9px 11px;cursor:pointer;-webkit-appearance:none;appearance:none}
+.wswitch::after{content:"";position:absolute;right:13px;top:50%;width:7px;height:7px;border-right:1.6px solid var(--side-ink-2);border-bottom:1.6px solid var(--side-ink-2);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+/* Barre : cluster d'icônes d'application */
+.tb-ic{position:relative;width:38px;height:38px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--card);color:var(--ink-2);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;transition:border-color .12s,color .12s}
+.tb-ic:hover{border-color:var(--brand);color:var(--brand)}
+.tb-ic svg{width:19px;height:19px}
+.tb-ic .dot{position:absolute;top:5px;right:5px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--risk);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;border:1.5px solid var(--card);font-variant-numeric:tabular-nums}
+/* Compte */
+.acct{position:relative}
+.acct .chip{display:flex;align-items:center;gap:8px;padding:4px 11px 4px 4px;border:1px solid var(--line);border-radius:22px;background:var(--card);cursor:pointer}
+.acct .chip:hover{border-color:var(--brand)}
+.acct .chip .av{width:28px;height:28px;border-radius:50%;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;font-size:11px;font-weight:700;font-family:var(--disp)}
+.acct .chip .nm{font-size:12.5px;font-weight:560;color:var(--ink-2)}
+.acct .chip .ca{color:var(--faint);font-size:11px}
+.acct .menu{position:absolute;right:0;top:46px;background:var(--card);border:1px solid var(--line);border-radius:11px;box-shadow:var(--sh);min-width:210px;padding:6px;display:none;z-index:30}
+.acct.open .menu{display:block}
+.acct .menu .who{padding:8px 10px 6px;font-size:11.5px;color:var(--muted)}
+.acct .menu .who b{display:block;color:var(--ink);font-size:13px;font-weight:640}
+.acct .menu a,.acct .menu button{display:flex;width:100%;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;font-size:13px;font-weight:520;color:var(--ink-2);background:none;border:none;cursor:pointer;text-decoration:none;text-align:left;font-family:var(--sans)}
+.acct .menu a svg,.acct .menu button svg{width:16px;height:16px;color:var(--faint)}
+.acct .menu a:hover,.acct .menu button:hover{background:var(--panel)}
+.acct .menu .sep{height:1px;background:var(--line-2);margin:5px 4px}
+.acct .menu .lo{color:var(--risk)}
+/* Barre d'état (bas de l'application) */
+.statusbar{display:flex;align-items:center;gap:16px;padding:8px 30px;background:var(--card);border-top:1px solid var(--line);font-size:11.5px;color:var(--muted)}
+.statusbar .g{display:flex;align-items:center;gap:7px}
+.statusbar .live{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
+.statusbar .sp{margin-left:auto}
+.statusbar b{color:var(--ink-2);font-weight:600;font-variant-numeric:tabular-nums}
+.content{padding:24px 28px 40px;max-width:1120px;width:100%;flex:1}
 /* Composants */
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-sm);padding:20px 22px}
 .card+.card{margin-top:16px}
@@ -281,7 +323,11 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
   .side .sep{display:none}
   .side-foot{margin:0 0 0 auto;padding:0}.side-foot .lbl,.side-foot .who{display:none}
   .content{padding:20px 16px 40px}.topbar{padding:14px 16px}
+  .tb-search{display:none}.acct .chip .nm,.acct .chip .ca{display:none}
+  .statusbar{padding:8px 16px;font-size:11px}.statusbar .hidem{display:none}
+  .wswitch{display:none}
 }
+@media(max-width:640px){.tb-ic.opt{display:none}}
 `;
 
 /**
@@ -299,9 +345,11 @@ function page(o) {
   };
   const lien = (n) => `<a class="${n.key === o.active ? 'on' : ''}"${n.key === o.active ? ' aria-current="page"' : ''} href="${q(n.href)}">${icon(n.icon)}<span>${esc(n.label)}</span></a>`;
   const nav = NAV_GROUPS.map((g) => `<div class="navgroup"><div class="navtitle">${esc(g.titre)}</div>${g.items.map(lien).join('')}</div>`).join('');
-  const switcher = (o.sources && o.sources.length > 1)
-    ? `<div class="lbl">Entreprise</div><select onchange="var u=new URL(location.href);u.searchParams.set('source',this.value);location.href=u.toString()">${o.sources.map(s =>
-        `<option value="${esc(s)}"${s === o.source ? ' selected' : ''}>${esc(s)}</option>`).join('')}</select>` : '';
+  const wswitch = (o.sources && o.sources.length > 1)
+    ? `<div class="wswitch"><select aria-label="Changer d’entreprise" onchange="var u=new URL(location.href);u.searchParams.set('source',this.value);location.href=u.toString()">${o.sources.map(s =>
+        `<option value="${esc(s)}"${s === o.source ? ' selected' : ''}>${esc(s)}</option>`).join('')}</select></div>` : '';
+  const nbEnt = (o.sources && o.sources.length) || 1;
+  const alertes = Number(o.alertes) > 0 ? Number(o.alertes) : 0;
 
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">${o.noindex === false ? '' : '<meta name="robots" content="noindex">'}
@@ -309,9 +357,10 @@ function page(o) {
 <body><a class="skip" href="#contenu">Aller au contenu</a><div class="app">
   <aside class="side">
     <div class="logo"><span class="mk">${MARK}</span><span class="wm">nova<span>lis</span></span></div>
+    ${wswitch}
     <nav class="nav" aria-label="Navigation principale">${nav}</nav>
     <div class="sep"></div>
-    <div class="side-foot">${switcher}<div class="who">Espace d’exploitation</div></div>
+    <div class="side-foot"><div class="who">Espace d’exploitation</div></div>
   </aside>
   <main class="main">
     <div class="topbar">
@@ -319,10 +368,29 @@ function page(o) {
       <div class="tb-search">${icon('search')}<input type="search" id="tbq" placeholder="Rechercher dans cette page…" aria-label="Rechercher"></div>
       <div class="right">
         ${o.actionsHtml ? `<div class="acts">${o.actionsHtml}</div>` : ''}
-        <a class="iconbtn" href="${q('/core/branchement')}" title="Réglages de l’entreprise" aria-label="Réglages">${icon('gear')}</a>
+        <a class="tb-ic" href="${q('/core/propositions')}" title="À approuver" aria-label="À approuver">${icon('inbox')}${alertes ? `<span class="dot">${alertes > 99 ? '99+' : alertes}</span>` : ''}</a>
+        <button class="tb-ic opt" id="nova-help" title="Demander à Nova" aria-label="Aide de Nova">${icon('help')}</button>
+        <a class="tb-ic opt" href="${q('/core/branchement')}" title="Réglages de l’entreprise" aria-label="Réglages">${icon('gear')}</a>
+        <div class="acct" id="acct">
+          <button class="chip" id="acct-btn" aria-haspopup="menu" aria-expanded="false"><span class="av">EX</span><span class="nm">Exploitation</span><span class="ca">▾</span></button>
+          <div class="menu" role="menu">
+            <div class="who">Connecté comme<b>Exploitation</b></div>
+            <a role="menuitem" href="${q('/core/entreprises')}">${icon('grid')} Toutes les entreprises</a>
+            <a role="menuitem" href="${q('/core/branchement')}">${icon('plug')} Branchement &amp; réglages</a>
+            <div class="sep"></div>
+            <button role="menuitem" class="lo" id="acct-logout">Se déconnecter</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="content" id="contenu">${o.contentHtml}</div>
+    <footer class="statusbar">
+      <span class="g"><span class="live"></span>Connecté</span>
+      <span class="g hidem">Nova opère <b>${nbEnt}</b>&nbsp;entreprise${nbEnt > 1 ? 's' : ''}</span>
+      <span class="sp"></span>
+      <span class="g hidem">Rien n’est envoyé sans votre approbation</span>
+      <span class="g">Espace d’exploitation Novalis</span>
+    </footer>
   </main>
 </div>
 <button class="nova-fab" id="nova-fab" title="Demander à Nova" aria-label="Ouvrir Nova">${SPARK}</button>

@@ -2152,7 +2152,7 @@ app.get('/core/reception', adminOnly, coreReady, (req, res) => {
   const token = reception.jetonRapport(source, process.env.MASTER_KEY);
   const base = `${req.protocol}://${req.get('host')}`;
   res.setHeader('X-Frame-Options', 'DENY');
-  res.send(renderReception(data, { sources, pulse: pouls, pass: req.query.pass ? String(req.query.pass) : undefined, rapportUrl: `${base}/r/${encodeURIComponent(source)}/${token}` }));
+  res.send(renderReception(data, { sources, pulse: pouls, pass: req.query.pass ? String(req.query.pass) : undefined, alertes: propositions.compteurs(db, source).en_attente, rapportUrl: `${base}/r/${encodeURIComponent(source)}/${token}` }));
 });
 
 // Export CSV des contacts d'un commerce (pour Excel / comptable).
@@ -2214,6 +2214,7 @@ app.get('/core/branchement', adminOnly, coreReady, (req, res) => {
   const eBr = branchement.etat(db, source);
   eBr.pass = req.query.pass ? String(req.query.pass) : undefined;
   eBr.sources = sourcesConnues();
+  eBr.alertes = propositions.compteurs(db, source).en_attente;
   res.send(renderBranchement(eBr));
 });
 
@@ -2369,7 +2370,7 @@ app.get('/core/aujourdhui', adminOnly, coreReady, (req, res) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.send(renderAujourdhui({
     source, nom: et.identite.nom, salutation, dateLabel: dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1), sources,
-    pass: req.query.pass ? String(req.query.pass) : undefined,
+    pass: req.query.pass ? String(req.query.pass) : undefined, alertes: cptsProp.en_attente,
     signaux: {
       a_approuver: cptsProp.en_attente,
       contacts: recu.compteurs.contacts,
@@ -2468,7 +2469,7 @@ app.get('/core/publications', adminOnly, coreReady, (req, res) => {
   res.setHeader('X-Frame-Options', 'DENY');
   let pubRecents = [];
   try { pubRecents = db.prepare('SELECT apercu, brouillon, statut FROM propositions WHERE source = ? AND type = \'publication\' ORDER BY id DESC LIMIT 8').all(source); } catch { /* jeune */ }
-  res.send(renderPublications({ source, nom: et.identite.nom, recents: pubRecents, sources: sourcesConnues(), pass: req.query.pass ? String(req.query.pass) : undefined }));
+  res.send(renderPublications({ source, nom: et.identite.nom, recents: pubRecents, sources: sourcesConnues(), pass: req.query.pass ? String(req.query.pass) : undefined, alertes: propositions.compteurs(db, source).en_attente }));
 });
 function cfgPub(source) {
   const et = branchement.etat(db, source);
@@ -2502,7 +2503,7 @@ app.get('/core/rdv', adminOnly, coreReady, (req, res) => {
     catch (e) { console.error('[rdv:rappels]', e.message); }
   }
   res.setHeader('X-Frame-Options', 'DENY');
-  res.send(renderRdv({ source, nom: et.identite.nom, sources, rdvs: rdv.lister(db, source), pass: req.query.pass ? String(req.query.pass) : undefined }));
+  res.send(renderRdv({ source, nom: et.identite.nom, sources, rdvs: rdv.lister(db, source), pass: req.query.pass ? String(req.query.pass) : undefined, alertes: propositions.compteurs(db, source).en_attente }));
 });
 app.post('/core/rdv', adminOnly, coreReady, express.json({ limit: '8kb' }), (req, res) => {
   const b = req.body || {};
@@ -2525,7 +2526,7 @@ app.get('/core/devis', adminOnly, coreReady, (req, res) => {
   res.setHeader('X-Frame-Options', 'DENY');
   let recents = [];
   try { recents = db.prepare('SELECT titre, apercu, statut FROM propositions WHERE source = ? AND type = \'devis\' ORDER BY id DESC LIMIT 8').all(source); } catch { /* jeune */ }
-  res.send(renderDevis({ source, nom: et.identite.nom, services: devis.listerServices(db, source), recents, sources: sourcesConnues(), pass: req.query.pass ? String(req.query.pass) : undefined }));
+  res.send(renderDevis({ source, nom: et.identite.nom, services: devis.listerServices(db, source), recents, sources: sourcesConnues(), pass: req.query.pass ? String(req.query.pass) : undefined, alertes: propositions.compteurs(db, source).en_attente }));
 });
 app.post('/core/devis/service', adminOnly, coreReady, express.json({ limit: '4kb' }), (req, res) => {
   const b = req.body || {};
@@ -2576,6 +2577,7 @@ app.get('/core/propositions', adminOnly, coreReady, (req, res) => {
     source, nom: et.identite.nom,
     items: propositions.lister(db, source, { statut }),
     compteurs: propositions.compteurs(db, source),
+    alertes: propositions.compteurs(db, source).en_attente,
     statut, lienEspace, sources: sourcesConnues(), pass: req.query.pass ? String(req.query.pass) : undefined,
   }));
 });

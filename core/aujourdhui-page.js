@@ -141,7 +141,7 @@ function renderAujourdhui(d) {
     title: nom,
     subtitle: `${d.salutation || 'Bonjour'} · ${d.dateLabel || ''}`,
     active: 'aujourdhui',
-    source: d.source, sources: d.sources, pass: d.pass,
+    source: d.source, sources: d.sources, pass: d.pass, alertes: d.alertes,
     extraCss: EXTRA,
     contentHtml: content,
   });

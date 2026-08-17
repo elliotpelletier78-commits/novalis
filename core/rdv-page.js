@@ -131,7 +131,7 @@ document.querySelectorAll('.rdv .act button').forEach(function(btn){
   return page({
     title: 'Rendez-vous',
     subtitle: `${esc(nom)} · le carnet et les rappels`,
-    active: 'rdv', source: data.source, sources: data.sources, pass: data.pass,
+    active: 'rdv', source: data.source, sources: data.sources, pass: data.pass, alertes: data.alertes,
     actionsHtml: `<button class="btn btn-primary" id="rdv-new">${icon('plus')} Nouveau rendez-vous</button>`,
     extraCss: EXTRA, contentHtml: content, bodyScript,
   });

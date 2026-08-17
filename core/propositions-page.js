@@ -300,7 +300,7 @@ function renderPropositions(data) {
     title: 'Poste de commande',
     subtitle: `${esc(nom)} · Novalis a déjà fait le travail`,
     active: 'propositions',
-    source: data.source, sources: data.sources, pass: data.pass,
+    source: data.source, sources: data.sources, pass: data.pass, alertes: data.alertes,
     extraCss: EXTRA,
     contentHtml: consoleAdmin(data),
     bodyScript: scriptAdmin(data),

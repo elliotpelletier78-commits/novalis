@@ -252,7 +252,7 @@ function renderReception(data, opts = {}) {
   return page({
     title: 'Réception',
     subtitle: `${esc(nom)} · ${data.fenetre_jours} derniers jours`,
-    active: 'reception', source: data.source, sources: opts.sources, pass: opts.pass,
+    active: 'reception', source: data.source, sources: opts.sources, pass: opts.pass, alertes: opts.alertes,
     extraCss: EXTRA, contentHtml: content, bodyScript,
     actionsHtml: `<a class="btn btn-ghost" href="${lienCsv}">Exporter CSV</a>`,
   });

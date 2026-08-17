@@ -87,7 +87,7 @@ document.getElementById('p-add').addEventListener('click', async function(){
   return page({
     title: 'Publications',
     subtitle: `${esc(nom)} · préparez un message pour vos réseaux`,
-    active: 'publications', source: data.source, sources: data.sources, pass: data.pass,
+    active: 'publications', source: data.source, sources: data.sources, pass: data.pass, alertes: data.alertes,
     extraCss: EXTRA, contentHtml: content, bodyScript,
   });
 }

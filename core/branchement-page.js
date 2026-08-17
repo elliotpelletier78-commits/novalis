@@ -146,7 +146,7 @@ document.querySelectorAll('[data-cx]').forEach(function(btn){
   return page({
     title: 'Branchement',
     subtitle: `${esc(nom)} · remettez les clés, Novalis s'occupe du reste`,
-    active: 'branchement', source: e.source, sources: e.sources, pass: e.pass,
+    active: 'branchement', source: e.source, sources: e.sources, pass: e.pass, alertes: e.alertes,
     extraCss: EXTRA, contentHtml: content, bodyScript,
   });
 }
