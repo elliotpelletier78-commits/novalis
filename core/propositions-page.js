@@ -58,6 +58,9 @@ const EXTRA = `
 .pctbl .wh{color:var(--faint);font-size:12.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .pctbl .typ{max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .pc-tfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid var(--line);background:var(--panel);font-size:12px;color:var(--muted)}
+.pc-keys{color:var(--faint)}
+.pc-keys kbd{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-size:11px;background:var(--card);border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:5px;padding:1px 5px;color:var(--ink-2)}
+@media(max-width:1000px){.pc-keys{display:none}}
 .pc-empty{padding:44px 30px;text-align:center;color:var(--muted)}
 .pc-empty .big{font-family:var(--disp);font-size:19px;font-weight:600;color:var(--ink);margin-bottom:8px}
 /* rail */
@@ -149,7 +152,7 @@ function consoleAdmin(data) {
     ? `<div class="scr"><table class="pctbl">
         <thead><tr><th>Type</th><th>Sujet</th><th>Aperçu</th><th>Préparé</th><th>Statut</th></tr></thead>
         <tbody>${data.items.map(ligne).join('')}</tbody></table></div>
-       <div class="pc-tfoot"><span>${data.items.length} proposition${data.items.length > 1 ? 's' : ''}</span><span class="muted">Cliquez une ligne pour la traiter →</span></div>`
+       <div class="pc-tfoot"><span>${data.items.length} proposition${data.items.length > 1 ? 's' : ''}</span><span class="pc-keys"><kbd>j</kbd> / <kbd>k</kbd> naviguer · <kbd>a</kbd> approuver · <kbd>r</kbd> rejeter · <kbd>e</kbd> modifier</span></div>`
     : `<div class="pc-empty"><div class="big">${statut === 'en_attente' ? 'Rien à approuver.' : 'Rien ici.'}</div>${statut === 'en_attente' ? 'Dès qu’un client écrit, Novalis prépare la réponse et la dépose ici pour votre oui.' : ''}</div>`;
   return `<div class="pc-tabs">
     ${tab('en_attente', 'À approuver')}${tab('approuve', 'Approuvés')}${tab('envoye', 'Envoyés')}${tab('rejete', 'Rejetés')}
@@ -213,7 +216,21 @@ function majFooter(){
   if(!rows.length){document.getElementById('pc-table').innerHTML='<div class="pc-empty"><div class="big">Vous êtes à jour.</div>Tout est traité — rien n’attend votre oui.</div>';}
 }
 rows.forEach(function(tr){tr.addEventListener('click',function(e){if(e.target.closest('a'))return;renderRail(tr);});});
-if(rows.length) renderRail(rows[0]);`;
+if(rows.length) renderRail(rows[0]);
+// Navigation clavier (signal « outil de pro », accélère le « dire oui »).
+function curIndex(){for(var i=0;i<rows.length;i++){if(rows[i].classList.contains('sel'))return i;}return -1;}
+function selectAt(i){if(i<0||i>=rows.length)return;renderRail(rows[i]);rows[i].scrollIntoView({block:'nearest'});}
+document.addEventListener('keydown',function(e){
+  var t=e.target,inField=t&&(t.tagName==='TEXTAREA'||t.tagName==='INPUT');
+  if(inField){if(e.key==='Escape')t.blur();return;}
+  if(e.metaKey||e.ctrlKey||e.altKey||!rows.length)return;
+  var i=curIndex();
+  if(e.key==='j'||e.key==='ArrowDown'){e.preventDefault();selectAt(i<0?0:Math.min(rows.length-1,i+1));}
+  else if(e.key==='k'||e.key==='ArrowUp'){e.preventDefault();selectAt(i<0?0:Math.max(0,i-1));}
+  else if(e.key==='e'){var ta=document.getElementById('rdraft');if(ta){e.preventDefault();ta.focus();}}
+  else if(ACTIONNABLE&&(e.key==='a'||e.key==='Enter')){var bp=rail.querySelector('.bp');if(bp){e.preventDefault();bp.click();}}
+  else if(ACTIONNABLE&&e.key==='r'){var br=rail.querySelector('.brej');if(br){e.preventDefault();br.click();}}
+});`;
 }
 
 // ── Cartes empilées (mode commerçant, lien magique) ──────────────────
