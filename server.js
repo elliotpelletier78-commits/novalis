@@ -2385,6 +2385,8 @@ const propositions = require('./core/propositions');
 const { renderPropositions } = require('./core/propositions-page');
 const { renderAujourdhui } = require('./core/aujourdhui-page');
 const { renderResultats } = require('./core/resultats-page');
+const clients = require('./core/clients');
+const { renderClients } = require('./core/clients-page');
 const { renderConfiance } = require('./core/confiance-page');
 const { renderLogin } = require('./core/login-page');
 const { renderBooking } = require('./core/booking-page');
@@ -2481,6 +2483,27 @@ app.get('/core/resultats', adminOnly, coreReady, (req, res) => {
     },
     prep, clients,
   }));
+});
+
+// ── Novalis Clients — le répertoire 360 (fiche client unifiée) ──────
+// Regroupe messages, rendez-vous et devis par personne. ?client=<clé> ouvre
+// la fiche complète (chronologie). Lecture seule : rien n'est inventé.
+app.get('/core/clients', adminOnly, coreReady, (req, res) => {
+  const sources = sourcesConnues();
+  const source = String(req.query.source || sources[0] || 'novalis').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
+  const et = branchement.etat(db, source);
+  const pass = req.query.pass ? String(req.query.pass) : undefined;
+  const alertes = propositions.compteurs(db, source).en_attente;
+  res.setHeader('X-Frame-Options', 'DENY');
+  const cle = req.query.client ? String(req.query.client).slice(0, 200) : '';
+  if (cle) {
+    const f = clients.fiche(db, source, cle);
+    if (!f) return res.status(404).send(renderClients({ source, sources, pass, alertes, ...clients.repertoire(db, source, {}) }));
+    return res.send(renderClients({ source, nom: et.identite.nom, sources, pass, alertes, fiche: f }));
+  }
+  const q = req.query.q ? String(req.query.q).slice(0, 80) : '';
+  res.send(renderClients({ source, nom: et.identite.nom, sources, pass, alertes, q, ...clients.repertoire(db, source, { q }) }));
 });
 
 // Export CSV des contacts d'un commerce (pour Excel / comptable).
