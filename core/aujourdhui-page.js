@@ -51,19 +51,23 @@ function renderAujourdhui(d) {
   const s = d.signaux;
   const href = (base) => `${base}?source=${encodeURIComponent(d.source)}${d.pass ? '&pass=' + encodeURIComponent(d.pass) : ''}`;
 
-  const SPARK = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8Z"/></svg>';
   const lienMap = { reception: '/core/reception', propositions: '/core/propositions', branchement: '/core/branchement', devis: '/core/devis', rdv: '/core/rdv', aujourdhui: '/core/aujourdhui' };
   const nova = d.nova || { resume: '', insights: [] };
+  const nb = nova.insights.length;
+  // Voix d'opérateur : on présente le TRAVAIL préparé, pas « une IA ».
+  const brief = nb
+    ? `${nb} chose${nb > 1 ? 's' : ''} à regarder ce matin — déjà préparée${nb > 1 ? 's' : ''}.`
+    : 'Tout est à jour. Rien ne requiert votre attention pour l’instant.';
   const novaHtml = `<div class="nova">
-    <div class="nova-head"><span class="nova-av">${SPARK}</span>
-      <div><div class="nova-name">Nova <span class="tag">assistant</span></div>
-        <div class="nova-say">${esc(nova.resume)}</div></div></div>
-    ${nova.insights.length ? `<div class="nova-list">${nova.insights.map(i => `
+    <div class="nova-head">
+      <div><div class="nova-name">Préparé pour vous</div>
+        <div class="nova-say">${esc(brief)}</div></div></div>
+    ${nb ? `<div class="nova-list">${nova.insights.map(i => `
       <a class="nova-i ${i.gravite}" href="${href(lienMap[i.action.lien] || '/core/aujourdhui')}">
         <span class="dot"></span>
         <div class="b"><div class="t">${esc(i.titre)}</div><div class="d">${esc(i.detail)}</div></div>
         <span class="go">${esc(i.action.label)} →</span></a>`).join('')}</div>`
-      : '<div class="nova-calm">✓ Rien à signaler. Novalis veille.</div>'}
+      : '<div class="nova-calm">✓ Rien à signaler.</div>'}
   </div>`;
 
   const qa = `<div class="qact">

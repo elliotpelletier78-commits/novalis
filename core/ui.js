@@ -36,8 +36,6 @@ function icon(name) {
 
 // Logo Novalis : monogramme « N » net dans le carré de marque.
 const MARK = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18V6l12 12V6"/></svg>';
-// Étincelle Nova (assistant).
-const SPARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8Z"/></svg>';
 
 // Script de coquille (toujours injecté) : recherche in-page + chat Nova.
 function SHELL_SCRIPT(source, pass) {
@@ -53,34 +51,35 @@ function SHELL_SCRIPT(source, pass) {
       document.querySelectorAll(CIBLES).forEach(function(el){
         el.style.display=(!t||el.textContent.toLowerCase().indexOf(t)!==-1)?'':'none';});
     });}
-  // Chat Nova.
-  var fab=document.getElementById('nova-fab'),box=document.getElementById('nova-chat'),
+  // Panneau « Demander à Novalis » (aide + commandes) — docké, pas de bulle flottante.
+  var box=document.getElementById('nova-chat'),
       msgs=document.getElementById('nova-msgs'),inp=document.getElementById('nova-q'),
       snd=document.getElementById('nova-send'),x=document.getElementById('nova-x');
-  if(!fab) return;
-  function open(){box.classList.add('open');inp&&inp.focus();}
-  function close(){box.classList.remove('open');}
-  fab.addEventListener('click',function(){box.classList.contains('open')?close():open();});
-  x&&x.addEventListener('click',close);
-  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&box.classList.contains('open')){close();fab.focus();}});
-  function bulle(txt,cls){var d=document.createElement('div');d.className='nova-b '+cls;d.textContent=txt;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;return d;}
-  async function envoyer(){
-    var m=(inp.value||'').trim(); if(!m) return; inp.value='';
-    bulle(m,'me'); var attente=bulle('…','nova'); snd.disabled=true;
-    try{
-      var r=await fetch('/core/nova/chat',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':PASS},
-        body:JSON.stringify({source:SRC,message:m})});
-      var j=await r.json().catch(function(){return{};});
-      attente.textContent=j.answer||('Erreur ('+r.status+')');
-      if(j.note){bulle(j.note,'note');}
-    }catch(e){attente.textContent='Erreur réseau.';}
-    snd.disabled=false; msgs.scrollTop=msgs.scrollHeight;
+  if(box){
+    var openBox=function(){box.classList.add('open');inp&&inp.focus();};
+    var closeBox=function(){box.classList.remove('open');};
+    x&&x.addEventListener('click',closeBox);
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'&&box.classList.contains('open'))closeBox();});
+    var bulle=function(txt,cls){var d=document.createElement('div');d.className='nova-b '+cls;d.textContent=txt;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;return d;};
+    var envoyer=async function(){
+      var m=(inp.value||'').trim(); if(!m) return; inp.value='';
+      bulle(m,'me'); var attente=bulle('…','nova'); snd.disabled=true;
+      try{
+        var r=await fetch('/core/nova/chat',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':PASS},
+          body:JSON.stringify({source:SRC,message:m})});
+        var j=await r.json().catch(function(){return{};});
+        attente.textContent=j.answer||('Erreur ('+r.status+')');
+        if(j.note){bulle(j.note,'note');}
+      }catch(e){attente.textContent='Erreur réseau.';}
+      snd.disabled=false; msgs.scrollTop=msgs.scrollHeight;
+    };
+    snd&&snd.addEventListener('click',envoyer);
+    inp&&inp.addEventListener('keydown',function(e){if(e.key==='Enter')envoyer();});
+    var help=document.getElementById('nova-help');
+    if(help) help.addEventListener('click',function(){box.classList.contains('open')?closeBox():openBox();});
+    var side=document.getElementById('ask-novalis');
+    if(side) side.addEventListener('click',function(e){e.preventDefault();openBox();});
   }
-  snd&&snd.addEventListener('click',envoyer);
-  inp&&inp.addEventListener('keydown',function(e){if(e.key==='Enter')envoyer();});
-  // Bouton d'aide (barre) → ouvre Nova.
-  var help=document.getElementById('nova-help');
-  if(help) help.addEventListener('click',function(){box.classList.contains('open')?close():open();});
   // Menu de compte (ouvrir/fermer, se déconnecter).
   var acct=document.getElementById('acct'),ab=document.getElementById('acct-btn');
   if(ab){
@@ -171,7 +170,10 @@ a{color:inherit}
 .side-foot{margin-top:auto;padding:6px}
 .side-foot .lbl{font-size:10.5px;font-weight:680;letter-spacing:.07em;text-transform:uppercase;color:var(--side-ink-2);margin-bottom:7px}
 .side-foot select{width:100%;font-family:var(--sans);font-size:13px;color:var(--side-brand);background:var(--side-hover);border:1px solid var(--side-line);border-radius:8px;padding:8px 10px;cursor:pointer}
-.side-foot .who{font-size:11.5px;color:var(--side-ink-2);margin-top:12px;padding:0 2px}
+.side-foot .ask{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;font-size:13px;font-weight:520;color:var(--side-ink);text-decoration:none}
+.side-foot .ask svg{width:17px;height:17px;color:var(--side-ink-2);flex:none}
+.side-foot .ask:hover{background:var(--side-hover);color:var(--side-brand)}
+.side-foot .who{font-size:11.5px;color:var(--side-ink-2);margin-top:10px;padding:0 2px}
 /* Contenu */
 .main{min-width:0;display:flex;flex-direction:column;background:var(--app)}
 .topbar{position:sticky;top:0;z-index:5;background:var(--card);display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 30px;border-bottom:1px solid var(--line)}
@@ -188,7 +190,7 @@ a{color:inherit}
 .nova-fab:hover{filter:brightness(1.07)} .nova-fab svg{width:26px;height:26px}
 .nova-chat{position:fixed;right:22px;bottom:88px;z-index:41;width:min(380px,calc(100vw - 32px));height:min(540px,calc(100vh - 130px));background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:0 18px 50px rgba(20,24,40,.28);display:none;flex-direction:column;overflow:hidden}
 .nova-chat.open{display:flex}
-.nova-ch-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--brand-soft),transparent)}
+.nova-ch-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--brand-soft)}
 .nova-ch-head .av{width:32px;height:32px;border-radius:9px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
 .nova-ch-head .av svg{width:18px;height:18px}
 .nova-ch-head .nm{font-weight:750;font-size:14.5px}.nova-ch-head .nm .tag{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--brand-600);margin-left:6px}
@@ -360,7 +362,7 @@ function page(o) {
     ${wswitch}
     <nav class="nav" aria-label="Navigation principale">${nav}</nav>
     <div class="sep"></div>
-    <div class="side-foot"><div class="who">Espace d’exploitation</div></div>
+    <div class="side-foot"><a href="#" id="ask-novalis" class="ask">${icon('help')}<span>Demander à Novalis</span></a><div class="who">Espace d’exploitation</div></div>
   </aside>
   <main class="main">
     <div class="topbar">
@@ -386,18 +388,17 @@ function page(o) {
     <div class="content" id="contenu">${o.contentHtml}</div>
     <footer class="statusbar">
       <span class="g"><span class="live"></span>Connecté</span>
-      <span class="g hidem">Nova opère <b>${nbEnt}</b>&nbsp;entreprise${nbEnt > 1 ? 's' : ''}</span>
+      <span class="g hidem">Novalis opère <b>${nbEnt}</b>&nbsp;entreprise${nbEnt > 1 ? 's' : ''}</span>
       <span class="sp"></span>
       <span class="g hidem">Rien n’est envoyé sans votre approbation</span>
       <span class="g">Espace d’exploitation Novalis</span>
     </footer>
   </main>
 </div>
-<button class="nova-fab" id="nova-fab" title="Demander à Nova" aria-label="Ouvrir Nova">${SPARK}</button>
-<div class="nova-chat" id="nova-chat" role="dialog" aria-modal="true" aria-label="Nova, votre assistant">
-  <div class="nova-ch-head"><span class="av">${SPARK}</span><span class="nm">Nova<span class="tag">assistant</span></span><button class="x" id="nova-x" aria-label="Fermer">×</button></div>
-  <div class="nova-msgs" id="nova-msgs"><div class="nova-b nova">Bonjour ! Je suis Nova. Demandez-moi ce qui se passe, ou dites-moi quoi faire — par exemple « approuve la réponse à… » ou « active la réponse instantanée ».</div></div>
-  <div class="nova-in"><input id="nova-q" placeholder="Écrivez à Nova…" aria-label="Message à Nova"><button id="nova-send" aria-label="Envoyer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg></button></div>
+<div class="nova-chat" id="nova-chat" role="dialog" aria-modal="true" aria-label="Demander à Novalis">
+  <div class="nova-ch-head"><span class="av">${MARK}</span><span class="nm">Demander à Novalis</span><button class="x" id="nova-x" aria-label="Fermer">×</button></div>
+  <div class="nova-msgs" id="nova-msgs"><div class="nova-b nova">Posez une question sur votre commerce, ou dites quoi faire — par exemple « approuve la réponse à Mme Fortin » ou « active la réponse instantanée ».</div></div>
+  <div class="nova-in"><input id="nova-q" placeholder="Écrire…" aria-label="Écrire à Novalis"><button id="nova-send" aria-label="Envoyer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg></button></div>
 </div>
 <script>${SHELL_SCRIPT(o.source, o.pass)}</script>
 ${o.bodyScript ? `<script>${o.bodyScript}</script>` : ''}
