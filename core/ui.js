@@ -101,37 +101,38 @@ const NAV = NAV_GROUPS.flatMap((g) => g.items);
 
 const UI_CSS = `
 :root{
-  --app:#FAFBFB; --card:#FFFFFF; --panel:#F4F6F5; --line:#E2E6E4; --line-2:#EDF0EE;
-  --ink:#1A2B22; --ink-2:#42504A; --muted:#697771; --faint:#98A29C;
-  /* Indigo — l'accent « IA moderne ». Le vert reste réservé aux états succès. */
-  --brand:#4F46E5; --brand-ink:#FFFFFF; --brand-soft:#ECEBFB; --brand-600:#4338CA;
-  --ok:#108000; --ok-soft:#E8F5E6; --warn:#9A5A17; --warn-soft:#FBF0E2;
-  --risk:#C0392B; --risk-soft:#FBEDEB; --steel:#6366F1;
-  /* Rail de navigation CLAIR et étroit. */
-  --side:#FFFFFF; --side-ink:#464F5E; --side-ink-2:#8A93A0; --side-brand:#1A2233;
-  --side-line:#E7E9EF; --side-hover:#F3F4F9; --side-active:#ECEBFB; --side-active-ink:#4338CA;
-  --r:12px; --r-sm:9px; --r-lg:14px; --r-pill:999px;
-  /* Flat design : les cartes portent une bordure fine, pas d'ombre. L'ombre --sh
-     n'apparaît qu'au survol (micro-élévation) des éléments cliquables. */
-  --sh-sm:none; --sh:0 1px 2px rgba(17,24,39,.06),0 8px 22px rgba(17,24,39,.08);
-  --line:#E5E7EB;
-  --sans:'Inter','Geist',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
-  /* Alias de compatibilité : les écrans plus anciens (Réception, Devis,
-     Branchement, Poste de commande) référençaient d'autres noms de variables.
-     On les mappe sur le nouveau système pour une seule identité, sans réécrire
-     leur CSS interne. --serif → sans (plus d'éditorial, tout en sans-serif). */
+  /* LEDGER — papier / encre / marine. L'esthétique de la confiance financière :
+     un fond papier chaud, une encre presque noire, un seul accent marine, et des
+     CHIFFRES EN SÉRIF (comme un relevé). Rien d'« IA par défaut ». */
+  --app:#F1EFE8; --card:#FBFAF6; --panel:#F1EEE4; --line:#E4E0D2; --line-2:#EDEADD;
+  --ink:#1B1A16; --ink-2:#3A382F; --muted:#6C685C; --faint:#98937F;
+  --brand:#1E3A5F; --brand-ink:#F7F3E9; --brand-soft:#E9EDF3; --brand-600:#16304F;
+  --ok:#2E6B4F; --ok-soft:#E3EDE6; --warn:#8A5A1C; --warn-soft:#F1E8D8;
+  --risk:#9A3B3B; --risk-soft:#F1E4E1; --steel:#55617A;
+  /* Rail de navigation CLAIR (papier), accent marine à l'état actif. */
+  --side:#FBFAF6; --side-ink:#3A382F; --side-ink-2:#98937F; --side-brand:#1B1A16;
+  --side-line:#E4E0D2; --side-hover:#F1EEE4; --side-active:#EEF1F6; --side-active-ink:#16304F;
+  --r:12px; --r-sm:9px; --r-lg:12px; --r-pill:999px;
+  /* Flat : bordure fine plutôt qu'ombre ; --sh = micro-élévation au survol. */
+  --sh-sm:none; --sh:0 1px 2px rgba(40,34,20,.05),0 10px 26px -12px rgba(40,34,20,.22);
+  /* Sans natif (pas d'Inter — trop « template ») ; sérif pour titres et chiffres. */
+  --sans:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --disp:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Georgia,"Times New Roman",serif;
+  --num:Charter,"Iowan Old Style","Palatino Linotype",Georgia,serif;
+  /* Alias de compatibilité pour les écrans plus anciens. --serif reste du sans
+     (leurs champs de saisie l'utilisent) ; les titres/chiffres passent par --disp/--num. */
   --paper:var(--app); --hair:var(--line); --hair-2:var(--line-2);
   --jade:var(--brand-600); --jade-soft:var(--brand-soft); --serif:var(--sans); --shadow:var(--sh);
 }
 @media(prefers-color-scheme:dark){:root{
-  --app:#0F1210; --card:#171B18; --panel:#1B211D; --line:#28302B; --line-2:#222824;
-  --ink:#EAEEEB; --ink-2:#C3CBC6; --muted:#8E988F; --faint:#6B746D;
-  --brand:#8B84F5; --brand-ink:#0A0820; --brand-soft:#211E3E; --brand-600:#A29BF8;
-  --ok:#4DB37F; --ok-soft:#152720; --warn:#D6A15C; --warn-soft:#2A2213;
-  --risk:#E08A72; --risk-soft:#2C1B16; --steel:#8B87E8;
-  --side:#141726; --side-ink:#BFC5D2; --side-ink-2:#7E8698; --side-brand:#EDEEFB;
-  --side-line:#242840; --side-hover:#1E2236; --side-active:#211E3E; --side-active-ink:#A29BF8;
-  --sh-sm:0 1px 2px rgba(0,0,0,.4); --sh:0 1px 3px rgba(0,0,0,.4),0 8px 26px rgba(0,0,0,.45);
+  --app:#141310; --card:#1C1B17; --panel:#211F1A; --line:#2E2B24; --line-2:#26241E;
+  --ink:#EDE9DE; --ink-2:#CFC9BA; --muted:#9A9284; --faint:#6F6A5D;
+  --brand:#8AA9CE; --brand-ink:#12161C; --brand-soft:#1E2A38; --brand-600:#A6C0DE;
+  --ok:#5FB088; --ok-soft:#182219; --warn:#C99A5B; --warn-soft:#241E12;
+  --risk:#D98A7C; --risk-soft:#271815; --steel:#8A93A8;
+  --side:#1A1915; --side-ink:#CFC9BA; --side-ink-2:#8A8375; --side-brand:#EDE9DE;
+  --side-line:#2A281F; --side-hover:#211F1A; --side-active:#1E2A38; --side-active-ink:#A6C0DE;
+  --sh-sm:0 1px 2px rgba(0,0,0,.5); --sh:0 1px 3px rgba(0,0,0,.5),0 10px 30px rgba(0,0,0,.5);
 }}
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
@@ -144,7 +145,7 @@ a{color:inherit}
 .logo{display:flex;align-items:center;gap:9px;padding:6px 8px 18px;color:var(--side-brand)}
 .logo .mk{width:29px;height:29px;border-radius:8px;background:var(--brand);display:flex;align-items:center;justify-content:center;flex:none}
 .logo .mk svg{width:17px;height:17px;color:#fff}
-.logo .wm{font-size:17.5px;font-weight:750;letter-spacing:-.02em;color:var(--side-brand)}
+.logo .wm{font-family:var(--disp);font-size:19px;font-weight:600;letter-spacing:0;color:var(--side-brand)}
 .logo .wm span{color:var(--brand)}
 .nav{display:flex;flex-direction:column;gap:8px}
 .navgroup{display:flex;flex-direction:column;gap:1px}
@@ -164,7 +165,7 @@ a{color:inherit}
 .main{min-width:0;display:flex;flex-direction:column;background:var(--app)}
 .topbar{position:sticky;top:0;z-index:5;background:var(--card);display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 30px;border-bottom:1px solid var(--line)}
 .topbar .tt{display:flex;flex-direction:column;gap:1px;min-width:0}
-.topbar h1{font-size:20px;font-weight:720;letter-spacing:-.015em}
+.topbar h1{font-family:var(--disp);font-size:22px;font-weight:600;letter-spacing:-.005em}
 .topbar .st{font-size:13px;color:var(--muted)}
 .tb-search{position:relative;flex:1;max-width:420px;margin:0 8px}
 .tb-search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--faint);pointer-events:none}
@@ -172,7 +173,7 @@ a{color:inherit}
 .tb-search input:focus{outline:2px solid var(--brand);outline-offset:1px;background:var(--card)}
 .topbar .right{display:flex;align-items:center;gap:8px}
 /* Nova — bulle flottante + panneau de conversation */
-.nova-fab{position:fixed;right:22px;bottom:22px;z-index:40;width:56px;height:56px;border-radius:50%;border:none;background:var(--brand);color:#fff;box-shadow:0 8px 24px rgba(79,70,229,.4);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.nova-fab{position:fixed;right:22px;bottom:22px;z-index:40;width:56px;height:56px;border-radius:50%;border:none;background:var(--brand);color:var(--brand-ink);box-shadow:0 8px 24px rgba(30,58,95,.34);cursor:pointer;display:flex;align-items:center;justify-content:center}
 .nova-fab:hover{filter:brightness(1.07)} .nova-fab svg{width:26px;height:26px}
 .nova-chat{position:fixed;right:22px;bottom:88px;z-index:41;width:min(380px,calc(100vw - 32px));height:min(540px,calc(100vh - 130px));background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:0 18px 50px rgba(20,24,40,.28);display:none;flex-direction:column;overflow:hidden}
 .nova-chat.open{display:flex}
@@ -201,7 +202,7 @@ a{color:inherit}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-sm);padding:20px 22px}
 .card+.card{margin-top:16px}
 .card-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:3px}
-.card-h h2,.card-h h3{font-size:15px;font-weight:660;letter-spacing:-.005em}
+.card-h h2,.card-h h3{font-family:var(--disp);font-size:16px;font-weight:600;letter-spacing:-.005em}
 .card-h a{font-size:13px;font-weight:600;color:var(--brand);text-decoration:none}
 .card .hint{font-size:12.5px;color:var(--muted);margin-bottom:14px}
 .grid{display:grid;gap:16px}
@@ -210,7 +211,7 @@ a{color:inherit}
 a.stat:hover{border-color:var(--brand);box-shadow:var(--sh)}
 .stat .k{font-size:11.5px;font-weight:640;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:7px}
 .stat .k svg{width:15px;height:15px;color:var(--faint)}
-.stat .v{font-size:clamp(36px,4.2vw,46px);font-weight:800;line-height:1;margin-top:12px;letter-spacing:-.03em}
+.stat .v{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:clamp(34px,4vw,44px);font-weight:600;line-height:1;margin-top:12px;letter-spacing:-.01em}
 .stat .d{font-size:12.5px;color:var(--muted);margin-top:9px}
 .stat.brand .v{color:var(--brand-600)} .stat.warn .v{color:var(--warn)}
 /* Libellé de section (petites majuscules, à la QuickBooks) */
@@ -221,7 +222,7 @@ a.stat:hover{border-color:var(--brand);box-shadow:var(--sh)}
 a.fcard:hover{box-shadow:var(--sh)}
 .fcard.g{border-top-color:var(--brand)} .fcard.a{border-top-color:var(--warn)} .fcard.b{border-top-color:var(--steel)} .fcard.r{border-top-color:var(--risk)}
 .fcard .fl{font-size:12px;font-weight:620;color:var(--muted)}
-.fcard .fv{font-size:clamp(28px,3.4vw,38px);font-weight:800;letter-spacing:-.03em;line-height:1.05;margin:8px 0 4px}
+.fcard .fv{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:clamp(27px,3.2vw,36px);font-weight:600;letter-spacing:-.01em;line-height:1.05;margin:8px 0 4px}
 .fcard .fc{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 /* Actions rapides (pilules) */
 .qact{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:4px}
