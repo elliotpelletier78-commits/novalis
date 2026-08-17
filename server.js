@@ -2433,8 +2433,8 @@ app.post('/core/nova/chat', adminOnly, coreReady, express.json({ limit: '8kb' })
       + (insights.length ? '\n\n' + insights.map(i => '• ' + i.titre + ' — ' + i.detail).join('\n') : '');
 
     const clientId = et.client_id || branchement.assurerClient(db, source, null);
-    const systeme = `Tu es Nova, l'assistante de l'entreprise « ${et.identite.nom || source} »`
-      + `${et.identite.secteur ? ' (' + et.identite.secteur + ')' : ''} sur la plateforme Novalis. Tu parles au propriétaire, `
+    const systeme = `Tu es l'assistant d'exploitation de Novalis pour l'entreprise « ${et.identite.nom || source} »`
+      + `${et.identite.secteur ? ' (' + et.identite.secteur + ')' : ''}. Tu parles au propriétaire, `
       + `en français simple et concret. Sois brève (2 à 4 phrases). Base-toi UNIQUEMENT sur les données ci-dessous ; `
       + `n'invente aucun chiffre ni aucune promesse. Si tu ne sais pas, dis-le et propose l'écran où trouver la réponse. `
       + `Tu peux suggérer une action (approuver une proposition, activer la réponse instantanée, compléter le branchement…).\n\n`
@@ -2448,16 +2448,16 @@ app.post('/core/nova/chat', adminOnly, coreReady, express.json({ limit: '8kb' })
       return res.json({ answer: (out.text || '').trim() || resumeInsights });
     } catch (e) {
       if (/ANTHROPIC_API_KEY absente/.test(e.message)) {
-        return res.json({ answer: resumeInsights, note: 'Le mode conversation complet de Nova nécessite une clé IA (ANTHROPIC_API_KEY). En attendant, voici ce que je repère.' });
+        return res.json({ answer: resumeInsights, note: 'La conversation détaillée n\'est pas activée pour l\'instant — voici l\'essentiel.' });
       }
       if (e.code === 'BUDGET_EPUISE') {
-        return res.json({ answer: resumeInsights, note: 'Budget IA du mois atteint — voici l\'essentiel repéré.' });
+        return res.json({ answer: resumeInsights, note: 'La conversation détaillée est en pause pour le moment — voici l\'essentiel.' });
       }
       console.error('[nova/chat] llm échec:', e.message);
-      return res.json({ answer: resumeInsights, note: 'Nova a eu un souci côté IA — voici l\'essentiel repéré.' });
+      return res.json({ answer: resumeInsights, note: 'Petit souci technique — voici l\'essentiel.' });
     }
   } catch (e) {
-    res.status(500).json({ answer: 'Nova a rencontré un souci. Réessayez.', detail: e.message });
+    res.status(500).json({ answer: 'Un souci est survenu. Réessayez.', detail: e.message });
   }
 });
 

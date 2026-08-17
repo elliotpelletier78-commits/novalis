@@ -108,16 +108,16 @@ function analyser(ctx = {}) {
   return ins;
 }
 
-/** Une phrase de synthèse, à la voix de Nova. */
+/** Une phrase de synthèse, en voix d'opérateur (neutre, sans persona). */
 function resume(insights) {
-  if (!insights || !insights.length) return 'Tout est sous contrôle — rien ne requiert votre attention pour l\'instant.';
+  if (!insights || !insights.length) return 'Tout est à jour — rien ne requiert votre attention pour l\'instant.';
   const u = insights.filter(i => i.gravite === 'urgent').length;
   const o = insights.filter(i => i.gravite === 'occasion').length;
   const morceaux = [];
   if (u) morceaux.push(`${u} ${pl(u, 'chose urgente', 'choses urgentes')}`);
   if (o) morceaux.push(`${o} ${pl(o, 'occasion', 'occasions')}`);
-  if (!morceaux.length) return `J'ai repéré ${insights.length} ${pl(insights.length, 'point à regarder', 'points à regarder')}.`;
-  return `J'ai repéré ${morceaux.join(' et ')} à regarder.`;
+  if (!morceaux.length) return `${insights.length} ${pl(insights.length, 'chose à regarder', 'choses à regarder')} ce matin.`;
+  return `${morceaux.join(' et ')} à regarder.`;
 }
 
 /**
@@ -128,8 +128,8 @@ function resume(insights) {
  *                 | {action:'activer', quoi:'accuse'|'envoyer'}}
  */
 function interpreterCommande(message) {
-  // Retirer une adresse polie initiale (« Nova, … »).
-  const brut = String(message || '').trim().replace(/^\s*nova\s*[,:]?\s*/i, '');
+  // Retirer une adresse polie initiale (« Novalis, … »).
+  const brut = String(message || '').trim().replace(/^\s*nova(lis)?\s*[,:]?\s*/i, '');
   const m = brut.toLowerCase();
   if (!m) return null;
 

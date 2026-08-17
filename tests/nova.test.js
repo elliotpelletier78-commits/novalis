@@ -96,7 +96,7 @@ describe('Nova — interpréteur de commandes', () => {
 
 describe('Nova — résumé', () => {
   it('phrase de calme quand rien à signaler', () => {
-    expect(resume([])).toMatch(/sous contrôle/i);
+    expect(resume([])).toMatch(/à jour|rien ne requiert/i);
   });
   it('compte les urgents et les occasions', () => {
     const r = analyser({ leadsAttente: 1, propositions: 2, pretPct: 100, servicesCount: 1 });

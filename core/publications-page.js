@@ -43,7 +43,7 @@ function renderPublications(data) {
   const content = `
   <div class="panel">
     <h3>Préparer une publication</h3>
-    <div class="hint">Choisissez un thème et écrivez l'essentiel — l'offre, la disponibilité, le conseil. Nova met en forme. Rien n'est inventé : c'est votre message, propre et prêt.</div>
+    <div class="hint">Choisissez un thème et écrivez l'essentiel — l'offre, la disponibilité, le conseil. Novalis met en forme. Rien n'est inventé : c'est votre message, propre et prêt.</div>
     <div class="prow">
       <label>Thème<select id="p-theme">${THEMES.map(t => `<option value="${t.v}">${esc(t.l)}</option>`).join('')}</select></label>
       <label>L'essentiel (ce que vous voulez dire)<textarea id="p-ess" maxlength="1200" placeholder="Ex. Rabais de 15 % sur les pneus d'hiver jusqu'au 30 novembre."></textarea></label>
