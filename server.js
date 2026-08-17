@@ -638,6 +638,55 @@ app.get('/confiance', (req, res) => {
   res.type('html').send(renderConfiance());
 });
 
+// ── Acceptation de devis en ligne (page publique client) ────────────
+function statutClientDevis(p) {
+  try { const d = p && p.detail ? JSON.parse(p.detail) : null; return d && d.client ? d.client : null; } catch { return null; }
+}
+app.get('/devis/:source/:id/:token', (req, res) => {
+  const source = String(req.params.source || '').slice(0, 40);
+  const id = parseInt(req.params.id, 10);
+  if (!/^[a-z0-9-]{2,40}$/.test(source) || !Number.isInteger(id)
+    || !branchement.jetonPropValide(source, id, req.params.token, process.env.MASTER_KEY)) {
+    return res.status(404).type('text/plain').send('Introuvable');
+  }
+  const p = propositions.get(db, id);
+  if (!p || p.source !== source || p.type !== 'devis') return res.status(404).type('text/plain').send('Introuvable');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.type('html').send(renderDevisAccept({
+    source, nom: branchement.etat(db, source).identite.nom, brouillon: p.brouillon,
+    statutClient: statutClientDevis(p),
+    actionBase: `/devis/${encodeURIComponent(source)}/${id}/${req.params.token}`,
+  }));
+});
+app.post('/devis/:source/:id/:token/:action', express.json({ limit: '2kb' }), (req, res) => {
+  const source = String(req.params.source || '').slice(0, 40);
+  const id = parseInt(req.params.id, 10);
+  const action = req.params.action === 'accepter' ? 'accepte' : req.params.action === 'refuser' ? 'refuse' : null;
+  if (!action || !/^[a-z0-9-]{2,40}$/.test(source) || !Number.isInteger(id)
+    || !branchement.jetonPropValide(source, id, req.params.token, process.env.MASTER_KEY)) {
+    return res.status(404).json({ error: 'Introuvable' });
+  }
+  const p = propositions.get(db, id);
+  if (!p || p.source !== source || p.type !== 'devis') return res.status(404).json({ error: 'Introuvable' });
+  if (statutClientDevis(p)) return res.json({ ok: true, deja: true });
+  try {
+    const nom = branchement.etat(db, source).identite.nom || source;
+    const qui = p.client || p.destinataire || 'client';
+    db.prepare('UPDATE propositions SET detail = ?, maj_le = datetime(\'now\') WHERE id = ?')
+      .run(JSON.stringify({ client: action, le: new Date().toISOString() }), id);
+    const accepte = action === 'accepte';
+    const titre = accepte ? `Devis accepté — ${qui}` : `Devis décliné — ${qui}`;
+    const apercu = accepte ? 'Le client a accepté la soumission en ligne.' : 'Le client a décliné la soumission.';
+    const brouillon = accepte
+      ? `Bonjour,\n\nMerci d'avoir accepté la soumission. On planifie les travaux — je vous propose une date sous peu.\n\n${nom}`
+      : `Bonjour,\n\nMerci de votre retour. Si vous souhaitez ajuster la soumission, dites-le-moi, je m'adapte.\n\n${nom}`;
+    db.prepare(`INSERT OR IGNORE INTO propositions (source, type, ref_type, ref_id, titre, apercu, brouillon, destinataire, priorite, statut)
+      VALUES (?, 'reponse', 'devis_reponse', ?, ?, ?, ?, ?, ?, 'en_attente')`)
+      .run(source, id, titre, apercu, brouillon, p.destinataire || null, accepte ? 10 : 5);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Prise de rendez-vous en ligne (page publique client) ────────────
 // Le client demande un RDV lui-même ; la demande arrive dans la Réception du
 // commerçant (via l'accusé instantané existant). Honnête : c'est une demande à
@@ -2267,6 +2316,7 @@ const { renderResultats } = require('./core/resultats-page');
 const { renderConfiance } = require('./core/confiance-page');
 const { renderLogin } = require('./core/login-page');
 const { renderBooking } = require('./core/booking-page');
+const { renderDevisAccept } = require('./core/devis-accept-page');
 const { renderEntreprises } = require('./core/entreprises-page');
 const devis = require('./core/devis');
 const { renderDevis } = require('./core/devis-page');
@@ -2707,7 +2757,15 @@ app.get('/core/devis', adminOnly, coreReady, (req, res) => {
   const et = branchement.etat(db, source);
   res.setHeader('X-Frame-Options', 'DENY');
   let recents = [];
-  try { recents = db.prepare('SELECT titre, apercu, statut FROM propositions WHERE source = ? AND type = \'devis\' ORDER BY id DESC LIMIT 8').all(source); } catch { /* jeune */ }
+  try {
+    const base = `${req.protocol}://${req.get('host')}`;
+    recents = db.prepare('SELECT id, titre, apercu, statut, detail FROM propositions WHERE source = ? AND type = \'devis\' ORDER BY id DESC LIMIT 8').all(source)
+      .map((r) => {
+        let sc = null; try { sc = r.detail ? (JSON.parse(r.detail).client || null) : null; } catch { sc = null; }
+        return { titre: r.titre, apercu: r.apercu, statut: r.statut, statutClient: sc,
+          lienClient: `${base}/devis/${encodeURIComponent(source)}/${r.id}/${branchement.jetonProp(source, r.id, process.env.MASTER_KEY)}` };
+      });
+  } catch { /* base jeune */ }
   res.send(renderDevis({ source, nom: et.identite.nom, services: devis.listerServices(db, source), recents, sources: sourcesConnues(), pass: req.query.pass ? String(req.query.pass) : undefined, alertes: propositions.compteurs(db, source).en_attente }));
 });
 app.post('/core/devis/service', adminOnly, coreReady, express.json({ limit: '4kb' }), (req, res) => {

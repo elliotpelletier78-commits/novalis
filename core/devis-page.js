@@ -79,7 +79,7 @@ function renderDevis(d) {
   ${(d.recents && d.recents.length) ? `<div class="panel">
     <h3>Devis récents</h3>
     <div class="hint">Vos dernières soumissions déposées dans le poste de commande.</div>
-    ${d.recents.map(r => `<div class="rline"><div class="b"><div class="t">${esc(r.titre || 'Devis')}</div><div class="s">${esc(r.apercu || '')}</div></div>${statutBadge(r.statut)}</div>`).join('')}
+    ${d.recents.map(r => `<div class="rline"><div class="b"><div class="t">${esc(r.titre || 'Devis')}</div><div class="s">${esc(r.apercu || '')}</div>${r.lienClient ? `<div class="s">${r.statutClient === 'accepte' ? '✓ Accepté par le client · ' : r.statutClient === 'refuse' ? 'Décliné par le client · ' : ''}Lien client : <code style="font-family:ui-monospace,monospace;font-size:11px;background:var(--panel);padding:2px 6px;border-radius:5px;word-break:break-all">${esc(r.lienClient)}</code></div>` : ''}</div>${r.statutClient === 'accepte' ? '<span class="badge badge-ok">Accepté</span>' : statutBadge(r.statut)}</div>`).join('')}
   </div>` : ''}
   <div class="pagefoot">Une soumission, pas une facture. Taxes en sus. Valide 30 jours.</div>
 
