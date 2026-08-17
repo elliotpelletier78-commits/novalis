@@ -2391,6 +2391,7 @@ const { renderBooking } = require('./core/booking-page');
 const { renderDevisAccept } = require('./core/devis-accept-page');
 const { renderRdvConfirm } = require('./core/rdv-confirm-page');
 const oauth = require('./core/oauth');
+const integrations = require('./core/integrations');
 const { renderEntreprises } = require('./core/entreprises-page');
 const devis = require('./core/devis');
 const { renderDevis } = require('./core/devis-page');
@@ -2400,6 +2401,27 @@ const { renderPublications } = require('./core/publications-page');
 const nova = require('./core/nova');
 const { createMailer } = require('./core/alerts');
 const mailer = createMailer(process.env);
+
+// Mailer par commerce : envoie via SON Gmail branché quand il est connecté
+// (le courriel part de sa propre boîte, avec son historique), sinon retombe sur
+// l'envoi global (Resend). Toujours en forme { configured, async envoyer(...) }
+// pour rester compatible avec propositions.approuver — jamais de faux envoi.
+function mailerPour(source) {
+  let clientId = null;
+  try { clientId = branchement.assurerClient(db, source, null); } catch { clientId = null; }
+  const gmailOn = clientId != null && integrations.connecte(core.vault, clientId, 'google');
+  if (gmailOn) {
+    return {
+      configured: true,
+      via: 'gmail',
+      async envoyer({ to, subject, text }) {
+        // from omis : Gmail envoie depuis le compte authentifié du commerçant.
+        return integrations.envoyerGmail(core.vault, clientId, { to, subject, text });
+      },
+    };
+  }
+  return { ...mailer, via: mailer.configured ? 'resend' : null };
+}
 
 function sourcesConnues() {
   const set = new Set();
@@ -2626,6 +2648,26 @@ app.post('/core/connexion/:provider/disconnect', adminOnly, coreReady, express.j
     branchement.definirConnexion(db, source, oauth.PROVIDERS[provider].cxType, { statut: 'a_brancher', label: null });
     res.json({ ok: true });
   } catch (e) { res.status(400).json({ error: e.message }); }
+});
+// Test de connexion : appelle vraiment le fournisseur avec le jeton du commerçant
+// (profil Gmail / info QuickBooks) pour confirmer que le câblage fonctionne.
+app.post('/core/connexion/:provider/test', adminOnly, coreReady, express.json({ limit: '2kb' }), async (req, res) => {
+  const provider = req.params.provider;
+  const source = String((req.body && req.body.source) || '').slice(0, 40);
+  if (!oauth.PROVIDERS[provider] || !/^[a-z0-9-]{2,40}$/.test(source)) return res.status(404).json({ error: 'Introuvable' });
+  try {
+    const clientId = branchement.assurerClient(db, source, null);
+    if (!integrations.connecte(core.vault, clientId, provider)) return res.status(400).json({ ok: false, raison: 'Compte non connecté' });
+    if (provider === 'google') {
+      const p = await integrations.profilGmail(core.vault, clientId);
+      return res.json({ ok: true, detail: p.emailAddress || 'Gmail', messages: p.messagesTotal });
+    }
+    if (provider === 'quickbooks') {
+      const c = await integrations.infoQuickBooks(core.vault, clientId);
+      return res.json({ ok: true, detail: c.CompanyName || c.LegalName || 'QuickBooks' });
+    }
+    return res.status(400).json({ ok: false, raison: 'Test non disponible' });
+  } catch (e) { res.status(502).json({ ok: false, raison: e.message.slice(0, 200) }); }
 });
 
 // ── Novalis Aujourd'hui — le poste de commande unifié ───────────────
@@ -2974,9 +3016,12 @@ async function executerActionProposition(id, action, body) {
     const cxCourriel = et.connexions.find(x => x.type === 'courriel' && x.statut === 'branche');
     const replyTo = et.identite.courriel
       || (cxCourriel && /@/.test(String(cxCourriel.compte_label || '')) ? cxCourriel.compte_label : undefined);
+    const boite = mailerPour(p.source); // Gmail du commerçant si branché, sinon Resend
+    const gmailOn = boite.via === 'gmail';
     const r = await propositions.approuver(db, id, {
-      peutEnvoyer: et.consent.envoyer && !!replyTo,
-      mailer, replyTo,
+      peutEnvoyer: et.consent.envoyer && (gmailOn || !!replyTo),
+      mailer: boite,
+      replyTo: gmailOn ? undefined : replyTo, // Gmail répond déjà depuis la bonne boîte
       sujet: propositions.sujetPour(p.type, { nomCommerce: et.identite.nom }),
     });
     return { code: r.ok ? 200 : 400, json: r };

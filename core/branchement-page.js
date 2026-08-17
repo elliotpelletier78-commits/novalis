@@ -49,6 +49,9 @@ const EXTRA = `
 .cxmsg{margin-bottom:14px;padding:10px 14px;border-radius:var(--r);font-size:13.5px;font-weight:600}
 .cxmsg.ok{background:var(--ok-soft);color:var(--ok)} .cxmsg.no{background:var(--warn-soft);color:var(--warn)}
 .cx a.bbtn{margin-top:0;display:inline-block;text-decoration:none;padding:8px 16px;font-size:13px}
+.cxtest{font-size:12.5px;margin-top:7px;font-weight:600} .cxtest:empty{display:none}
+.cxtest.ok{color:var(--ok)} .cxtest.err{color:var(--warn)}
+.cx .act{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 @media(max-width:640px){.bgrid{grid-template-columns:1fr}}
 `;
 
@@ -59,7 +62,8 @@ function cx1clic(x, pass, source) {
       <div class="t">${esc(x.titre)} <span class="chip branche">connecté</span></div>
       <div class="r">Autorisé par vous. Novalis agit dans votre compte, en votre nom.</div>
       ${x.label ? `<div class="lab">Compte&nbsp;: ${esc(x.label)}</div>` : ''}
-    </div><div class="act"><button data-oauth-off="${esc(x.provider)}">Débrancher</button></div></div>`;
+      <div class="cxtest" data-cxtest="${esc(x.provider)}"></div>
+    </div><div class="act"><button data-oauth-test="${esc(x.provider)}">Tester</button> <button data-oauth-off="${esc(x.provider)}">Débrancher</button></div></div>`;
   }
   if (!x.configure) {
     return `<div class="cx"><div class="body">
@@ -166,6 +170,21 @@ document.querySelectorAll('[data-oauth-off]').forEach(function(btn){
   btn.addEventListener('click',function(){
     if(!confirm('Débrancher ce compte ? Novalis n\\'y accédera plus.')) return;
     poste('/core/connexion/'+btn.getAttribute('data-oauth-off')+'/disconnect',{source:SOURCE});
+  });
+});
+document.querySelectorAll('[data-oauth-test]').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var prov=btn.getAttribute('data-oauth-test');
+    var out=document.querySelector('[data-cxtest="'+prov+'"]');
+    btn.disabled=true; if(out){out.textContent='Test en cours…';out.className='cxtest';}
+    fetch('/core/connexion/'+prov+'/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:SOURCE})})
+      .then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j};});})
+      .then(function(x){ if(!out)return;
+        if(x.ok&&x.j.ok){out.className='cxtest ok';out.textContent='Connexion vérifiée — '+(x.j.detail||'')+(x.j.messages!=null?' · '+x.j.messages+' courriels':'');}
+        else{out.className='cxtest err';out.textContent='Échec — '+((x.j&&x.j.raison)||'non vérifié');}
+      })
+      .catch(function(){if(out){out.className='cxtest err';out.textContent='Échec — réseau';}})
+      .finally(function(){btn.disabled=false;});
   });
 });
 document.querySelectorAll('[data-cx]').forEach(function(btn){

@@ -85,4 +85,17 @@ async function exchangeCode(provider, { code, redirectUri }) {
   return r.json();
 }
 
-module.exports = { PROVIDERS, creds, configure, signState, verifyState, authUrl, exchangeCode };
+/** Rafraîchit l'access_token à partir du refresh_token. Lève si échec. */
+async function rafraichir(provider, refreshToken) {
+  const P = PROVIDERS[provider], c = creds(provider);
+  if (!P || !c || !refreshToken) throw new Error('rafraîchissement impossible (non configuré)');
+  const body = new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken });
+  const headers = { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' };
+  if (P.basic) headers.Authorization = 'Basic ' + Buffer.from(c.id + ':' + c.secret).toString('base64');
+  else { body.set('client_id', c.id); body.set('client_secret', c.secret); }
+  const r = await fetch(P.tokenUrl, { method: 'POST', headers, body });
+  if (!r.ok) throw new Error('refresh ' + r.status);
+  return r.json();
+}
+
+module.exports = { PROVIDERS, creds, configure, signState, verifyState, authUrl, exchangeCode, rafraichir };
