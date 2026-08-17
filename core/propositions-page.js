@@ -38,17 +38,18 @@ const EXTRA = `
 .pc-table{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
 .pc-table .scr{overflow-x:auto}
 .pctbl{width:100%;border-collapse:collapse;font-size:13.5px;table-layout:fixed}
-.pctbl th:nth-child(1),.pctbl td:nth-child(1){width:16%}
-.pctbl th:nth-child(2),.pctbl td:nth-child(2){width:25%}
-.pctbl th:nth-child(3),.pctbl td:nth-child(3){width:31%}
-.pctbl th:nth-child(4),.pctbl td:nth-child(4){width:14%}
-.pctbl th:nth-child(5),.pctbl td:nth-child(5){width:14%}
+.pctbl th:nth-child(1),.pctbl td:nth-child(1){width:15%}
+.pctbl th:nth-child(2),.pctbl td:nth-child(2){width:24%}
+.pctbl th:nth-child(3),.pctbl td:nth-child(3){width:27%}
+.pctbl th:nth-child(4),.pctbl td:nth-child(4){width:15%}
+.pctbl th:nth-child(5),.pctbl td:nth-child(5){width:19%}
 .pctbl thead th{position:sticky;top:0;background:var(--panel);text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700;padding:11px 14px;border-bottom:1px solid var(--line);white-space:nowrap;z-index:1}
 .pctbl tbody td{padding:12px 14px;border-bottom:1px solid var(--line-2);vertical-align:middle}
 .pctbl tbody tr{cursor:pointer}
 .pctbl tbody tr:last-child td{border-bottom:none}
 .pctbl tbody tr:hover{background:var(--panel)}
 .pctbl tbody tr.sel{background:var(--brand-soft)}
+.pctbl tbody tr.prio td:first-child{box-shadow:inset 3px 0 0 var(--risk)}
 .pctbl tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--brand)}
 .pctbl .typ{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:560;white-space:nowrap;color:var(--ink-2)}
 .pctbl .typ .d{width:7px;height:7px;border-radius:2px;flex:none}
@@ -128,7 +129,8 @@ const EXTRA = `
 function ligne(p) {
   const dot = TYPE_DOT[p.type] || 'var(--muted)';
   const label = TYPE_LABEL[p.type] || 'Proposition';
-  return `<tr data-id="${p.id}" data-type="${esc(label)}" data-dot="${esc(dot)}" data-titre="${esc(p.titre || '')}" data-brouillon="${esc(p.brouillon || '')}" data-dest="${esc(p.destinataire || '')}" data-when="${esc(ilya(p.cree_le))}">
+  const prio = p.priorite >= 10;
+  return `<tr class="${prio ? 'prio' : ''}" data-id="${p.id}" data-type="${esc(label)}" data-dot="${esc(dot)}" data-titre="${esc(p.titre || '')}" data-brouillon="${esc(p.brouillon || '')}" data-dest="${esc(p.destinataire || '')}" data-when="${esc(ilya(p.cree_le))}">
     <td><span class="typ"><span class="d" style="background:${dot}"></span>${esc(label)}</span></td>
     <td><span class="sj">${esc(p.titre || '—')}</span></td>
     <td><div class="ap">${p.apercu ? esc(p.apercu) : '<span style="color:var(--faint)">—</span>'}</div></td>

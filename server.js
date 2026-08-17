@@ -578,6 +578,11 @@ for (const slug of ['politique-confidentialite', 'conditions-utilisation']) {
   });
 }
 
+// Page publique de confiance / sécurité (atout de crédibilité, honnête).
+app.get('/confiance', (req, res) => {
+  res.type('html').send(renderConfiance());
+});
+
 app.get('/', (req, res) => {
   try {
     res.type('html').send(rendreLanding());
@@ -2124,6 +2129,7 @@ const propositions = require('./core/propositions');
 const { renderPropositions } = require('./core/propositions-page');
 const { renderAujourdhui } = require('./core/aujourdhui-page');
 const { renderResultats } = require('./core/resultats-page');
+const { renderConfiance } = require('./core/confiance-page');
 const { renderEntreprises } = require('./core/entreprises-page');
 const devis = require('./core/devis');
 const { renderDevis } = require('./core/devis-page');
