@@ -638,6 +638,40 @@ app.get('/confiance', (req, res) => {
   res.type('html').send(renderConfiance());
 });
 
+// ── PWA : manifeste, service worker, icônes (publics) ───────────────
+const PWA_DIR = path.join(__dirname, 'core', 'pwa');
+app.get('/manifest.webmanifest', (req, res) => {
+  res.type('application/manifest+json').set('Cache-Control', 'public, max-age=86400').send(JSON.stringify({
+    name: 'Novalis — espace d\'exploitation',
+    short_name: 'Novalis',
+    description: 'Le back-office opéré de votre commerce.',
+    start_url: '/core/aujourdhui',
+    scope: '/',
+    display: 'standalone',
+    orientation: 'portrait-primary',
+    theme_color: '#1E3A5F',
+    background_color: '#F1EFE8',
+    lang: 'fr-CA',
+    icons: [
+      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+    ],
+  }));
+});
+app.get(['/icon-192.png', '/icon-512.png'], (req, res) => {
+  const f = req.path === '/icon-512.png' ? 'icon-512.png' : 'icon-192.png';
+  try { res.type('image/png').set('Cache-Control', 'public, max-age=604800').send(fs.readFileSync(path.join(PWA_DIR, f))); }
+  catch { res.status(404).end(); }
+});
+app.get('/sw.js', (req, res) => {
+  // Service worker minimal : suffit à rendre l'app installable, ne met RIEN en
+  // cache (aucun risque de contenu périmé) — le navigateur fait le fetch par défaut.
+  res.type('application/javascript').set('Cache-Control', 'no-cache').send(
+    'self.addEventListener("install",function(e){self.skipWaiting();});'
+    + 'self.addEventListener("activate",function(e){e.waitUntil(self.clients.claim());});'
+    + 'self.addEventListener("fetch",function(){});');
+});
+
 // ── Connexion / déconnexion (session par cookie signé) ──────────────
 app.get('/login', (req, res) => {
   if (estAuthentifie(req)) return res.redirect(302, cheminLocal(req.query.next) || '/core/aujourdhui');

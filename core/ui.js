@@ -43,6 +43,7 @@ function SHELL_SCRIPT(source, pass) {
   const ps = JSON.stringify(String(pass || ''));
   return `(function(){
   var SRC=${src},PASS=${ps}||(localStorage.getItem('novalis_admin')||'');
+  if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){});}
   // Recherche in-page : filtre les lignes/cartes de type liste par leur texte.
   var q=document.getElementById('tbq');
   if(q){var CIBLES='.prop,.nova-i,.cx,.srv,.rdv,.ent,tbody tr,.list .row';
@@ -322,7 +323,10 @@ function page(o) {
 
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">${o.noindex === false ? '' : '<meta name="robots" content="noindex">'}
-<title>${esc(o.title)} — Novalis</title><style>${UI_CSS}${o.extraCss || ''}</style></head>
+<title>${esc(o.title)} — Novalis</title>
+<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#1E3A5F">
+<link rel="apple-touch-icon" href="/icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Novalis">
+<style>${UI_CSS}${o.extraCss || ''}</style></head>
 <body><a class="skip" href="#contenu">Aller au contenu</a><div class="app">
   <aside class="side">
     <div class="logo"><span class="mk">${MARK}</span><span class="wm">nova<span>lis</span></span></div>
