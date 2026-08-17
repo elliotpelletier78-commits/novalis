@@ -27,13 +27,13 @@ const EXTRA = `
 .gauge{display:flex;align-items:center;gap:14px;margin-top:6px}
 .light{width:14px;height:14px;border-radius:50%;flex:none}
 .light.ok{background:var(--ok)} .light.warn{background:var(--warn)} .light.risk{background:var(--risk)}
-.gauge .big{font-size:30px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.gauge .big{font-family:var(--num);font-size:30px;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
 .gauge .lbl{font-size:13px;color:var(--muted)}
 .attente{margin-top:18px;padding:12px 16px;border-radius:var(--r);font-size:14px;font-weight:600}
 .attente.some{background:var(--warn-soft);color:var(--warn)} .attente.none{background:var(--ok-soft);color:var(--ok)}
 .leads-wrap{overflow-x:auto}
 .leads-wrap table{width:100%;border-collapse:collapse}
-.leads-wrap th{text-align:left;font-size:11px;font-weight:660;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:0 12px 10px;border-bottom:1px solid var(--line)}
+.leads-wrap th{text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:11px 12px;border-bottom:1px solid var(--line);background:var(--panel)}
 .leads-wrap td{padding:13px 12px;border-bottom:1px solid var(--line-2);font-size:14px;vertical-align:top}
 .leads-wrap tr:last-child td{border-bottom:none}
 .who{font-weight:620} .who .mail{display:block;font-size:12.5px;color:var(--muted);font-weight:400}
@@ -56,15 +56,15 @@ const EXTRA = `
 .cfg-grid label{display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted)}
 .cfg-grid input,.cfg-grid select{font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--app);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px}
 .cfg-grid input:focus,.cfg-grid select:focus{outline:2px solid var(--brand);outline-offset:1px}
-.cfg-btn{font-family:var(--sans);font-size:14px;font-weight:640;color:#fff;background:var(--brand);border:none;border-radius:var(--r-sm);padding:11px 20px;cursor:pointer}
+.cfg-btn{font-family:var(--sans);font-size:14px;font-weight:640;color:var(--brand-ink);background:var(--brand);border:none;border-radius:var(--r-sm);padding:11px 20px;cursor:pointer}
 .cfg-msg{margin-left:12px;font-size:13px;color:var(--ok)}
 .pulse-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.pulse-conv{font-size:26px;font-weight:800;color:var(--brand-600);font-variant-numeric:tabular-nums}
+.pulse-conv{font-family:var(--num);font-size:27px;font-weight:600;color:var(--brand-600);font-variant-numeric:tabular-nums}
 .funnel{margin-top:16px;display:flex;flex-direction:column;gap:9px}
 .fstep .flabel{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-2)}
 .fstep .flabel b{font-variant-numeric:tabular-nums;color:var(--ink)}
 .fbar{height:24px;border-radius:8px;background:var(--panel);overflow:hidden;position:relative;margin-top:4px}
-.fbar>span{display:block;height:100%;background:linear-gradient(90deg,var(--brand),var(--steel));border-radius:8px;min-width:2px;transition:width .4s}
+.fbar>span{display:block;height:100%;background:var(--brand);border-radius:8px;min-width:2px;transition:width .4s}
 .fdrop{align-self:flex-end;font-size:11.5px;color:var(--risk);font-weight:650;margin-top:2px}
 .diag{margin-top:18px;padding:16px 18px;border-radius:var(--r);background:var(--warn-soft);border:1px solid var(--line)}
 .diag .dt{font-size:16px;font-weight:720;color:var(--ink);margin-bottom:6px}
@@ -77,8 +77,8 @@ const EXTRA = `
 .cfilter button{font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:var(--r-pill);padding:6px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
 .cfilter button span{font-size:11px;font-weight:700;color:var(--muted);background:var(--panel);border-radius:999px;padding:0 6px;min-width:18px;text-align:center}
 .cfilter button:hover{border-color:var(--brand)}
-.cfilter button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
-.cfilter button.on span{background:rgba(255,255,255,.25);color:#fff}
+.cfilter button.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.cfilter button.on span{background:rgba(247,243,233,.24);color:var(--brand-ink)}
 ${CHART_CSS}
 @media(max-width:760px){.cfg-grid{grid-template-columns:1fr}.donut-row{flex-direction:column;align-items:flex-start}}
 `;

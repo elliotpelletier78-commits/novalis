@@ -12,10 +12,10 @@ const ICN = { reponse: 'inbox', avis: 'phone', devis: 'file', relance: 'phone', 
 
 const EXTRA = `
 .nova{border-radius:var(--r-lg);border:1px solid var(--line);background:var(--card);box-shadow:var(--sh-sm);margin-bottom:18px;overflow:hidden}
-.nova-head{display:flex;align-items:center;gap:13px;padding:16px 20px;background:linear-gradient(180deg,var(--brand-soft),transparent)}
-.nova-av{width:40px;height:40px;border-radius:11px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--brand);color:#fff}
+.nova-head{display:flex;align-items:center;gap:13px;padding:16px 20px;background:var(--brand-soft);border-bottom:1px solid var(--line-2)}
+.nova-av{width:40px;height:40px;border-radius:11px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--brand);color:var(--brand-ink)}
 .nova-av svg{width:22px;height:22px}
-.nova-name{font-size:15px;font-weight:750;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.nova-name{font-family:var(--disp);font-size:16px;font-weight:600;letter-spacing:-.005em;display:flex;align-items:center;gap:8px}
 .nova-name .tag{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--brand-600);background:var(--brand-soft);padding:2px 7px;border-radius:var(--r-pill)}
 .nova-say{font-size:13.5px;color:var(--ink-2);margin-top:1px}
 .nova-list{padding:4px 8px 8px}
@@ -42,7 +42,7 @@ const EXTRA = `
 .thin{font-size:13.5px;color:var(--muted)}
 .prog{height:8px;border-radius:6px;background:var(--panel);overflow:hidden;margin:12px 0 6px}
 .prog>span{display:block;height:100%;background:var(--brand);border-radius:6px}
-.pbig{font-size:38px;font-weight:800;letter-spacing:-.03em;color:var(--brand-600);line-height:1}
+.pbig{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:34px;font-weight:600;letter-spacing:-.01em;color:var(--brand-600);line-height:1}
 ${CHART_CSS}
 `;
 
