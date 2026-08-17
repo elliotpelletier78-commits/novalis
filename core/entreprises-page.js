@@ -1,63 +1,61 @@
 'use strict';
-// ── Novalis Entreprises — le hub d'agence ───────────────────────────
-// Vue d'ensemble des commerces opérés, triés par attention. La création passe
-// par un slide-over (bouton primaire en tête), pas un formulaire permanent.
+// ── Novalis Entreprises — le hub d'agence (registre) ────────────────
+// Un cabinet qui opère plusieurs commerces les lit comme un REGISTRE : une ligne
+// par entreprise, triée par attention, chiffres alignés. Pas de tuiles. La
+// création passe par un slide-over (bouton primaire en tête).
 
 const { esc, icon, page } = require('./ui');
 
-const ARROW = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
-
 const EXTRA = `
-.ent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
-.ent{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 20px 16px;text-decoration:none;color:inherit;display:flex;flex-direction:column;transition:border-color .14s,box-shadow .14s,transform .14s}
-.ent:hover{border-color:var(--brand);box-shadow:var(--sh)}
-.ent .hd{display:flex;align-items:center;gap:9px}
-.ent .sdot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--ok)}
-.ent .sdot.warn{background:var(--warn)} .ent .sdot.urgent{background:var(--risk)}
-.ent .nm{font-size:16px;font-weight:720;letter-spacing:-.01em;flex:1;min-width:0}
-.ent .stpill{font-size:10.5px;font-weight:700;letter-spacing:.02em;padding:3px 9px;border-radius:var(--r-pill);background:var(--ok-soft);color:var(--ok);white-space:nowrap}
-.ent .stpill.warn{background:var(--warn-soft);color:var(--warn)} .ent .stpill.urgent{background:var(--risk-soft);color:var(--risk)}
-.ent .src{font-size:12px;color:var(--muted);margin:2px 0 0 18px}
-.ent .stats{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-top:16px}
-.ent .st .v{font-size:24px;font-weight:800;letter-spacing:-.03em;line-height:1;color:var(--ink)}
-.ent .st .v.act{color:var(--brand-600)} .ent .st .v.warn{color:var(--warn)}
-.ent .st .k{font-size:10.5px;color:var(--muted);margin-top:4px}
-.ent .pret{margin-top:16px;height:5px;border-radius:5px;background:var(--panel);overflow:hidden}
-.ent .pret>span{display:block;height:100%;background:var(--brand)}
-.ent .foot{display:flex;align-items:center;justify-content:space-between;margin-top:9px}
-.ent .pret-l{font-size:11.5px;color:var(--muted)}
-.ent .cta{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:640;color:var(--brand-600)}
-.ent .cta svg{transition:transform .14s}
-.ent:hover .cta svg{transform:translateX(2px)}
+.rost{width:100%;border-collapse:collapse;font-size:14px}
+.rost thead th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:0 14px 9px;border-bottom:2px solid var(--ink);white-space:nowrap}
+.rost thead th.r{text-align:right}
+.rost tbody td{padding:14px;border-bottom:1px solid var(--line);vertical-align:middle}
+.rost tbody tr{cursor:pointer}
+.rost tbody tr:hover{background:var(--card)}
+.rost .nm{font-family:var(--disp);font-size:17px;font-weight:600;letter-spacing:-.005em}
+.rost .sl{font-size:12px;color:var(--faint);margin-top:1px}
+.rost .st{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.rost .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
+.rost .dot.warn{background:var(--warn)} .rost .dot.urgent{background:var(--risk)}
+.rost .n{text-align:right;font-variant-numeric:tabular-nums;font-size:15px;color:var(--ink);white-space:nowrap}
+.rost .n.z{color:var(--faint)}
+.rost .n.acc{color:var(--brand-600);font-weight:600}
+.rost .go{text-align:right;color:var(--brand-600);font-weight:600;white-space:nowrap}
+.rost tbody tr:hover .go{text-decoration:underline}
+.rost-empty{padding:22px 14px;border-bottom:1px solid var(--line);color:var(--muted);font-size:14px}
 .ne-msg{font-size:13px;margin-right:auto}
 `;
 
 function renderEntreprises(data) {
   const items = data.entreprises || [];
-  const cartes = items.map((e) => {
+  const rows = items.map((e) => {
     const href = `/core/aujourdhui?source=${encodeURIComponent(e.source)}${data.pass ? '&pass=' + encodeURIComponent(data.pass) : ''}`;
     const ton = e.enAttente ? 'urgent' : (e.aApprouver || e.pretPct < 100) ? 'warn' : '';
     const stTxt = ton === 'urgent' ? 'Attention' : ton === 'warn' ? 'À compléter' : 'Actif';
-    return `<a class="ent" href="${href}">
-      <div class="hd"><span class="sdot ${ton}"></span><div class="nm">${esc(e.nom || e.source)}</div><span class="stpill ${ton}">${stTxt}</span></div>
-      <div class="src">${esc(e.source)}</div>
-      <div class="stats">
-        <div class="st"><div class="v act">${e.aApprouver}</div><div class="k">à approuver</div></div>
-        <div class="st"><div class="v ${e.enAttente ? 'warn' : ''}">${e.enAttente}</div><div class="k">en attente</div></div>
-        <div class="st"><div class="v">${e.contacts}</div><div class="k">contacts 30j</div></div>
-        <div class="st"><div class="v">${e.rdvSoon}</div><div class="k">RDV bientôt</div></div>
-      </div>
-      <div class="pret"><span style="width:${e.pretPct}%"></span></div>
-      <div class="foot"><span class="pret-l">Prêt à opérer · ${e.pretPct}%</span><span class="cta">Gérer ${ARROW}</span></div>
-    </a>`;
+    return `<tr onclick="location.href='${href}'">
+      <td><div class="nm">${esc(e.nom || e.source)}</div><div class="sl">${esc(e.source)}</div></td>
+      <td><span class="st"><span class="dot ${ton}"></span>${stTxt}</span></td>
+      <td class="n ${e.aApprouver ? 'acc' : 'z'}">${e.aApprouver}</td>
+      <td class="n ${e.contacts ? '' : 'z'}">${e.contacts}</td>
+      <td class="n ${e.enAttente ? '' : 'z'}">${e.enAttente}</td>
+      <td class="n ${e.rdvSoon ? '' : 'z'}">${e.rdvSoon}</td>
+      <td class="n ${e.pretPct >= 100 ? '' : 'z'}">${e.pretPct} %</td>
+      <td class="go">Gérer →</td>
+    </tr>`;
   }).join('');
 
   const content = `
     <div class="section-label">Vos entreprises${items.length ? ' · ' + items.length : ''}</div>
-    <div class="ent-grid">
-      ${cartes || '<div class="muted" style="grid-column:1/-1;padding:24px;border:1px dashed var(--line);border-radius:var(--r-lg);text-align:center">Aucune entreprise branchée. Cliquez « + Nouvelle entreprise » en haut à droite.</div>'}
-    </div>
-    <div class="pagefoot">Le tableau montre d'abord les commerces qui demandent votre attention.</div>
+    <table class="rost">
+      <thead><tr>
+        <th>Entreprise</th><th>Statut</th>
+        <th class="r">À approuver</th><th class="r">Contacts · 30 j</th>
+        <th class="r">Sans réponse</th><th class="r">RDV bientôt</th><th class="r">Prêt</th><th></th>
+      </tr></thead>
+      <tbody>${rows || '<tr><td colspan="8" class="rost-empty">Aucune entreprise branchée. Cliquez « + Nouvelle entreprise » en haut à droite.</td></tr>'}</tbody>
+    </table>
+    <div class="pagefoot">Trié d'abord par ce qui demande votre attention.</div>
 
     <div class="sheet-ov" id="sheet-ov"></div>
     <aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Nouvelle entreprise">
@@ -84,16 +82,16 @@ document.getElementById('ne-add').addEventListener('click', async function(){
   var msg=document.getElementById('ne-msg'); msg.style.color=''; msg.textContent='';
   var src=(document.getElementById('ne-src').value||'').trim().toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,'');
   var nom=document.getElementById('ne-nom').value.trim();
-  if(src.length<2){msg.style.color='#C0392B';msg.textContent='Identifiant trop court (a-z 0-9 -).';return;}
+  if(src.length<2){msg.style.color='#9A3B3B';msg.textContent='Identifiant trop court (a-z 0-9 -).';return;}
   var r=await fetch('/core/entreprises',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':pass()},body:JSON.stringify({source:src,nom:nom})});
   if(r.ok){location.href='/core/branchement?source='+encodeURIComponent(src)+(pass()?'&pass='+encodeURIComponent(pass()):'');}
-  else{var j=await r.json().catch(function(){return{};});msg.style.color='#C0392B';msg.textContent='Échec : '+(j.error||r.status);}
+  else{var j=await r.json().catch(function(){return{};});msg.style.color='#9A3B3B';msg.textContent='Échec : '+(j.error||r.status);}
 });`;
 
   return page({
     title: 'Entreprises',
     subtitle: 'Toutes vos entreprises — ce qui demande attention en premier',
-    active: 'entreprises', pass: data.pass,
+    active: 'entreprises', pass: data.pass, sources: (data.entreprises || []).map((e) => e.source),
     actionsHtml: `<button class="btn btn-primary" id="ent-new">${icon('plus')} Nouvelle entreprise</button>`,
     extraCss: EXTRA, contentHtml: content, bodyScript,
   });

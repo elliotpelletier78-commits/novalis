@@ -143,10 +143,10 @@ function renderReception(data, opts = {}) {
 
   const content = `
   <div class="section-label">Vos chiffres · ${data.fenetre_jours} derniers jours</div>
-  <div class="grid g3">
-    <div class="fcard g"><div class="fl">Contacts reçus</div><div class="fv num">${c.contacts}</div><div class="fc">${c.leads} message${c.leads !== 1 ? 's' : ''} · ${c.taps} clic${c.taps !== 1 ? 's' : ''}</div></div>
-    <div class="fcard a"><div class="fl">Hors des heures</div><div class="fv num">${c.hors_heures}</div><div class="fc">reçus quand personne ne répondait</div></div>
-    <div class="fcard b"><div class="fl">Valeur captée</div><div class="fv num">${dollars(c.valeur_captee_cents)}</div><div class="fc">demande estimée par le site</div></div>
+  <div class="led">
+    <div class="it"><div class="k">Contacts reçus</div><div class="v">${c.contacts}</div><div class="sub">${c.leads} message${c.leads !== 1 ? 's' : ''} · ${c.taps} clic${c.taps !== 1 ? 's' : ''}</div></div>
+    <div class="it"><div class="k">Hors des heures</div><div class="v">${c.hors_heures}</div><div class="sub">quand personne ne répondait</div></div>
+    <div class="it"><div class="k">Valeur captée</div><div class="v">${dollars(c.valeur_captee_cents)}</div><div class="sub">demande estimée par le site</div></div>
   </div>
   <div class="section-label">Activité</div>
   <div class="panel">

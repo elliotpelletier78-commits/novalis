@@ -215,6 +215,15 @@ a.fcard:hover{box-shadow:var(--sh)}
 .fcard .fl{font-size:12px;font-weight:620;color:var(--muted)}
 .fcard .fv{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:clamp(27px,3.2vw,36px);font-weight:600;letter-spacing:-.01em;line-height:1.05;margin:8px 0 4px}
 .fcard .fc{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+/* Bandeau de mesures « relevé » (remplace les tuiles de vanité) — registre document */
+.led{display:flex;flex-wrap:wrap;border-top:1px solid var(--line-strong);border-bottom:1px solid var(--line);margin:2px 0 6px}
+.led .it{padding:14px 26px 13px 0;margin-right:26px;border-right:1px solid var(--line-2)}
+.led .it:last-child{border-right:none;margin-right:0}
+.led .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.led .v{font-variant-numeric:tabular-nums;font-size:26px;font-weight:600;letter-spacing:-.01em;margin-top:5px;line-height:1;color:var(--ink)}
+.led .v a{color:inherit;text-decoration:none} .led .v a:hover{color:var(--brand-600)}
+.led .sub{font-size:12px;color:var(--muted);margin-top:5px}
+@media(max-width:560px){.led .it{border-right:none;margin-right:16px}}
 /* Actions rapides (pilules) */
 .qact{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:4px}
 .qact a{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:var(--r-pill);padding:9px 15px;text-decoration:none;transition:border-color .12s,color .12s}

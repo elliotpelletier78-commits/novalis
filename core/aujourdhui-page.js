@@ -9,13 +9,6 @@ const { esc, page } = require('./ui');
 const { TYPE_LABEL } = require('./propositions');
 
 const EXTRA = `
-.led{display:flex;flex-wrap:wrap;border-top:1px solid var(--line-strong);border-bottom:1px solid var(--line);margin:2px 0 6px}
-.led .it{padding:14px 24px 13px 0;margin-right:24px;border-right:1px solid var(--line-2)}
-.led .it:last-child{border-right:none;margin-right:0}
-.led .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
-.led .v{font-variant-numeric:tabular-nums;font-size:26px;font-weight:600;letter-spacing:-.01em;margin-top:5px;line-height:1;color:var(--ink)}
-.led .v a{color:inherit;text-decoration:none}
-.led .v a:hover{color:var(--brand-600)}
 .dadv{display:flex;align-items:baseline;gap:10px;padding:13px 0;border-bottom:1px solid var(--line);font-size:13.5px;color:var(--ink-2)}
 .dadv b{color:var(--ink);font-weight:640}
 .dadv .lnk{margin-left:auto;color:var(--brand-600);font-weight:600;text-decoration:none;white-space:nowrap}
