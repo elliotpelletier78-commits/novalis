@@ -85,7 +85,7 @@ const UI_CSS = `
   /* LEDGER — papier / encre / marine. L'esthétique de la confiance financière :
      un fond papier chaud, une encre presque noire, un seul accent marine, et des
      CHIFFRES EN SÉRIF (comme un relevé). Rien d'« IA par défaut ». */
-  --app:#F1EFE8; --card:#FBFAF6; --panel:#F1EEE4; --line:#E4E0D2; --line-2:#EDEADD;
+  --app:#F1EFE8; --card:#FBFAF6; --panel:#F1EEE4; --line:#E4E0D2; --line-2:#EDEADD; --line-strong:#D6D1C2;
   --ink:#1B1A16; --ink-2:#3A382F; --muted:#6C685C; --faint:#98937F;
   --brand:#1E3A5F; --brand-ink:#F7F3E9; --brand-soft:#E9EDF3; --brand-600:#16304F;
   --ok:#2E6B4F; --ok-soft:#E3EDE6; --warn:#8A5A1C; --warn-soft:#F1E8D8;
@@ -93,13 +93,13 @@ const UI_CSS = `
   /* Rail de navigation CLAIR (papier), accent marine à l'état actif. */
   --side:#FBFAF6; --side-ink:#3A382F; --side-ink-2:#98937F; --side-brand:#1B1A16;
   --side-line:#E4E0D2; --side-hover:#F1EEE4; --side-active:#EEF1F6; --side-active-ink:#16304F;
-  --r:12px; --r-sm:9px; --r-lg:12px; --r-pill:999px;
+  --r:8px; --r-sm:6px; --r-lg:8px; --r-pill:999px;
   /* Flat : bordure fine plutôt qu'ombre ; --sh = micro-élévation au survol. */
   --sh-sm:none; --sh:0 1px 2px rgba(40,34,20,.05),0 10px 26px -12px rgba(40,34,20,.22);
   /* Sans natif (pas d'Inter — trop « template ») ; sérif pour titres et chiffres. */
   --sans:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
-  --disp:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Georgia,"Times New Roman",serif;
-  --num:Charter,"Iowan Old Style","Palatino Linotype",Georgia,serif;
+  --disp:"Times New Roman",Times,"Liberation Serif","Nimbus Roman No9 L","Tinos",serif;
+  --num:var(--sans);
   /* Alias de compatibilité pour les écrans plus anciens. --serif reste du sans
      (leurs champs de saisie l'utilisent) ; les titres/chiffres passent par --disp/--num. */
   --paper:var(--app); --hair:var(--line); --hair-2:var(--line-2);

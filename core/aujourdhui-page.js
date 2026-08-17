@@ -1,49 +1,36 @@
 'use strict';
-// ── Novalis — Aujourd'hui (poste de commande unifié), style QuickBooks ─
-// Grand format : salutation, actions rapides, « en un coup d'œil » (cartes
-// funnel à bordure colorée et gros chiffres), puis « à faire » (à approuver +
-// en attente) et un panneau latéral récapitulatif.
+// ── Novalis — Aujourd'hui (relevé du jour) ──────────────────────────
+// Registre « document / cabinet » : pas d'accueil, pas de tuiles de vanité, pas
+// de soupe de cartes. Un bandeau de mesures réglé au filet, puis le travail en
+// listes réglées (titres en Times). Le logiciel dit quoi faire, il ne se donne
+// pas en spectacle.
 
-const { esc, icon, page } = require('./ui');
-const { barChart, CHART_CSS } = require('./charts');
-
+const { esc, page } = require('./ui');
 const { TYPE_LABEL } = require('./propositions');
-const ICN = { reponse: 'inbox', avis: 'phone', devis: 'file', relance: 'phone', rappel: 'clock', fidelisation: 'phone', publication: 'file' };
 
 const EXTRA = `
-.nova{border-radius:var(--r-lg);border:1px solid var(--line);background:var(--card);box-shadow:var(--sh-sm);margin-bottom:18px;overflow:hidden}
-.nova-head{display:flex;align-items:center;gap:13px;padding:16px 20px;background:var(--brand-soft);border-bottom:1px solid var(--line-2)}
-.nova-av{width:40px;height:40px;border-radius:11px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--brand);color:var(--brand-ink)}
-.nova-av svg{width:22px;height:22px}
-.nova-name{font-family:var(--disp);font-size:16px;font-weight:600;letter-spacing:-.005em;display:flex;align-items:center;gap:8px}
-.nova-name .tag{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--brand-600);background:var(--brand-soft);padding:2px 7px;border-radius:var(--r-pill)}
-.nova-say{font-size:13.5px;color:var(--ink-2);margin-top:1px}
-.nova-list{padding:4px 8px 8px}
-.nova-i{display:flex;gap:12px;align-items:flex-start;padding:13px 12px;border-radius:var(--r);text-decoration:none;color:inherit;transition:background .12s}
-.nova-i:hover{background:var(--panel)}
-.nova-i .dot{width:9px;height:9px;border-radius:50%;flex:none;margin-top:5px;background:var(--muted)}
-.nova-i.urgent .dot{background:var(--risk)} .nova-i.occasion .dot{background:var(--brand)} .nova-i.info .dot{background:var(--warn)}
-.nova-i .b{flex:1;min-width:0}
-.nova-i .t{font-weight:650;font-size:14.5px}
-.nova-i .d{font-size:13px;color:var(--muted);margin-top:2px}
-.nova-i .go{flex:none;font-size:13px;font-weight:640;color:var(--brand-600);white-space:nowrap;align-self:center}
-.nova-calm{padding:16px 20px;font-size:14px;color:var(--ok);font-weight:600}
-.list .row{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line-2)}
-.list .row:last-child{border-bottom:none}
-.list .row .b{flex:1;min-width:0}
-.list .row .t{font-weight:620;font-size:14px}
-.list .row .c{font-size:13px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.list .row>svg{width:18px;height:18px;flex:none;color:var(--faint);margin-top:2px}
-.list .row .badge{flex:none;margin-top:1px}
-.calm{padding:14px 16px;border-radius:var(--r);background:var(--ok-soft);color:var(--ok);font-size:13.5px;font-weight:600}
-.diag .dt{font-size:14.5px;font-weight:720;margin-bottom:5px}
-.diag .dd{font-size:13.5px;color:var(--ink-2);margin-bottom:8px}
-.diag .dl{font-size:13.5px}.diag .dl b{color:var(--brand-600)}
-.thin{font-size:13.5px;color:var(--muted)}
-.prog{height:8px;border-radius:6px;background:var(--panel);overflow:hidden;margin:12px 0 6px}
-.prog>span{display:block;height:100%;background:var(--brand);border-radius:6px}
-.pbig{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:34px;font-weight:600;letter-spacing:-.01em;color:var(--brand-600);line-height:1}
-${CHART_CSS}
+.led{display:flex;flex-wrap:wrap;border-top:1px solid var(--line-strong);border-bottom:1px solid var(--line);margin:2px 0 6px}
+.led .it{padding:14px 24px 13px 0;margin-right:24px;border-right:1px solid var(--line-2)}
+.led .it:last-child{border-right:none;margin-right:0}
+.led .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.led .v{font-variant-numeric:tabular-nums;font-size:26px;font-weight:600;letter-spacing:-.01em;margin-top:5px;line-height:1;color:var(--ink)}
+.led .v a{color:inherit;text-decoration:none}
+.led .v a:hover{color:var(--brand-600)}
+.dadv{display:flex;align-items:baseline;gap:10px;padding:13px 0;border-bottom:1px solid var(--line);font-size:13.5px;color:var(--ink-2)}
+.dadv b{color:var(--ink);font-weight:640}
+.dadv .lnk{margin-left:auto;color:var(--brand-600);font-weight:600;text-decoration:none;white-space:nowrap}
+.deyebrow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:30px 0 0;border-bottom:2px solid var(--ink);padding-bottom:8px}
+.deyebrow a{font-size:12.5px;letter-spacing:0;text-transform:none;color:var(--brand-600);font-weight:600;text-decoration:none}
+.drow{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:baseline;padding:13px 0;border-bottom:1px solid var(--line);text-decoration:none;color:inherit}
+.drow:hover{background:var(--card)}
+.drow .t{font-family:var(--disp);font-size:16.5px;font-weight:600;letter-spacing:-.005em}
+.drow .s{font-size:13px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:56ch}
+.drow .meta{text-align:right;white-space:nowrap}
+.drow .st{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:700;color:var(--warn)}
+.drow .st.risk{color:var(--risk)}
+.drow .wh{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums;margin-top:3px}
+.dempty{padding:14px 0;border-bottom:1px solid var(--line);color:var(--muted);font-size:14px}
+.dnote{margin-top:24px;font-size:12.5px;color:var(--faint);font-style:italic}
 `;
 
 function renderAujourdhui(d) {
@@ -51,99 +38,41 @@ function renderAujourdhui(d) {
   const s = d.signaux;
   const href = (base) => `${base}?source=${encodeURIComponent(d.source)}${d.pass ? '&pass=' + encodeURIComponent(d.pass) : ''}`;
 
-  const lienMap = { reception: '/core/reception', propositions: '/core/propositions', branchement: '/core/branchement', devis: '/core/devis', rdv: '/core/rdv', aujourdhui: '/core/aujourdhui' };
-  const nova = d.nova || { resume: '', insights: [] };
-  const nb = nova.insights.length;
-  // Voix d'opérateur : on présente le TRAVAIL préparé, pas « une IA ».
-  const brief = nb
-    ? `${nb} chose${nb > 1 ? 's' : ''} à regarder ce matin — déjà préparée${nb > 1 ? 's' : ''}.`
-    : 'Tout est à jour. Rien ne requiert votre attention pour l’instant.';
-  const novaHtml = `<div class="nova">
-    <div class="nova-head">
-      <div><div class="nova-name">Préparé pour vous</div>
-        <div class="nova-say">${esc(brief)}</div></div></div>
-    ${nb ? `<div class="nova-list">${nova.insights.map(i => `
-      <a class="nova-i ${i.gravite}" href="${href(lienMap[i.action.lien] || '/core/aujourdhui')}">
-        <span class="dot"></span>
-        <div class="b"><div class="t">${esc(i.titre)}</div><div class="d">${esc(i.detail)}</div></div>
-        <span class="go">${esc(i.action.label)} →</span></a>`).join('')}</div>`
-      : '<div class="nova-calm">✓ Rien à signaler.</div>'}
+  const led = `<div class="led">
+    <div class="it"><div class="k">À approuver</div><div class="v"><a href="${href('/core/propositions')}">${s.a_approuver}</a></div></div>
+    <div class="it"><div class="k">Contacts · 30 j</div><div class="v"><a href="${href('/core/reception')}">${s.contacts}</a></div></div>
+    <div class="it"><div class="k">Sans réponse</div><div class="v">${s.en_attente}</div></div>
+    <div class="it"><div class="k">Prêt à opérer</div><div class="v">${d.pret_pct}%</div></div>
   </div>`;
 
-  const qa = `<div class="qact">
-    <a href="${href('/core/propositions')}">${icon('inbox')} Approuver</a>
-    <a href="${href('/core/devis')}">${icon('file')} Nouveau devis</a>
-    <a href="${href('/core/reception')}">${icon('phone')} Contacts</a>
-    <a href="${href('/core/branchement')}">${icon('plug')} Branchement</a>
-  </div>`;
-
-  const funnel = `<div class="grid g4">
-    <a class="fcard g" href="${href('/core/propositions')}"><div class="fl">À approuver</div><div class="fv num">${s.a_approuver}</div><div class="fc">${icon('inbox')} préparé par Novalis</div></a>
-    <a class="fcard b" href="${href('/core/reception')}"><div class="fl">Contacts (30 j)</div><div class="fv num">${s.contacts}</div><div class="fc">${icon('phone')} messages + appels</div></a>
-    <a class="fcard ${s.en_attente ? 'a' : 'g'}" href="${href('/core/reception')}"><div class="fl">En attente</div><div class="fv num">${s.en_attente}</div><div class="fc">sans réponse</div></a>
-    <a class="fcard g" href="${href('/core/branchement')}"><div class="fl">Prêt à opérer</div><div class="fv num">${d.pret_pct}%</div><div class="fc">${icon('plug')} branchement</div></a>
-  </div>`;
+  const advis = d.pret_pct < 100
+    ? `<div class="dadv"><b>Branchement à ${d.pret_pct} %.</b> Complétez-le pour activer tous les automatismes.<a class="lnk" href="${href('/core/branchement')}">Compléter →</a></div>`
+    : '';
 
   const props = d.propositions.length
-    ? `<div class="list">${d.propositions.map(p => `<div class="row">
-        <span class="badge ${p.type === 'avis' ? 'badge-warn' : 'badge-brand'}">${esc(TYPE_LABEL[p.type] || 'Proposition')}</span>
-        <div class="b"><div class="t">${esc(p.titre)}</div>${p.apercu ? `<div class="c">« ${esc(p.apercu)} »</div>` : ''}</div>
-        ${icon(ICN[p.type] || 'inbox')}</div>`).join('')}</div>`
-    : '<div class="calm">Rien à approuver — vous êtes à jour.</div>';
+    ? d.propositions.map((p) => `<a class="drow" href="${href('/core/propositions')}">
+        <div><div class="t">${esc(p.titre)}</div>${p.apercu ? `<div class="s">« ${esc(p.apercu)} »</div>` : ''}</div>
+        <div class="meta"><div class="st">À approuver</div><div class="wh">${esc(TYPE_LABEL[p.type] || 'Proposition')}</div></div>
+      </a>`).join('')
+    : '<div class="dempty">Rien à approuver — vous êtes à jour.</div>';
 
   const attente = d.leads_attente.length
-    ? `<div class="list">${d.leads_attente.map(l => `<div class="row">
-        <span class="badge badge-risk">${esc(l.ilya)}</span>
-        <div class="b"><div class="t">${esc(l.nom)}</div><div class="c">${esc(l.apercu)}</div></div></div>`).join('')}</div>`
-    : '<div class="calm">Tous les contacts ont eu une réponse.</div>';
+    ? d.leads_attente.map((l) => `<div class="drow" style="cursor:default">
+        <div><div class="t">${esc(l.nom)}</div><div class="s">${esc(l.apercu)}</div></div>
+        <div class="meta"><div class="st risk">Sans réponse</div><div class="wh">${esc(l.ilya)}</div></div>
+      </div>`).join('')
+    : '<div class="dempty">Tous les contacts ont eu une réponse.</div>';
 
-  const fuiteBloc = (d.fuite && d.fuite.fiable && d.fuite.fuite)
-    ? `<div class="diag"><div class="dt">${esc(d.fuite.fuite.titre)}</div>
-        <div class="dd">${esc(d.fuite.fuite.diagnostic)}</div>
-        <div class="dl"><b>À changer :</b> ${esc(d.fuite.fuite.levier)}</div></div>`
-    : `<div class="thin">${d.fuite && d.fuite.visiteurs
-        ? `Encore trop peu de visiteurs (${d.fuite.visiteurs}) pour un diagnostic fiable.`
-        : 'La mesure démarre dès les premières visites. Aucun témoin, conforme à la Loi 25.'}</div>`;
-
-  const content = `${novaHtml}${qa}
-    <div class="section-label">Votre commerce en un coup d’œil</div>
-    ${funnel}
-    <div class="section-label">À faire</div>
-    <div class="cols">
-      <div>
-        <div class="card">
-          <div class="card-h"><h2>À approuver ce matin</h2><a href="${href('/core/propositions')}">Tout voir →</a></div>
-          <div class="hint">Novalis a déjà préparé le travail. Vous n'avez qu'à dire oui.</div>${props}
-        </div>
-        <div class="card">
-          <div class="card-h"><h2>En attente de réponse</h2><a href="${href('/core/reception')}">Réception →</a></div>
-          <div class="hint">Répondre en moins d'une heure multiplie les ventes.</div>${attente}
-        </div>
-      </div>
-      <div class="aside">
-        ${(d.semaine && d.semaine.length) ? `<div class="card">
-          <div class="card-h"><h2>Cette semaine</h2></div>
-          <div class="hint">Contacts par jour (7 j).</div>
-          ${barChart(d.semaine.map((t) => { const p = String(t.jour).split('-'); return { label: `${p[2]}/${p[1]}`, labelCourt: p[2], value: t.n }; }), { aria: 'Contacts cette semaine', h: 120 })}
-        </div>` : ''}
-        <div class="card">
-          <div class="card-h"><h2>Ce qui décroche</h2><a href="${href('/core/reception')}">Pulse →</a></div>
-          <div class="hint">Où vos visiteurs quittent.</div>${fuiteBloc}
-        </div>
-        <div class="card">
-          <div class="card-h"><h2>Branchement</h2></div>
-          <div class="pbig num">${d.pret_pct}%</div>
-          <div class="prog"><span style="width:${d.pret_pct}%"></span></div>
-          <div class="thin">${d.pret_pct >= 100 ? 'Tout est en place — Novalis opère pour vous.' : 'Complétez le branchement pour activer tous les automatismes.'}</div>
-          <a class="btn btn-ghost" style="margin-top:12px" href="${href('/core/branchement')}">${icon('plug')} Ouvrir le branchement</a>
-        </div>
-      </div>
-    </div>
-    <div class="pagefoot">Tout votre commerce dans un seul écran. Rien ne part sans votre oui.</div>`;
+  const content = `${led}${advis}
+    <div class="deyebrow">À approuver aujourd'hui<a href="${href('/core/propositions')}">Tout ouvrir →</a></div>
+    ${props}
+    <div class="deyebrow">En attente de réponse<a href="${href('/core/reception')}">Réception →</a></div>
+    ${attente}
+    <div class="dnote">Novalis a préparé ce qui précède. Rien n'est envoyé sans votre approbation.</div>`;
 
   return page({
     title: nom,
-    subtitle: `${d.salutation || 'Bonjour'} · ${d.dateLabel || ''}`,
+    subtitle: d.dateLabel || '',
     active: 'aujourdhui',
     source: d.source, sources: d.sources, pass: d.pass, alertes: d.alertes,
     extraCss: EXTRA,
