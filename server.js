@@ -2317,6 +2317,7 @@ const { renderConfiance } = require('./core/confiance-page');
 const { renderLogin } = require('./core/login-page');
 const { renderBooking } = require('./core/booking-page');
 const { renderDevisAccept } = require('./core/devis-accept-page');
+const oauth = require('./core/oauth');
 const { renderEntreprises } = require('./core/entreprises-page');
 const devis = require('./core/devis');
 const { renderDevis } = require('./core/devis-page');
@@ -2447,6 +2448,18 @@ app.get('/core/branchement', adminOnly, coreReady, (req, res) => {
   eBr.pass = req.query.pass ? String(req.query.pass) : undefined;
   eBr.sources = sourcesConnues();
   eBr.alertes = propositions.compteurs(db, source).en_attente;
+  // Connexions « en un clic » (OAuth) — état + configuration.
+  eBr.connexions1clic = Object.keys(oauth.PROVIDERS).map((pv) => {
+    const P = oauth.PROVIDERS[pv];
+    const cx = (eBr.connexions || []).find((c) => c.type === P.cxType);
+    return { provider: pv, titre: P.titre, connecte: !!(cx && cx.statut === 'branche'), label: cx ? cx.compte_label : null, configure: oauth.configure(pv) };
+  });
+  if (req.query.cx) {
+    eBr.cxMsg = req.query.ok ? { ok: true, texte: 'Compte connecté ✓' }
+      : req.query.e === 'config' ? { ok: false, texte: 'Ce branchement n\'est pas encore activé (clé d\'application à configurer).' }
+        : req.query.e === 'refus' ? { ok: false, texte: 'Autorisation refusée.' }
+          : { ok: false, texte: 'La connexion a échoué. Réessayez.' };
+  }
   res.send(renderBranchement(eBr));
 });
 
@@ -2493,6 +2506,51 @@ app.post('/core/branchement/connexion', adminOnly, coreReady, express.json({ lim
       try { core.vault.remove(clientId, `connexion:${type}`); } catch { /* rien à retirer */ }
     }
     branchement.definirConnexion(db, source, type, { statut, label: b.label, detail: b.detail });
+    res.json({ ok: true });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// ── Branchement OAuth : le commerçant connecte SON Gmail / QuickBooks ─
+// Il autorise sur l'écran du fournisseur ; le jeton va au coffre chiffré.
+app.get('/core/connexion/:provider/start', adminOnly, coreReady, (req, res) => {
+  const provider = req.params.provider;
+  const source = String(req.query.source || '').slice(0, 40);
+  const pq = req.query.pass ? '&pass=' + encodeURIComponent(String(req.query.pass)) : '';
+  const retour = (params) => res.redirect('/core/branchement?source=' + encodeURIComponent(source) + params + pq);
+  if (!oauth.PROVIDERS[provider] || !/^[a-z0-9-]{2,40}$/.test(source)) return res.status(404).type('text/plain').send('Introuvable');
+  if (!oauth.configure(provider)) return retour('&cx=' + provider + '&e=config');
+  const redirectUri = `${req.protocol}://${req.get('host')}/core/connexion/${provider}/callback`;
+  const state = oauth.signState({ source, provider, t: Date.now() }, process.env.MASTER_KEY || 'sel');
+  res.redirect(oauth.authUrl(provider, { redirectUri, state }));
+});
+app.get('/core/connexion/:provider/callback', coreReady, async (req, res) => {
+  const provider = req.params.provider;
+  const st = oauth.verifyState(String(req.query.state || ''), process.env.MASTER_KEY || 'sel');
+  if (!oauth.PROVIDERS[provider] || !st || st.provider !== provider) return res.status(400).type('text/plain').send('État invalide ou expiré.');
+  const source = String(st.source || '').slice(0, 40);
+  const back = (params) => res.redirect('/core/branchement?source=' + encodeURIComponent(source) + params);
+  if (req.query.error) return back('&cx=' + provider + '&e=refus');
+  try {
+    const redirectUri = `${req.protocol}://${req.get('host')}/core/connexion/${provider}/callback`;
+    const tok = await oauth.exchangeCode(provider, { code: String(req.query.code || ''), redirectUri });
+    const clientId = branchement.assurerClient(db, source, null);
+    core.vault.set(clientId, 'oauth:' + provider, JSON.stringify({ ...tok, realmId: req.query.realmId || null, obtenu_le: Date.now() }));
+    const label = provider === 'quickbooks' ? ('QuickBooks' + (req.query.realmId ? ' · ' + req.query.realmId : '')) : 'Compte Google';
+    branchement.definirConnexion(db, source, oauth.PROVIDERS[provider].cxType, { statut: 'branche', label });
+    back('&cx=' + provider + '&ok=1');
+  } catch (e) {
+    console.error('[oauth]', provider, e.message);
+    back('&cx=' + provider + '&e=echec');
+  }
+});
+app.post('/core/connexion/:provider/disconnect', adminOnly, coreReady, express.json({ limit: '2kb' }), (req, res) => {
+  const provider = req.params.provider;
+  const source = String((req.body && req.body.source) || '').slice(0, 40);
+  if (!oauth.PROVIDERS[provider] || !/^[a-z0-9-]{2,40}$/.test(source)) return res.status(404).json({ error: 'Introuvable' });
+  try {
+    const clientId = branchement.assurerClient(db, source, null);
+    try { core.vault.remove(clientId, 'oauth:' + provider); } catch { /* rien à retirer */ }
+    branchement.definirConnexion(db, source, oauth.PROVIDERS[provider].cxType, { statut: 'a_brancher', label: null });
     res.json({ ok: true });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });

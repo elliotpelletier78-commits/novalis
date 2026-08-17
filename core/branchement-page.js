@@ -46,8 +46,32 @@ const EXTRA = `
 .consent input{width:20px;height:20px;margin-top:2px;accent-color:var(--brand);flex:none;cursor:pointer}
 .consent .t{font-weight:640;font-size:15px} .consent .r{font-size:13px;color:var(--muted);margin-top:2px}
 .vault-note{font-size:12px;color:var(--muted);margin-top:8px;padding:10px 14px;background:var(--panel);border-radius:var(--r)}
+.cxmsg{margin-bottom:14px;padding:10px 14px;border-radius:var(--r);font-size:13.5px;font-weight:600}
+.cxmsg.ok{background:var(--ok-soft);color:var(--ok)} .cxmsg.no{background:var(--warn-soft);color:var(--warn)}
+.cx a.bbtn{margin-top:0;display:inline-block;text-decoration:none;padding:8px 16px;font-size:13px}
 @media(max-width:640px){.bgrid{grid-template-columns:1fr}}
 `;
+
+function cx1clic(x, pass, source) {
+  const q = 'source=' + encodeURIComponent(source) + (pass ? '&pass=' + encodeURIComponent(pass) : '');
+  if (x.connecte) {
+    return `<div class="cx"><div class="body">
+      <div class="t">${esc(x.titre)} <span class="chip branche">connecté</span></div>
+      <div class="r">Autorisé par vous. Novalis agit dans votre compte, en votre nom.</div>
+      ${x.label ? `<div class="lab">Compte&nbsp;: ${esc(x.label)}</div>` : ''}
+    </div><div class="act"><button data-oauth-off="${esc(x.provider)}">Débrancher</button></div></div>`;
+  }
+  if (!x.configure) {
+    return `<div class="cx"><div class="body">
+      <div class="t">${esc(x.titre)} <span class="chip soon">à activer</span></div>
+      <div class="r">Ce branchement s'active dès que la clé d'application est configurée.</div>
+    </div><div class="act"><button disabled>Connecter</button></div></div>`;
+  }
+  return `<div class="cx"><div class="body">
+      <div class="t">${esc(x.titre)} <span class="chip a_brancher">à brancher</span></div>
+      <div class="r">Un clic ouvre l'écran de ${esc(x.titre)} pour votre autorisation.</div>
+    </div><div class="act"><a class="bbtn" href="/core/connexion/${esc(x.provider)}/start?${q}">Connecter</a></div></div>`;
+}
 
 function chip(statut, dispo) {
   if (!dispo && statut !== 'branche') return '<span class="chip soon">bientôt</span>';
@@ -95,6 +119,12 @@ function renderBranchement(e) {
     </div>
     <button class="bbtn" id="save-ent">Enregistrer</button><span class="msg" id="msg-ent"></span>
   </div>
+  ${(e.connexions1clic && e.connexions1clic.length) ? `<div class="panel">
+    <h3>Connexions en un clic</h3>
+    <div class="hint">Autorisez Novalis sur l'écran de Google ou d'Intuit. Novalis n'accède qu'à VOTRE compte, jamais à un autre — et vous retirez l'accès quand vous voulez.</div>
+    ${e.cxMsg ? `<div class="cxmsg ${e.cxMsg.ok ? 'ok' : 'no'}">${esc(e.cxMsg.texte)}</div>` : ''}
+    ${e.connexions1clic.map(x => cx1clic(x, e.pass, e.source)).join('')}
+  </div>` : ''}
   <div class="panel">
     <h3>Les clés</h3>
     <div class="hint">Ce que vous branchez, Novalis peut le tenir à jour et l'opérer — jamais sans votre autorisation.</div>
@@ -131,6 +161,12 @@ document.getElementById('save-ent').addEventListener('click',function(){
 document.getElementById('save-consent').addEventListener('click',function(){
   var c={};document.querySelectorAll('[data-consent]').forEach(function(el){c[el.getAttribute('data-consent')]=el.checked;});
   poste('/core/branchement/consentement',{source:SOURCE,consentements:c},'msg-consent');
+});
+document.querySelectorAll('[data-oauth-off]').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    if(!confirm('Débrancher ce compte ? Novalis n\\'y accédera plus.')) return;
+    poste('/core/connexion/'+btn.getAttribute('data-oauth-off')+'/disconnect',{source:SOURCE});
+  });
 });
 document.querySelectorAll('[data-cx]').forEach(function(btn){
   btn.addEventListener('click',function(){
