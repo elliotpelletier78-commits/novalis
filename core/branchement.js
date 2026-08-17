@@ -29,6 +29,16 @@ function jetonPropValide(source, id, jeton, masterKey) {
   const b = Buffer.from(String(jeton || ''));
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
+// Jeton par rendez-vous (lien client de confirmation) — non devinable.
+function jetonRdv(source, id, masterKey) {
+  return crypto.createHmac('sha256', String(masterKey || 'sel-rdv'))
+    .update('rdv:' + String(source) + ':' + String(id)).digest('hex').slice(0, 24);
+}
+function jetonRdvValide(source, id, jeton, masterKey) {
+  const a = Buffer.from(jetonRdv(source, id, masterKey));
+  const b = Buffer.from(String(jeton || ''));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 // Catalogue des « clés » qu'une entreprise peut remettre. `dispo` distingue ce
 // qui se branche aujourd'hui de ce qui arrive (connexion guidée à venir), pour
@@ -208,5 +218,5 @@ function etat(db, source) {
 module.exports = {
   CONNEXIONS, CONSENTEMENTS,
   definirEntreprise, definirConsentement, definirConnexion, assurerClient,
-  etat, jetonEspace, jetonEspaceValide, jetonProp, jetonPropValide,
+  etat, jetonEspace, jetonEspaceValide, jetonProp, jetonPropValide, jetonRdv, jetonRdvValide,
 };

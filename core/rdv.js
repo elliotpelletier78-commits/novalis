@@ -81,9 +81,24 @@ function brouillonRappel(rdv, cfg = {}) {
     `Petit rappel : vous avez rendez-vous chez ${commerce} ${formatQuand(rdv.debut)}${rdv.service ? ` pour ${rdv.service}` : ''}.`,
     'Au plaisir de vous voir !',
   ];
+  const lien = typeof cfg.lienConfirmer === 'function' ? cfg.lienConfirmer(rdv) : null;
+  if (lien) {
+    lignes.push('', `Confirmez votre présence en un clic : ${lien}`);
+  }
   const contact = cfg.telephone ? `au ${cfg.telephone}` : 'en répondant à ce courriel';
   lignes.push('', `Si vous devez reporter ou annuler, joignez-nous ${contact}.`, '', commerce);
   return lignes.join('\n');
+}
+
+/** Réponse du client à un rappel : 'confirme' | 'reporter'. Idempotent. */
+function confirmerClient(db, id, reponse) {
+  if (!['confirme', 'reporter'].includes(reponse)) return { ok: false, raison: 'réponse invalide' };
+  const row = db.prepare('SELECT * FROM rendezvous WHERE id = ?').get(id);
+  if (!row || row.statut !== 'prevu') return { ok: false, raison: 'rendez-vous introuvable' };
+  if (row.client_reponse) return { ok: true, deja: row.client_reponse, rdv: row };
+  db.prepare('UPDATE rendezvous SET client_reponse = ?, client_reponse_le = ? WHERE id = ?')
+    .run(reponse, new Date().toISOString(), id);
+  return { ok: true, rdv: row };
 }
 
 /**
@@ -119,4 +134,4 @@ function preparerRappels(db, source, opts = {}) {
   return n;
 }
 
-module.exports = { ajouter, lister, marquer, brouillonRappel, preparerRappels, formatQuand, montrealWall };
+module.exports = { ajouter, lister, marquer, brouillonRappel, preparerRappels, confirmerClient, formatQuand, montrealWall };

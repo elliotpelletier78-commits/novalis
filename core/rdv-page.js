@@ -42,6 +42,8 @@ const EXTRA = `
 .rdv .t{font-weight:640;font-size:14.5px}
 .rdv .s{font-size:13px;color:var(--muted)}
 .rdv .rapp{font-size:11px;font-weight:700;padding:3px 8px;border-radius:var(--r-pill);background:var(--ok-soft);color:var(--ok);white-space:nowrap}
+.rdv .conf{font-size:11px;font-weight:700;padding:3px 8px;border-radius:var(--r-pill);background:var(--ok-soft);color:var(--ok);white-space:nowrap}
+.rdv .conf.report{background:var(--warn-soft);color:var(--warn)}
 .rdv .act button{font-family:var(--sans);font-size:12.5px;font-weight:600;padding:7px 11px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel);color:var(--ink-2);cursor:pointer;margin-left:6px}
 .rdv .act button:hover{border-color:var(--brand);color:var(--brand-600)}
 .empty{padding:40px;text-align:center;color:var(--muted)}
@@ -77,7 +79,7 @@ function renderRdv(data) {
       <div class="when">${pastille(r.debut)}</div>
       <div class="b"><div class="t">${esc(r.client_nom || 'Client')}${r.service ? ' · ' + esc(r.service) : ''}</div>
         <div class="s">${esc(formatQuand(r.debut))}${r.client_courriel ? ' · ' + esc(r.client_courriel) : ''}</div></div>
-      ${r.rappel_prop_id ? '<span class="rapp">rappel prêt</span>' : ''}
+      ${r.client_reponse === 'confirme' ? '<span class="conf">confirmé ✓</span>' : r.client_reponse === 'reporter' ? '<span class="conf report">à reporter</span>' : (r.rappel_prop_id ? '<span class="rapp">rappel prêt</span>' : '')}
       <div class="act"><button data-a="fait">Fait</button><button data-a="annule">Annuler</button></div>
     </div>`).join('')}</div>`).join('') : '<div class="empty">Aucun rendez-vous à venir. Cliquez « + Nouveau rendez-vous » en haut à droite.</div>'}
   </div>

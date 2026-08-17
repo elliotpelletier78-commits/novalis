@@ -687,6 +687,51 @@ app.post('/devis/:source/:id/:token/:action', express.json({ limit: '2kb' }), (r
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Confirmation de rendez-vous en ligne (page publique client) ─────
+app.get('/rdv/:source/confirmer/:id/:token', (req, res) => {
+  const source = String(req.params.source || '').slice(0, 40);
+  const id = parseInt(req.params.id, 10);
+  if (!/^[a-z0-9-]{2,40}$/.test(source) || !Number.isInteger(id)
+    || !branchement.jetonRdv || !branchement.jetonRdvValide(source, id, req.params.token, process.env.MASTER_KEY)) {
+    return res.status(404).type('text/plain').send('Introuvable');
+  }
+  let row = null;
+  try { row = db.prepare('SELECT * FROM rendezvous WHERE id = ? AND source = ?').get(id, source); } catch { row = null; }
+  if (!row) return res.status(404).type('text/plain').send('Introuvable');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.type('html').send(renderRdvConfirm({
+    source, nom: branchement.etat(db, source).identite.nom,
+    quand: rdv.formatQuand(row.debut), service: row.service,
+    statutClient: row.statut !== 'prevu' ? 'reporter' : (row.client_reponse || null),
+    actionBase: `/rdv/${encodeURIComponent(source)}/confirmer/${id}/${req.params.token}`,
+  }));
+});
+app.post('/rdv/:source/confirmer/:id/:token/:reponse', express.json({ limit: '2kb' }), (req, res) => {
+  const source = String(req.params.source || '').slice(0, 40);
+  const id = parseInt(req.params.id, 10);
+  const reponse = req.params.reponse === 'confirme' ? 'confirme' : req.params.reponse === 'reporter' ? 'reporter' : null;
+  if (!reponse || !/^[a-z0-9-]{2,40}$/.test(source) || !Number.isInteger(id)
+    || !branchement.jetonRdvValide(source, id, req.params.token, process.env.MASTER_KEY)) {
+    return res.status(404).json({ error: 'Introuvable' });
+  }
+  const r = rdv.confirmerClient(db, id, reponse);
+  if (!r.ok) return res.status(400).json({ error: r.raison || 'Impossible' });
+  // « Reporter » → déposer une demande de reprogrammation au poste de commande.
+  if (reponse === 'reporter' && !r.deja && r.rdv) {
+    try {
+      const nom = branchement.etat(db, source).identite.nom || source;
+      const qui = r.rdv.client_nom || r.rdv.client_courriel || 'un client';
+      db.prepare(`INSERT OR IGNORE INTO propositions (source, type, ref_type, ref_id, titre, apercu, brouillon, destinataire, priorite, statut)
+        VALUES (?, 'reponse', 'rdv_report', ?, ?, ?, ?, ?, 9, 'en_attente')`)
+        .run(source, id, `Reprogrammation demandée — ${qui}`,
+          `${qui} demande à reporter le RDV du ${rdv.formatQuand(r.rdv.debut)}.`,
+          `Bonjour,\n\nPas de souci pour reporter. Quelles seraient vos disponibilités ? Je m'adapte.\n\n${nom}`,
+          r.rdv.client_courriel || null);
+    } catch (e) { console.error('[rdv/report]', e.message); }
+  }
+  res.json({ ok: true });
+});
+
 // ── Prise de rendez-vous en ligne (page publique client) ────────────
 // Le client demande un RDV lui-même ; la demande arrive dans la Réception du
 // commerçant (via l'accusé instantané existant). Honnête : c'est une demande à
@@ -2317,6 +2362,7 @@ const { renderConfiance } = require('./core/confiance-page');
 const { renderLogin } = require('./core/login-page');
 const { renderBooking } = require('./core/booking-page');
 const { renderDevisAccept } = require('./core/devis-accept-page');
+const { renderRdvConfirm } = require('./core/rdv-confirm-page');
 const oauth = require('./core/oauth');
 const { renderEntreprises } = require('./core/entreprises-page');
 const devis = require('./core/devis');
@@ -2789,7 +2835,13 @@ app.get('/core/rdv', adminOnly, coreReady, (req, res) => {
   const et = branchement.etat(db, source);
   // Rappels paresseux : préparer les rappels des RDV proches (si consentement).
   if (et.consent.rediger) {
-    try { rdv.preparerRappels(db, source, { now: Date.now(), fenetreH: 48, cfg: { nomCommerce: et.identite.nom, telephone: et.identite.telephone } }); }
+    try {
+      const baseR = `${req.protocol}://${req.get('host')}`;
+      rdv.preparerRappels(db, source, { now: Date.now(), fenetreH: 48, cfg: {
+        nomCommerce: et.identite.nom, telephone: et.identite.telephone,
+        lienConfirmer: (r) => `${baseR}/rdv/${encodeURIComponent(source)}/confirmer/${r.id}/${branchement.jetonRdv(source, r.id, process.env.MASTER_KEY)}`,
+      } });
+    }
     catch (e) { console.error('[rdv:rappels]', e.message); }
   }
   res.setHeader('X-Frame-Options', 'DENY');
