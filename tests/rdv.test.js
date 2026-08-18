@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import Database from 'better-sqlite3';
 import { runMigrations } from '../core/db.js';
-import { ajouter, lister, marquer, brouillonRappel, preparerRappels, montrealWall } from '../core/rdv.js';
+import { ajouter, lister, marquer, brouillonRappel, preparerRappels, montrealWall, prochainDebut, genererProchaine, RECURRENCES } from '../core/rdv.js';
 import { lister as listerProps, get } from '../core/propositions.js';
 
 let db;
@@ -86,5 +86,39 @@ describe('préparation des rappels', () => {
     const r = db.prepare('SELECT rappel_prop_id FROM rendezvous WHERE id = ?').get(id);
     expect(r.rappel_prop_id).toBeGreaterThan(0);
     expect(get(db, r.rappel_prop_id).ref_type).toBe('rdv');
+  });
+});
+
+describe('rendez-vous récurrents', () => {
+  it('prochainDebut ajoute des jours (aux 2 semaines)', () => {
+    expect(prochainDebut('2026-08-19 09:30:00', RECURRENCES['2sem'])).toBe('2026-09-02 09:30:00');
+  });
+  it('prochainDebut ajoute des mois en conservant l’heure (aux 6 mois)', () => {
+    expect(prochainDebut('2026-08-19 09:30:00', RECURRENCES['6mois'])).toBe('2027-02-19 09:30:00');
+  });
+  it('prochainDebut gère le débordement de fin de mois (31 jan + 1 mois → 28 fév)', () => {
+    expect(prochainDebut('2026-01-31 08:00:00', RECURRENCES.mensuel)).toBe('2026-02-28 08:00:00');
+  });
+  it('marquer « fait » génère la prochaine occurrence UNE seule fois', () => {
+    const { id } = ajouter(db, 'garage-x', { client_nom: 'M. Roy', debut: '2026-08-19 09:30', service: 'Vidange', recurrence: '6mois' });
+    marquer(db, id, 'fait');
+    const suite = db.prepare("SELECT * FROM rendezvous WHERE source='garage-x' AND statut='prevu'").all();
+    expect(suite.length).toBe(1);
+    expect(suite[0].debut).toBe('2027-02-19 09:30:00');
+    expect(suite[0].recurrence).toBe('6mois');
+    expect(suite[0].recur_parent).toBe(id);
+    // idempotence : re-marquer ne recrée pas
+    marquer(db, id, 'fait');
+    expect(genererProchaine(db, id)).toBeNull();
+    expect(db.prepare("SELECT COUNT(*) n FROM rendezvous WHERE source='garage-x'").get().n).toBe(2);
+  });
+  it('un RDV ponctuel marqué « fait » ne génère rien', () => {
+    const { id } = ajouter(db, 'garage-x', { client_nom: 'A', debut: '2026-08-19 09:30' });
+    marquer(db, id, 'fait');
+    expect(db.prepare("SELECT COUNT(*) n FROM rendezvous WHERE source='garage-x'").get().n).toBe(1);
+  });
+  it('ignore une récurrence inconnue (traité comme ponctuel)', () => {
+    const { id } = ajouter(db, 'garage-x', { client_nom: 'A', debut: '2026-08-19 09:30', recurrence: 'zzz' });
+    expect(db.prepare('SELECT recurrence FROM rendezvous WHERE id=?').get(id).recurrence).toBeNull();
   });
 });

@@ -29,17 +29,69 @@ function formatQuand(debut) {
   return `${jour} à ${pad(d.getHours())}h${pad(d.getMinutes())}`;
 }
 
-function ajouter(db, source, { client_nom, client_courriel, debut, service, note } = {}) {
+// Récurrences offertes. jours OU mois — jamais les deux.
+const RECURRENCES = {
+  hebdo: { label: 'Chaque semaine', jours: 7 },
+  '2sem': { label: 'Aux 2 semaines', jours: 14 },
+  mensuel: { label: 'Chaque mois', mois: 1 },
+  '3mois': { label: 'Aux 3 mois', mois: 3 },
+  '6mois': { label: 'Aux 6 mois', mois: 6 },
+  annuel: { label: 'Chaque année', mois: 12 },
+};
+
+function joursDansMois(annee, moisIndex0) { return new Date(Date.UTC(annee, moisIndex0 + 1, 0)).getUTCDate(); }
+
+/**
+ * Prochaine occurrence d'un 'YYYY-MM-DD HH:MM(:SS)' selon la règle. Calcul au
+ * calendrier (UTC pour éviter tout décalage d'heure d'été), heure conservée.
+ */
+function prochainDebut(dt, regle) {
+  const m = String(dt).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  if (!m || !regle) return null;
+  const [, Y0, Mo0, D0, h, mi] = m.map(Number);
+  let Y = Y0, Mo = Mo0, D = D0;
+  if (regle.jours) {
+    const t = new Date(Date.UTC(Y, Mo - 1, D) + regle.jours * 86400000);
+    Y = t.getUTCFullYear(); Mo = t.getUTCMonth() + 1; D = t.getUTCDate();
+  } else if (regle.mois) {
+    const idx = (Mo - 1) + regle.mois;
+    Y += Math.floor(idx / 12); Mo = (idx % 12) + 1;
+    D = Math.min(D, joursDansMois(Y, Mo - 1)); // 31 jan + 1 mois → 28/29 fév
+  }
+  return `${pad(Y)}-${pad(Mo)}-${pad(D)} ${pad(h)}:${pad(mi)}:00`;
+}
+
+function ajouter(db, source, { client_nom, client_courriel, debut, service, note, recurrence } = {}) {
   const dt = String(debut || '').trim().replace('T', ' ').slice(0, 16);
   if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(dt)) throw new Error('date/heure du rendez-vous requise (AAAA-MM-JJ HH:MM)');
-  const info = db.prepare(`INSERT INTO rendezvous (source, client_nom, client_courriel, debut, service, note)
-    VALUES (?, ?, ?, ?, ?, ?)`).run(source,
+  const recur = recurrence && RECURRENCES[recurrence] ? recurrence : null;
+  const info = db.prepare(`INSERT INTO rendezvous (source, client_nom, client_courriel, debut, service, note, recurrence)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`).run(source,
     client_nom ? String(client_nom).slice(0, 120) : null,
     client_courriel ? String(client_courriel).slice(0, 180) : null,
     dt + ':00',
     service ? String(service).slice(0, 120) : null,
-    note ? String(note).slice(0, 400) : null);
+    note ? String(note).slice(0, 400) : null,
+    recur);
   return { id: info.lastInsertRowid };
+}
+
+/**
+ * Génère la prochaine occurrence d'un rendez-vous récurrent, UNE seule fois
+ * (drapeau recur_gen). Retourne l'id créé, ou null si rien à faire.
+ */
+function genererProchaine(db, id) {
+  let r;
+  try { r = db.prepare('SELECT * FROM rendezvous WHERE id = ?').get(id); } catch { return null; }
+  if (!r || !r.recurrence || r.recur_gen) return null;
+  const regle = RECURRENCES[r.recurrence];
+  const suivant = prochainDebut(r.debut, regle);
+  if (!suivant) return null;
+  const info = db.prepare(`INSERT INTO rendezvous (source, client_nom, client_courriel, debut, service, note, recurrence, recur_parent)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    r.source, r.client_nom, r.client_courriel, suivant, r.service, r.note, r.recurrence, r.recur_parent || r.id);
+  db.prepare('UPDATE rendezvous SET recur_gen = 1 WHERE id = ?').run(id);
+  return info.lastInsertRowid;
 }
 
 /** Rendez-vous à venir (statut prévu), du plus proche au plus loin. */
@@ -67,6 +119,8 @@ function marquer(db, id, statut) {
     try { db.prepare(`UPDATE propositions SET statut = 'rejete', traite_le = datetime('now'), maj_le = datetime('now')
       WHERE id = ? AND statut = 'en_attente'`).run(row.rappel_prop_id); } catch { /* pas bloquant */ }
   }
+  // Rendez-vous « fait » et récurrent → préparer la prochaine occurrence.
+  if (changes && statut === 'fait') { try { genererProchaine(db, id); } catch { /* pas bloquant */ } }
   return changes === 1;
 }
 
@@ -134,4 +188,4 @@ function preparerRappels(db, source, opts = {}) {
   return n;
 }
 
-module.exports = { ajouter, lister, marquer, brouillonRappel, preparerRappels, confirmerClient, formatQuand, montrealWall };
+module.exports = { ajouter, lister, marquer, brouillonRappel, preparerRappels, confirmerClient, formatQuand, montrealWall, genererProchaine, prochainDebut, RECURRENCES };
