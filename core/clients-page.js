@@ -77,6 +77,17 @@ const EXTRA = `
 .pcard .mt{font-size:11.5px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
 .pcard .as{font-size:11px;color:var(--brand-600);font-weight:600;margin-top:3px}
 .pcol-empty{color:var(--faint);font-size:12.5px;padding:6px 2px}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin:6px 0 2px}
+.pph{position:relative;margin:0;border:1px solid var(--line-strong);border-radius:var(--r);overflow:hidden;background:var(--panel)}
+.pph img{display:block;width:100%;height:120px;object-fit:cover}
+.pph figcaption{font-size:11.5px;color:var(--ink-2);padding:6px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pph .pdel{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(20,20,18,.62);color:#fff;font-size:15px;line-height:1;cursor:pointer;display:grid;place-items:center}
+.pph .pdel:hover{background:var(--risk)}
+.padd{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;height:auto;min-height:150px;border:1.5px dashed var(--line-strong);border-radius:var(--r);color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer;background:var(--card)}
+.padd:hover{border-color:var(--brand);color:var(--brand-600)}
+.padd .plus{font-size:22px;line-height:1}
+.pmsg{font-size:12.5px;font-weight:600;margin-top:8px;min-height:1em}
+.pmsg.ok{color:var(--ok)} .pmsg.err{color:var(--warn)}
 .portlink{font-size:12.5px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;margin:14px 0 2px}
 .portlink code{font-size:12px;color:var(--ink-2);word-break:break-all}
 .portlink a{color:var(--brand-600);text-decoration:none;font-weight:600}
@@ -186,6 +197,20 @@ function renderFiche(d) {
       </div>
     </div>
 
+    <div class="section-label">Photos &amp; pièces <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--faint)">— internes (avant/après, plaque, pièce). Jamais montrées au client.</span></div>
+    <div class="pgrid" id="pgrid">
+      ${(d.photos || []).map((ph) => `<figure class="pph" data-id="${ph.id}">
+        <a href="/core/clients/photo/${ph.id}?source=${encodeURIComponent(d.source)}" target="_blank" rel="noopener"><img loading="lazy" src="/core/clients/photo/${ph.id}?source=${encodeURIComponent(d.source)}" alt="${esc(ph.legende || ph.nom || 'photo')}"></a>
+        <figcaption>${esc(ph.legende || ph.nom || '')}</figcaption>
+        <button class="pdel" data-pid="${ph.id}" title="Supprimer" aria-label="Supprimer la photo">×</button>
+      </figure>`).join('')}
+      <label class="padd">
+        <input type="file" id="p-file" accept="image/*" hidden>
+        <span class="plus">＋</span><span>Ajouter une photo</span>
+      </label>
+    </div>
+    <div class="pmsg" id="p-msg"></div>
+
     ${d.portailUrl ? `<div class="portlink">Lien du portail client (à partager avec ${esc(f.nom)}) : <code>${esc(d.portailUrl)}</code> · <a href="${esc(d.portailUrl)}" target="_blank" rel="noopener">ouvrir</a></div>` : ''}
 
     <div class="section-label">Premier contact&nbsp;: ${jour(f.premier)} · Dernière activité&nbsp;: ${jour(f.dernier)}</div>
@@ -208,6 +233,30 @@ document.getElementById('d-save').addEventListener('click',function(){
       else{msg.className='msg err';msg.textContent='Échec — '+((x.j&&x.j.raison)||'réessayez');} })
     .catch(function(){msg.className='msg err';msg.textContent='Échec — réseau';})
     .finally(function(){b.disabled=false;});
+});
+// Photos : lecture locale → data-URL → POST (recompressé côté serveur).
+var pfile=document.getElementById('p-file'), pmsg=document.getElementById('p-msg');
+if(pfile){ pfile.addEventListener('change',function(){
+  var f=this.files&&this.files[0]; if(!f)return;
+  if(f.size>12*1024*1024){pmsg.className='pmsg err';pmsg.textContent='Image trop lourde (max 12 Mo).';return;}
+  pmsg.className='pmsg';pmsg.textContent='Envoi de la photo…';
+  var fr=new FileReader();
+  fr.onload=function(){
+    fetch('/core/clients/photo',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':pass()},
+      body:JSON.stringify({source:SRC,cle:CLE,nom:f.name,dataUrl:fr.result})})
+      .then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j};});})
+      .then(function(x){ if(x.ok&&x.j.ok){location.reload();} else{pmsg.className='pmsg err';pmsg.textContent='Échec — '+((x.j&&x.j.raison)||'réessayez');} })
+      .catch(function(){pmsg.className='pmsg err';pmsg.textContent='Échec — réseau';});
+  };
+  fr.readAsDataURL(f);
+}); }
+document.querySelectorAll('.pdel').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    if(!confirm('Supprimer cette photo ?'))return;
+    var pid=btn.getAttribute('data-pid');
+    fetch('/core/clients/photo/'+pid+'/suppr',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':pass()},body:JSON.stringify({source:SRC})})
+      .then(function(r){return r.json();}).then(function(j){ if(j.ok){var el=btn.closest('.pph'); if(el)el.remove();} });
+  });
 });`;
 
   return page({

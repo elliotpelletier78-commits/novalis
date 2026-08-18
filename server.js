@@ -2411,6 +2411,7 @@ const { renderPropositions } = require('./core/propositions-page');
 const { renderAujourdhui } = require('./core/aujourdhui-page');
 const { renderResultats } = require('./core/resultats-page');
 const clients = require('./core/clients');
+const pieces = require('./core/pieces');
 const { renderClients } = require('./core/clients-page');
 const { renderConfiance } = require('./core/confiance-page');
 const { renderLogin } = require('./core/login-page');
@@ -2528,7 +2529,8 @@ app.get('/core/clients', adminOnly, coreReady, (req, res) => {
     if (!f) return res.status(404).send(renderClients({ source, sources, pass, alertes, ...clients.repertoire(db, source, {}) }));
     const base = `${req.protocol}://${req.get('host')}`;
     const portailUrl = `${base}/moncompte/${encodeURIComponent(source)}/${encodeURIComponent(cle)}/${branchement.jetonClient(source, cle, process.env.MASTER_KEY)}`;
-    return res.send(renderClients({ source, nom: et.identite.nom, sources, pass, alertes, fiche: f, portailUrl }));
+    const photos = pieces.lister(db, source, cle);
+    return res.send(renderClients({ source, nom: et.identite.nom, sources, pass, alertes, fiche: f, portailUrl, photos }));
   }
   if (String(req.query.vue || '') === 'pipeline') {
     return res.send(renderClients({ source, nom: et.identite.nom, sources, pass, alertes, pipeline: clients.pipeline(db, source) }));
@@ -2550,6 +2552,36 @@ app.post('/core/clients/dossier', adminOnly, coreReady, express.json({ limit: '1
     if ('assigne' in b) champs.assigne = b.assigne;
     res.json(clients.enregistrerDossier(db, source, cle, champs));
   } catch (e) { res.status(400).json({ ok: false, raison: e.message }); }
+});
+
+// ── Photos / pièces jointes sur un dossier client (BLOB en base) ────
+// Reçoit une image en data-URL ; pieces.ajouter la recompresse (sharp) avant
+// de la ranger. Les photos restent INTERNES (jamais exposées au portail client).
+app.post('/core/clients/photo', adminOnly, coreReady, express.json({ limit: '16mb' }), async (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  const cle = String(b.cle || '').slice(0, 200);
+  if (!/^[a-z0-9-]{2,40}$/.test(source) || !cle) return res.status(400).json({ ok: false, raison: 'paramètres invalides' });
+  try {
+    const r = await pieces.ajouter(db, source, cle, { dataUrl: b.dataUrl, nom: b.nom, legende: b.legende });
+    res.json({ ok: true, ...r });
+  } catch (e) { res.status(400).json({ ok: false, raison: e.message }); }
+});
+app.get('/core/clients/photo/:id', adminOnly, coreReady, (req, res) => {
+  const source = String(req.query.source || '').slice(0, 40);
+  const id = parseInt(req.params.id, 10);
+  if (!/^[a-z0-9-]{2,40}$/.test(source) || !Number.isInteger(id)) return res.status(400).type('text/plain').send('paramètres invalides');
+  const p = pieces.obtenir(db, source, id);
+  if (!p) return res.status(404).type('text/plain').send('Introuvable');
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.type(p.type || 'image/jpeg').send(p.data);
+});
+app.post('/core/clients/photo/:id/suppr', adminOnly, coreReady, express.json({ limit: '2kb' }), (req, res) => {
+  const source = String((req.body && req.body.source) || '').slice(0, 40);
+  const id = parseInt(req.params.id, 10);
+  if (!/^[a-z0-9-]{2,40}$/.test(source) || !Number.isInteger(id)) return res.status(400).json({ ok: false });
+  res.json({ ok: pieces.supprimer(db, source, id) });
 });
 
 // Export CSV des contacts d'un commerce (pour Excel / comptable).
