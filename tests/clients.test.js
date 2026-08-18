@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import Database from 'better-sqlite3';
 import { runMigrations } from '../core/db.js';
-import { cleDe, repertoire, fiche } from '../core/clients.js';
+import { cleDe, repertoire, fiche, pipeline, enregistrerDossier } from '../core/clients.js';
 
 let db;
 beforeEach(() => {
@@ -106,5 +106,62 @@ describe('clients — fiche', () => {
 
   it('retourne null pour une clé inconnue', () => {
     expect(fiche(db, SRC, 'm:personne@x.ca')).toBeNull();
+  });
+});
+
+describe('clients — dossier persistant (notes, étape, assignation)', () => {
+  beforeEach(() => {
+    lead({ nom: 'Mme Côté', courriel: 'cote@x.ca', created_at: '2026-01-01 09:00' });
+  });
+
+  it('enregistre notes + responsable et les relit dans la fiche', () => {
+    enregistrerDossier(db, SRC, 'm:cote@x.ca', { notes: 'Préfère le matin.', assigne: 'Éric' });
+    const f = fiche(db, SRC, 'm:cote@x.ca');
+    expect(f.notes).toBe('Préfère le matin.');
+    expect(f.assigne).toBe('Éric');
+  });
+
+  it('l’étape choisie à la main prime sur le statut déduit', () => {
+    // lead statut = 'nouveau' ; on force 'gagne'
+    enregistrerDossier(db, SRC, 'm:cote@x.ca', { statut: 'gagne' });
+    const f = fiche(db, SRC, 'm:cote@x.ca');
+    expect(f.statut).toBe('gagne');
+    expect(f.statut_manuel).toBe('gagne');
+    expect(f.gagne).toBe(true);
+  });
+
+  it('rejette un statut invalide', () => {
+    expect(() => enregistrerDossier(db, SRC, 'm:cote@x.ca', { statut: 'zzz' })).toThrow();
+  });
+
+  it('un statut vide efface l’override (retour au déduit)', () => {
+    enregistrerDossier(db, SRC, 'm:cote@x.ca', { statut: 'gagne' });
+    enregistrerDossier(db, SRC, 'm:cote@x.ca', { statut: '' });
+    const f = fiche(db, SRC, 'm:cote@x.ca');
+    expect(f.statut_manuel).toBe('');
+    expect(f.statut).toBe('nouveau'); // redevient déduit
+  });
+
+  it('une mise à jour partielle ne perd pas les autres champs', () => {
+    enregistrerDossier(db, SRC, 'm:cote@x.ca', { notes: 'Note A', assigne: 'Éric' });
+    enregistrerDossier(db, SRC, 'm:cote@x.ca', { statut: 'contacte' }); // sans toucher notes/assigne
+    const f = fiche(db, SRC, 'm:cote@x.ca');
+    expect(f.notes).toBe('Note A');
+    expect(f.assigne).toBe('Éric');
+    expect(f.statut).toBe('contacte');
+  });
+});
+
+describe('clients — pipeline', () => {
+  it('range chaque personne dans sa colonne d’étape', () => {
+    lead({ nom: 'A', courriel: 'a@x.ca', created_at: '2026-01-01 09:00' });
+    lead({ nom: 'B', courriel: 'b@x.ca', statut: 'gagne', valeur_cents: 10000, created_at: '2026-01-02 09:00', gagne_le: '2026-01-03 09:00' });
+    enregistrerDossier(db, SRC, 'm:a@x.ca', { statut: 'contacte' });
+    const p = pipeline(db, SRC);
+    const col = (s) => p.colonnes.find(c => c.statut === s);
+    expect(col('contacte').clients.map(c => c.nom)).toContain('A');
+    expect(col('gagne').clients.map(c => c.nom)).toContain('B');
+    expect(col('nouveau').clients.length).toBe(0);
+    expect(p.colonnes.map(c => c.statut)).toEqual(['nouveau', 'contacte', 'gagne', 'perdu']);
   });
 });

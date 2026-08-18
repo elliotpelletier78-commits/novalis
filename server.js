@@ -2502,8 +2502,26 @@ app.get('/core/clients', adminOnly, coreReady, (req, res) => {
     if (!f) return res.status(404).send(renderClients({ source, sources, pass, alertes, ...clients.repertoire(db, source, {}) }));
     return res.send(renderClients({ source, nom: et.identite.nom, sources, pass, alertes, fiche: f }));
   }
+  if (String(req.query.vue || '') === 'pipeline') {
+    return res.send(renderClients({ source, nom: et.identite.nom, sources, pass, alertes, pipeline: clients.pipeline(db, source) }));
+  }
   const q = req.query.q ? String(req.query.q).slice(0, 80) : '';
   res.send(renderClients({ source, nom: et.identite.nom, sources, pass, alertes, q, ...clients.repertoire(db, source, { q }) }));
+});
+
+// Écrit le dossier persistant d'une personne (étape, responsable, notes).
+app.post('/core/clients/dossier', adminOnly, coreReady, express.json({ limit: '16kb' }), (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  const cle = String(b.cle || '').slice(0, 200);
+  if (!/^[a-z0-9-]{2,40}$/.test(source) || !cle) return res.status(400).json({ ok: false, raison: 'paramètres invalides' });
+  try {
+    const champs = {};
+    if ('statut' in b) champs.statut = b.statut;
+    if ('notes' in b) champs.notes = b.notes;
+    if ('assigne' in b) champs.assigne = b.assigne;
+    res.json(clients.enregistrerDossier(db, source, cle, champs));
+  } catch (e) { res.status(400).json({ ok: false, raison: e.message }); }
 });
 
 // Export CSV des contacts d'un commerce (pour Excel / comptable).
