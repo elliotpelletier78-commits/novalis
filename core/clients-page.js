@@ -77,6 +77,9 @@ const EXTRA = `
 .pcard .mt{font-size:11.5px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
 .pcard .as{font-size:11px;color:var(--brand-600);font-weight:600;margin-top:3px}
 .pcol-empty{color:var(--faint);font-size:12.5px;padding:6px 2px}
+.portlink{font-size:12.5px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;margin:14px 0 2px}
+.portlink code{font-size:12px;color:var(--ink-2);word-break:break-all}
+.portlink a{color:var(--brand-600);text-decoration:none;font-weight:600}
 @media(max-width:820px){.dform{grid-template-columns:1fr}.pipe{grid-template-columns:1fr 1fr}}
 `;
 
@@ -182,6 +185,8 @@ function renderFiche(d) {
         <span class="msg" id="d-msg"></span>
       </div>
     </div>
+
+    ${d.portailUrl ? `<div class="portlink">Lien du portail client (à partager avec ${esc(f.nom)}) : <code>${esc(d.portailUrl)}</code> · <a href="${esc(d.portailUrl)}" target="_blank" rel="noopener">ouvrir</a></div>` : ''}
 
     <div class="section-label">Premier contact&nbsp;: ${jour(f.premier)} · Dernière activité&nbsp;: ${jour(f.dernier)}</div>
     <div class="section-label">Chronologie</div>

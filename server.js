@@ -747,6 +747,31 @@ app.post('/rdv/:source/confirmer/:id/:token/:reponse', express.json({ limit: '2k
   res.json({ ok: true });
 });
 
+// ── Portail client « Mon compte » (page publique, lien signé) ───────
+// Le commerçant partage ce lien avec SON client ; il n'ouvre, en lecture, que
+// le compte de cette personne chez ce commerce. Les actions (confirmer un RDV,
+// accepter un devis) pointent vers les pages publiques déjà signées.
+app.get('/moncompte/:source/:cle/:token', (req, res) => {
+  const source = String(req.params.source || '').slice(0, 40);
+  const cle = decodeURIComponent(String(req.params.cle || '')).slice(0, 200);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)
+    || !branchement.jetonClientValide(source, cle, req.params.token, process.env.MASTER_KEY)) {
+    return res.status(404).type('text/plain').send('Introuvable');
+  }
+  const c = clients.portailClient(db, source, cle);
+  if (!c) return res.status(404).type('text/plain').send('Introuvable');
+  const mk = process.env.MASTER_KEY, base = `${req.protocol}://${req.get('host')}`;
+  for (const r of c.aVenir) {
+    r.lienConfirmer = `${base}/rdv/${encodeURIComponent(source)}/confirmer/${r.id}/${branchement.jetonRdv(source, r.id, mk)}`;
+  }
+  for (const p of c.devis) {
+    p.lienAccepter = `${base}/devis/${encodeURIComponent(source)}/${p.id}/${branchement.jetonProp(source, p.id, mk)}`;
+  }
+  const et = branchement.etat(db, source);
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.type('html').send(renderPortail({ source, commerce: et.identite.nom, contact: et.identite.courriel, client: c }));
+});
+
 // ── Prise de rendez-vous en ligne (page publique client) ────────────
 // Le client demande un RDV lui-même ; la demande arrive dans la Réception du
 // commerçant (via l'accusé instantané existant). Honnête : c'est une demande à
@@ -2392,6 +2417,7 @@ const { renderLogin } = require('./core/login-page');
 const { renderBooking } = require('./core/booking-page');
 const { renderDevisAccept } = require('./core/devis-accept-page');
 const { renderRdvConfirm } = require('./core/rdv-confirm-page');
+const { renderPortail } = require('./core/portail-page');
 const oauth = require('./core/oauth');
 const integrations = require('./core/integrations');
 const { renderEntreprises } = require('./core/entreprises-page');
@@ -2500,7 +2526,9 @@ app.get('/core/clients', adminOnly, coreReady, (req, res) => {
   if (cle) {
     const f = clients.fiche(db, source, cle);
     if (!f) return res.status(404).send(renderClients({ source, sources, pass, alertes, ...clients.repertoire(db, source, {}) }));
-    return res.send(renderClients({ source, nom: et.identite.nom, sources, pass, alertes, fiche: f }));
+    const base = `${req.protocol}://${req.get('host')}`;
+    const portailUrl = `${base}/moncompte/${encodeURIComponent(source)}/${encodeURIComponent(cle)}/${branchement.jetonClient(source, cle, process.env.MASTER_KEY)}`;
+    return res.send(renderClients({ source, nom: et.identite.nom, sources, pass, alertes, fiche: f, portailUrl }));
   }
   if (String(req.query.vue || '') === 'pipeline') {
     return res.send(renderClients({ source, nom: et.identite.nom, sources, pass, alertes, pipeline: clients.pipeline(db, source) }));

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import Database from 'better-sqlite3';
 import { runMigrations } from '../core/db.js';
-import { cleDe, repertoire, fiche, pipeline, enregistrerDossier } from '../core/clients.js';
+import { cleDe, repertoire, fiche, pipeline, enregistrerDossier, portailClient } from '../core/clients.js';
 
 let db;
 beforeEach(() => {
@@ -163,5 +163,43 @@ describe('clients — pipeline', () => {
     expect(col('gagne').clients.map(c => c.nom)).toContain('B');
     expect(col('nouveau').clients.length).toBe(0);
     expect(p.colonnes.map(c => c.statut)).toEqual(['nouveau', 'contacte', 'gagne', 'perdu']);
+  });
+});
+
+describe('clients — portail client (vue côté client, sûre)', () => {
+  it('ne montre QUE ce qui concerne la personne, sans champ interne', () => {
+    lead({ nom: 'Mme Côté', courriel: 'cote@x.ca', message: 'Bruit au freinage', created_at: '2026-01-01 09:00' });
+    lead({ nom: 'Autre', courriel: 'autre@x.ca', created_at: '2026-01-01 09:00' });
+    rdv({ nom: 'Mme Côté', courriel: 'cote@x.ca', debut: '2099-03-01 12:00', service: 'Freins' });
+    prop({ type: 'devis', destinataire: 'cote@x.ca', titre: 'Devis freins', cree_le: '2026-02-01 10:00' });
+    // un dossier interne : ne doit JAMAIS fuir au portail
+    enregistrerDossier(db, SRC, 'm:cote@x.ca', { notes: 'SECRET interne', assigne: 'Éric', statut: 'gagne' });
+
+    const p = portailClient(db, SRC, 'm:cote@x.ca');
+    expect(p).not.toBeNull();
+    expect(p.nom).toBe('Mme Côté');
+    expect(p.aVenir.length).toBe(1);         // RDV futur
+    expect(p.devis.length).toBe(1);          // son devis
+    expect(p.messages).toBe(1);              // son échange
+    // aucune fuite de données internes
+    expect(JSON.stringify(p)).not.toContain('SECRET');
+    expect(JSON.stringify(p)).not.toContain('Éric');
+    expect('notes' in p).toBe(false);
+    expect('assigne' in p).toBe(false);
+    expect('statut' in p).toBe(false);
+    // ne contient pas les données d'autrui
+    expect(JSON.stringify(p)).not.toContain('autre@x.ca');
+  });
+
+  it('sépare rendez-vous à venir et passés', () => {
+    rdv({ nom: 'M. Roy', courriel: 'roy@x.ca', debut: '2099-01-01 09:00', service: 'Futur' });
+    rdv({ nom: 'M. Roy', courriel: 'roy@x.ca', debut: '2020-01-01 09:00', service: 'Passé' });
+    const p = portailClient(db, SRC, 'm:roy@x.ca');
+    expect(p.aVenir.length).toBe(1);
+    expect(p.passes.length).toBe(1);
+  });
+
+  it('retourne null pour une personne inconnue', () => {
+    expect(portailClient(db, SRC, 'm:fantome@x.ca')).toBeNull();
   });
 });

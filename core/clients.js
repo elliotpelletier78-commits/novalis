@@ -209,4 +209,37 @@ function pipeline(db, source) {
   return { colonnes: STATUTS_VALIDES.map(s => ({ statut: s, clients: cols[s] })) };
 }
 
-module.exports = { cleDe, repertoire, fiche, pipeline, enregistrerDossier, STATUTS_VALIDES };
+/**
+ * Vue « portail client » (côté client) : uniquement ce qui LE concerne et qu'il
+ * peut voir — ses rendez-vous, ses soumissions, son historique. JAMAIS les
+ * champs internes (notes, étape, responsable). Retourne null si personne connue.
+ */
+function portailClient(db, source, cle) {
+  if (!cle) return null;
+  let rdvs = [], devisTous = [], leads = [];
+  try { rdvs = db.prepare("SELECT id, client_nom, client_courriel, debut, service, statut, client_reponse FROM rendezvous WHERE source = ? AND statut != 'annule' ORDER BY debut DESC").all(source); } catch { /* jeune */ }
+  try { devisTous = db.prepare("SELECT id, titre, apercu, statut, cree_le, destinataire FROM propositions WHERE source = ? AND type = 'devis' AND destinataire IS NOT NULL ORDER BY cree_le DESC").all(source); } catch { /* jeune */ }
+  try { leads = db.prepare('SELECT nom, courriel, created_at FROM leads WHERE source = ? ORDER BY created_at DESC').all(source); } catch { /* jeune */ }
+
+  const mesRdv = rdvs.filter(r => cleDe(r.client_courriel, r.client_nom) === cle);
+  const devis = devisTous.filter(p => cleDe(p.destinataire, null) === cle);
+  const mesLeads = leads.filter(l => cleDe(l.courriel, l.nom) === cle);
+  if (!mesRdv.length && !devis.length && !mesLeads.length) return null;
+
+  const nom = (mesRdv.find(r => r.client_nom) || {}).client_nom
+    || (mesLeads.find(l => l.nom) || {}).nom || 'Client';
+  const courriel = cle.startsWith('m:') ? cle.slice(2) : '';
+  const nowW = new Date().toISOString().slice(0, 10);
+  return {
+    cle, nom, courriel,
+    aVenir: mesRdv.filter(r => String(r.debut).slice(0, 10) >= nowW && r.statut === 'prevu')
+      .sort((a, b) => String(a.debut).localeCompare(String(b.debut)))
+      .map(r => ({ id: r.id, debut: r.debut, service: r.service, client_reponse: r.client_reponse })),
+    passes: mesRdv.filter(r => String(r.debut).slice(0, 10) < nowW || r.statut === 'fait')
+      .map(r => ({ debut: r.debut, service: r.service, statut: r.statut })),
+    devis: devis.map(p => ({ id: p.id, titre: p.titre, apercu: p.apercu, statut: p.statut })),
+    messages: mesLeads.length,
+  };
+}
+
+module.exports = { cleDe, repertoire, fiche, pipeline, enregistrerDossier, portailClient, STATUTS_VALIDES };

@@ -39,6 +39,18 @@ function jetonRdvValide(source, id, jeton, masterKey) {
   const b = Buffer.from(String(jeton || ''));
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
+// Jeton par personne (portail client « Mon compte ») — non devinable. Le
+// commerçant partage ce lien avec SON client ; il n'ouvre que le compte de
+// cette personne, en lecture, chez ce commerce.
+function jetonClient(source, cle, masterKey) {
+  return crypto.createHmac('sha256', String(masterKey || 'sel-client'))
+    .update('client:' + String(source) + ':' + String(cle)).digest('hex').slice(0, 24);
+}
+function jetonClientValide(source, cle, jeton, masterKey) {
+  const a = Buffer.from(jetonClient(source, cle, masterKey));
+  const b = Buffer.from(String(jeton || ''));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 // Catalogue des « clés » qu'une entreprise peut remettre. `dispo` distingue ce
 // qui se branche aujourd'hui de ce qui arrive (connexion guidée à venir), pour
@@ -219,4 +231,5 @@ module.exports = {
   CONNEXIONS, CONSENTEMENTS,
   definirEntreprise, definirConsentement, definirConnexion, assurerClient,
   etat, jetonEspace, jetonEspaceValide, jetonProp, jetonPropValide, jetonRdv, jetonRdvValide,
+  jetonClient, jetonClientValide,
 };
