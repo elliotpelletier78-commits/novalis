@@ -49,6 +49,8 @@ const EXTRA = `
 .cxmsg{margin-bottom:14px;padding:10px 14px;border-radius:var(--r);font-size:13.5px;font-weight:600}
 .cxmsg.ok{background:var(--ok-soft);color:var(--ok)} .cxmsg.no{background:var(--warn-soft);color:var(--warn)}
 .cx a.bbtn{margin-top:0;display:inline-block;text-decoration:none;padding:8px 16px;font-size:13px}
+.hook{margin-top:10px} .hook .hk{font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:3px}
+.hook code{display:block;font-size:12px;color:var(--brand-600);background:var(--panel);border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 10px;word-break:break-all}
 .cxtest{font-size:12.5px;margin-top:7px;font-weight:600} .cxtest:empty{display:none}
 .cxtest.ok{color:var(--ok)} .cxtest.err{color:var(--warn)}
 .cx .act{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
@@ -128,6 +130,12 @@ function renderBranchement(e) {
     <div class="hint">Autorisez Novalis sur l'écran de Google ou d'Intuit. Novalis n'accède qu'à VOTRE compte, jamais à un autre — et vous retirez l'accès quand vous voulez.</div>
     ${e.cxMsg ? `<div class="cxmsg ${e.cxMsg.ok ? 'ok' : 'no'}">${esc(e.cxMsg.texte)}</div>` : ''}
     ${e.connexions1clic.map(x => cx1clic(x, e.pass, e.source)).join('')}
+  </div>` : ''}
+  ${e.smsCanal ? `<div class="panel">
+    <h3>Canal SMS (Twilio) ${e.smsCanal.configured ? '<span class="chip branche">actif</span>' : '<span class="chip soon">à activer</span>'}</h3>
+    <div class="hint">Le canal texto : messages entrants, accusé instantané, et rappel d'appel manqué (« on a manqué votre appel »). ${e.smsCanal.configured ? 'Twilio est configuré.' : 'S\'active dès que vos clés Twilio sont en variables d\'environnement (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM).'}</div>
+    <div class="hook"><div class="hk">SMS entrant → collez dans Twilio (Messaging webhook)</div><code>${esc(e.smsCanal.webhookSms)}</code></div>
+    <div class="hook"><div class="hk">Appel manqué → collez dans Twilio (Voice status callback)</div><code>${esc(e.smsCanal.webhookVoix)}</code></div>
   </div>` : ''}
   <div class="panel">
     <h3>Les clés</h3>

@@ -86,7 +86,38 @@ En développement local : `http://localhost:3000/core/connexion/google/callback`
 
 ---
 
-## 3. Vérifier que le câblage fonctionne
+## 3. Canal SMS (Twilio)
+
+Le canal texto : messages entrants, accusé instantané, réponse par SMS depuis
+le poste de commande, et **rappel d'appel manqué** (« on a manqué votre appel »).
+
+1. Créez un compte sur **twilio.com** → achetez un numéro (Buy a Number) avec
+   la capacité **SMS** (et **Voice** pour l'appel manqué).
+2. **Console Twilio → Account Info** : copiez **Account SID** et **Auth Token**.
+3. Variables d'environnement :
+
+   ```
+   TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   TWILIO_FROM=+1XXXXXXXXXX     # votre numéro Twilio, format E.164
+   ```
+
+4. Redémarrez Novalis. Dans **Branchement**, le « Canal SMS (Twilio) » passe de
+   « à activer » à « actif » et affiche **deux URLs de webhook** à coller dans
+   Twilio :
+   - **SMS entrant** → Numéro Twilio → *Messaging* → « A message comes in » →
+     Webhook (POST) : collez l'URL `/sms/<votre-slug>`.
+   - **Appel manqué** → Numéro Twilio → *Voice* → status callback (POST) :
+     collez l'URL `/voix/<votre-slug>`.
+
+> Sécurité : Novalis **valide la signature Twilio** (X-Twilio-Signature) de
+> chaque webhook avec votre Auth Token — une requête non signée est rejetée
+> (403). Rien n'est envoyé au client sans votre approbation (sauf l'accusé
+> instantané, qui n'engage rien).
+
+---
+
+## 4. Vérifier que le câblage fonctionne
 
 1. Dans Novalis, ouvrez **Branchement** pour une entreprise.
 2. Panneau **« Connexions en un clic »** → cliquez **Connecter** sur Gmail.

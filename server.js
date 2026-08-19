@@ -772,6 +772,72 @@ app.get('/moncompte/:source/:cle/:token', (req, res) => {
   res.type('html').send(renderPortail({ source, commerce: et.identite.nom, contact: et.identite.courriel, client: c }));
 });
 
+// ── Webhooks Twilio — SMS entrant + appel manqué (canal SMS) ────────
+// Twilio POST vers ces URLs (à coller dans la console Twilio après avoir branché
+// le numéro). On VALIDE la signature (X-Twilio-Signature) contre TWILIO_AUTH_TOKEN
+// — anti-usurpation — puis on capte comme un message client normal : poste de
+// commande + accusé instantané. Rien n'est envoyé sans l'approbation du commerçant
+// (sauf l'accusé, qui n'engage rien). Réponse TwiML vide : Novalis ne répond pas
+// tout seul dans le fil, il prépare.
+function twilioValide(req) {
+  const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+  return validerSignature(process.env.TWILIO_AUTH_TOKEN, url, req.body || {}, req.get('X-Twilio-Signature'));
+}
+app.post('/sms/:source', express.urlencoded({ extended: false, limit: '16kb' }), (req, res) => {
+  const source = String(req.params.source || '').slice(0, 40);
+  const vide = () => res.type('text/xml').send('<Response></Response>');
+  if (!/^[a-z0-9-]{2,40}$/.test(source) || !sourcesConnues().includes(source)) return res.status(404).type('text/xml').send('<Response></Response>');
+  if (!twilioValide(req)) return res.status(403).type('text/xml').send('<Response></Response>');
+  const from = normaliserTel(req.body.From);
+  const corps = String(req.body.Body || '').trim().slice(0, 4000);
+  if (!from || !corps) return vide();
+  try {
+    const et = branchement.etat(db, source);
+    const nomCommerce = et.identite.nom || source;
+    const horsHeures = reception.estHorsHeures(new Date(), reception.configDe(db, source).heures) ? 1 : 0;
+    const info = db.prepare('INSERT INTO leads (source, nom, courriel, telephone, message, hors_heures) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(source, from, '', from, corps, horsHeures);
+    if (et.consent.rediger) {
+      const brouillon = propositions.brouillonReponse({ nom: from, message: corps }, { nomCommerce, telephone: et.identite.telephone });
+      db.prepare(`INSERT OR IGNORE INTO propositions (source, type, ref_type, ref_id, titre, apercu, brouillon, destinataire, priorite, statut)
+        VALUES (?, 'reponse', 'lead', ?, ?, ?, ?, ?, 8, 'en_attente')`)
+        .run(source, info.lastInsertRowid, `Répondre par SMS — ${from}`, corps.slice(0, 200), brouillon, from);
+    }
+    if (et.consent.accuse && sms.configured) {
+      sms.envoyer({ to: from, text: `Merci pour votre message — ${nomCommerce}. On vous revient au plus vite.` })
+        .then((r) => { if (r.sent) { try { db.prepare('UPDATE leads SET accuse_le = ? WHERE id = ?').run(new Date().toISOString().replace('T', ' ').slice(0, 19), info.lastInsertRowid); } catch { /* non bloquant */ } } })
+        .catch(() => { /* accusé qui échoue ne bloque jamais */ });
+    }
+    if (core && core.alerter) core.alerter.alert(`SMS reçu — ${source}`, `${from}\n${corps.slice(0, 300)}`);
+  } catch (e) { console.error('[sms/in]', e.message); }
+  vide();
+});
+// Appel manqué → SMS de rattrapage préparé (le « missed-call text-back »).
+app.post('/voix/:source', express.urlencoded({ extended: false, limit: '16kb' }), (req, res) => {
+  const source = String(req.params.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source) || !sourcesConnues().includes(source)) return res.status(404).type('text/xml').send('<Response></Response>');
+  if (!twilioValide(req)) return res.status(403).type('text/xml').send('<Response></Response>');
+  const statut = String(req.body.CallStatus || '').toLowerCase();
+  const from = normaliserTel(req.body.From);
+  const manque = ['no-answer', 'busy', 'failed', 'canceled'].includes(statut);
+  if (manque && from) {
+    try {
+      const et = branchement.etat(db, source);
+      const nomCommerce = et.identite.nom || source;
+      // Idempotence : un seul rattrapage en attente par numéro à la fois.
+      const deja = db.prepare("SELECT id FROM propositions WHERE source = ? AND ref_type = 'appel_manque' AND destinataire = ? AND statut = 'en_attente'").get(source, from);
+      if (!deja && et.consent.rediger) {
+        const brouillon = `Bonjour, on a manqué votre appel chez ${nomCommerce}. Comment peut-on vous aider ? Répondez à ce texto et on s'occupe de vous.\n\n${nomCommerce}`;
+        db.prepare(`INSERT INTO propositions (source, type, ref_type, titre, apercu, brouillon, destinataire, priorite, statut)
+          VALUES (?, 'relance', 'appel_manque', ?, ?, ?, ?, 9, 'en_attente')`)
+          .run(source, `Appel manqué — rappeler par SMS ${from}`, `Appel ${statut} de ${from}`, brouillon, from);
+        if (core && core.alerter) core.alerter.alert(`Appel manqué — ${source}`, `${from} (${statut}) — SMS de rattrapage préparé`);
+      }
+    } catch (e) { console.error('[voix/in]', e.message); }
+  }
+  res.type('text/xml').send('<Response></Response>');
+});
+
 // ── Prise de rendez-vous en ligne (page publique client) ────────────
 // Le client demande un RDV lui-même ; la demande arrive dans la Réception du
 // commerçant (via l'accusé instantané existant). Honnête : c'est une demande à
@@ -2421,6 +2487,8 @@ const { renderRdvConfirm } = require('./core/rdv-confirm-page');
 const { renderPortail } = require('./core/portail-page');
 const oauth = require('./core/oauth');
 const integrations = require('./core/integrations');
+const { createSms, estTelephone, normaliserTel, validerSignature } = require('./core/sms');
+const sms = createSms(process.env);
 const { renderEntreprises } = require('./core/entreprises-page');
 const devis = require('./core/devis');
 const { renderDevis } = require('./core/devis-page');
@@ -2650,6 +2718,14 @@ app.get('/core/branchement', adminOnly, coreReady, (req, res) => {
     const cx = (eBr.connexions || []).find((c) => c.type === P.cxType);
     return { provider: pv, titre: P.titre, connecte: !!(cx && cx.statut === 'branche'), label: cx ? cx.compte_label : null, configure: oauth.configure(pv) };
   });
+  // Canal SMS (Twilio) : configuré par variables d'environnement, pas OAuth.
+  // On expose l'état + les URLs de webhook à coller dans la console Twilio.
+  const baseB = `${req.protocol}://${req.get('host')}`;
+  eBr.smsCanal = {
+    configured: sms.configured,
+    webhookSms: `${baseB}/sms/${encodeURIComponent(source)}`,
+    webhookVoix: `${baseB}/voix/${encodeURIComponent(source)}`,
+  };
   if (req.query.cx) {
     eBr.cxMsg = req.query.ok ? { ok: true, texte: 'Compte connecté ✓' }
       : req.query.e === 'config' ? { ok: false, texte: 'Ce branchement n\'est pas encore activé (clé d\'application à configurer).' }
@@ -3114,6 +3190,20 @@ async function executerActionProposition(id, action, body) {
     if (!p) return { code: 404, json: { ok: false, raison: 'introuvable' } };
     if (typeof (body || {}).brouillon === 'string') propositions.modifier(db, id, body.brouillon);
     const et = branchement.etat(db, p.source);
+    // Choix du canal selon le destinataire : un numéro → SMS (Twilio) ; sinon
+    // courriel (Gmail du commerçant si branché, sinon Resend). Jamais de faux envoi.
+    if (p.destinataire && !/@/.test(String(p.destinataire)) && estTelephone(p.destinataire)) {
+      const canalSms = {
+        configured: sms.configured,
+        async envoyer({ to, text }) { return sms.envoyer({ to, text }); },
+      };
+      const r = await propositions.approuver(db, id, {
+        peutEnvoyer: et.consent.envoyer && sms.configured,
+        mailer: canalSms,
+        sujet: propositions.sujetPour(p.type, { nomCommerce: et.identite.nom }),
+      });
+      return { code: r.ok ? 200 : 400, json: r };
+    }
     const cxCourriel = et.connexions.find(x => x.type === 'courriel' && x.statut === 'branche');
     const replyTo = et.identite.courriel
       || (cxCourriel && /@/.test(String(cxCourriel.compte_label || '')) ? cxCourriel.compte_label : undefined);
