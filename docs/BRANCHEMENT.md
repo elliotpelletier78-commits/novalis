@@ -117,7 +117,39 @@ le poste de commande, et **rappel d'appel manqué** (« on a manqué votre appel
 
 ---
 
-## 4. Vérifier que le câblage fonctionne
+## 4. Canal Paiement (Stripe)
+
+Demandez un paiement depuis une fiche client : Novalis crée une page de paiement
+**hébergée par Stripe**. Le client paie chez Stripe — aucune donnée de carte ne
+passe par Novalis (aucun fardeau PCI).
+
+1. Créez un compte sur **stripe.com** (ou **dashboard.stripe.com** si vous en
+   avez déjà un).
+2. **Developers → API keys** : copiez la **Secret key** (`sk_live_…` ou
+   `sk_test_…` pour tester).
+3. **Developers → Webhooks → Add endpoint** :
+   - Endpoint URL : collez `/paiements/<votre-slug>/webhook` (affiché dans
+     Branchement).
+   - Événement à écouter : **checkout.session.completed**.
+   - Créez → copiez le **Signing secret** (`whsec_…`).
+4. Variables d'environnement :
+
+   ```
+   STRIPE_SECRET_KEY=sk_test_…VOTRE_CLE
+   STRIPE_WEBHOOK_SECRET=whsec_…VOTRE_SECRET
+   ```
+
+5. Redémarrez Novalis. Dans une fiche client, « Demander un paiement » crée un
+   lien Stripe à envoyer ; dès que le client paie, le webhook signé marque la
+   demande « payé ✓ ».
+
+> Sécurité : Novalis **vérifie la signature Stripe** de chaque webhook sur le
+> corps brut. Une demande n'est jamais marquée « payé » sans cette preuve.
+> Utilisez les clés `sk_test_…` + un webhook de test pour valider sans argent réel.
+
+---
+
+## 5. Vérifier que le câblage fonctionne
 
 1. Dans Novalis, ouvrez **Branchement** pour une entreprise.
 2. Panneau **« Connexions en un clic »** → cliquez **Connecter** sur Gmail.

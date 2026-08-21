@@ -11,7 +11,10 @@ const app = express();
 // étranglé. « 1 » = un seul proxy de confiance devant nous ; req.ip prend alors
 // le dernier saut avant ce proxy, non falsifiable par le client.
 app.set('trust proxy', 1);
-app.use(express.json({ limit: '20mb' }));
+// On garde le corps BRUT (rawBody) pour les webhooks qui signent le payload
+// (Stripe). Le parseur JSON global le remplit au passage ; les routes de webhook
+// valident la signature contre ces octets exacts, jamais contre l'objet parsé.
+app.use(express.json({ limit: '20mb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
 
 // ── SQLite — prospects & tracking ────────────────────────────
 // DATABASE_PATH permet de pointer la base sur le volume persistant Railway
@@ -2489,6 +2492,8 @@ const oauth = require('./core/oauth');
 const integrations = require('./core/integrations');
 const { createSms, estTelephone, normaliserTel, validerSignature } = require('./core/sms');
 const sms = createSms(process.env);
+const paiements = require('./core/paiements');
+const stripe = paiements.createStripe(process.env);
 const { renderEntreprises } = require('./core/entreprises-page');
 const devis = require('./core/devis');
 const { renderDevis } = require('./core/devis-page');
@@ -2598,7 +2603,9 @@ app.get('/core/clients', adminOnly, coreReady, (req, res) => {
     const base = `${req.protocol}://${req.get('host')}`;
     const portailUrl = `${base}/moncompte/${encodeURIComponent(source)}/${encodeURIComponent(cle)}/${branchement.jetonClient(source, cle, process.env.MASTER_KEY)}`;
     const photos = pieces.lister(db, source, cle);
-    return res.send(renderClients({ source, nom: et.identite.nom, sources, pass, alertes, fiche: f, portailUrl, photos }));
+    let paies = [];
+    try { paies = db.prepare('SELECT id, description, montant_cents, statut, url, cree_le, paye_le FROM paiements WHERE source = ? AND cle = ? ORDER BY id DESC').all(source, cle); } catch { paies = []; }
+    return res.send(renderClients({ source, nom: et.identite.nom, sources, pass, alertes, fiche: f, portailUrl, photos, paiements: paies, stripeOn: stripe.configured }));
   }
   if (String(req.query.vue || '') === 'pipeline') {
     return res.send(renderClients({ source, nom: et.identite.nom, sources, pass, alertes, pipeline: clients.pipeline(db, source) }));
@@ -2650,6 +2657,52 @@ app.post('/core/clients/photo/:id/suppr', adminOnly, coreReady, express.json({ l
   const id = parseInt(req.params.id, 10);
   if (!/^[a-z0-9-]{2,40}$/.test(source) || !Number.isInteger(id)) return res.status(400).json({ ok: false });
   res.json({ ok: pieces.supprimer(db, source, id) });
+});
+
+// ── Demandes de paiement (Stripe Checkout hébergé) ─────────────────
+// Le commerçant demande un paiement ; Novalis crée un lien Stripe et le rend.
+// Le client paie chez Stripe ; le webhook signé confirme. Sans clés → « à activer ».
+app.post('/core/paiements', adminOnly, coreReady, express.json({ limit: '8kb' }), async (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  const cle = b.cle ? String(b.cle).slice(0, 200) : null;
+  const description = String(b.description || '').trim().slice(0, 250);
+  const montant = Math.round(Number(b.montant_cents) || 0);
+  const courriel = b.courriel ? String(b.courriel).slice(0, 180) : null;
+  if (!/^[a-z0-9-]{2,40}$/.test(source) || !description || !(montant >= 50)) return res.status(400).json({ ok: false, raison: 'description et montant (≥ 0,50 $) requis' });
+  if (!stripe.configured) return res.status(400).json({ ok: false, raison: 'Paiement non activé (clés Stripe à configurer)' });
+  try {
+    const base = `${req.protocol}://${req.get('host')}`;
+    const r = await stripe.creerLien({
+      montant_cents: montant, description, courriel,
+      succesUrl: `${base}/paiement/merci`, annuleUrl: `${base}/paiement/annule`,
+    });
+    if (!r.ok) return res.status(400).json({ ok: false, raison: r.reason });
+    const info = db.prepare('INSERT INTO paiements (source, cle, description, montant_cents, courriel, session_id, url) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(source, cle, description, montant, courriel, r.id, r.url);
+    res.json({ ok: true, id: info.lastInsertRowid, url: r.url });
+  } catch (e) { res.status(500).json({ ok: false, raison: e.message }); }
+});
+// Pages de retour simples (le client revient de Stripe).
+app.get('/paiement/merci', (req, res) => res.type('html').send('<!DOCTYPE html><meta charset="utf-8"><title>Merci</title><body style="font-family:system-ui;text-align:center;padding:16vh 8vw"><h1 style="font-size:1.6rem">Paiement reçu — merci&nbsp;!</h1><p style="color:#555">Vous pouvez fermer cette page.</p>'));
+app.get('/paiement/annule', (req, res) => res.type('html').send('<!DOCTYPE html><meta charset="utf-8"><title>Annulé</title><body style="font-family:system-ui;text-align:center;padding:16vh 8vw"><h1 style="font-size:1.6rem">Paiement annulé</h1><p style="color:#555">Aucun montant n’a été prélevé.</p>'));
+// Webhook Stripe : confirme le paiement (signature vérifiée sur le corps BRUT).
+app.post('/paiements/:source/webhook', (req, res) => {
+  const source = String(req.params.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(404).end();
+  // Signature vérifiée sur le corps BRUT capté par le parseur global (rawBody).
+  if (!paiements.validerSignature(stripe.whsec, req.rawBody, req.get('Stripe-Signature'))) return res.status(400).end();
+  const evt = req.body; // déjà parsé (mêmes octets que rawBody)
+  try {
+    if (evt && evt.type === 'checkout.session.completed') {
+      const sid = evt.data && evt.data.object && evt.data.object.id;
+      if (sid) {
+        db.prepare("UPDATE paiements SET statut = 'paye', paye_le = datetime('now') WHERE session_id = ? AND source = ? AND statut = 'demande'").run(sid, source);
+        if (core && core.alerter) core.alerter.alert(`Paiement reçu — ${source}`, `Session ${sid}`);
+      }
+    }
+  } catch (e) { console.error('[stripe/webhook]', e.message); }
+  res.json({ received: true });
 });
 
 // Export CSV des contacts d'un commerce (pour Excel / comptable).
@@ -2725,6 +2778,10 @@ app.get('/core/branchement', adminOnly, coreReady, (req, res) => {
     configured: sms.configured,
     webhookSms: `${baseB}/sms/${encodeURIComponent(source)}`,
     webhookVoix: `${baseB}/voix/${encodeURIComponent(source)}`,
+  };
+  eBr.stripeCanal = {
+    configured: stripe.configured,
+    webhook: `${baseB}/paiements/${encodeURIComponent(source)}/webhook`,
   };
   if (req.query.cx) {
     eBr.cxMsg = req.query.ok ? { ok: true, texte: 'Compte connecté ✓' }

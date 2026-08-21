@@ -137,6 +137,11 @@ function renderBranchement(e) {
     <div class="hook"><div class="hk">SMS entrant → collez dans Twilio (Messaging webhook)</div><code>${esc(e.smsCanal.webhookSms)}</code></div>
     <div class="hook"><div class="hk">Appel manqué → collez dans Twilio (Voice status callback)</div><code>${esc(e.smsCanal.webhookVoix)}</code></div>
   </div>` : ''}
+  ${e.stripeCanal ? `<div class="panel">
+    <h3>Canal Paiement (Stripe) ${e.stripeCanal.configured ? '<span class="chip branche">actif</span>' : '<span class="chip soon">à activer</span>'}</h3>
+    <div class="hint">Demandez un paiement depuis une fiche client : Novalis crée une page de paiement hébergée par Stripe. Le client paie chez Stripe — aucune donnée de carte ne passe par Novalis. ${e.stripeCanal.configured ? 'Stripe est configuré.' : 'S\'active dès que vos clés Stripe sont en variables d\'environnement (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET).'}</div>
+    <div class="hook"><div class="hk">Confirmation de paiement → collez dans Stripe (Webhook, événement checkout.session.completed)</div><code>${esc(e.stripeCanal.webhook)}</code></div>
+  </div>` : ''}
   <div class="panel">
     <h3>Les clés</h3>
     <div class="hint">Ce que vous branchez, Novalis peut le tenir à jour et l'opérer — jamais sans votre autorisation.</div>

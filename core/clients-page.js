@@ -88,6 +88,15 @@ const EXTRA = `
 .padd .plus{font-size:22px;line-height:1}
 .pmsg{font-size:12.5px;font-weight:600;margin-top:8px;min-height:1em}
 .pmsg.ok{color:var(--ok)} .pmsg.err{color:var(--warn)}
+.paylist{margin:4px 0 10px}
+.payrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.payrow .pd{font-weight:640;font-size:14px}
+.payrow .pm{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:1px}
+.paycopy{font-family:var(--sans);font-size:12px;font-weight:600;padding:6px 10px;border-radius:var(--r-sm);border:1px solid var(--line-strong);background:var(--card);color:var(--brand-600);cursor:pointer}
+.paycopy:hover{border-color:var(--brand)}
+.payadd{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:4px 0 2px}
+.payadd input{font-family:var(--sans);font-size:14px;padding:9px 11px;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--card);color:var(--ink);flex:1;min-width:160px}
+.payadd input:focus{outline:none;border-color:var(--brand)}
 .portlink{font-size:12.5px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;margin:14px 0 2px}
 .portlink code{font-size:12px;color:var(--ink-2);word-break:break-all}
 .portlink a{color:var(--brand-600);text-decoration:none;font-weight:600}
@@ -211,6 +220,21 @@ function renderFiche(d) {
     </div>
     <div class="pmsg" id="p-msg"></div>
 
+    <div class="section-label">Paiements ${d.stripeOn ? '' : '<span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--faint)">— à activer (clés Stripe à configurer)</span>'}</div>
+    <div class="paylist" id="paylist">
+      ${(d.paiements || []).map((py) => `<div class="payrow" data-id="${py.id}">
+        <div class="pl"><div class="pd">${esc(py.description)}</div><div class="pm">${dollars(py.montant_cents)} · ${jour(py.cree_le)}</div></div>
+        ${py.statut === 'paye'
+    ? '<span class="tag ok">payé ✓</span>'
+    : `<span class="tag att">en attente</span>${py.url ? ` <button class="paycopy" data-url="${esc(py.url)}">Copier le lien</button>` : ''}`}
+      </div>`).join('') || '<div class="empty" style="color:var(--muted);font-size:13.5px;padding:4px 2px">Aucune demande de paiement.</div>'}
+    </div>
+    ${d.stripeOn ? `<div class="payadd">
+      <input id="pay-desc" placeholder="Description (ex. Freins avant)" autocomplete="off">
+      <input id="pay-montant" type="text" inputmode="decimal" placeholder="Montant $" autocomplete="off" style="max-width:120px">
+      <button class="btn btn-primary" id="pay-add">Demander un paiement</button>
+    </div><div class="pmsg" id="pay-msg"></div>` : ''}
+
     ${d.portailUrl ? `<div class="portlink">Lien du portail client (à partager avec ${esc(f.nom)}) : <code>${esc(d.portailUrl)}</code> · <a href="${esc(d.portailUrl)}" target="_blank" rel="noopener">ouvrir</a></div>` : ''}
 
     <div class="section-label">Premier contact&nbsp;: ${jour(f.premier)} · Dernière activité&nbsp;: ${jour(f.dernier)}</div>
@@ -257,7 +281,27 @@ document.querySelectorAll('.pdel').forEach(function(btn){
     fetch('/core/clients/photo/'+pid+'/suppr',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':pass()},body:JSON.stringify({source:SRC})})
       .then(function(r){return r.json();}).then(function(j){ if(j.ok){var el=btn.closest('.pph'); if(el)el.remove();} });
   });
-});`;
+});
+// Paiements : demander un lien Stripe + copier.
+function brancherCopie(btn){ btn.addEventListener('click',function(){
+  var u=btn.getAttribute('data-url');
+  (navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(function(){btn.textContent='Copié ✓';setTimeout(function(){btn.textContent='Copier le lien';},1500);}).catch(function(){window.prompt('Lien de paiement :',u);});
+});}
+document.querySelectorAll('.paycopy').forEach(brancherCopie);
+var payAdd=document.getElementById('pay-add');
+if(payAdd){ payAdd.addEventListener('click',function(){
+  var pm=document.getElementById('pay-msg'), desc=document.getElementById('pay-desc').value.trim();
+  var montant=Math.round(parseFloat(String(document.getElementById('pay-montant').value).replace(',','.'))*100);
+  pm.className='pmsg'; pm.textContent='';
+  if(!desc||!(montant>=50)){pm.className='pmsg err';pm.textContent='Description et montant (≥ 0,50 $) requis.';return;}
+  payAdd.disabled=true; pm.textContent='Création du lien…';
+  fetch('/core/paiements',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':pass()},
+    body:JSON.stringify({source:SRC,cle:CLE,description:desc,montant_cents:montant,courriel:(${JSON.stringify(f.courriel || '')})||undefined})})
+    .then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j};});})
+    .then(function(x){ if(x.ok&&x.j.ok){location.reload();} else{pm.className='pmsg err';pm.textContent='Échec — '+((x.j&&x.j.raison)||'réessayez');} })
+    .catch(function(){pm.className='pmsg err';pm.textContent='Échec — réseau';})
+    .finally(function(){payAdd.disabled=false;});
+});}`;
 
   return page({
     title: f.nom,
