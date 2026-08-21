@@ -13,12 +13,15 @@
     "@higgsfield/client": "^0.2.1",
     "better-sqlite3": "^12.10.0",
     "express": "^4.18.2",
-    "playwright": "^1.61.1",
     "sharp": "^0.35.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.6.0",
+    "playwright": "^1.61.1",
     "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
