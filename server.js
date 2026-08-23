@@ -2482,6 +2482,8 @@ const { renderResultats } = require('./core/resultats-page');
 const clients = require('./core/clients');
 const pieces = require('./core/pieces');
 const { renderClients } = require('./core/clients-page');
+const temoignages = require('./core/temoignages');
+const { renderAvis, renderTemoignagesPublic } = require('./core/avis-page');
 const { renderConfiance } = require('./core/confiance-page');
 const { renderLogin } = require('./core/login-page');
 const { renderBooking } = require('./core/booking-page');
@@ -2703,6 +2705,49 @@ app.post('/paiements/:source/webhook', (req, res) => {
     }
   } catch (e) { console.error('[stripe/webhook]', e.message); }
   res.json({ received: true });
+});
+
+// ── Avis & témoignages (gestion admin + widget public) ─────────────
+app.get('/core/avis', adminOnly, coreReady, (req, res) => {
+  const sources = sourcesConnues();
+  const source = String(req.query.source || sources[0] || 'novalis').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
+  const et = branchement.etat(db, source);
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.send(renderAvis({
+    source, nom: et.identite.nom, sources, base: `${req.protocol}://${req.get('host')}`,
+    pass: req.query.pass ? String(req.query.pass) : undefined,
+    alertes: propositions.compteurs(db, source).en_attente,
+    avis: temoignages.lister(db, source, {}), resume: temoignages.resume(db, source),
+  }));
+});
+app.post('/core/avis', adminOnly, coreReady, express.json({ limit: '16kb' }), (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).json({ ok: false, raison: 'source invalide' });
+  try { res.json({ ok: true, ...temoignages.ajouter(db, source, { auteur: b.auteur, note: b.note, texte: b.texte, provenance: b.provenance, cle: b.cle }) }); }
+  catch (e) { res.status(400).json({ ok: false, raison: e.message }); }
+});
+app.post('/core/avis/:id', adminOnly, coreReady, express.json({ limit: '2kb' }), (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  const id = parseInt(req.params.id, 10);
+  if (!/^[a-z0-9-]{2,40}$/.test(source) || !Number.isInteger(id)) return res.status(400).json({ ok: false });
+  if (b.suppr) return res.json({ ok: temoignages.supprimer(db, source, id) });
+  res.json({ ok: temoignages.definirAffichage(db, source, id, !!b.affiche) });
+});
+// Widget public : intégré en iframe sur le site du commerçant (avis affichés).
+app.get('/temoignages/:source', coreReady, (req, res) => {
+  const source = String(req.params.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source) || !sourcesConnues().includes(source)) return res.status(404).type('text/plain').send('Introuvable');
+  const et = branchement.etat(db, source);
+  // Intégrable en iframe sur le site du commerçant : on autorise explicitement
+  // le cadrage (pas de X-Frame-Options ; CSP frame-ancestors ouvert).
+  res.setHeader('Content-Security-Policy', 'frame-ancestors *');
+  res.send(renderTemoignagesPublic({
+    source, commerce: et.identite.nom,
+    avis: temoignages.lister(db, source, { publicOnly: true }), resume: temoignages.resume(db, source),
+  }));
 });
 
 // Export CSV des contacts d'un commerce (pour Excel / comptable).

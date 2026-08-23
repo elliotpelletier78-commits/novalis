@@ -25,6 +25,7 @@ const ICONS = {
   clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
   grid: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
   people: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0M16 5.2a3.2 3.2 0 0 1 0 6.1M17.5 14.2a5.5 5.5 0 0 1 3 5.3"/>',
+  star: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 17l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9Z"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   megaphone: '<path d="M4 10v4a1 1 0 0 0 1 1h2l4 4V5L7 9H5a1 1 0 0 0-1 1ZM15 8a4 4 0 0 1 0 8M18.5 5a8 8 0 0 1 0 14"/>',
   gear: '<path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"/><path d="M19.4 15a1.5 1.5 0 0 0 .3 1.7l.05.05a1.8 1.8 0 1 1-2.6 2.6l-.05-.05a1.5 1.5 0 0 0-2.55 1.06V20.5a1.8 1.8 0 1 1-3.6 0v-.07A1.5 1.5 0 0 0 7.3 19.4l-.05.05a1.8 1.8 0 1 1-2.6-2.6l.05-.05A1.5 1.5 0 0 0 4.6 15H4.5a1.8 1.8 0 1 1 0-3.6h.07A1.5 1.5 0 0 0 6.6 8.7l-.05-.05a1.8 1.8 0 1 1 2.6-2.6l.05.05a1.5 1.5 0 0 0 1.7.3H11a1.5 1.5 0 0 0 .9-1.37V4.5a1.8 1.8 0 1 1 3.6 0v.07a1.5 1.5 0 0 0 2.55 1.06l.05-.05a1.8 1.8 0 1 1 2.6 2.6l-.05.05a1.5 1.5 0 0 0-.3 1.7V11a1.5 1.5 0 0 0 1.37.9h.08a1.8 1.8 0 1 1 0 3.6h-.07a1.5 1.5 0 0 0-1.38.9Z"/>',
@@ -85,6 +86,7 @@ const NAV_GROUPS = [
     { key: 'rdv', label: 'Rendez-vous', href: '/core/rdv', icon: 'clock' },
     { key: 'devis', label: 'Devis', href: '/core/devis', icon: 'file' },
     { key: 'publications', label: 'Publications', href: '/core/publications', icon: 'megaphone' },
+    { key: 'avis', label: 'Avis', href: '/core/avis', icon: 'star' },
   ] },
   { titre: 'Configuration', items: [
     { key: 'branchement', label: 'Branchement', href: '/core/branchement', icon: 'plug' },
