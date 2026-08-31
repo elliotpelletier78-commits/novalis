@@ -2812,6 +2812,31 @@ app.get('/core/reception/export.csv', adminOnly, coreReady, (req, res) => {
   res.send(csv);
 });
 
+// Export CSV du répertoire clients (portabilité des données — aligné Loi 25).
+app.get('/core/clients/export.csv', adminOnly, coreReady, (req, res) => {
+  const source = String(req.query.source || '').slice(0, 40);
+  if (!/^[a-z0-9-]{2,40}$/.test(source)) return res.status(400).type('text/plain').send('source invalide');
+  const rep = clients.repertoire(db, source, {});
+  const notesParCle = {};
+  try { for (const d of db.prepare('SELECT cle, notes FROM client_dossiers WHERE source = ?').all(source)) notesParCle[d.cle] = d.notes || ''; } catch { /* jeune */ }
+  const cell = (v) => {
+    let s = String(v == null ? '' : v).replace(/\r?\n/g, ' ');
+    if (/^[=+\-@\t\r]/.test(s)) s = '\'' + s;
+    return /[",;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const stLabel = { gagne: 'Gagné', contacte: 'Contacté', nouveau: 'Nouveau', perdu: 'Perdu' };
+  const entete = ['Nom', 'Courriel', 'Étape', 'Responsable', 'Messages', 'Rendez-vous', 'Devis', 'Valeur gagnée ($)', 'Dernière activité', 'Notes'];
+  const lignes = (rep.clients || []).map((c) => [
+    c.nom, c.courriel, stLabel[c.statut] || c.statut, c.assigne || '',
+    c.messages, c.rdv, c.devis, c.valeur_cents ? (c.valeur_cents / 100).toFixed(2) : '',
+    c.dernier ? String(c.dernier).slice(0, 10) : '', notesParCle[c.cle] || '',
+  ].map(cell).join(';'));
+  const csv = '﻿' + [entete.join(';'), ...lignes].join('\r\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="clients-${source}.csv"`);
+  res.send(csv);
+});
+
 // Configuration d'un site (onboarding client) — sans SQL, depuis le cockpit.
 // Détermine le vrai nom affiché, le secteur, et la valeur d'un client capté.
 app.post('/core/reception/config', adminOnly, coreReady, express.json({ limit: '8kb' }), (req, res) => {

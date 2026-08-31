@@ -133,6 +133,7 @@ function renderRepertoire(d) {
       ${d.pass ? `<input type="hidden" name="pass" value="${esc(d.pass)}">` : ''}
       <input name="q" value="${esc(d.q || '')}" placeholder="Rechercher un nom ou un courriel…" autocomplete="off" aria-label="Rechercher un client">
       <span class="cnt">${d.affiches} ${pl(d.affiches, 'personne', 'personnes')}${d.q ? ` sur ${d.total}` : ''}</span>
+      <a class="cnt" style="color:var(--brand-600);text-decoration:none;white-space:nowrap" href="/core/clients/export.csv?source=${encodeURIComponent(d.source)}${d.pass ? '&pass=' + encodeURIComponent(d.pass) : ''}">Exporter (CSV)</a>
     </form>
     <table class="rost">
       <thead><tr>
