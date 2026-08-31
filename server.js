@@ -2374,6 +2374,8 @@ app.post('/api/:site/contact', leadRateLimit, express.json({ limit: '32kb' }), (
   const entreprise = String(b.company || '').trim().slice(0, 140) || null;
   const sujets = Array.isArray(b.topics) ? JSON.stringify(b.topics.slice(0, 12).map(s => String(s).slice(0, 40))) : null;
   const langue = /^(en|fr)$/.test(b.lang) ? b.lang : null;
+  // Téléphone optionnel (ex. réservation en ligne) → active le canal SMS.
+  const tel = b.phone ? normaliserTel(String(b.phone)) : null;
 
   if (!nom || !message || message.length < 10) return res.status(400).json({ error: 'Champs requis manquants' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(courriel)) return res.status(400).json({ error: 'Courriel invalide' });
@@ -2385,8 +2387,8 @@ app.post('/api/:site/contact', leadRateLimit, express.json({ limit: '32kb' }), (
     // c'est le chiffre qui frappe le plus le commerçant (« reçu à 21h, perdu »).
     const horsHeures = reception.estHorsHeures(new Date(),
       reception.configDe(db, site).heures) ? 1 : 0;
-    const info = db.prepare(`INSERT INTO leads (source, nom, courriel, entreprise, message, sujets, langue, ip_hash, hors_heures)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(site, nom, courriel, entreprise, message, sujets, langue, ipHash, horsHeures);
+    const info = db.prepare(`INSERT INTO leads (source, nom, courriel, entreprise, message, sujets, langue, ip_hash, hors_heures, telephone)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(site, nom, courriel, entreprise, message, sujets, langue, ipHash, horsHeures, tel);
     console.log(`[lead:${site}] #${info.lastInsertRowid} ${nom} <${courriel}>`);
     // Alerte immédiate : un prospect qui écrit ne doit pas attendre.
     if (core && core.alerter) {

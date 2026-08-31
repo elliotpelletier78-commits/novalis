@@ -85,7 +85,7 @@ document.getElementById('b-send').addEventListener('click', async function(){
   var btn=document.getElementById('b-send');btn.disabled=true;btn.textContent='Envoi…';
   try{
     var r=await fetch('/api/'+encodeURIComponent(SRC)+'/contact',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:nom,email:mail,message:msg,topics:['rendez-vous'],lang:'fr'})});
+      body:JSON.stringify({name:nom,email:mail,phone:tel,message:msg,topics:['rendez-vous'],lang:'fr'})});
     if(r.ok){document.getElementById('form').style.display='none';document.getElementById('ok').style.display='block';}
     else{var j=await r.json().catch(function(){return{};});showErr(j.error||'Une erreur est survenue. Réessayez.');btn.disabled=false;btn.textContent='Envoyer ma demande';}
   }catch(e){showErr('Connexion impossible. Réessayez dans un instant.');btn.disabled=false;btn.textContent='Envoyer ma demande';}
