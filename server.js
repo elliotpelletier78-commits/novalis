@@ -2584,6 +2584,11 @@ app.get('/core/resultats', adminOnly, coreReady, (req, res) => {
       accuses: rep.accuses, accuses_hors_heures: rep.accuses_hors_heures,
     },
     prep, clients,
+    reputation: temoignages.resume(db, source),
+    paiements: (() => {
+      try { const p = db.prepare("SELECT COUNT(*) nb, COALESCE(SUM(montant_cents),0) total_cents FROM paiements WHERE source = ? AND statut = 'paye'").get(source); return { nb: p.nb, total_cents: p.total_cents }; }
+      catch { return { nb: 0, total_cents: 0 }; }
+    })(),
   }));
 });
 

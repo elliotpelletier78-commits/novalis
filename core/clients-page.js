@@ -235,6 +235,13 @@ function renderFiche(d) {
       <button class="btn btn-primary" id="pay-add">Demander un paiement</button>
     </div><div class="pmsg" id="pay-msg"></div>` : ''}
 
+    <div class="section-label">Avis de ce client <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--faint)">— enregistrez un avis réel qu'il vous a laissé</span></div>
+    <div class="payadd">
+      <select id="av-note" style="max-width:110px;flex:none"><option value="">Note</option>${[5, 4, 3, 2, 1].map(n => `<option value="${n}">${n} ★</option>`).join('')}</select>
+      <input id="av-texte" placeholder="Ce que ${esc(f.nom)} a dit…" autocomplete="off">
+      <button class="btn btn-primary" id="av-add">Enregistrer l'avis</button>
+    </div><div class="pmsg" id="av-msg"></div>
+
     ${d.portailUrl ? `<div class="portlink">Lien du portail client (à partager avec ${esc(f.nom)}) : <code>${esc(d.portailUrl)}</code> · <a href="${esc(d.portailUrl)}" target="_blank" rel="noopener">ouvrir</a></div>` : ''}
 
     <div class="section-label">Premier contact&nbsp;: ${jour(f.premier)} · Dernière activité&nbsp;: ${jour(f.dernier)}</div>
@@ -301,6 +308,20 @@ if(payAdd){ payAdd.addEventListener('click',function(){
     .then(function(x){ if(x.ok&&x.j.ok){location.reload();} else{pm.className='pmsg err';pm.textContent='Échec — '+((x.j&&x.j.raison)||'réessayez');} })
     .catch(function(){pm.className='pmsg err';pm.textContent='Échec — réseau';})
     .finally(function(){payAdd.disabled=false;});
+});}
+var avAdd=document.getElementById('av-add');
+if(avAdd){ avAdd.addEventListener('click',function(){
+  var am=document.getElementById('av-msg'), texte=document.getElementById('av-texte').value.trim();
+  am.className='pmsg'; am.textContent='';
+  if(!texte){am.className='pmsg err';am.textContent='Écrivez l\\'avis reçu.';return;}
+  avAdd.disabled=true; am.textContent='Enregistrement…';
+  fetch('/core/avis',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':pass()},
+    body:JSON.stringify({source:SRC,cle:CLE,auteur:${JSON.stringify(f.nom)},note:document.getElementById('av-note').value,provenance:'direct',texte:texte})})
+    .then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j};});})
+    .then(function(x){ if(x.ok&&x.j.ok){am.className='pmsg ok';am.textContent='Avis enregistré ✓ — gérez l\\'affichage dans « Avis ».';document.getElementById('av-texte').value='';}
+      else{am.className='pmsg err';am.textContent='Échec — '+((x.j&&x.j.raison)||'réessayez');} })
+    .catch(function(){am.className='pmsg err';am.textContent='Échec — réseau';})
+    .finally(function(){avAdd.disabled=false;});
 });}`;
 
   return page({

@@ -44,6 +44,15 @@ function renderResultats(d) {
     ['Perdus', c.perdu, ''],
   ].map(([t, v, cls]) => `<div class="rrow"><div class="t">${t}</div><div class="v ${v ? cls : 'z'}">${v}</div></div>`).join('');
 
+  const rep = d.reputation || {};
+  const pay = d.paiements || {};
+  const repPay = [
+    ['Note moyenne', rep.moyenne != null ? rep.moyenne + ' ★' : null, rep.notes ? `sur ${rep.notes} ${pl(rep.notes, 'avis noté', 'avis notés')}` : 'aucun avis noté encore', ''],
+    ['Avis affichés', rep.affiches || 0, 'sur votre widget de site', ''],
+    ['Encaissé', pay.nb ? dollars(pay.total_cents) : null, pay.nb ? `${pay.nb} ${pl(pay.nb, 'paiement reçu', 'paiements reçus')}` : 'aucun paiement encore', ''],
+  ].map(([t, v, s]) => `<div class="rrow"><div class="t">${t}<span class="s">${esc(s)}</span></div>
+    <div class="v ${v == null || v === 0 ? 'z' : ''}">${v == null ? '—' : v}</div></div>`).join('');
+
   const content = `
     <div class="section-label">Vos résultats · ${d.jours} derniers jours</div>
     <div class="led">
@@ -55,6 +64,8 @@ function renderResultats(d) {
     ${vitesse}
     <div class="deyebrow">Travail préparé par Novalis</div>
     ${prep}
+    <div class="deyebrow">Réputation &amp; encaissements</div>
+    ${repPay}
     <div class="deyebrow">Résultats clients</div>
     ${clients}
     <div class="dnote">Chiffres comptés sur les vraies données de votre commerce. Seule la « valeur estimée » est une estimation, identifiée comme telle — rien n'est inventé.</div>`;
