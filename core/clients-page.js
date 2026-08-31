@@ -229,7 +229,7 @@ function renderFiche(d) {
     ? `<span class="tag ok">payé ✓${py.moyen === 'manuel' ? ' (à la main)' : py.moyen === 'stripe' ? ' (Stripe)' : ''}</span>`
     : py.statut === 'annule'
       ? '<span class="tag muted">annulé</span>'
-      : `<span class="tag att">en attente</span>${py.url ? ` <button class="paycopy" data-url="${esc(py.url)}">Copier</button>` : ''} <button class="paymark" data-pid="${py.id}">Marquer payé</button> <button class="paycancel" data-pid="${py.id}">×</button>`}
+      : `<span class="tag att">en attente</span>${py.url ? ` <button class="paycopy" data-url="${esc(py.url)}">Copier</button>` : ''} <button class="paymark" data-pid="${py.id}">Marquer payé</button> <button class="paycancel" data-pid="${py.id}" title="Annuler la demande" aria-label="Annuler la demande de paiement">×</button>`}
       </div>`).join('') || '<div class="empty" style="color:var(--muted);font-size:13.5px;padding:4px 2px">Aucun paiement.</div>'}
     </div>
     <div class="payadd">

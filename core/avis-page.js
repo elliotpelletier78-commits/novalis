@@ -44,7 +44,7 @@ function renderAvis(d) {
       <div class="tx">${esc(a.texte)}</div></div>
     <div class="ac">
       <button data-toggle="${a.id}" data-on="${a.affiche ? 1 : 0}">${a.affiche ? 'Affiché' : 'Masqué'}</button>
-      <button data-del="${a.id}" title="Supprimer">×</button>
+      <button data-del="${a.id}" title="Supprimer" aria-label="Supprimer cet avis">×</button>
     </div>
   </div>`).join('') || '<div style="color:var(--muted);font-size:14px;padding:16px 0">Aucun avis enregistré. Ajoutez ceux que vous avez reçus ci-dessous.</div>';
 
