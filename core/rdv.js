@@ -61,14 +61,15 @@ function prochainDebut(dt, regle) {
   return `${pad(Y)}-${pad(Mo)}-${pad(D)} ${pad(h)}:${pad(mi)}:00`;
 }
 
-function ajouter(db, source, { client_nom, client_courriel, debut, service, note, recurrence } = {}) {
+function ajouter(db, source, { client_nom, client_courriel, client_telephone, debut, service, note, recurrence } = {}) {
   const dt = String(debut || '').trim().replace('T', ' ').slice(0, 16);
   if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(dt)) throw new Error('date/heure du rendez-vous requise (AAAA-MM-JJ HH:MM)');
   const recur = recurrence && RECURRENCES[recurrence] ? recurrence : null;
-  const info = db.prepare(`INSERT INTO rendezvous (source, client_nom, client_courriel, debut, service, note, recurrence)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`).run(source,
+  const info = db.prepare(`INSERT INTO rendezvous (source, client_nom, client_courriel, client_telephone, debut, service, note, recurrence)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(source,
     client_nom ? String(client_nom).slice(0, 120) : null,
     client_courriel ? String(client_courriel).slice(0, 180) : null,
+    client_telephone ? String(client_telephone).slice(0, 40) : null,
     dt + ':00',
     service ? String(service).slice(0, 120) : null,
     note ? String(note).slice(0, 400) : null,
@@ -87,9 +88,9 @@ function genererProchaine(db, id) {
   const regle = RECURRENCES[r.recurrence];
   const suivant = prochainDebut(r.debut, regle);
   if (!suivant) return null;
-  const info = db.prepare(`INSERT INTO rendezvous (source, client_nom, client_courriel, debut, service, note, recurrence, recur_parent)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
-    r.source, r.client_nom, r.client_courriel, suivant, r.service, r.note, r.recurrence, r.recur_parent || r.id);
+  const info = db.prepare(`INSERT INTO rendezvous (source, client_nom, client_courriel, client_telephone, debut, service, note, recurrence, recur_parent)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    r.source, r.client_nom, r.client_courriel, r.client_telephone, suivant, r.service, r.note, r.recurrence, r.recur_parent || r.id);
   db.prepare('UPDATE rendezvous SET recur_gen = 1 WHERE id = ?').run(id);
   return info.lastInsertRowid;
 }
@@ -181,8 +182,10 @@ function preparerRappels(db, source, opts = {}) {
     const d = String(r.debut);           // 'YYYY-MM-DD HH:MM:SS' (Montréal)
     if (!(d >= nowW && d <= finW)) continue; // comparaison lexicale, même fuseau
     const brouillon = brouillonRappel(r, cfg);
+    // Destinataire : le numéro si connu (→ rappel par SMS), sinon le courriel.
+    const dest = r.client_telephone || r.client_courriel || null;
     const info = insProp.run(source, r.id, `Rappel de RDV — ${r.client_nom || 'client'}`,
-      formatQuand(r.debut) + (r.service ? ` · ${r.service}` : ''), brouillon, r.client_courriel || null);
+      formatQuand(r.debut) + (r.service ? ` · ${r.service}` : ''), brouillon, dest);
     if (info.changes) { setRappel.run(info.lastInsertRowid, r.id); n++; }
   }
   return n;

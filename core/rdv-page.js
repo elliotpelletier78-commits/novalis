@@ -96,6 +96,7 @@ function renderRdv(data) {
         <label>Client<input id="r-nom" placeholder="Ex. Marie Tremblay" autocomplete="off"></label>
         <label>Courriel du client<input id="r-mail" placeholder="client@courriel.ca" autocomplete="off"></label>
       </div>
+      <label>Téléphone du client <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--faint)">— si présent, le rappel part par SMS</span><input id="r-tel" placeholder="514 555-0123" autocomplete="off"></label>
       <label>Date et heure<input id="r-debut" type="datetime-local"></label>
       <div class="two">
         <label>Service<input id="r-service" placeholder="Ex. Changement de pneus" autocomplete="off"></label>
@@ -126,7 +127,7 @@ document.getElementById('r-add').addEventListener('click', async function(){
   var debut=document.getElementById('r-debut').value;
   if(!debut){msg.style.color='#C0392B';msg.textContent='Date et heure requises';return;}
   var body={source:SOURCE,debut:debut,client_nom:document.getElementById('r-nom').value.trim(),
-    client_courriel:document.getElementById('r-mail').value.trim(),service:document.getElementById('r-service').value.trim(),
+    client_courriel:document.getElementById('r-mail').value.trim(),client_telephone:document.getElementById('r-tel').value.trim(),service:document.getElementById('r-service').value.trim(),
     recurrence:document.getElementById('r-recur').value,
     note:document.getElementById('r-note').value.trim()};
   var r=await poste('/core/rdv',body);

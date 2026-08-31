@@ -122,3 +122,14 @@ describe('rendez-vous récurrents', () => {
     expect(db.prepare('SELECT recurrence FROM rendezvous WHERE id=?').get(id).recurrence).toBeNull();
   });
 });
+
+describe('rappel par SMS quand le téléphone est connu', () => {
+  it('le destinataire du rappel est le numéro (→ canal SMS), sinon le courriel', () => {
+    ajouter(db, 'g', { client_nom: 'A', client_telephone: '514 555-0100', client_courriel: 'a@x.ca', debut: iso(6 * 3600000), service: 'X' });
+    ajouter(db, 'g', { client_nom: 'B', client_courriel: 'b@x.ca', debut: iso(6 * 3600000), service: 'Y' });
+    preparerRappels(db, 'g', { now: NOW, fenetreH: 48 });
+    const dests = db.prepare("SELECT destinataire FROM propositions WHERE source='g' AND type='rappel' ORDER BY id").all().map(r => r.destinataire);
+    expect(dests).toContain('514 555-0100'); // A → SMS
+    expect(dests).toContain('b@x.ca');       // B → courriel
+  });
+});
