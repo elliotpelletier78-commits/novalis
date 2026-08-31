@@ -105,3 +105,24 @@ describe('Nova — résumé', () => {
     expect(s).toMatch(/occasion/);
   });
 });
+
+describe('nova — paiements & réputation', () => {
+  it('repère les paiements en attente avec le montant', () => {
+    const r = analyser({ paiementsAttente: 2, paiementsAttenteCents: 80000, pretPct: 100, servicesCount: 1 });
+    const p = r.find(i => /paiement/i.test(i.titre));
+    expect(p).toBeTruthy();
+    expect(p.gravite).toBe('occasion');
+    expect(p.titre).toMatch(/800/); // 80000 cents = 800 $
+    expect(p.action.lien).toBe('clients');
+  });
+  it('suggère d’afficher les avis quand il y en a mais aucun affiché', () => {
+    const r = analyser({ avisTotal: 3, avisAffiches: 0, pretPct: 100, servicesCount: 1 });
+    const a = r.find(i => /affichez/i.test(i.titre));
+    expect(a).toBeTruthy();
+    expect(a.action.lien).toBe('avis');
+  });
+  it('ne suggère rien sur les avis quand ils sont déjà affichés', () => {
+    const r = analyser({ avisTotal: 3, avisAffiches: 3, pretPct: 100, servicesCount: 1 });
+    expect(r.find(i => /affichez/i.test(i.titre))).toBeFalsy();
+  });
+});

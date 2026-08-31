@@ -3007,9 +3007,12 @@ app.post('/core/entreprises', adminOnly, coreReady, express.json({ limit: '4kb' 
 // Contexte agrégé pour Nova (observations). Réutilisé par Aujourd'hui et le chat.
 function contexteNova(source, et, recu, pouls, cptsProp) {
   let gagnes = 0, avisT = 0, servicesCount = 0, rdvBientot = 0;
+  let paiAtt = 0, paiAttCents = 0, avisTotal = 0, avisAffiches = 0;
   try { gagnes = db.prepare('SELECT COUNT(*) n FROM leads WHERE source = ? AND statut = \'gagne\'').get(source).n; } catch { /* jeune */ }
   try { avisT = db.prepare('SELECT COUNT(*) n FROM propositions WHERE source = ? AND type = \'avis\'').get(source).n; } catch { /* jeune */ }
   try { servicesCount = devis.listerServices(db, source).length; } catch { /* jeune */ }
+  try { const p = db.prepare("SELECT COUNT(*) n, COALESCE(SUM(montant_cents),0) c FROM paiements WHERE source = ? AND statut = 'demande'").get(source); paiAtt = p.n; paiAttCents = p.c; } catch { /* jeune */ }
+  try { const t = temoignages.resume(db, source); avisTotal = t.total; avisAffiches = t.affiches; } catch { /* jeune */ }
   try {
     const nw = rdv.montrealWall(Date.now()), n2 = rdv.montrealWall(Date.now() + 2 * 86400000);
     rdvBientot = db.prepare('SELECT COUNT(*) n FROM rendezvous WHERE source = ? AND statut = \'prevu\' AND debut BETWEEN ? AND ?').get(source, nw, n2).n;
@@ -3026,6 +3029,8 @@ function contexteNova(source, et, recu, pouls, cptsProp) {
     gagnesSansAvis: Math.max(0, gagnes - avisT),
     servicesCount, rdvBientot,
     contacts: recu.compteurs.contacts,
+    paiementsAttente: paiAtt, paiementsAttenteCents: paiAttCents,
+    avisTotal, avisAffiches,
   };
 }
 app.get('/core/aujourdhui', adminOnly, coreReady, (req, res) => {

@@ -68,6 +68,27 @@ function analyser(ctx = {}) {
     });
   }
 
+  if ((n.paiementsAttente || 0) > 0) {
+    const montant = n.paiementsAttenteCents
+      ? ' (' + Math.round(n.paiementsAttenteCents / 100).toLocaleString('fr-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }) + ')'
+      : '';
+    ins.push({
+      gravite: 'occasion',
+      titre: `${n.paiementsAttente} ${pl(n.paiementsAttente, 'paiement en attente', 'paiements en attente')}${montant}`,
+      detail: 'Une demande de paiement envoyée mais pas encore réglée. Un rappel amical accélère l\'encaissement.',
+      action: { label: 'Voir les clients', lien: 'clients' },
+    });
+  }
+
+  if ((n.avisAffiches || 0) === 0 && (n.avisTotal || 0) > 0) {
+    ins.push({
+      gravite: 'occasion',
+      titre: `Affichez vos ${n.avisTotal} ${pl(n.avisTotal, 'avis', 'avis')} sur votre site`,
+      detail: 'Vous avez des avis enregistrés mais aucun n\'est affiché. Les avis visibles rassurent et attirent de nouveaux clients.',
+      action: { label: 'Ouvrir Avis', lien: 'avis' },
+    });
+  }
+
   if (n.fuite && n.fuite.fiable && n.fuite.fuite) {
     ins.push({
       gravite: 'info',
