@@ -92,8 +92,9 @@ const EXTRA = `
 .payrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
 .payrow .pd{font-weight:640;font-size:14px}
 .payrow .pm{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:1px}
-.paycopy{font-family:var(--sans);font-size:12px;font-weight:600;padding:6px 10px;border-radius:var(--r-sm);border:1px solid var(--line-strong);background:var(--card);color:var(--brand-600);cursor:pointer}
-.paycopy:hover{border-color:var(--brand)}
+.paycopy,.paymark,.paycancel{font-family:var(--sans);font-size:12px;font-weight:600;padding:6px 10px;border-radius:var(--r-sm);border:1px solid var(--line-strong);background:var(--card);color:var(--brand-600);cursor:pointer}
+.paycopy:hover,.paymark:hover{border-color:var(--brand)}
+.paycancel{color:var(--muted)} .paycancel:hover{border-color:var(--warn);color:var(--warn)}
 .payadd{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:4px 0 2px}
 .payadd input{font-family:var(--sans);font-size:14px;padding:9px 11px;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--card);color:var(--ink);flex:1;min-width:160px}
 .payadd input:focus{outline:none;border-color:var(--brand)}
@@ -220,20 +221,24 @@ function renderFiche(d) {
     </div>
     <div class="pmsg" id="p-msg"></div>
 
-    <div class="section-label">Paiements ${d.stripeOn ? '' : '<span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--faint)">— à activer (clés Stripe à configurer)</span>'}</div>
+    <div class="section-label">Paiements</div>
     <div class="paylist" id="paylist">
       ${(d.paiements || []).map((py) => `<div class="payrow" data-id="${py.id}">
         <div class="pl"><div class="pd">${esc(py.description)}</div><div class="pm">${dollars(py.montant_cents)} · ${jour(py.cree_le)}</div></div>
         ${py.statut === 'paye'
-    ? '<span class="tag ok">payé ✓</span>'
-    : `<span class="tag att">en attente</span>${py.url ? ` <button class="paycopy" data-url="${esc(py.url)}">Copier le lien</button>` : ''}`}
-      </div>`).join('') || '<div class="empty" style="color:var(--muted);font-size:13.5px;padding:4px 2px">Aucune demande de paiement.</div>'}
+    ? `<span class="tag ok">payé ✓${py.moyen === 'manuel' ? ' (à la main)' : py.moyen === 'stripe' ? ' (Stripe)' : ''}</span>`
+    : py.statut === 'annule'
+      ? '<span class="tag muted">annulé</span>'
+      : `<span class="tag att">en attente</span>${py.url ? ` <button class="paycopy" data-url="${esc(py.url)}">Copier</button>` : ''} <button class="paymark" data-pid="${py.id}">Marquer payé</button> <button class="paycancel" data-pid="${py.id}">×</button>`}
+      </div>`).join('') || '<div class="empty" style="color:var(--muted);font-size:13.5px;padding:4px 2px">Aucun paiement.</div>'}
     </div>
-    ${d.stripeOn ? `<div class="payadd">
+    <div class="payadd">
       <input id="pay-desc" placeholder="Description (ex. Freins avant)" autocomplete="off">
       <input id="pay-montant" type="text" inputmode="decimal" placeholder="Montant $" autocomplete="off" style="max-width:120px">
-      <button class="btn btn-primary" id="pay-add">Demander un paiement</button>
-    </div><div class="pmsg" id="pay-msg"></div>` : ''}
+      ${d.stripeOn ? '<button class="btn btn-primary" id="pay-add">Demander un paiement</button>' : ''}
+      <button class="btn btn-ghost" id="pay-cash">Reçu comptant</button>
+    </div><div class="pmsg" id="pay-msg"></div>
+    ${d.stripeOn ? '' : '<div style="font-size:12px;color:var(--faint);margin-top:2px">« Demander un paiement » (lien Stripe) s\'active une fois Stripe branché. « Reçu comptant » fonctionne dès maintenant.</div>'}
 
     <div class="section-label">Avis de ce client <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--faint)">— enregistrez un avis réel qu'il vous a laissé</span></div>
     <div class="payadd">
@@ -309,6 +314,29 @@ if(payAdd){ payAdd.addEventListener('click',function(){
     .catch(function(){pm.className='pmsg err';pm.textContent='Échec — réseau';})
     .finally(function(){payAdd.disabled=false;});
 });}
+var payCash=document.getElementById('pay-cash');
+if(payCash){ payCash.addEventListener('click',function(){
+  var pm=document.getElementById('pay-msg'), desc=document.getElementById('pay-desc').value.trim();
+  var montant=Math.round(parseFloat(String(document.getElementById('pay-montant').value).replace(',','.'))*100);
+  pm.className='pmsg'; pm.textContent='';
+  if(!desc||!(montant>=1)){pm.className='pmsg err';pm.textContent='Description et montant requis.';return;}
+  if(!confirm('Enregistrer '+(montant/100).toFixed(2)+' $ reçu comptant/Interac pour « '+desc+' » ?'))return;
+  payCash.disabled=true;
+  fetch('/core/paiements/manuel',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':pass()},
+    body:JSON.stringify({source:SRC,cle:CLE,description:desc,montant_cents:montant})})
+    .then(function(r){return r.json();}).then(function(j){ if(j.ok){location.reload();}else{pm.className='pmsg err';pm.textContent='Échec — '+(j.raison||'réessayez');payCash.disabled=false;} })
+    .catch(function(){pm.className='pmsg err';pm.textContent='Échec — réseau';payCash.disabled=false;});
+});}
+document.querySelectorAll('.paymark').forEach(function(btn){btn.addEventListener('click',function(){
+  if(!confirm('Marquer ce paiement comme reçu (comptant / Interac) ?'))return;
+  fetch('/core/paiements/'+btn.getAttribute('data-pid')+'/paye',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':pass()},body:JSON.stringify({source:SRC})})
+    .then(function(r){return r.json();}).then(function(j){if(j.ok)location.reload();});
+});});
+document.querySelectorAll('.paycancel').forEach(function(btn){btn.addEventListener('click',function(){
+  if(!confirm('Annuler cette demande de paiement ?'))return;
+  fetch('/core/paiements/'+btn.getAttribute('data-pid')+'/annule',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':pass()},body:JSON.stringify({source:SRC})})
+    .then(function(r){return r.json();}).then(function(j){if(j.ok)location.reload();});
+});});
 var avAdd=document.getElementById('av-add');
 if(avAdd){ avAdd.addEventListener('click',function(){
   var am=document.getElementById('av-msg'), texte=document.getElementById('av-texte').value.trim();

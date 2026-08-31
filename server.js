@@ -2613,7 +2613,7 @@ app.get('/core/clients', adminOnly, coreReady, (req, res) => {
     const portailUrl = `${base}/moncompte/${encodeURIComponent(source)}/${encodeURIComponent(cle)}/${branchement.jetonClient(source, cle, process.env.MASTER_KEY)}`;
     const photos = pieces.lister(db, source, cle);
     let paies = [];
-    try { paies = db.prepare('SELECT id, description, montant_cents, statut, url, cree_le, paye_le FROM paiements WHERE source = ? AND cle = ? ORDER BY id DESC').all(source, cle); } catch { paies = []; }
+    try { paies = db.prepare('SELECT id, description, montant_cents, statut, moyen, url, cree_le, paye_le FROM paiements WHERE source = ? AND cle = ? ORDER BY id DESC').all(source, cle); } catch { paies = []; }
     return res.send(renderClients({ source, nom: et.identite.nom, sources, pass, alertes, fiche: f, portailUrl, photos, paiements: paies, stripeOn: stripe.configured }));
   }
   if (String(req.query.vue || '') === 'pipeline') {
@@ -2693,6 +2693,34 @@ app.post('/core/paiements', adminOnly, coreReady, express.json({ limit: '8kb' })
     res.json({ ok: true, id: info.lastInsertRowid, url: r.url });
   } catch (e) { res.status(500).json({ ok: false, raison: e.message }); }
 });
+// Enregistrer un paiement REÇU à la main (comptant / Interac) — sans Stripe.
+// Le commerçant atteste l'avoir reçu ; marqué « manuel » (jamais « stripe »).
+app.post('/core/paiements/manuel', adminOnly, coreReady, express.json({ limit: '8kb' }), (req, res) => {
+  const b = req.body || {};
+  const source = String(b.source || '').slice(0, 40);
+  const cle = b.cle ? String(b.cle).slice(0, 200) : null;
+  const description = String(b.description || '').trim().slice(0, 250);
+  const montant = Math.round(Number(b.montant_cents) || 0);
+  if (!/^[a-z0-9-]{2,40}$/.test(source) || !description || !(montant >= 1)) return res.status(400).json({ ok: false, raison: 'description et montant requis' });
+  try {
+    const info = db.prepare("INSERT INTO paiements (source, cle, description, montant_cents, statut, moyen, paye_le) VALUES (?, ?, ?, ?, 'paye', 'manuel', datetime('now'))")
+      .run(source, cle, description, montant);
+    res.json({ ok: true, id: info.lastInsertRowid });
+  } catch (e) { res.status(500).json({ ok: false, raison: e.message }); }
+});
+// Marquer une demande existante « payée » à la main, ou l'annuler.
+app.post('/core/paiements/:id/:action', adminOnly, coreReady, express.json({ limit: '2kb' }), (req, res) => {
+  const source = String((req.body && req.body.source) || '').slice(0, 40);
+  const id = parseInt(req.params.id, 10);
+  const action = req.params.action;
+  if (!/^[a-z0-9-]{2,40}$/.test(source) || !Number.isInteger(id) || !['paye', 'annule'].includes(action)) return res.status(400).json({ ok: false });
+  try {
+    const chg = action === 'paye'
+      ? db.prepare("UPDATE paiements SET statut='paye', moyen='manuel', paye_le=datetime('now') WHERE id=? AND source=? AND statut='demande'").run(id, source).changes
+      : db.prepare("UPDATE paiements SET statut='annule' WHERE id=? AND source=? AND statut='demande'").run(id, source).changes;
+    res.json({ ok: chg === 1 });
+  } catch (e) { res.status(500).json({ ok: false, raison: e.message }); }
+});
 // Pages de retour simples (le client revient de Stripe).
 app.get('/paiement/merci', (req, res) => res.type('html').send('<!DOCTYPE html><meta charset="utf-8"><title>Merci</title><body style="font-family:system-ui;text-align:center;padding:16vh 8vw"><h1 style="font-size:1.6rem">Paiement reçu — merci&nbsp;!</h1><p style="color:#555">Vous pouvez fermer cette page.</p>'));
 app.get('/paiement/annule', (req, res) => res.type('html').send('<!DOCTYPE html><meta charset="utf-8"><title>Annulé</title><body style="font-family:system-ui;text-align:center;padding:16vh 8vw"><h1 style="font-size:1.6rem">Paiement annulé</h1><p style="color:#555">Aucun montant n’a été prélevé.</p>'));
@@ -2707,7 +2735,7 @@ app.post('/paiements/:source/webhook', (req, res) => {
     if (evt && evt.type === 'checkout.session.completed') {
       const sid = evt.data && evt.data.object && evt.data.object.id;
       if (sid) {
-        db.prepare("UPDATE paiements SET statut = 'paye', paye_le = datetime('now') WHERE session_id = ? AND source = ? AND statut = 'demande'").run(sid, source);
+        db.prepare("UPDATE paiements SET statut = 'paye', moyen = 'stripe', paye_le = datetime('now') WHERE session_id = ? AND source = ? AND statut = 'demande'").run(sid, source);
         if (core && core.alerter) core.alerter.alert(`Paiement reçu — ${source}`, `Session ${sid}`);
       }
     }
