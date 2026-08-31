@@ -53,9 +53,19 @@ function renderAujourdhui(d) {
       </div>`).join('')
     : '<div class="dempty">Tous les contacts ont eu une réponse.</div>';
 
+  const paies = (d.paiements_attente || []);
+  const dollars = (c) => (Math.round((c || 0) / 100)).toLocaleString('fr-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 });
+  const paieBloc = paies.length
+    ? paies.map((p) => `<a class="drow" href="${href('/core/clients')}${p.cle ? '&client=' + encodeURIComponent(p.cle) : ''}">
+        <div><div class="t">${esc(p.description)}</div>${p.client ? `<div class="s">${esc(p.client)}</div>` : ''}</div>
+        <div class="meta"><div class="st">${esc(dollars(p.montant_cents))}</div><div class="wh">en attente</div></div>
+      </a>`).join('')
+    : '';
+
   const content = `${led}${advis}
     <div class="deyebrow">À approuver aujourd'hui<a href="${href('/core/propositions')}">Tout ouvrir →</a></div>
     ${props}
+    ${paieBloc ? `<div class="deyebrow">Paiements en attente<a href="${href('/core/clients')}">Clients →</a></div>${paieBloc}` : ''}
     <div class="deyebrow">En attente de réponse<a href="${href('/core/reception')}">Réception →</a></div>
     ${attente}
     <div class="dnote">Novalis a préparé ce qui précède. Rien n'est envoyé sans votre approbation.</div>`;

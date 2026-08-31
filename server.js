@@ -3071,6 +3071,13 @@ app.get('/core/aujourdhui', adminOnly, coreReady, (req, res) => {
     pret_pct: et.pret_pct,
     semaine: recu.tendance.slice(-7),
     nova: { resume: nova.resume(insights), insights: insights.slice(0, 5) },
+    paiements_attente: (() => {
+      try {
+        return db.prepare("SELECT description, montant_cents, cle FROM paiements WHERE source = ? AND statut = 'demande' ORDER BY id DESC LIMIT 5").all(source)
+          .map((p) => ({ description: p.description, montant_cents: p.montant_cents, cle: p.cle,
+            client: p.cle && p.cle.startsWith('m:') ? p.cle.slice(2) : (p.cle && p.cle.startsWith('n:') ? p.cle.slice(2) : '') }));
+      } catch { return []; }
+    })(),
   }));
 });
 
