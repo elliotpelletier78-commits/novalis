@@ -115,7 +115,10 @@ document.querySelectorAll('[data-del]').forEach(function(btn){btn.addEventListen
 function renderTemoignagesPublic(d) {
   const nom = d.commerce || d.source;
   const avis = d.avis || [];
-  const r = d.resume || {};
+  // Moyenne de CE QUI EST AFFICHÉ (les avis rendus ici), avec leur nombre —
+  // jamais une note globale sous-entendue. Honnête pour ce qui est montré.
+  const notes = avis.filter((a) => a.note != null).map((a) => a.note);
+  const moyAff = notes.length ? Math.round((notes.reduce((s, n) => s + n, 0) / notes.length) * 10) / 10 : null;
   const cartes = avis.map((a) => `<figure class="c">
     ${a.note ? `<div class="st">${esc(etoiles(a.note))}</div>` : ''}
     <blockquote>${esc(a.texte)}</blockquote>
@@ -143,7 +146,7 @@ function renderTemoignagesPublic(d) {
   @media(prefers-color-scheme:dark){body{color:#eee}.c{background:#26251f;border-color:#3a382f}.c blockquote{color:#ddd}.c figcaption{color:#eee}.hd .avg{color:#bbb}}
 </style></head>
 <body>
-  <div class="hd"><h2>Avis clients — ${esc(nom)}</h2>${r.moyenne != null ? `<div class="avg"><b>${r.moyenne} ★</b> · ${r.notes} avis</div>` : ''}</div>
+  <div class="hd"><h2>Avis clients — ${esc(nom)}</h2>${moyAff != null ? `<div class="avg"><b>${moyAff} ★</b> · ${avis.length} avis</div>` : ''}</div>
   ${cartes ? `<div class="grid">${cartes}</div>` : '<div class="empty">Les avis apparaîtront ici.</div>'}
   <div class="ft">Avis réels recueillis auprès des clients.</div>
 </body></html>`;

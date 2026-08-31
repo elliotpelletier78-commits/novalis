@@ -32,12 +32,17 @@ function lister(db, source, { publicOnly = false } = {}) {
   } catch { return []; }
 }
 
-/** Résumé honnête : nb total, nb affichés, moyenne des notes présentes. */
+/**
+ * Résumé honnête : nb total, nb affichés, et la VRAIE moyenne — calculée sur
+ * TOUS les avis notés réels, pas seulement ceux affichés. Ainsi masquer les
+ * mauvais avis ne peut pas gonfler la note moyenne interne (anti-« cherry
+ * picking »). Le widget public, lui, montre la moyenne de ce qu'il affiche.
+ */
 function resume(db, source) {
   try {
     const tot = db.prepare('SELECT COUNT(*) n FROM temoignages WHERE source = ?').get(source).n;
     const pub = db.prepare('SELECT COUNT(*) n FROM temoignages WHERE source = ? AND affiche = 1').get(source).n;
-    const m = db.prepare('SELECT AVG(note) a, COUNT(note) c FROM temoignages WHERE source = ? AND note IS NOT NULL AND affiche = 1').get(source);
+    const m = db.prepare('SELECT AVG(note) a, COUNT(note) c FROM temoignages WHERE source = ? AND note IS NOT NULL').get(source);
     return { total: tot, affiches: pub, moyenne: m.c ? Math.round(m.a * 10) / 10 : null, notes: m.c };
   } catch { return { total: 0, affiches: 0, moyenne: null, notes: 0 }; }
 }

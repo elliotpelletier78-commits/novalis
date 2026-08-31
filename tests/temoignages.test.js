@@ -37,7 +37,7 @@ describe('témoignages — ajout & validation', () => {
 });
 
 describe('témoignages — affichage & résumé', () => {
-  it('la moyenne ne porte que sur les avis AFFICHÉS et notés', () => {
+  it('la moyenne interne porte sur TOUS les avis notés (pas seulement affichés)', () => {
     ajouter(db, SRC, { auteur: 'A', texte: 'x', note: 5, provenance: 'google' });
     ajouter(db, SRC, { auteur: 'B', texte: 'y', note: 3, provenance: 'google' });
     ajouter(db, SRC, { auteur: 'C', texte: 'z', provenance: 'courriel' }); // sans note
@@ -46,12 +46,13 @@ describe('témoignages — affichage & résumé', () => {
     expect(r.notes).toBe(2);
     expect(r.moyenne).toBe(4); // (5+3)/2
   });
-  it('masquer un avis le retire du widget public et de la moyenne', () => {
-    const { id } = ajouter(db, SRC, { auteur: 'A', texte: 'x', note: 5 });
-    ajouter(db, SRC, { auteur: 'B', texte: 'y', note: 1 });
-    definirAffichage(db, SRC, id, false);
-    expect(lister(db, SRC, { publicOnly: true }).length).toBe(1);
-    expect(resume(db, SRC).moyenne).toBe(1); // seul B reste affiché
+  it('masquer un mauvais avis ne gonfle PAS la moyenne interne (anti cherry-picking)', () => {
+    const { id } = ajouter(db, SRC, { auteur: 'A', texte: 'x', note: 1 }); // mauvais
+    ajouter(db, SRC, { auteur: 'B', texte: 'y', note: 5 });
+    definirAffichage(db, SRC, id, false); // on masque le 1★
+    expect(lister(db, SRC, { publicOnly: true }).length).toBe(1); // widget ne montre que B
+    expect(resume(db, SRC).affiches).toBe(1);
+    expect(resume(db, SRC).moyenne).toBe(3); // (1+5)/2 — reste la VRAIE moyenne
   });
   it('supprime seulement pour la bonne entreprise', () => {
     const { id } = ajouter(db, SRC, { auteur: 'A', texte: 'x' });
