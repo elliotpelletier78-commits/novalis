@@ -119,14 +119,16 @@ function definirEntreprise(db, source, champs = {}) {
     telephone: champs.telephone != null ? String(champs.telephone).slice(0, 40) : null,
     courriel: champs.courriel != null ? String(champs.courriel).slice(0, 180) : null,
     siteUrl: champs.siteUrl != null ? String(champs.siteUrl).slice(0, 300) : null,
+    lienAvis: champs.lienAvis != null ? String(champs.lienAvis).slice(0, 300) : null,
   };
-  db.prepare(`INSERT INTO entreprises (source, client_id, nom, secteur, ville, telephone, courriel, site_url)
-    VALUES (@source, @clientId, @nom, @secteur, @ville, @telephone, @courriel, @siteUrl)
+  db.prepare(`INSERT INTO entreprises (source, client_id, nom, secteur, ville, telephone, courriel, site_url, lien_avis)
+    VALUES (@source, @clientId, @nom, @secteur, @ville, @telephone, @courriel, @siteUrl, @lienAvis)
     ON CONFLICT(source) DO UPDATE SET
       client_id = COALESCE(entreprises.client_id, @clientId),
       nom = COALESCE(@nom, nom), secteur = COALESCE(@secteur, secteur),
       ville = COALESCE(@ville, ville), telephone = COALESCE(@telephone, telephone),
       courriel = COALESCE(@courriel, courriel), site_url = COALESCE(@siteUrl, site_url),
+      lien_avis = COALESCE(@lienAvis, lien_avis),
       maj_le = datetime('now')`).run(c);
   return clientId;
 }
@@ -216,6 +218,7 @@ function etat(db, source) {
     identite: {
       nom: ent?.nom || null, secteur: ent?.secteur || null, ville: ent?.ville || null,
       telephone: ent?.telephone || null, courriel: ent?.courriel || null, site_url: ent?.site_url || null,
+      lien_avis: ent?.lien_avis || null,
       complete: identiteComplete, remplis: identiteRemplis, total: identiteChamps.length,
     },
     connexions,

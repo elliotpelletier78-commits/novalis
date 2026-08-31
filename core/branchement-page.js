@@ -122,6 +122,7 @@ function renderBranchement(e) {
       <label>Téléphone<input id="f-tel" value="${esc(e.identite.telephone || '')}" placeholder="514 555-0123"></label>
       <label>Courriel du commerce<input id="f-courriel" value="${esc(e.identite.courriel || '')}" placeholder="info@commerce.ca"></label>
       <label>Site web<input id="f-site" value="${esc(e.identite.site_url || '')}" placeholder="https://…"></label>
+      <label>Lien d’avis Google<input id="f-avis" value="${esc(e.identite.lien_avis || '')}" placeholder="https://g.page/r/… (pour la demande d’avis)"></label>
     </div>
     <button class="bbtn" id="save-ent">Enregistrer</button><span class="msg" id="msg-ent"></span>
   </div>
@@ -173,7 +174,7 @@ async function poste(url, body, msgId){
 document.getElementById('save-ent').addEventListener('click',function(){
   poste('/core/branchement',{source:SOURCE,nom:document.getElementById('f-nom').value.trim(),secteur:document.getElementById('f-secteur').value,
     ville:document.getElementById('f-ville').value.trim(),telephone:document.getElementById('f-tel').value.trim(),
-    courriel:document.getElementById('f-courriel').value.trim(),site_url:document.getElementById('f-site').value.trim()},'msg-ent');
+    courriel:document.getElementById('f-courriel').value.trim(),site_url:document.getElementById('f-site').value.trim(),lien_avis:document.getElementById('f-avis').value.trim()},'msg-ent');
 });
 document.getElementById('save-consent').addEventListener('click',function(){
   var c={};document.querySelectorAll('[data-consent]').forEach(function(el){c[el.getAttribute('data-consent')]=el.checked;});

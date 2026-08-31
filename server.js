@@ -2849,7 +2849,7 @@ app.post('/core/branchement', adminOnly, coreReady, express.json({ limit: '8kb' 
   try {
     branchement.definirEntreprise(db, source, {
       nom: b.nom, secteur: b.secteur, ville: b.ville,
-      telephone: b.telephone, courriel: b.courriel, siteUrl: b.site_url,
+      telephone: b.telephone, courriel: b.courriel, siteUrl: b.site_url, lienAvis: b.lien_avis,
     });
     res.json({ ok: true });
   } catch (e) { res.status(400).json({ error: e.message }); }
@@ -3413,7 +3413,8 @@ app.post('/core/reception/lead/:id', adminOnly, coreReady, express.json({ limit:
         const et = branchement.etat(db, lead.source);
         if (et.consent.rediger) {
           const g = et.connexions.find(x => x.type === 'google' && x.statut === 'branche');
-          const lienAvis = g && /^https?:\/\//.test(String(g.compte_label || '')) ? g.compte_label : null;
+          const lienAvis = (et.identite.lien_avis && /^https?:\/\//.test(et.identite.lien_avis) ? et.identite.lien_avis : null)
+            || (g && /^https?:\/\//.test(String(g.compte_label || '')) ? g.compte_label : null);
           propositions.creerAvisPourLead(db, lead, { nomCommerce: et.identite.nom, lienAvis });
         }
       } catch (e) { console.error('[proposition:avis] non créée:', e.message); }
