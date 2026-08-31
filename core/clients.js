@@ -216,15 +216,17 @@ function pipeline(db, source) {
  */
 function portailClient(db, source, cle) {
   if (!cle) return null;
-  let rdvs = [], devisTous = [], leads = [];
+  let rdvs = [], devisTous = [], leads = [], paiesTous = [];
   try { rdvs = db.prepare("SELECT id, client_nom, client_courriel, debut, service, statut, client_reponse FROM rendezvous WHERE source = ? AND statut != 'annule' ORDER BY debut DESC").all(source); } catch { /* jeune */ }
   try { devisTous = db.prepare("SELECT id, titre, apercu, statut, cree_le, destinataire FROM propositions WHERE source = ? AND type = 'devis' AND destinataire IS NOT NULL ORDER BY cree_le DESC").all(source); } catch { /* jeune */ }
   try { leads = db.prepare('SELECT nom, courriel, created_at FROM leads WHERE source = ? ORDER BY created_at DESC').all(source); } catch { /* jeune */ }
+  try { paiesTous = db.prepare('SELECT id, description, montant_cents, statut, url, cle FROM paiements WHERE source = ? ORDER BY id DESC').all(source); } catch { /* migration jeune */ }
 
   const mesRdv = rdvs.filter(r => cleDe(r.client_courriel, r.client_nom) === cle);
   const devis = devisTous.filter(p => cleDe(p.destinataire, null) === cle);
   const mesLeads = leads.filter(l => cleDe(l.courriel, l.nom) === cle);
-  if (!mesRdv.length && !devis.length && !mesLeads.length) return null;
+  const mesPaies = paiesTous.filter(p => p.cle === cle);
+  if (!mesRdv.length && !devis.length && !mesLeads.length && !mesPaies.length) return null;
 
   const nom = (mesRdv.find(r => r.client_nom) || {}).client_nom
     || (mesLeads.find(l => l.nom) || {}).nom || 'Client';
@@ -238,6 +240,10 @@ function portailClient(db, source, cle) {
     passes: mesRdv.filter(r => String(r.debut).slice(0, 10) < nowW || r.statut === 'fait')
       .map(r => ({ debut: r.debut, service: r.service, statut: r.statut })),
     devis: devis.map(p => ({ id: p.id, titre: p.titre, apercu: p.apercu, statut: p.statut })),
+    aRegler: mesPaies.filter(p => p.statut === 'demande')
+      .map(p => ({ id: p.id, description: p.description, montant_cents: p.montant_cents, url: p.url })),
+    regles: mesPaies.filter(p => p.statut === 'paye')
+      .map(p => ({ description: p.description, montant_cents: p.montant_cents })),
     messages: mesLeads.length,
   };
 }

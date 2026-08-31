@@ -37,9 +37,17 @@ function jourLisible(debut) {
     + ' à ' + new Date(t).toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit', hour12: false }).replace(':', 'h');
 }
 
+function dollars(cents) {
+  return (Math.round((cents || 0) / 100)).toLocaleString('fr-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 });
+}
+
 function renderPortail(d) {
   const nom = d.commerce || d.source;
   const c = d.client;
+
+  const aRegler = (c.aRegler || []).length ? c.aRegler.map((p) => `<div class="item"><div><div class="t">${esc(p.description)}</div>
+      <div class="s">${esc(dollars(p.montant_cents))}</div></div>
+      ${p.url ? `<a class="go" href="${esc(p.url)}">Payer ${esc(dollars(p.montant_cents))}</a>` : ''}</div>`).join('') : '';
 
   const rdv = c.aVenir.length ? c.aVenir.map((r) => {
     const conf = r.client_reponse === 'confirme';
@@ -67,6 +75,8 @@ function renderPortail(d) {
   <div class="pbar"><span class="mk"><svg viewBox="0 0 24 24"><path d="M6 18V6l12 12V6"/></svg></span><span class="wm">${esc(nom)}</span></div>
   <h1>Bonjour ${esc(c.nom)}</h1>
   <div class="sub">Votre espace chez ${esc(nom)} — vos rendez-vous, vos soumissions et votre historique.</div>
+
+  ${aRegler ? `<div class="sec">À régler</div>${aRegler}` : ''}
 
   <div class="sec">Rendez-vous à venir</div>
   ${rdv}

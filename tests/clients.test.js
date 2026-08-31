@@ -203,3 +203,20 @@ describe('clients — portail client (vue côté client, sûre)', () => {
     expect(portailClient(db, SRC, 'm:fantome@x.ca')).toBeNull();
   });
 });
+
+describe('clients — portail : paiements à régler', () => {
+  it('expose les paiements en attente (avec lien) et les réglés, pas ceux d’autrui', () => {
+    lead({ nom: 'Mme Côté', courriel: 'cote@x.ca', created_at: '2026-01-01 09:00' });
+    db.prepare("INSERT INTO paiements (source,cle,description,montant_cents,url,statut) VALUES (?,?,?,?,?,?)")
+      .run(SRC, 'm:cote@x.ca', 'Freins', 32000, 'https://pay/x', 'demande');
+    db.prepare("INSERT INTO paiements (source,cle,description,montant_cents,statut) VALUES (?,?,?,?,?)")
+      .run(SRC, 'm:cote@x.ca', 'Vidange', 9500, 'paye');
+    db.prepare("INSERT INTO paiements (source,cle,description,montant_cents,url,statut) VALUES (?,?,?,?,?,?)")
+      .run(SRC, 'm:autre@x.ca', 'Autre', 5000, 'https://pay/y', 'demande');
+    const p = portailClient(db, SRC, 'm:cote@x.ca');
+    expect(p.aRegler.length).toBe(1);
+    expect(p.aRegler[0].url).toBe('https://pay/x');
+    expect(p.regles.length).toBe(1);
+    expect(JSON.stringify(p)).not.toContain('pay/y'); // pas les paiements d'autrui
+  });
+});
