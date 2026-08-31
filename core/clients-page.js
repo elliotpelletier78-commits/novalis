@@ -181,7 +181,8 @@ function renderFiche(d) {
     <div class="fiche-h">
       <div class="fiche-id">
         <div class="nm">${esc(f.nom)}</div>
-        ${f.courriel ? `<div class="courriel"><a href="mailto:${esc(f.courriel)}">${esc(f.courriel)}</a></div>` : '<div class="courriel">Aucun courriel enregistré</div>'}
+        ${f.courriel ? `<div class="courriel"><a href="mailto:${esc(f.courriel)}">${esc(f.courriel)}</a></div>` : (f.telephone ? '' : '<div class="courriel">Aucun courriel enregistré</div>')}
+        ${f.telephone ? `<div class="courriel"><a href="tel:${esc(f.telephone)}">${esc(f.telephone)}</a></div>` : ''}
       </div>
       <span class="tag ${ton}" style="font-size:12.5px;padding:5px 12px">${lab}</span>
     </div>

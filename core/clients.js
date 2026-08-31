@@ -29,14 +29,14 @@ function rangs(db, source) {
   let leads = [], rdvs = [], props = [];
   try {
     leads = db.prepare(
-      `SELECT id, nom, courriel, entreprise, message, statut, valeur_cents, hors_heures,
+      `SELECT id, nom, courriel, telephone, entreprise, message, statut, valeur_cents, hors_heures,
               created_at, repondu_le, accuse_le, gagne_le, notes
        FROM leads WHERE source = ? ORDER BY created_at`,
     ).all(source);
   } catch { /* base jeune */ }
   try {
     rdvs = db.prepare(
-      `SELECT id, client_nom, client_courriel, debut, service, statut, client_reponse, cree_le
+      `SELECT id, client_nom, client_courriel, client_telephone, debut, service, statut, client_reponse, cree_le
        FROM rendezvous WHERE source = ? ORDER BY debut`,
     ).all(source);
   } catch { /* base jeune */ }
@@ -57,7 +57,7 @@ function dossiers(db, source) {
     let d = map.get(cle);
     if (!d) {
       d = {
-        cle, nom: nom || '', courriel: courriel || '',
+        cle, nom: nom || '', courriel: courriel || '', telephone: '',
         messages: 0, rdv: 0, devis: 0, avis: 0, reponses: 0,
         statut: 'nouveau', valeur_cents: 0, gagne: false,
         premier: null, dernier: null, evenements: [],
@@ -77,6 +77,7 @@ function dossiers(db, source) {
   for (const l of leads) {
     const cle = cleDe(l.courriel, l.nom); if (!cle) continue;
     const d = dossier(cle, l.nom, l.courriel);
+    if (!d.telephone && l.telephone) d.telephone = l.telephone;
     d.messages += 1;
     d.statut = meilleurStatut(d.statut, l.statut || 'nouveau');
     if (l.statut === 'gagne') { d.gagne = true; if (l.valeur_cents) d.valeur_cents += l.valeur_cents; }
@@ -90,6 +91,7 @@ function dossiers(db, source) {
   for (const r of rdvs) {
     const cle = cleDe(r.client_courriel, r.client_nom); if (!cle) continue;
     const d = dossier(cle, r.client_nom, r.client_courriel);
+    if (!d.telephone && r.client_telephone) d.telephone = r.client_telephone;
     d.rdv += 1;
     touche(d, r.cree_le); touche(d, r.debut);
     const conf = r.client_reponse === 'confirme' ? 'confirmé' : r.client_reponse === 'reporter' ? 'à reporter' : null;
@@ -183,7 +185,7 @@ function fiche(db, source, cle) {
   const d = dossiers(db, source).get(cle);
   if (!d) return null;
   return {
-    cle: d.cle, nom: d.nom || '(sans nom)', courriel: d.courriel,
+    cle: d.cle, nom: d.nom || '(sans nom)', courriel: d.courriel, telephone: d.telephone || '',
     statut: d.statut, statut_manuel: d.statut_manuel || '', gagne: d.gagne, valeur_cents: d.valeur_cents,
     notes: d.notes || '', assigne: d.assigne || '',
     premier: d.premier, dernier: d.dernier,
