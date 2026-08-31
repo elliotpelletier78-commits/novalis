@@ -3265,14 +3265,16 @@ app.get('/core/devis', adminOnly, coreReady, (req, res) => {
   let recents = [];
   try {
     const base = `${req.protocol}://${req.get('host')}`;
-    recents = db.prepare('SELECT id, titre, apercu, statut, detail FROM propositions WHERE source = ? AND type = \'devis\' ORDER BY id DESC LIMIT 8').all(source)
+    recents = db.prepare('SELECT id, titre, apercu, statut, detail, montant_cents, destinataire FROM propositions WHERE source = ? AND type = \'devis\' ORDER BY id DESC LIMIT 8').all(source)
       .map((r) => {
         let sc = null; try { sc = r.detail ? (JSON.parse(r.detail).client || null) : null; } catch { sc = null; }
         return { titre: r.titre, apercu: r.apercu, statut: r.statut, statutClient: sc,
+          montant_cents: r.montant_cents || null,
+          cle: r.destinataire && /@/.test(r.destinataire) ? 'm:' + String(r.destinataire).trim().toLowerCase() : null,
           lienClient: `${base}/devis/${encodeURIComponent(source)}/${r.id}/${branchement.jetonProp(source, r.id, process.env.MASTER_KEY)}` };
       });
   } catch { /* base jeune */ }
-  res.send(renderDevis({ source, nom: et.identite.nom, services: devis.listerServices(db, source), recents, sources: sourcesConnues(), pass: req.query.pass ? String(req.query.pass) : undefined, alertes: propositions.compteurs(db, source).en_attente }));
+  res.send(renderDevis({ source, nom: et.identite.nom, services: devis.listerServices(db, source), recents, stripeOn: stripe.configured, sources: sourcesConnues(), pass: req.query.pass ? String(req.query.pass) : undefined, alertes: propositions.compteurs(db, source).en_attente }));
 });
 app.post('/core/devis/service', adminOnly, coreReady, express.json({ limit: '4kb' }), (req, res) => {
   const b = req.body || {};

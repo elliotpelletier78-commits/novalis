@@ -37,6 +37,9 @@ const EXTRA = `
 .rline .b{flex:1;min-width:0}
 .rline .t{font-weight:620;font-size:14px}
 .rline .s{font-size:12.5px;color:var(--muted);margin-top:1px}
+.paybtn{font-family:var(--sans);font-size:12px;font-weight:600;padding:6px 11px;border-radius:var(--r-sm);border:1px solid var(--line-strong);background:var(--card);color:var(--brand-600);cursor:pointer}
+.paybtn:hover{border-color:var(--brand)} .paybtn:disabled{opacity:.6;cursor:default}
+.paylink{font-size:12px;color:var(--muted)} .paylink a{color:var(--brand-600)}
 @media(max-width:640px){.drow,.cli{grid-template-columns:1fr}}
 `;
 
@@ -79,7 +82,7 @@ function renderDevis(d) {
   ${(d.recents && d.recents.length) ? `<div class="panel">
     <h3>Devis récents</h3>
     <div class="hint">Vos dernières soumissions déposées dans le poste de commande.</div>
-    ${d.recents.map(r => `<div class="rline"><div class="b"><div class="t">${esc(r.titre || 'Devis')}</div><div class="s">${esc(r.apercu || '')}</div>${r.lienClient ? `<div class="s">${r.statutClient === 'accepte' ? '✓ Accepté par le client · ' : r.statutClient === 'refuse' ? 'Décliné par le client · ' : ''}Lien client : <code style="font-family:ui-monospace,monospace;font-size:11px;background:var(--panel);padding:2px 6px;border-radius:5px;word-break:break-all">${esc(r.lienClient)}</code></div>` : ''}</div>${r.statutClient === 'accepte' ? '<span class="badge badge-ok">Accepté</span>' : statutBadge(r.statut)}</div>`).join('')}
+    ${d.recents.map(r => `<div class="rline"><div class="b"><div class="t">${esc(r.titre || 'Devis')}</div><div class="s">${esc(r.apercu || '')}</div>${r.lienClient ? `<div class="s">${r.statutClient === 'accepte' ? '✓ Accepté par le client · ' : r.statutClient === 'refuse' ? 'Décliné par le client · ' : ''}Lien client : <code style="font-family:ui-monospace,monospace;font-size:11px;background:var(--panel);padding:2px 6px;border-radius:5px;word-break:break-all">${esc(r.lienClient)}</code></div>` : ''}${d.stripeOn && r.montant_cents && r.cle ? `<div style="margin-top:6px"><button class="paybtn" data-montant="${r.montant_cents}" data-cle="${esc(r.cle)}" data-desc="${esc(r.titre || 'Devis')}">Demander le paiement</button> <span class="paylink"></span></div>` : ''}</div>${r.statutClient === 'accepte' ? '<span class="badge badge-ok">Accepté</span>' : statutBadge(r.statut)}</div>`).join('')}
   </div>` : ''}
   <div class="pagefoot">Une soumission, pas une facture. Taxes en sus. Valide 30 jours.</div>
 
@@ -97,6 +100,15 @@ function renderDevis(d) {
 function pass(){return localStorage.getItem('novalis_admin')||new URLSearchParams(location.search).get('pass')||'';}
 (function(){var p=new URLSearchParams(location.search).get('pass'); if(p) localStorage.setItem('novalis_admin',p);})();
 async function poste(url, body){return fetch(url,{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':pass()},body:JSON.stringify(body)});}
+document.querySelectorAll('.paybtn').forEach(function(btn){btn.addEventListener('click',function(){
+  var out=btn.parentNode.querySelector('.paylink'); btn.disabled=true; out.textContent=' création du lien…';
+  poste('/core/paiements',{source:SOURCE,cle:btn.getAttribute('data-cle'),description:btn.getAttribute('data-desc'),montant_cents:+btn.getAttribute('data-montant')})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j.ok&&j.url){out.innerHTML=' Lien : <a href="'+j.url+'" target="_blank" rel="noopener">payer</a> — <a href="#" class="cpl" data-u="'+j.url+'">copier</a>';
+        var c=out.querySelector('.cpl'); if(c)c.addEventListener('click',function(e){e.preventDefault();(navigator.clipboard?navigator.clipboard.writeText(j.url):Promise.reject()).then(function(){c.textContent='copié ✓';}).catch(function(){window.prompt('Lien :',j.url);});});}
+      else{out.textContent=' échec : '+((j&&j.raison)||'réessayez');btn.disabled=false;}
+    }).catch(function(){out.textContent=' échec réseau';btn.disabled=false;});
+});});
 var ov=document.getElementById('sheet-ov'),sh=document.getElementById('sheet');
 function sopen(){ov.classList.add('open');sh.classList.add('open');var i=document.getElementById('s-nom');if(i)i.focus();}
 function sclose(){ov.classList.remove('open');sh.classList.remove('open');}

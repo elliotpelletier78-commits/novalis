@@ -86,11 +86,14 @@ function creerDevis(db, { source, client, destinataire, nomCommerce, lignes } = 
   const d = construireDevis({ nomCommerce, client, lignes });
   const titre = `Devis pour ${client || 'un client'}`;
   const apercu = d.total_cents ? `Total ${dollars(d.total_cents)}${d.tout_chiffre ? '' : ' + postes sur devis'}` : 'Sur devis';
+  // Montant conservé seulement si le devis est ENTIÈREMENT chiffré (sinon NULL,
+  // on ne devine pas un total pour des postes « sur devis »).
+  const montant = d.tout_chiffre && d.total_cents ? d.total_cents : null;
   const info = db.prepare(
-    `INSERT INTO propositions (source, type, ref_type, ref_id, titre, apercu, brouillon, destinataire, priorite)
-     VALUES (?, 'devis', 'devis', NULL, ?, ?, ?, ?, 7)`
-  ).run(source, titre, apercu, d.texte, destinataire || null);
-  return { id: info.lastInsertRowid };
+    `INSERT INTO propositions (source, type, ref_type, ref_id, titre, apercu, brouillon, destinataire, priorite, montant_cents)
+     VALUES (?, 'devis', 'devis', NULL, ?, ?, ?, ?, 7, ?)`
+  ).run(source, titre, apercu, d.texte, destinataire || null, montant);
+  return { id: info.lastInsertRowid, montant_cents: montant };
 }
 
 // Sujet de courriel pour un devis (branché dans propositions.sujetPour via le serveur).
