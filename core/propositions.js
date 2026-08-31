@@ -289,11 +289,14 @@ function creerAvisPourLead(db, lead, cfg = {}) {
   if (!lead || !lead.id || !lead.source) return null;
   const brouillon = brouillonAvis(lead, cfg);
   const titre = `Demander un avis à ${lead.nom || 'un client'}`;
+  // Destinataire : le numéro si connu (→ demande par SMS, bien plus lue), sinon
+  // le courriel. Le lien d'avis est déjà dans le brouillon.
+  const dest = lead.telephone || lead.courriel || null;
   const info = db.prepare(
     `INSERT OR IGNORE INTO propositions
        (source, type, ref_type, ref_id, titre, apercu, brouillon, destinataire, priorite)
      VALUES (?, 'avis', 'lead', ?, ?, ?, ?, ?, 3)`
-  ).run(lead.source, lead.id, titre, 'Client satisfait — job gagné', brouillon, lead.courriel || null);
+  ).run(lead.source, lead.id, titre, 'Client satisfait — job gagné', brouillon, dest);
   return info.changes ? { id: info.lastInsertRowid } : null;
 }
 

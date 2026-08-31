@@ -3458,7 +3458,7 @@ app.post('/core/reception/lead/:id', adminOnly, coreReady, express.json({ limit:
   const statut = ['nouveau', 'contacte', 'gagne', 'perdu'].includes(b.statut) ? b.statut : null;
   if (!statut) return res.status(400).json({ error: 'statut invalide' });
   try {
-    const lead = db.prepare('SELECT id, source, nom, courriel, repondu_le FROM leads WHERE id = ?').get(id);
+    const lead = db.prepare('SELECT id, source, nom, courriel, telephone, repondu_le FROM leads WHERE id = ?').get(id);
     if (!lead) return res.status(404).json({ error: 'introuvable' });
     const marqueReponse = (statut !== 'nouveau' && !lead.repondu_le);
     const maintenant = new Date().toISOString().replace('T', ' ').slice(0, 19);
