@@ -4,7 +4,7 @@
 // chiffres alignés. Un clic ouvre la fiche : résumé + toute la chronologie
 // (messages, rendez-vous, devis) au même endroit. Rien d'inventé.
 
-const { esc, icon, page } = require('./ui');
+const { esc, jsInline, icon, page } = require('./ui');
 
 function dollars(cents) {
   return (Math.round((cents || 0) / 100)).toLocaleString('fr-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 });
@@ -251,7 +251,7 @@ function renderFiche(d) {
 
   const bodyScript = `function pass(){return localStorage.getItem('novalis_admin')||new URLSearchParams(location.search).get('pass')||'';}
 (function(){var p=new URLSearchParams(location.search).get('pass'); if(p) localStorage.setItem('novalis_admin',p);})();
-var CLE=${JSON.stringify(f.cle)}, SRC=${JSON.stringify(d.source)};
+var CLE=${jsInline(f.cle)}, SRC=${jsInline(d.source)};
 document.getElementById('d-save').addEventListener('click',function(){
   var b=this, msg=document.getElementById('d-msg'); b.disabled=true; msg.className='msg'; msg.textContent='Enregistrement…';
   fetch('/core/clients/dossier',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':pass()},body:JSON.stringify({
@@ -303,7 +303,7 @@ if(payAdd){ payAdd.addEventListener('click',function(){
   if(!desc||!(montant>=50)){pm.className='pmsg err';pm.textContent='Description et montant (≥ 0,50 $) requis.';return;}
   payAdd.disabled=true; pm.textContent='Création du lien…';
   fetch('/core/paiements',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':pass()},
-    body:JSON.stringify({source:SRC,cle:CLE,description:desc,montant_cents:montant,courriel:(${JSON.stringify(f.courriel || '')})||undefined})})
+    body:JSON.stringify({source:SRC,cle:CLE,description:desc,montant_cents:montant,courriel:(${jsInline(f.courriel || '')})||undefined})})
     .then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j};});})
     .then(function(x){ if(x.ok&&x.j.ok){location.reload();} else{pm.className='pmsg err';pm.textContent='Échec — '+((x.j&&x.j.raison)||'réessayez');} })
     .catch(function(){pm.className='pmsg err';pm.textContent='Échec — réseau';})
@@ -316,7 +316,7 @@ if(avAdd){ avAdd.addEventListener('click',function(){
   if(!texte){am.className='pmsg err';am.textContent='Écrivez l\\'avis reçu.';return;}
   avAdd.disabled=true; am.textContent='Enregistrement…';
   fetch('/core/avis',{method:'POST',headers:{'Content-Type':'application/json','x-admin-pass':pass()},
-    body:JSON.stringify({source:SRC,cle:CLE,auteur:${JSON.stringify(f.nom)},note:document.getElementById('av-note').value,provenance:'direct',texte:texte})})
+    body:JSON.stringify({source:SRC,cle:CLE,auteur:${jsInline(f.nom)},note:document.getElementById('av-note').value,provenance:'direct',texte:texte})})
     .then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j};});})
     .then(function(x){ if(x.ok&&x.j.ok){am.className='pmsg ok';am.textContent='Avis enregistré ✓ — gérez l\\'affichage dans « Avis ».';document.getElementById('av-texte').value='';}
       else{am.className='pmsg err';am.textContent='Échec — '+((x.j&&x.j.raison)||'réessayez');} })

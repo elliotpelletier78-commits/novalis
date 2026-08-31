@@ -11,6 +11,17 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// Sérialise une valeur pour l'injecter en SÉCURITÉ dans un <script> inline :
+// JSON.stringify n'échappe pas « < », donc une valeur contenant « </script> »
+// (ex. un nom saisi par un inconnu) casserait la balise. On neutralise « < > & »
+// et les séparateurs de ligne U+2028/2029. À utiliser partout où une donnée
+// non fiable entre dans du JS inline (jamais JSON.stringify nu).
+function jsInline(v) {
+  return JSON.stringify(v === undefined ? null : v)
+    .replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+}
+
 // Icônes ligne (SVG inline, jamais d'emoji). 20×20, stroke = couleur courante.
 const ICONS = {
   today: '<path d="M8 2v3M16 2v3M3.5 9h17M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v11A1.5 1.5 0 0 1 19 19.5H5A1.5 1.5 0 0 1 3.5 18V7A1.5 1.5 0 0 1 5 5.5Z"/>',
@@ -392,4 +403,4 @@ function statutBadge(s) {
   return `<span class="badge ${c}">${esc(l)}</span>`;
 }
 
-module.exports = { esc, icon, page, NAV, UI_CSS, statutBadge };
+module.exports = { esc, jsInline, icon, page, NAV, UI_CSS, statutBadge };

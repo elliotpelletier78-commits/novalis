@@ -2659,6 +2659,7 @@ app.get('/core/clients/photo/:id', adminOnly, coreReady, (req, res) => {
   if (!p) return res.status(404).type('text/plain').send('Introuvable');
   res.setHeader('Cache-Control', 'private, max-age=3600');
   res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff'); // pas de reniflage MIME (repli sans sharp)
   res.type(p.type || 'image/jpeg').send(p.data);
 });
 app.post('/core/clients/photo/:id/suppr', adminOnly, coreReady, express.json({ limit: '2kb' }), (req, res) => {
