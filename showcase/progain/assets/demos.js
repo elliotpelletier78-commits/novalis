@@ -105,6 +105,22 @@
   }
   if (btnC) btnC.onclick = coachRun;
 
+  /* ── Démarrage automatique à l'entrée dans l'écran ──────────────
+     Une démo au repos affichait une boîte vide et des zéros : la
+     première impression était « pas fini ». Elle se joue maintenant
+     d'elle-même dès qu'elle est visible, une seule fois — on voit le
+     produit travailler, avec ses vraies valeurs. Le bouton reste là
+     pour la rejouer.                                                */
+  if (btnC && typeof IntersectionObserver === 'function') {
+    const cible = document.getElementById('plate') || btnC;
+    const io = new IntersectionObserver((entrees) => {
+      for (const e of entrees) {
+        if (e.isIntersecting && !coachRan && !coachBusy) { io.disconnect(); coachRun(); }
+      }
+    }, { threshold: 0.35 });
+    io.observe(cible);
+  }
+
   /* ── Budget restant : le curseur qui pilote un état en direct ──
      Même principe que le choc de scénario chez Markets, appliqué à
      Coach — un seul curseur, plusieurs sorties qui réagissent.       */
