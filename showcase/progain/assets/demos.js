@@ -60,6 +60,10 @@
     const panel = document.getElementById('p-' + t.dataset.tab);
     if (panel) panel.classList.add('on');
     if (t.dataset.tab === 'markets') drawVol(true); // le canvas doit se dimensionner une fois visible
+    /* Un onglet ouvert ne doit jamais montrer un panneau vide (« Aucune
+       analyse effectuée », zéros) : on joue sa démo une seule fois. */
+    if (t.dataset.tab === 'sentinel' && !snRan && !snBusy) snRun();
+    if (t.dataset.tab === 'coach' && !coachRan && !coachBusy) coachRun();
   });
 
   /* ════ PG—01 · Coach ═══════════════════════════════════════════
