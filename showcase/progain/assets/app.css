@@ -202,6 +202,17 @@ section{position:relative}
 .prod:hover{transform:translateY(-6px);border-color:var(--hair-2);box-shadow:0 24px 52px -24px rgba(24,27,20,.24)}
 .prod-glow{position:absolute;top:-40%;right:-30%;width:80%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,var(--accSoft) 0%,transparent 70%);opacity:0;transition:opacity .5s;pointer-events:none}
 .prod:hover .prod-glow{opacity:1}
+/* Visuel produit : une VRAIE capture de la démo, en tête de carte. On annule
+   le padding de .prod pour un plein-cadre, et on laisse le filet d'accent
+   (::before) passer par-dessus. Une carte doit montrer le produit, pas un
+   bloc de texte. */
+.prod-shot{margin:-38px -32px 26px;overflow:hidden;line-height:0;border-bottom:1px solid var(--hair);background:var(--panel)}
+.prod-shot img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;object-position:center top;transition:transform .6s var(--ease)}
+.prod:hover .prod-shot img{transform:scale(1.04)}
+/* Quand la vraie capture est là, le calque décoratif de survol devient du
+   bruit : on l'efface plutôt que de superposer deux visuels. */
+.prod:has(.prod-shot) .prod-preview{display:none}
+@media(max-width:640px){.prod-shot{margin:-30px -24px 22px}}
 .prod-code{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.22em;color:var(--acc);margin-bottom:22px}
 .prod-name{font-family:'Fraunces',serif;font-weight:500;font-size:27px;letter-spacing:-.01em;margin-bottom:6px}
 .prod-tag{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--acc);margin-bottom:18px}
